@@ -1,0 +1,15 @@
+// Relay — Prisma schema.
+//
+// Datasource only. The data model (master doc §25) lands in its own task, so
+// the first migration is generated from an empty schema and every later
+// migration is a reviewable delta.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}

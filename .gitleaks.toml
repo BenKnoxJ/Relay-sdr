@@ -1,0 +1,24 @@
+# gitleaks configuration.
+#
+# The default rule set, plus one narrow allowlist. Everything else is stock:
+# `useDefault = true` means new upstream rules arrive without an edit here.
+[extend]
+useDefault = true
+
+# `docs/environment.md` is the environment template — a list of variable names
+# with empty values, which is exactly the shape the generic-api-key rule looks
+# for. It matched `TAVILY_API_KEY=""` and swept up the newline and the next
+# variable name as the "secret" (entropy 3.61, all of it punctuation and
+# capitals). An assignment whose value is the empty string cannot be a secret,
+# so that is what this allows — not the file.
+#
+# A real value in that file still fails the scan: the regex requires `""`
+# immediately after the `=`. Proved by sabotage before this file was committed.
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+description = "Empty-valued assignments in the environment template are placeholders, not secrets."
+condition = "AND"
+paths = ['''docs/environment\.md''']
+regexTarget = "match"
+regexes = ['''[A-Z0-9_]+\s*=\s*""''']

@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Least privilege: nothing here needs to write to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: relay
+          POSTGRES_PASSWORD: relay
+          POSTGRES_DB: relay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U relay -d relay_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://relay:relay@127.0.0.1:5432/relay_test
+      DIRECT_URL: postgresql://relay:relay@127.0.0.1:5432/relay_test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # gitleaks scans a commit range, so the range's commits must exist.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # No migrations exist yet (the schema has no models), so this is a no-op
+      # today. It is here from the start so the CI database is actually the
+      # shape the tests expect the moment the data model lands.
+      - name: Apply migrations to the CI database
+        run: npx prisma migrate deploy
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+      # The app/worker boundary (master doc §18) is only real if the worker runs
+      # without the app's environment. `env -i` strips everything, so a Next or
+      # Clerk dependency cannot hide behind an ambient variable and pass here.
+      - name: Worker smoke (scrubbed environment)
+        run: |
+          set -euo pipefail
+          env -i \
+            PATH="$PATH" \
+            HOME="$HOME" \
+            DATABASE_URL="$DATABASE_URL" \
+            DIRECT_URL="$DIRECT_URL" \
+            npm run worker -- --once
+
+      - name: Scan for secrets (gitleaks)
+        env:
+          # Pinned release + pinned digest of the release asset. Verified
+          # against the published gitleaks_8.30.1_checksums.txt on 2026-08-25.
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+
+          # Scan what this event introduces.
+          #
+          # --no-merges: a merge of the base branch into this one contributes no
+          # new content to base..head, and scanning it re-surfaces base-branch
+          # history as fresh findings. Trade-off: content introduced ONLY in a
+          # merge commit's conflict resolution is not scanned.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+
+          # The repository's first push reports an all-zero base: there is no
+          # "before". Scanning every commit reachable from HEAD is a superset
+          # of the range we would have scanned, so this widens rather than
+          # narrows and the fail-closed rule below is not weakened.
+          ZERO="0000000000000000000000000000000000000000"
+          if [ "$BASE" = "$ZERO" ]; then
+            echo "Base is all-zero (initial push / new branch): scanning all commits reachable from ${HEAD}."
+            "$RUNNER_TEMP/gitleaks" git \
+              --log-opts="--no-merges ${HEAD}" \
+              --config .gitleaks.toml \
+              --redact --no-banner --verbose .
+            exit 0
+          fi
+
+          # A new branch / force-push reports an unreachable base.
+          # On `push` we FAIL CLOSED: `main` accepts direct pushes that bypass
+          # PR review, so this gate is the only pre-merge check on that path and
+          # a clean run over content it never scanned is worse than no run.
+          # On `pull_request` the merge base always exists, so an unreachable
+          # base is an infrastructure oddity and narrowing is the right call.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              echo "::error::gitleaks base commit ${BASE} is unreachable on a push event. Failing closed rather than narrowing the scan. Re-push once history is consistent, or re-run this job."
+              exit 1
+            fi
+            echo "::warning::gitleaks base commit ${BASE} is unreachable (new branch); narrowing the scan to the head commit only."
+            BASE="${HEAD}~1"
+            git cat-file -e "${BASE}^{commit}" 2>/dev/null || BASE="${HEAD}"
+          fi
+
+          echo "Scanning ${BASE}..${HEAD}"
+          if [ "$BASE" = "$HEAD" ]; then
+            LOG_OPTS="--no-merges -1 ${HEAD}"
+          else
+            LOG_OPTS="--no-merges ${BASE}..${HEAD}"
+          fi
+
+          # --redact: a finding must not put the secret itself into the run log.
+          # --config: explicit rather than relying on auto-discovery, so a
+          # rename of .gitleaks.toml fails loudly instead of silently scanning
+          # with the stock rules and a different allowlist.
+          "$RUNNER_TEMP/gitleaks" git \
+            --log-opts="${LOG_OPTS}" \
+            --config .gitleaks.toml \
+            --redact \
+            --no-banner \
+            --verbose \
+            .
+
+      # Blocking. `continue-on-error` made this step decorative, which is the
+      # wrong shape for a repository that is about to hold third-party
+      # credentials. The gate is on the runtime tree (`--omit=dev`) at high and
+      # above; anything it flags is either fixed or written down in
+      # .audit-allowlist.json with a reason and an expiry date.
+      - name: Dependency audit
+        run: npm run audit

@@ -162,6 +162,10 @@ jobs:
             --verbose \
             .
 
-      - name: Dependency audit (non-blocking)
-        continue-on-error: true
-        run: npm audit --audit-level=high
+      # Blocking. `continue-on-error` made this step decorative, which is the
+      # wrong shape for a repository that is about to hold third-party
+      # credentials. The gate is on the runtime tree (`--omit=dev`) at high and
+      # above; anything it flags is either fixed or written down in
+      # .audit-allowlist.json with a reason and an expiry date.
+      - name: Dependency audit
+        run: npm run audit

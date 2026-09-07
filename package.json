@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test",
+    "audit": "node scripts/audit-check.mjs",
     "proofs": "vitest run --project node -t @proof",
     "worker": "tsx src/worker/main.ts",
     "worker:build": "tsup",

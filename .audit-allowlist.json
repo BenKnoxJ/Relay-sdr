@@ -1,0 +1,50 @@
+{
+  "$comment": [
+    "Advisories in the RUNTIME dependency tree (npm audit --omit=dev) that CI is",
+    "knowingly carrying. Read by scripts/audit-check.mjs, which fails the build on",
+    "any high or critical advisory that is not listed here, and on any entry whose",
+    "expiry has passed. An entry is a decision with a date on it, not a mute button.",
+    "",
+    "Every entry below needs a major-version bump that Phase 1 excludes (D1 pins the",
+    "framework majors). Re-test on the review date: if the fix has landed in a patch",
+    "or minor, take it and delete the entry."
+  ],
+  "advisories": [
+    {
+      "id": "1145093",
+      "package": "deepmerge-ts",
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "severity": "high",
+      "path": "@prisma/client > prisma > @prisma/config > deepmerge-ts",
+      "reason": "Reachable only from the Prisma CLI's config loader, which reads prisma.config.ts at build and migrate time. It never sees request data. The fix is a prisma major, excluded by the D1 pins.",
+      "expires": "2026-12-07"
+    },
+    {
+      "id": "1115356",
+      "package": "effect",
+      "title": "Effect AsyncLocalStorage context lost/contaminated inside Effect fibers under concurrent load with RPC",
+      "severity": "high",
+      "path": "@prisma/client > prisma > @prisma/config > effect",
+      "reason": "Same path as the entry above: the Prisma CLI, not the request path. Relay does not use Effect or its RPC layer. The fix is a prisma major, excluded by the D1 pins.",
+      "expires": "2026-12-07"
+    },
+    {
+      "id": "1124252",
+      "package": "postcss",
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "severity": "high",
+      "path": "next > postcss",
+      "reason": "Next pins its own postcss and uses it to compile this repository's CSS at build time. Exploiting it requires attacker-controlled CSS in the build, which would already mean an attacker had commit access. The fix is a Next major, excluded by the D1 pins.",
+      "expires": "2026-12-07"
+    },
+    {
+      "id": "1139510",
+      "package": "postcss",
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "severity": "high",
+      "path": "next > postcss",
+      "reason": "Same package and same reasoning as the entry above: build-time CSS only, and the attacker would need to control the CSS in the repository.",
+      "expires": "2026-12-07"
+    }
+  ]
+}

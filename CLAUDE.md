@@ -44,6 +44,7 @@ tests/ui/                    vitest `ui` project (jsdom)
 docker-compose.yml           local Postgres 16 on 127.0.0.1:5435
 .github/workflows/ci.yml     typecheck, lint, build, test, worker smoke, gitleaks, audit
 .audit-allowlist.json        runtime advisories CI carries, each with a reason and expiry
+.gitleaks.toml               default rules, plus one allowlist for empty-valued env placeholders
 ```
 
 **The app/worker boundary is load-bearing** (master doc §18). The app serves screens and tRPC; the worker runs jobs and agent runs; they speak only through Postgres. Nothing under `src/worker/**` or `src/lib/**` may import `next`, `@clerk/*`, `@/app/*` or `@/server/*`. That last one is what keeps the rule transitive: anything both sides need has to live in `src/lib`, which is itself checked. ESLint blocks the imports — static, dynamic `import()` and `require`, bare (`@/server`) and sub-path, at any relative depth and in any spelling (`./../app/x`, `../lib/../app/x`), in `.ts` and `.tsx` alike. A dynamic import in these layers must take a plain string literal, or the check cannot read it. `node:module` is banned there too, because `createRequire` reopens everything else. CI runs the worker under `env -i` so an ambient variable cannot hide a violation, and `tests/lint/boundary.test.ts` lints fixture files through the repo's own ESLint so each escape route stays closed.

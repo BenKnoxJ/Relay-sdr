@@ -127,6 +127,7 @@ jobs:
             echo "Base is all-zero (initial push / new branch): scanning all commits reachable from ${HEAD}."
             "$RUNNER_TEMP/gitleaks" git \
               --log-opts="--no-merges ${HEAD}" \
+              --config .gitleaks.toml \
               --redact --no-banner --verbose .
             exit 0
           fi
@@ -155,8 +156,12 @@ jobs:
           fi
 
           # --redact: a finding must not put the secret itself into the run log.
+          # --config: explicit rather than relying on auto-discovery, so a
+          # rename of .gitleaks.toml fails loudly instead of silently scanning
+          # with the stock rules and a different allowlist.
           "$RUNNER_TEMP/gitleaks" git \
             --log-opts="${LOG_OPTS}" \
+            --config .gitleaks.toml \
             --redact \
             --no-banner \
             --verbose \

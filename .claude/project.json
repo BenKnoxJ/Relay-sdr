@@ -1,0 +1,21 @@
+{
+  "owner": "benknoxj",
+  "githubOrg": "BenKnoxJ",
+  "gitAuthor": {
+    "name": "Ben Knox-Johnston",
+    "email": "benknoxj@outlook.com"
+  },
+  "ticketSystem": "github-issues",
+  "build": {
+    "packageManager": "npm",
+    "workingDir": "./",
+    "lint": "npm run lint",
+    "build": "npm run build",
+    "test": "npm run test"
+  },
+  "knowledge": {
+    "wikiTopic": true,
+    "qmdCollection": true,
+    "vectorAware": true
+  }
+}

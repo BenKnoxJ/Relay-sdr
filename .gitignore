@@ -1,0 +1,29 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+
+# production / build output
+/build
+/dist
+
+# testing
+/coverage
+
+# env
+.env
+.env.*
+!.env.example
+
+# agent state
+.claude/active-feature.json
+
+# misc
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*

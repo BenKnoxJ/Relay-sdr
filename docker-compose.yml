@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: relay-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: relay
+      POSTGRES_DB: relay
+    # Bound to loopback only: this database is never reachable from the network.
+    # 5433 and 5434 are taken by other products on this VPS.
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - relay-pg-data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  relay-pg-data:

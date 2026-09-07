@@ -35,7 +35,7 @@ src/server/
   api/trpc.ts                tRPC context, router and procedure builders
   api/root.ts                the app router — every feature router is registered here
 src/lib/                     framework-free code, shared by the app and the worker
-  db.ts                      the only `new PrismaClient()` in the codebase
+  db.ts                      the only `new PrismaClient()` in the repository
   copy/                      every on-screen string
 src/worker/main.ts           the worker entry point — Postgres only, no Next, no Clerk
 prisma/schema.prisma         datasource; the data model (master doc §25) lands in its own task
@@ -45,9 +45,9 @@ docker-compose.yml           local Postgres 16 on 127.0.0.1:5435
 .github/workflows/ci.yml     typecheck, lint, build, test, worker smoke, gitleaks
 ```
 
-**The app/worker boundary is load-bearing** (master doc §18). The app serves screens and tRPC; the worker runs jobs and agent runs; they speak only through Postgres. Nothing under `src/worker/**` or `src/lib/**` may import `next`, `@clerk/*`, `@/app/*` or `@/server/*`. That last one is what keeps the rule transitive: anything both sides need has to live in `src/lib`, which is itself checked. ESLint blocks the imports, and CI runs the worker under `env -i` so an ambient variable cannot hide a violation.
+**The app/worker boundary is load-bearing** (master doc §18). The app serves screens and tRPC; the worker runs jobs and agent runs; they speak only through Postgres. Nothing under `src/worker/**` or `src/lib/**` may import `next`, `@clerk/*`, `@/app/*` or `@/server/*`. That last one is what keeps the rule transitive: anything both sides need has to live in `src/lib`, which is itself checked. ESLint blocks the imports — static, dynamic `import()` and `require`, at any relative depth, in `.ts` and `.tsx` alike; `createRequire` is banned outright in those layers because it splits the call from the specifier. CI runs the worker under `env -i` so an ambient variable cannot hide a violation, and `tests/lint/boundary.test.ts` lints fixture files through the repo's own ESLint so each escape route stays closed.
 
-**Nothing is deleted; states change** (master doc §25, rule 1). ESLint blocks Prisma `.delete()` and `.deleteMany()` calls everywhere except `src/lib/jobs/retention.ts`, which writes an Event. `Map.delete` and friends are untouched.
+**Nothing is deleted; states change** (master doc §25, rule 1). ESLint blocks Prisma `.delete()` and `.deleteMany()` calls everywhere except `src/lib/jobs/retention.ts`, which writes an Event. The rule matches the call *shape* (`<something>.<model>.delete(`), not a list of client names, so an aliased client (`const client = ctx.prisma; client.person.delete()`) is caught too. `Map.delete` and friends are untouched: the receiver there is an identifier or a `new` expression, not a member access. Two things it does **not** catch, both by design: a destructured *delegate* (`const { person } = ctx.prisma; person.delete()`), and a model named `headers`, `searchParams`, `cookies` or `formData` — those four are exempt so that `req.headers.delete()` lints clean, so do not name a model one of them. Closing either gap needs typescript-eslint with type information, which is the upgrade path if a real delete ever slips through. See the comment block in `eslint.config.mjs` for the full reasoning. A Map or Set held on a field is a false positive and takes a one-line `eslint-disable`; `tests/lint/deleteBan.test.ts` pins both what fires and what stays quiet.
 
 ## Commands
 

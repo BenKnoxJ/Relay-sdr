@@ -76,6 +76,54 @@ describe("app/worker boundary rule", () => {
     }
   });
 
+  it("@proof blocks the bare aliases, not just their sub-paths", async () => {
+    // A barrel at src/server/index.ts is reachable as plain `@/server`.
+    for (const specifier of ["@/app", "@/server"]) {
+      const findings = await lintFixture(
+        "src/lib/x.ts",
+        `import thing from "${specifier}";\nexport const value = thing;\n`,
+      );
+
+      expect(findingsFor(findings, RULE), specifier).toHaveLength(1);
+    }
+  });
+
+  it("@proof blocks non-canonical relative escapes", async () => {
+    // Both of these resolve to src/app/page from src/lib/a/x.ts.
+    for (const specifier of ["./../app/page", "../lib/../app/page"]) {
+      const findings = await lintFixture(
+        "src/lib/a/x.ts",
+        `import thing from "${specifier}";\nexport const value = thing;\n`,
+      );
+
+      expect(findingsFor(findings, RULE), specifier).toHaveLength(1);
+    }
+  });
+
+  it("@proof blocks createRequire through a namespace import as well as bare", async () => {
+    for (const body of [
+      'import { createRequire } from "node:module";\nexport const next = createRequire(import.meta.url)("next");',
+      'import * as mod from "node:module";\nexport const next = mod.createRequire(import.meta.url)("next");',
+    ]) {
+      const findings = await lintFixture("src/worker/x.ts", `${body}\n`);
+
+      // Two findings: the banned node:module import and the banned call.
+      expect(findingsFor(findings, "no-restricted-syntax"), body).toHaveLength(1);
+      expect(findingsFor(findings, RULE), body).toHaveLength(1);
+    }
+  });
+
+  it("@proof blocks a dynamic import whose specifier is not a plain literal", async () => {
+    for (const source of ["`next/headers`", "specifier", '"next/" + "headers"']) {
+      const findings = await lintFixture(
+        "src/lib/x.ts",
+        `declare const specifier: string;\nexport async function run() {\n  return import(${source});\n}\n`,
+      );
+
+      expect(findingsFor(findings, "no-restricted-syntax"), source).toHaveLength(1);
+    }
+  });
+
   it("stays quiet on imports that do not cross the boundary", async () => {
     for (const [file, specifier] of [
       ["src/lib/a/b/c/x.ts", "../../../db"],
@@ -89,6 +137,10 @@ describe("app/worker boundary rule", () => {
       ["src/lib/x.ts", "@/lib/app/config"],
       ["src/lib/x.ts", "@trpc/server/adapters/fetch"],
       ["src/worker/a/x.ts", "../shared/queue"],
+      // `..` present but not reaching app/server, and app/server present but
+      // no `..` — the two halves the escape regex requires together.
+      ["src/lib/a/x.ts", "../applications/list"],
+      ["src/lib/x.ts", "./apps/list"],
     ] as const) {
       const findings = await lintFixture(
         file,

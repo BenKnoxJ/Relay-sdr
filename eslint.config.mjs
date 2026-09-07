@@ -17,18 +17,24 @@ const compat = new FlatCompat({
 const BOUNDARY_MESSAGE =
   "The worker and lib layers must run without Next or Clerk (master doc §18). Shared code belongs in src/lib; anything request-shaped belongs in src/app or src/server.";
 
-// The relative escape, at any depth. An enumerated glob list stopped at
-// whatever depth someone wrote down (`../app/*`, `../../app/*`), and the
-// obvious widening — `**/app/**` — is too blunt: it also blocks
-// `./server/tokens`, `@/lib/server/tokens` and `@trpc/server/adapters/fetch`,
-// none of which cross anything. Anchoring on a leading run of `../` matches
-// escapes and nothing else.
-const RELATIVE_ESCAPE = String.raw`^\.\.\/(\.\.\/)*(app|server)(\/|$)`;
+// The relative escape, at any depth and in any spelling. An enumerated glob
+// list stopped at whatever depth someone wrote down (`../app/*`,
+// `../../app/*`), and the obvious widening — `**/app/**` — is too blunt: it
+// also blocks `./server/tokens`, `@/lib/server/tokens` and
+// `@trpc/server/adapters/fetch`, none of which cross anything.
+//
+// So: a relative specifier (the lookahead) that contains a `..` segment and
+// reaches an `app` or `server` segment after it. That covers `../app/x`,
+// `../../../app/x`, `./../app/x` and `../lib/../app/x` alike, and leaves
+// `./server/x` and `../db` alone. One deliberate false positive remains: if a
+// `src/lib/server/` directory is ever added, a sibling reaching it as
+// `../server/x` is indistinguishable from an escape — import it as
+// `@/lib/server/x`.
+const RELATIVE_ESCAPE = String.raw`^(?=\.)(?:[^/]+\/)*\.\.\/(?:[^/]+\/)*(app|server)(\/|$)`;
 
 // The same set as an esquery attribute matcher, for the node types
 // `no-restricted-imports` does not visit.
-const BOUNDARY_SPECIFIER =
-  String.raw`/^(next$|next\/|@clerk\/|@\/app\/|@\/server\/|\.\.\/(\.\.\/)*(app|server)(\/|$))/`;
+const BOUNDARY_SPECIFIER = String.raw`/^(next$|next\/|@clerk\/|@\/(app|server)($|\/)|(?=\.)([^/]+\/)*\.\.\/([^/]+\/)*(app|server)(\/|$))/`;
 
 // `no-restricted-imports` only listens to static import/export nodes, so
 // `await import("@clerk/nextjs")` and `createRequire(import.meta.url)("next")`
@@ -40,15 +46,26 @@ const BOUNDARY_DYNAMIC = [
     message: BOUNDARY_MESSAGE,
   },
   {
+    // A specifier that is not a plain string literal cannot be checked at all:
+    // import(`next/headers`) and `import(someVariable)` both walk past the
+    // rule above. Requiring a literal is what makes that check total, and
+    // these layers have no need for a computed module path.
+    selector: 'ImportExpression:not([source.type="Literal"])',
+    message: `A dynamic import in the worker and lib layers must take a plain string literal, so the boundary check can read it. ${BOUNDARY_MESSAGE}`,
+  },
+  {
     selector: `CallExpression[callee.name="require"][arguments.0.value=${BOUNDARY_SPECIFIER}]`,
     message: BOUNDARY_MESSAGE,
   },
   {
-    // `createRequire` is banned outright rather than pattern-matched on its
-    // argument: `const req = createRequire(import.meta.url); req("next")`
-    // splits the call from the specifier across two statements and no selector
-    // can follow that. There is no legitimate use for it in these layers.
-    selector: 'CallExpression[callee.name="createRequire"]',
+    // `createRequire` is stopped at the call in both spellings — bare and
+    // through a namespace (`mod.createRequire(...)`) — because matching its
+    // argument is not enough: `const req = createRequire(url); req("next")`
+    // splits the call from the specifier across two statements. The import of
+    // `node:module` is banned as well (see the group below), which is the part
+    // that actually closes it: there is no other route to `createRequire`.
+    selector:
+      'CallExpression[callee.name="createRequire"], CallExpression[callee.property.name="createRequire"]',
     message: `createRequire is not available to the worker and lib layers: it reopens the boundary that no-restricted-imports closes. ${BOUNDARY_MESSAGE}`,
   },
 ];
@@ -73,7 +90,9 @@ const BOUNDARY_DYNAMIC = [
 // `params` — are deliberately NOT exempt; a Map held on a field with one of
 // those names is a false positive and takes a one-line `eslint-disable`, which
 // is visible in review. False positives are cheap here and false negatives are
-// not.
+// not, which is also why the selector matches the member access itself rather
+// than only a call: `queueMicrotask(p.person.delete)` hands the same capability
+// to someone else and is worth a look.
 //
 // This is a name-shape heuristic, not a type-aware rule. It does not see a
 // destructured *delegate* (`const { person } = ctx.prisma; person.delete()`),
@@ -82,12 +101,20 @@ const BOUNDARY_DYNAMIC = [
 // which cannot be fooled by naming at all; that is out of scope for Phase 1 —
 // type-aware linting roughly triples lint time and there is no data model yet
 // for it to reason about.
+const DELETE_MESSAGE =
+  "Relay does not delete rows; states change (master doc §25, rule 1). The only exception is src/lib/jobs/retention.ts, which writes an Event. If this is a Map or Set and not Prisma, disable this rule on the line and say why.";
+
+const BUILTIN_RECEIVERS = "^(headers|searchParams|cookies|formData)$";
+
 const DELETE_BAN = [
   {
-    selector:
-      'CallExpression > MemberExpression[property.name=/^(delete|deleteMany)$/][object.type="MemberExpression"]:not([object.property.name=/^(headers|searchParams|cookies|formData)$/])',
-    message:
-      "Relay does not delete rows; states change (master doc §25, rule 1). The only exception is src/lib/jobs/retention.ts, which writes an Event. If this is a Map or Set and not Prisma, disable this rule on the line and say why.",
+    selector: `MemberExpression[computed=false][property.name=/^(delete|deleteMany)$/][object.type="MemberExpression"]:not([object.property.name=/${BUILTIN_RECEIVERS}/])`,
+    message: DELETE_MESSAGE,
+  },
+  {
+    // `p.person["delete"]({})` is the same call with the property in a string.
+    selector: `MemberExpression[computed=true][property.value=/^(delete|deleteMany)$/][object.type="MemberExpression"]:not([object.property.name=/${BUILTIN_RECEIVERS}/])`,
+    message: DELETE_MESSAGE,
   },
 ];
 
@@ -105,7 +132,7 @@ const config = [
   // block below must carry every `no-restricted-syntax` selector that applies
   // to its files, and the blocks must stay in this order. Splitting the delete
   // ban and the boundary into two independent blocks would silently drop
-  // whichever one lost the last-write.
+  // whichever one lost the last write.
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
@@ -121,7 +148,21 @@ const config = [
         {
           patterns: [
             {
-              group: ["next", "next/*", "@clerk/*", "@/app/*", "@/server/*"],
+              group: [
+                "next",
+                "next/*",
+                "@clerk/*",
+                // Bare and sub-path both: a barrel at `src/server/index.ts`
+                // would otherwise be reachable as plain `@/server`.
+                "@/app",
+                "@/app/*",
+                "@/server",
+                "@/server/*",
+                // The only route to `createRequire`, which reopens everything
+                // above. Banned at the import, not just at the call site.
+                "node:module",
+                "module",
+              ],
               message: BOUNDARY_MESSAGE,
             },
             {

@@ -50,6 +50,25 @@ describe("Prisma delete ban", () => {
     }
   });
 
+  it("@proof catches a computed property access", async () => {
+    const findings = await lintFixture(
+      "src/lib/x.ts",
+      'declare const p: any;\nexport function run() {\n  p.person["delete"]({});\n}\n',
+    );
+
+    expect(findingsFor(findings, RULE)).toHaveLength(1);
+  });
+
+  it("@proof catches the delete being handed to something else, not only called", async () => {
+    // Passing the delegate method on is the same capability with an extra hop.
+    const findings = await lintFixture(
+      "src/lib/x.ts",
+      "declare const p: any;\nexport function run() {\n  queueMicrotask(p.person.delete);\n}\n",
+    );
+
+    expect(findingsFor(findings, RULE)).toHaveLength(1);
+  });
+
   it("stays quiet on the standard library", async () => {
     const findings = await lintFixture(
       "src/lib/x.ts",

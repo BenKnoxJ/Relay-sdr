@@ -49,6 +49,22 @@ FIRECRAWL_API_KEY=""
 
 ## Notes
 
+- **`src/lib/env.ts` is the only thing that reads `process.env`.** It validates
+  the whole list above at boot with zod and throws naming the offending
+  variable, so a missing or misshapen value stops the process rather than
+  surfacing as an `undefined` three screens later. Call `env()`; never
+  `process.env`. An empty value (`TOKEN_ENC_KEY=""`, as this template ships it)
+  counts as unset.
+- **`DEV_USER_EMAIL` cannot be set in production.** It signs every request in as
+  one rep with no credential, so `NODE_ENV=production` plus a value here is a
+  refusal to start, not a warning.
+- **`TOKEN_ENC_KEY` is required once `INTEGRATIONS=live`,** and must be 32
+  random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
+  stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`
+  it may be empty.
+- **`NODE_ENV`** is read as well (`development` | `test` | `production`,
+  defaulting to `development`). The runtime sets it; it is not in the block
+  above because it is not yours to write in a local `.env`.
 - **Tests never read a local env file.** `tests/setup.ts` defaults
   `DATABASE_URL` to the `relay_test` database and refuses to start against any
   database whose name does not end in `_test`.

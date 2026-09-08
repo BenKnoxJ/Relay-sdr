@@ -11,9 +11,14 @@
  * claim/lease loop lands in its own task.
  */
 import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
 
 async function main(): Promise<void> {
   const once = process.argv.slice(2).includes("--once");
+  // The worker reads configuration the same way the app does. Under `env -i`
+  // this is also the proof that the whole schema is satisfiable from the two
+  // database variables alone.
+  const { INTEGRATIONS } = env();
 
   await prisma.$queryRaw`SELECT 1`;
   console.log(
@@ -22,6 +27,7 @@ async function main(): Promise<void> {
       component: "worker",
       event: "started",
       mode: once ? "once" : "loop",
+      integrations: INTEGRATIONS,
       db: "ok",
     }),
   );

@@ -33,6 +33,10 @@ async function main(): Promise<void> {
   const { INTEGRATIONS } = env();
   ({ prisma } = await import("@/lib/db"));
 
+  // The same liveness probe as the health route: `SELECT 1` is the worker
+  // proving it can reach Postgres before it claims to have started, not a
+  // write.
+  // eslint-disable-next-line no-restricted-syntax
   await prisma.$queryRaw`SELECT 1`;
   console.log(
     JSON.stringify({

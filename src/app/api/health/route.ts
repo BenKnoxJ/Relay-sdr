@@ -11,6 +11,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
+    // A liveness probe, not a write: `SELECT 1` reads nothing and changes
+    // nothing, so it has no state change for `mutate` to record an Event
+    // against.
+    // eslint-disable-next-line no-restricted-syntax
     await prisma.$queryRaw`SELECT 1`;
     return NextResponse.json({ db: "ok" });
   } catch (error: unknown) {

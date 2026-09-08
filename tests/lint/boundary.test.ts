@@ -49,6 +49,38 @@ describe("app/worker boundary rule", () => {
     }
   });
 
+  /**
+   * Task 8 puts Clerk in the repository for the first time, under `src/server`
+   * and `src/app`. The rule that keeps it there is only worth having if it is
+   * checked from the lib side as well as the worker side: `src/lib` is where
+   * the worker's imports come from, so a Clerk import that lands there crosses
+   * the boundary transitively without ever naming `src/worker`.
+   */
+  it("@proof blocks Clerk in the lib layer, not only in the worker", async () => {
+    for (const [file, specifier] of [
+      ["src/lib/auth.ts", "@clerk/nextjs"],
+      ["src/lib/auth.ts", "@clerk/nextjs/server"],
+      ["src/lib/repo/users.ts", "@clerk/backend"],
+      ["src/lib/copy/auth.ts", "@clerk/shared"],
+    ] as const) {
+      const findings = await lintFixture(
+        file,
+        `import thing from "${specifier}";\nexport const value = thing;\n`,
+      );
+
+      expect(findingsFor(findings, RULE), `${file} -> ${specifier}`).toHaveLength(1);
+    }
+  });
+
+  it("does not restrict Clerk in the server layer, which is where sign-in lives", async () => {
+    const findings = await lintFixture(
+      "src/server/auth/session.ts",
+      'import { auth } from "@clerk/nextjs/server";\nexport const read = auth;\n',
+    );
+
+    expect(findingsFor(findings, RULE)).toHaveLength(0);
+  });
+
   it("@proof applies to .tsx as well as .ts", async () => {
     const findings = await lintFixture(
       "src/lib/ui/Thing.tsx",

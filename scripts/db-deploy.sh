@@ -7,6 +7,10 @@
 # to run against a local database unless the environment says, explicitly, that
 # it is a development or test one.
 #
+# "Local" is decided by shape, not by a list of spellings:
+# **production migrations go to a named host, never an address.** See
+# classify_url below for what that admits and why the list came out.
+#
 # The accident it exists to stop is quiet. A shell that has been doing local
 # work still exports the Docker connection string; the production migration
 # step is run in that shell; Prisma connects to `relay` on 127.0.0.1, finds the
@@ -99,12 +103,36 @@ export DATABASE_URL DIRECT_URL
 
 # "local <host>", "remote <host>" or "unparseable", for one connection string.
 #
+# The rule, stated once: **production migrations go to a named host, never an
+# address.** A connection string is "remote" only if its host is a DNS name —
+# two or more labels of `[a-z0-9-]`, at least one of them containing a letter,
+# with a top-level label that starts with one — and is not in a
+# machine-local suffix (`localhost`, `*.localhost`, `*.localdomain`,
+# `*.local`, `*.internal`, `*.lan`). Everything else is "local": every IPv4 literal in any notation,
+# every IPv6 literal bracketed or not, a bare single-label hostname, an empty
+# host, and a unix socket. A `?host=` parameter is what Prisma actually
+# connects to, so it is classified by the same rule and can only widen the
+# refusal, never narrow it.
+#
+# It is inverted deliberately. The first version of this guard enumerated the
+# spellings of loopback — `localhost`, `::1`, `0.0.0.0`, `^127\.` — and that
+# is unwinnable: `postgresql://` is not a WHATWG *special* scheme, so `new
+# URL()` does not canonicalise numeric hosts the way it does for `http://`,
+# and `2130706433`, `0x7f000001`, `0177.0.0.1`, `127.1`, `0x7f.1` and
+# `[::ffff:127.0.0.1]` all reach `getaddrinfo` as 127.0.0.1 while reading as
+# "some remote host" to a list of spellings. An allowlist of shapes has no
+# such tail: anything unanticipated fails closed, into a refusal.
+#
 # Parsed by node rather than by cutting the string up in bash: userinfo that
 # contains a `/`, an IPv6 literal in brackets, and a `?host=/var/run/postgresql`
 # unix socket each break a different naive split, and every one of those breaks
-# in the same direction — a host the guard reads as "not local" and waves
-# through. WHATWG URL gets them right, and anything it cannot parse is reported
-# as such rather than guessed at.
+# in the same direction. WHATWG URL gets them right, and anything it cannot
+# parse is reported as such rather than guessed at.
+#
+# No name resolution. Resolving would answer a slightly different question
+# ("where does this point *now*") at the cost of a network call in the guard
+# and a failure mode — resolver down — that has to be handled anyway. The
+# shape test needs neither and cannot be raced.
 classify_url() {
   node -e '
     const raw = process.argv[1];
@@ -112,27 +140,64 @@ classify_url() {
     try {
       url = new URL(raw);
     } catch {
+      // Includes an unbracketed IPv6 literal, which is not a URL at all.
       process.stdout.write("unparseable");
       process.exit(0);
     }
-    // A unix socket is this machine by definition, whatever the host field says.
-    const socket = url.searchParams.get("host");
-    if (socket !== null && socket.startsWith("/")) {
-      process.stdout.write("local " + socket);
-      process.exit(0);
+
+    // True only for a host this guard is willing to call remote.
+    const named = (raw_host) => {
+      // Brackets are IPv6 notation; a trailing dot is a fully-qualified name.
+      const host = raw_host.replace(/^\[|\]$/g, "").replace(/\.$/, "").toLowerCase();
+      if (host === "") return false;
+
+      // An IPv4 literal as `getaddrinfo` reads one: up to four parts, each
+      // decimal, octal (leading zero) or hex (leading 0x). This is what makes
+      // `0x7f.1` an address rather than a two-label name with a letter in it.
+      const parts = host.split(".");
+      const numeric =
+        parts.length <= 4 &&
+        parts.every((p) => /^(0[xX][0-9a-f]+|0[0-7]*|[1-9][0-9]*)$/.test(p));
+      if (numeric) return false;
+
+      // A DNS name: two or more labels, letters somewhere, and a top-level
+      // label that begins with one. No public name is all digits.
+      const dns =
+        /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) &&
+        /^[a-z][a-z0-9-]*$/.test(parts[parts.length - 1]);
+      if (!dns) return false;
+
+      // Named, and named for this machine or this network.
+      return !(
+        host === "localhost" ||
+        [".localhost", ".localdomain", ".local", ".internal", ".lan"].some((suffix) =>
+          host.endsWith(suffix),
+        )
+      );
+    };
+
+    // `?host=` is not decoration. libpq — and so Prisma — connects to the host
+    // in that parameter and ignores the one in the authority, so a URL whose
+    // authority is an unresolvable public name and whose `?host=` is 127.0.0.1
+    // reaches the local database. It is the host that gets connected to, so it
+    // is the host that gets classified. A value starting with `/` is a unix
+    // socket directory: this machine by definition.
+    const override = url.searchParams.get("host");
+    if (override !== null) {
+      if (override.startsWith("/")) {
+        process.stdout.write("local " + override);
+        process.exit(0);
+      }
+      if (!named(override)) {
+        process.stdout.write("local ?host=" + override);
+        process.exit(0);
+      }
     }
-    const host = url.hostname.replace(/^\[|\]$/g, "");
-    if (host === "") {
-      process.stdout.write("local <no host>");
-      process.exit(0);
-    }
-    const local =
-      host === "localhost" ||
-      host === "localhost.localdomain" ||
-      host === "::1" ||
-      host === "0.0.0.0" ||
-      /^127\./.test(host);
-    process.stdout.write((local ? "local " : "remote ") + host);
+
+    // The authority host is checked even when an override supersedes it: no
+    // legitimate deploy has a local authority and a remote override, and
+    // refusing the pair costs nothing.
+    process.stdout.write((named(url.hostname) ? "remote " : "local ") + url.hostname);
   ' "$1"
 }
 
@@ -143,7 +208,7 @@ case "${NODE_ENV:-}" in
       classified=$(classify_url "${!name}")
       case "${classified%% *}" in
         local)
-          die "refusing to deploy migrations: ${name} points at ${classified#* }, which is a local database, and NODE_ENV is \"${NODE_ENV:-unset}\" rather than an explicit \"development\" or \"test\". The production database is Neon — check the environment this shell inherited. If this really is a local run, export NODE_ENV=development."
+          die "refusing to deploy migrations: ${name} points at ${classified#* }, which is not a named remote host — production migrations go to a named host, never an address — and NODE_ENV is \"${NODE_ENV:-unset}\" rather than an explicit \"development\" or \"test\". The production database is Neon. Check the environment this shell inherited; if this really is a local run, export NODE_ENV=development."
           ;;
         unparseable)
           # Fail closed. An unreadable connection string is the one case where

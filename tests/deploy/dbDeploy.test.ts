@@ -181,6 +181,94 @@ describe("scripts/db-deploy.sh", () => {
     expect(result.stdout).toMatch(/prisma migrate deploy/);
   });
 
+  describe("addresses, in every spelling", () => {
+    // The guard does not enumerate the ways of writing a loopback address —
+    // there are more of them than anyone can list, and `postgresql://` is not
+    // a WHATWG *special* scheme, so `new URL()` never canonicalises a numeric
+    // host into dotted-quad form the way it does for `http://`. The rule is
+    // inverted instead: a production deploy needs a *named* host, and an
+    // address in any notation is not one.
+    it.each([
+      ["a decimal integer", "postgresql://relay:relay@2130706433:5435/relay"],
+      ["a hexadecimal integer", "postgresql://relay:relay@0x7f000001:5435/relay"],
+      ["octal dotted-quad", "postgresql://relay:relay@0177.0.0.1:5435/relay"],
+      ["a short-form quad", "postgresql://relay:relay@127.1:5435/relay"],
+      ["a mixed hex/decimal quad", "postgresql://relay:relay@0x7f.1:5435/relay"],
+      ["an IPv4-mapped IPv6 literal", "postgresql://relay:relay@[::ffff:127.0.0.1]:5435/relay"],
+      ["the same literal already collapsed", "postgresql://relay:relay@[::ffff:7f00:1]:5435/relay"],
+      // Unbracketed, this is not a URL at all — so it lands in the
+      // unparseable branch, which also refuses. Fail closed either way.
+      ["an unbracketed IPv6 literal", "postgresql://relay:relay@::ffff:127.0.0.1/relay"],
+      // Not loopback, and refused all the same: the rule is "a named host",
+      // not "not a loopback address". A private-range address on the VPS is
+      // exactly as much a not-Neon database as 127.0.0.1 is.
+      ["a private-range IPv4 that is not loopback", "postgresql://relay:relay@10.0.0.5:5435/relay"],
+      ["a public IPv4", "postgresql://relay:relay@203.0.113.9:5435/relay"],
+    ])("refuses %s", async (_name, url) => {
+      const result = await deployFromCopy({
+        NODE_ENV: "production",
+        DATABASE_URL: url,
+        DIRECT_URL: url,
+      });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    it.each([
+      ["localhost", "postgresql://relay:relay@localhost:5435/relay"],
+      ["a localhost subdomain", "postgresql://relay:relay@db.localhost:5435/relay"],
+      ["an mDNS name", "postgresql://relay:relay@vps.local:5435/relay"],
+      ["a Docker-network name", "postgresql://relay:relay@postgres.internal:5435/relay"],
+      ["a LAN name", "postgresql://relay:relay@nas.lan:5435/relay"],
+      // A real DNS name, and still this machine. The committed guard listed
+      // it by hand; the shape rule has to keep refusing it.
+      ["the FQDN form of localhost", "postgresql://relay:relay@localhost.localdomain:5435/relay"],
+      // A single label is a machine on this network by definition — there is
+      // no public DNS name without a dot in it.
+      ["a bare hostname", "postgresql://relay:relay@postgres:5435/relay"],
+    ])("refuses %s", async (_name, url) => {
+      const result = await deployFromCopy({
+        NODE_ENV: "production",
+        DATABASE_URL: url,
+        DIRECT_URL: url,
+      });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    // `?host=` is not decoration: libpq — and so Prisma — connects to *that*
+    // host and ignores the one in the authority. A URL whose authority is an
+    // unresolvable public name and whose `?host=` is 127.0.0.1 reaches the
+    // local database, which was checked against a running relay-pg: with the
+    // parameter, `prisma migrate status` reports the schema up to date;
+    // without it, P1001. So the override is what gets classified.
+    it.each([
+      ["an address", "postgresql://relay:relay@db.example.com:5435/relay?host=127.0.0.1"],
+      ["a numeric address", "postgresql://relay:relay@db.example.com:5435/relay?host=2130706433"],
+      ["localhost", "postgresql://relay:relay@db.example.com:5435/relay?host=localhost"],
+      ["a socket directory", "postgresql://relay@db.example.com/relay?host=/var/run/postgresql"],
+      ["nothing at all", "postgresql://relay:relay@db.example.com:5435/relay?host="],
+    ])("refuses a remote-looking URL whose ?host= override points at %s", async (_name, url) => {
+      const result = await deployFromCopy({
+        NODE_ENV: "production",
+        DATABASE_URL: url,
+        DIRECT_URL: url,
+      });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    it("still allows a Neon host, which is what the rule has to leave through", async () => {
+      const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: NEON, DIRECT_URL: NEON });
+
+      expect(result.stderr).toBe("");
+      expect(result.code).toBe(0);
+    });
+  });
+
   describe("connection strings a naive split reads as remote", () => {
     // Every one of these breaks a different string-cutting shortcut, and every
     // one breaks in the same direction: a host the guard reads as "not local"

@@ -216,9 +216,10 @@ enum JobStatus {
 /// The runtime spine and the outbox for every external write (§24, §25 rule 2).
 ///
 /// A worker claims a row by moving it to `running` and setting `leaseUntil`; a
-/// reaper returns rows whose lease has passed. `idempotencyKey` is unique
-/// across the table, so an enqueue that is retried collides rather than
-/// duplicating the side effect. `responseDigest` records what the provider
+/// reaper returns rows whose lease has passed. `idempotencyKey` is unique per
+/// org (`@@unique([orgId, idempotencyKey])`, below), so an enqueue that is
+/// retried collides rather than duplicating the side effect, while two orgs
+/// are free to use the same key for their own work. `responseDigest` records what the provider
 /// said, so a replay can tell "already done" from "never happened".
 model Job {
   id             String    @id @default(cuid())

@@ -203,16 +203,36 @@ function main(): void {
  * symlink — and the failure is silent in the worst direction: `main()` never
  * runs, nothing is printed, and `--check` exits 0, so the `prebuild` drift
  * gate reports success without having compared anything.
+ *
+ * Which is why a `realpath` that THROWS may not be swallowed into "not the
+ * entry point" either: that is the same silent pass by a different route — an
+ * I/O error on the resolve would leave `--check` exiting 0 having compared
+ * nothing. Once there is a script path to resolve, the only way to skip
+ * `main()` is two resolves that both succeeded and disagreed; a resolve that
+ * failed exits 2, because "could not tell" is not "no".
  */
-const realpathOrNull = (target: string): string | null => {
+const realpathOrExit = (target: string): string => {
   try {
     return realpathSync(target);
-  } catch {
-    return null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(
+      `Could not resolve ${target} to decide whether this is the entry point, ` +
+        `so nothing was done to ${TOKENS_CSS_PATH} — it was neither checked ` +
+        `nor written: ${reason}`,
+    );
+    process.exit(2);
   }
 };
 
-const invokedAs = process.argv[1] === undefined ? null : realpathOrNull(process.argv[1]);
-if (invokedAs !== null && invokedAs === realpathOrNull(fileURLToPath(import.meta.url))) {
-  main();
+/**
+ * The one branch that skips `main()` without resolving anything: `argv[1]` is
+ * undefined only when the process has no script path at all (`node -e`, the
+ * REPL), which is a definite "imported, not run" rather than a failure to find
+ * out. Nothing is swallowed here — there is nothing to swallow.
+ */
+if (process.argv[1] !== undefined) {
+  if (realpathOrExit(process.argv[1]) === realpathOrExit(fileURLToPath(import.meta.url))) {
+    main();
+  }
 }

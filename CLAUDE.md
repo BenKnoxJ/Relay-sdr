@@ -12,7 +12,7 @@ Blank-sheet successor to the parked Sales360 build. Service layers (Zoho CRM, Mi
 
 ## Status
 
-Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. There is no product code yet — no data model, no auth, no UI beyond a placeholder. Each Phase 1 task lands as one draft PR on `main`.
+Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. On top of it: the data model and its first migration, Clerk sign-in with the two roles, the job queue with claim/lease/reap, the worker loop, the Graph mail and Zoho service layers, and the design tokens. Still to come — the agent runtime and the product screens: today there is a sign-in route and a placeholder home page and nothing else. Each Phase 1 task lands as one draft PR on `main`.
 
 Runtime direction is settled (master doc §24): the AI SDK agent loop in a plain Node worker, durability in Postgres (`jobs` with claim, lease and reaper; `agent_runs`; `agent_run_steps`), approval as database state. **Not** the Claude Agent SDK, and **not** Vercel Workflow or Queues in Phase 1.
 

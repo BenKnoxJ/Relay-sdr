@@ -39,7 +39,12 @@ export type Handler = (context: HandlerContext) => Promise<HandlerResult>;
 
 export const handlers: Record<string, Handler> = { noop, sleep };
 
-/** The handler for a kind, or undefined — which the loop fails the job for. */
+/**
+ * The handler for a kind, or undefined. The loop REQUEUES an unknown kind
+ * rather than failing it outright — see the comment at that branch in
+ * `worker/main.ts` for why — so it still ends in `failed`, but only once the
+ * attempts are spent.
+ */
 export function handlerFor(kind: string): Handler | undefined {
   // `Object.hasOwn`, not a plain index: `handlers["constructor"]` on a bare
   // object literal is a function, and a job whose kind is `constructor` or

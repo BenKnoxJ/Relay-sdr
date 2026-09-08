@@ -16,9 +16,27 @@ useDefault = true
 # immediately after the `=`. Proved by sabotage before this file was committed.
 [[rules]]
 id = "generic-api-key"
-[rules.allowlist]
+
+[[rules.allowlists]]
 description = "Empty-valued assignments in the environment template are placeholders, not secrets."
 condition = "AND"
 paths = ['''docs/environment\.md''']
 regexTarget = "match"
 regexes = ['''[A-Z0-9_]+\s*=\s*""''']
+
+# One commit, one file. `4947129` wrote the error scrubber's test fixtures as
+# literals; `294ca61` replaced every one of them with a value assembled at test
+# time, so the working tree is clean and stays scannable. But gitleaks scans a
+# *range of commits*, not a tree, and a later commit cannot unwrite an earlier
+# one — the only other way to clear this is to rewrite a branch that is already
+# pushed.
+#
+# So the entry is pinned to that single commit and that single path, which is
+# as narrow as this file can be made: the same fixture written again, in the
+# same file, in any later commit still fails the scan. Sabotage-proved before
+# this entry was committed.
+[[rules.allowlists]]
+description = "Fixture literals in one superseded commit; the file is scanned normally in every other commit."
+condition = "AND"
+commits = ["4947129530985a5a37f61d0f47c08cb09ef2739e"]
+paths = ['''tests/worker/errors\.test\.ts''']

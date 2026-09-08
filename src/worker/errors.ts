@@ -40,6 +40,64 @@ const REDACTED = "[redacted]";
  * exception messages — it is the second line, for the messages other people's
  * libraries throw.
  */
+/**
+ * Field names whose value is a credential, and the value that follows them.
+ *
+ * Built rather than written, because it must not carry an `i` flag: the tail
+ * below distinguishes `authorizationCode` from `author` by the case of the
+ * letter after the keyword, and `i` would blunt exactly that. So each keyword
+ * is spelled in both cases and the flags stay `g`.
+ *
+ *   * **In front of the keyword**, `[\w-]*` and nothing else. `\b` cannot fire
+ *     in the middle of `access_token`, because an underscore is a word
+ *     character, so an anchored keyword went straight past the three fields
+ *     the Zoho and Graph token endpoints answer with. A loose prefix also
+ *     takes the camel case the same fields wear in a JavaScript stack
+ *     (`accessToken`).
+ *   * **Behind it**, a plural or an `_id` or a digit, then optionally one more
+ *     segment — `_`- or `-`-led (`AUTHORIZATION_HEADER`), or camelCase
+ *     (`tokenValue`, `sessionId`, openid-client's own `tokenSet`). What both
+ *     have in common is that they *start a new segment*: that is what makes
+ *     `access_tokens` and `client_secrets` match while `author` and `keyboard`
+ *     do not. Both negatives are in the test table, because "redact any name
+ *     containing `key`" is the obvious wrong fix and it would redact the
+ *     `keyboard` in somebody's error message.
+ *
+ * `key` and `auth` on their own are in the list deliberately: they cost a
+ * redacted `orgId_key=` in the occasional Prisma message, and they buy every
+ * `…_key` and every short-form `auth=` nobody has thought of yet. The one
+ * known cost of the camelCase tail is an all-caps `AUTHOR=`, whose `OR` is
+ * unreadable as anything but a second segment; `Author` and `author` are not
+ * touched.
+ */
+const CREDENTIAL_WORDS = [
+  "authorization",
+  "authorisation",
+  "credential",
+  "password",
+  "passwd",
+  "session",
+  "secret",
+  "bearer",
+  "cookie",
+  "token",
+  "auth",
+  "pwd",
+  "key",
+];
+
+/** `token` → `[tT][oO][kK][eE][nN]`, so the rule needs no `i` flag. */
+function anyCase(word: string): string {
+  return word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`);
+}
+
+const CREDENTIAL_NAME = new RegExp(
+  `(?<![\\w-])([\\w-]*(?:${CREDENTIAL_WORDS.map(anyCase).join("|")})` +
+    `(?:[eE]?[sS]|_[iI][dD]|\\d+)?(?:[_-][\\w-]+|[A-Z][a-z][\\w-]*)?)` +
+    `["']?\\s*[:=]\\s*("[^"]*"|'[^']*'|[^\\s,;}\\]]+)`,
+  "g",
+);
+
 const SCRUB: Array<[RegExp, string]> = [
   // Connection strings: keep the shape, lose the credential.
   [/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, `$1${REDACTED}@`],
@@ -56,26 +114,50 @@ const SCRUB: Array<[RegExp, string]> = [
   // serialised request body — which is the shape a provider client actually
   // throws.
   //
-  // The name is a *suffix* match (`[\w-]*` in front) rather than a fixed list,
-  // and that is the second thing this rule got wrong: `\b` cannot fire in the
-  // middle of `access_token`, because an underscore is a word character. So
-  // `access_token`, `refresh_token` and `client_secret` — the three fields the
-  // Zoho and Graph token endpoints answer with, and therefore the three most
-  // likely to be inside an exception this repository ever sees — went through
-  // untouched. `key` on its own is in the list deliberately: it costs a
-  // redacted `orgId_key=` in the occasional Prisma message, and it buys every
-  // `…_key` nobody has thought of yet.
-  [
-    /(?<![\w-])([\w-]*(?:authorization|token|secret|password|passwd|pwd|key))["']?\s*[:=]\s*("[^"]*"|'[^']*'|[^\s,;}\]]+)/gi,
-    `$1=${REDACTED}`,
-  ],
-  // Provider key shapes, including the ones gitleaks scans commits for.
+  // The name is matched *around* the keyword rather than anchored to the end
+  // of it, and both sides earned their shape from a miss. See
+  // `CREDENTIAL_NAME` for what each side does and what it deliberately lets
+  // through.
+  [CREDENTIAL_NAME, `$1=${REDACTED}`],
+  // A Zoho OAuth token carries no prefix a name rule would recognise — it is
+  // the client id's `1000.` and two long runs — so it is only ever caught by
+  // its shape. Relay refreshes one on every CRM write, which makes it the
+  // single most likely credential to reach this function.
+  [/\b1000\.[A-Za-z0-9]{20,}\.[A-Za-z0-9]{20,}\b/g, REDACTED],
+  // `sk-…`, `pk-…`, `rk-…` — and `sk-ant-…`, whole, because `-` is inside the
+  // class and the match runs to the end of the key.
   [/\b(sk|pk|rk)[-_][A-Za-z0-9_-]{8,}/g, REDACTED],
   [/\bAKIA[0-9A-Z]{16}\b/g, REDACTED],
   [/\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}/g, REDACTED],
   [/\bxox[abposr]-[A-Za-z0-9-]{10,}/g, REDACTED],
   // A JWT is three base64url segments; the middle one is the claims.
   [/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g, REDACTED],
+  // The last net: a long opaque run sitting in a value position, whatever the
+  // field is called. A provider that answers with a field nobody here has
+  // heard of still answers with something 32 characters wide after a `:` or an
+  // `=`, and that is enough to redact on.
+  //
+  // Three lookaheads keep it off the things that column is *for*, each one
+  // added because the rule ate something a reviewer needs:
+  //
+  //   * a uuid — the job or org id somebody looks up;
+  //   * anything without all three of upper, lower and digit, which is what a
+  //     random token has and prose does not. `Error: xxxx…`, a long unspaced
+  //     message, is the commonest shape this function ever sees, and a W3C
+  //     `traceparent` is lower-case hex;
+  //   * anything with two or more underscores, which is a `SCREAMING_SNAKE`
+  //     error code — `P2002_UNIQUE_CONSTRAINT_VIOLATION_ON_FIELDS_orgId` is
+  //     the single most likely long value in a Prisma failure, and redacting
+  //     it would leave the column safe and useless at once.
+  //
+  // Known residuals, both deliberate: a base64url token that happens to carry
+  // two underscores, and a bare credential with no field name and no
+  // recognised shape. This function is the second line. The first is not
+  // putting secrets in exception messages.
+  [
+    /(?<=[:=]\s{0,4}["']?)(?![0-9a-f]{8}-[0-9a-f]{4}-)(?![A-Za-z0-9+/-]*_[A-Za-z0-9+/-]*_)(?=[A-Za-z0-9+/_-]*\d)(?=[A-Za-z0-9+/_-]*[a-z])(?=[A-Za-z0-9+/_-]*[A-Z])[A-Za-z0-9+/_-]{32,}={0,2}/g,
+    REDACTED,
+  ],
   // Absolute paths and file URLs — the deploy layout, not the fault.
   [/\bfile:\/\/\/\S+/g, REDACTED],
   [/(?<![\w.])\/(?:home|Users|root|var|usr|opt|etc|tmp|srv)\/\S*/g, REDACTED],

@@ -631,27 +631,56 @@ describe("LiveGraphMailService — nothing after a delivered send escapes as a p
 });
 
 describe("LiveGraphMailService — a send Microsoft refused is not a send", () => {
-  it("reports a 401 on the send POST as a failure when the refresh behind it 5xxs", async () => {
+  it("does not call a 401 on the send POST 'sent' when the refresh behind it 5xxs", async () => {
     // Graph answered the send POST with 401: nothing was delivered. The
     // refresh that follows is an attempt to recover, and its failure says
     // nothing about delivery — so the 5xx must not be read as "the send may
     // have landed", which is what records an unsent mail as sent.
-    const { graph } = client([
-      () => empty(401), // the send POST
-      () => json({ error: "temporarily_unavailable" }, 503), // the refresh behind it
-    ]);
+    //
+    // It keeps its own 503, though. AAD being briefly unavailable is not an
+    // auth failure, and the caller reads 401 as "this mailbox needs re-linking".
+    const onRefreshFailed = vi.fn();
+    const { graph } = client(
+      [
+        () => empty(401), // the send POST
+        () => json({ error: "temporarily_unavailable" }, 503), // the refresh behind it
+      ],
+      { onRefreshFailed },
+    );
 
     const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
 
     expect(failure).not.toBeInstanceOf(SentButUnverifiedError);
     expect(failure).toBeInstanceOf(ServiceError);
-    expect((failure as ServiceError).status).toBe(401);
+    expect((failure as ServiceError).status).toBe(503);
+    expect(onRefreshFailed).not.toHaveBeenCalled();
   });
 
-  it("reports a 401 on the send POST as a failure when the refresh cannot even be attempted", async () => {
+  it("reports a refused refresh behind a 401 send as the auth failure it is", async () => {
+    // 400/401 from the token endpoint is the one case that IS about auth: the
+    // refresh token is spent. Reported as 401 whatever AAD's own status was,
+    // because 400 on a Graph call means a malformed request, which it was not.
+    const onRefreshFailed = vi.fn();
+    const { graph } = client(
+      [
+        () => empty(401), // the send POST
+        () => json({ error: "invalid_grant" }, 400), // the refresh behind it
+      ],
+      { onRefreshFailed },
+    );
+
+    const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
+
+    expect(failure).not.toBeInstanceOf(SentButUnverifiedError);
+    expect(failure).toMatchObject({ status: 401, code: "invalid_grant" });
+    expect(onRefreshFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call a 401 on the send POST 'sent' when the refresh cannot even be attempted", async () => {
     // Missing RELAY_MS_* throws a plain Error out of doRefresh, which the send
-    // catch reads as "no ServiceError, so we cannot tell" — and cannot tell is
-    // exactly what it is not.
+    // catch would otherwise read as "no ServiceError, so we cannot tell" — and
+    // cannot tell is exactly what it is not. It stays a plain Error: a
+    // configuration fault is not something to tell a rep about their mailbox.
     const fetchStub = stubFetch([() => empty(401)]);
     const graph = new LiveGraphMailService(testEnv({ RELAY_MS_CLIENT_SECRET: "" }), {
       fetchImpl: fetchStub.impl,
@@ -661,6 +690,72 @@ describe("LiveGraphMailService — a send Microsoft refused is not a send", () =
     const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
 
     expect(failure).not.toBeInstanceOf(SentButUnverifiedError);
-    expect((failure as ServiceError).status).toBe(401);
+    expect(failure).not.toBeInstanceOf(ServiceError);
+    expect(failure).toBeInstanceOf(Error);
+  });
+});
+
+describe("LiveGraphMailService — a failed refresh keeps its own status outside the send path", () => {
+  /**
+   * The fix this pins: the 401 semantics `send()` needs used to live in the
+   * shared `request()`, so a refresh that failed for ANY reason surfaced to
+   * every other method as ServiceError(401) — an auth failure. A caller acting
+   * on that marks a mailbox as needing re-linking because AAD rate-limited it
+   * for a minute, while `onRefreshFailed`, which knows better, stays silent.
+   */
+  const cases: Array<[string, (g: LiveGraphMailService, a: ConnectedAccountRef) => Promise<unknown>]> = [
+    ["createDraft", (g, a) => g.createDraft(a, draft)],
+    ["getMessage", (g, a) => g.getMessage(a, "AAMk-live-1")],
+    ["deleteDraft", (g, a) => g.deleteDraft(a, "AAMk-live-1")],
+    ["listSince", (g, a) => g.listSince(a, new Date("2026-09-01T00:00:00.000Z"), ["id"])],
+  ];
+
+  for (const [name, call] of cases) {
+    it(`surfaces a rate-limited refresh from ${name} as 429, not as an auth failure`, async () => {
+      const onRefreshFailed = vi.fn();
+      const { graph } = client(
+        [
+          () => empty(401), // the call itself
+          () => json({ error: "temporarily_throttled" }, 429), // the refresh behind it
+        ],
+        { onRefreshFailed },
+      );
+
+      const failure = await call(graph, fresh()).catch((e: unknown) => e);
+
+      expect(failure, name).toBeInstanceOf(ServiceError);
+      expect(failure, name).toMatchObject({ status: 429 });
+      // The hook is the other half of the contract: 429 is not a spent token,
+      // so nothing may ask the rep to re-link.
+      expect(onRefreshFailed, name).not.toHaveBeenCalled();
+    });
+  }
+
+  it("leaves a configuration failure behind a 401 as a plain Error, not a 401", async () => {
+    const fetchStub = stubFetch([() => empty(401)]);
+    const graph = new LiveGraphMailService(testEnv({ RELAY_MS_CLIENT_SECRET: "" }), {
+      fetchImpl: fetchStub.impl,
+      now,
+    });
+
+    const failure = await graph.createDraft(fresh(), draft).catch((e: unknown) => e);
+
+    expect(failure).not.toBeInstanceOf(ServiceError);
+    expect(failure).toBeInstanceOf(Error);
+  });
+
+  it("still reports a refused refresh behind a 401 with the token endpoint's own status", async () => {
+    // The tag must not swallow the 400 either: it reaches createDraft as the
+    // 400 AAD gave, and only `send()` translates it.
+    const onRefreshFailed = vi.fn();
+    const { graph } = client(
+      [() => empty(401), () => json({ error: "invalid_grant" }, 400)],
+      { onRefreshFailed },
+    );
+
+    const failure = await graph.createDraft(fresh(), draft).catch((e: unknown) => e);
+
+    expect(failure).toMatchObject({ status: 400, code: "invalid_grant" });
+    expect(onRefreshFailed).toHaveBeenCalledTimes(1);
   });
 });

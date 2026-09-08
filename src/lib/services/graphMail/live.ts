@@ -132,11 +132,25 @@ export class LiveGraphMailService implements GraphMailService {
     //
     // The 401-refresh inside `request()` stays where it is: by then Microsoft
     // has answered the send POST with a 401, so nothing was delivered and the
-    // plain failure is the right answer.
+    // plain failure is the right answer — see the catch below, which is where
+    // that distinction is made rather than in the shared `request()`.
     await this.accessToken(account);
     try {
       await this.request(account, "POST", `/me/messages/${encodeURIComponent(draftId)}/send`);
     } catch (cause) {
+      // A refresh that failed inside `request()` only happens AFTER Graph
+      // answered the send POST with a 401 — Microsoft refused it, so nothing
+      // was delivered and none of the sent-but-unverified reasoning below
+      // applies. A refusal from the token endpoint (400/401, the same pair
+      // that fires `onRefreshFailed`) is an auth failure and is reported as
+      // one; a 429, a 503 or a configuration Error keeps its own status and
+      // class, because "AAD had a moment" must not read as "re-link".
+      if (isRefreshFailure(cause)) {
+        if (cause instanceof ServiceError && (cause.status === 400 || cause.status === 401)) {
+          throw new ServiceError({ service: "graph", status: 401, code: cause.code, cause });
+        }
+        throw cause;
+      }
       // A timeout, a dropped connection or a 5xx on the send POST itself is not proof
       // the mail stayed put — Microsoft may have accepted it. Treat it as sent but
       // unverified so the caller records the send and reconciles by id later.
@@ -263,17 +277,18 @@ export class LiveGraphMailService implements GraphMailService {
       try {
         token = await this.refresh(account);
       } catch (cause) {
-        // Microsoft has already REFUSED this request with a 401, so nothing was
-        // done by it. The refresh is an attempt to recover, and its own failure
-        // says nothing about the original call — but `send()` reads a 5xx or a
-        // non-ServiceError as "we cannot tell whether the mail went", and here
-        // we can: it did not. Reported as the 401 Graph actually gave.
-        throw new ServiceError({
-          service: "graph",
-          status: 401,
-          code: cause instanceof ServiceError ? cause.code : "refresh_failed",
-          cause,
-        });
+        // Rethrown AS IT IS: a 429 stays a 429, a 503 stays a 503, a missing
+        // RELAY_MS_* stays a plain Error. An earlier version reported all three
+        // as ServiceError(401) so that `send()` could tell a refused send from
+        // an unverifiable one — but `request()` is shared, and that turned
+        // every transient AAD wobble on getMessage/deleteDraft/listSince/
+        // createDraft into an auth failure. A caller reading 401 as "this
+        // mailbox needs re-linking" would have said so about a healthy one.
+        //
+        // Only that `send()` still needs to know these errors came from the
+        // REFRESH and not from the call itself, which the tag carries without
+        // touching the error's own status or class.
+        throw markRefreshFailure(cause);
       }
       res = await this.call(url, method, token, body);
     }
@@ -451,6 +466,26 @@ async function readJson(res: Response): Promise<Json> {
   } catch {
     return {};
   }
+}
+
+/**
+ * Errors thrown by a token refresh, tagged so `send()` can tell one from a
+ * failure of the call it was retrying.
+ *
+ * A tag rather than a wrapper class because the whole point is that the error
+ * reaches every other caller with its own status and class untouched: only
+ * `send()`, which has to decide whether a mail may have been delivered, asks
+ * the question at all. Weak, so a tagged error is not kept alive by being one.
+ */
+const refreshFailures = new WeakSet<object>();
+
+function markRefreshFailure(cause: unknown): unknown {
+  if (typeof cause === "object" && cause !== null) refreshFailures.add(cause);
+  return cause;
+}
+
+function isRefreshFailure(cause: unknown): boolean {
+  return typeof cause === "object" && cause !== null && refreshFailures.has(cause);
 }
 
 /** A token chain is identified by the blob it came from, not by its account row. */

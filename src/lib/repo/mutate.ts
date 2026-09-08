@@ -22,7 +22,13 @@ import { Prisma, type PrismaClient } from "@prisma/client";
  * query for either, and the compiler is the cheapest place to notice. Adding a
  * kind is a one-line change here, made on purpose.
  */
-export type EventKind = "org.created" | "user.upserted" | "account.connected" | "account.disconnected";
+export type EventKind =
+  | "org.created"
+  | "user.upserted"
+  | "account.connected"
+  | "account.disconnected"
+  /// A job did something outside the database that cannot be undone.
+  | "side_effect.recorded";
 
 /**
  * Who caused the change. `system` is the worker acting on its own — a poll, a

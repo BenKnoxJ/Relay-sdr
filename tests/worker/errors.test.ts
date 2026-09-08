@@ -141,14 +141,49 @@ describe("safeError and the field names the suffix rule used to miss", () => {
     expect(text).toContain("[redacted]");
   });
 
-  it("leaves the words that merely contain a keyword alone", () => {
-    // The obvious wrong fix for the above is "redact any name containing
-    // `key`", and it would redact the `keyboard` in somebody's error message.
-    // A keyword has to end the name or start a new segment of it.
-    const text = safeError(new Error('import failed: {"author":"Ada Lovelace","keyboard":"qwerty"}'));
-    expect(text).toContain("Ada Lovelace");
-    expect(text).toContain("qwerty");
+  // The segment-boundary rule that replaced the suffix anchor had a hole of
+  // its own: it wanted a *marked* boundary after the keyword — a plural, an
+  // `_id`, a digit, or a new `_`/`-`/camelCase segment. A keyword followed by
+  // nothing but more lowercase carried no marker, so it escaped. `sessionid`
+  // is Django's actual default session-cookie field name, and a lowercase
+  // session token misses the opaque last net too (it wants upper, lower and
+  // digit). The rule now matches the keyword anywhere in the name.
+  it.each([
+    ["sessionid", `django said {"sessionid":"${value}"}`],
+    ["authtoken", `client threw {"authtoken":"${value}"}`],
+    ["apikeyvalue", `proxy rejected apikeyvalue=${value}`],
+    ["passwordhash", `row has {"passwordhash":"${value}"}`],
+    ["SECRETSTORE", `env SECRETSTORE=${value} is malformed`],
+  ])("scrubs the unmarked lowercase name %s", (_name, message) => {
+    const text = safeError(new Error(message));
+    expect(text).not.toContain(value);
+    expect(text).toContain("[redacted]");
+  });
+
+  it("leaves the exact words that merely contain a keyword alone", () => {
+    // Matching the keyword anywhere costs the boundary rule's one virtue: it
+    // told `author` from `authorizationCode` for free. The replacement is a
+    // short list of exact names, which is a thing a reader can check, and
+    // every one of them is here as a test. Only the *whole* name is exempt:
+    // `keyboard_layout` is still redacted, and that is the intended trade —
+    // a redacted keyboard layout costs a reviewer nothing, a leaked session
+    // token costs a rep their account.
+    const text = safeError(
+      new Error(
+        'import failed: {"author":"Ada Lovelace","keyboard":"qwerty",' +
+          '"authority":"ca.example","monkey":"George","turkey":"Norfolk Black",' +
+          '"hockey":"Ontario","password_policy_url":"https://example.test/policy"}',
+      ),
+    );
     expect(text).not.toContain("[redacted]");
+  });
+
+  it("still redacts a name that merely starts with an exempt word", () => {
+    // The exemption is the whole name or nothing — otherwise adding `author`
+    // to the list would quietly re-open `authorization`.
+    const text = safeError(new Error(`client threw {"authorization":"${value}"}`));
+    expect(text).not.toContain(value);
+    expect(text).toContain("[redacted]");
   });
 });
 

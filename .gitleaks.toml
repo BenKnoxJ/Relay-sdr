@@ -1,9 +1,38 @@
 # gitleaks configuration.
 #
-# The default rule set, plus one narrow allowlist. Everything else is stock:
+# The default rule set, plus two narrow allowlists. Everything else is stock:
 # `useDefault = true` means new upstream rules arrive without an edit here.
+#
+# The two allowlists sit at different levels on purpose, and the level is the
+# meaningful part of each: a root-level `[[allowlists]]` excuses a finding
+# whatever rule produced it, a `[[rules.allowlists]]` excuses it only under the
+# rule it is nested in. Getting that backwards is silent in either direction —
+# too narrow and CI fails on a finding nobody meant to allow, too broad and a
+# real secret walks.
 [extend]
 useDefault = true
+
+# One commit, one file, every rule. `4947129` wrote the error scrubber's test
+# fixtures as literals; `294ca61` replaced every one of them with a value
+# assembled at test time, so the working tree is clean and stays scannable. But
+# gitleaks scans a *range of commits*, not a tree, and a later commit cannot
+# unwrite an earlier one — the only other way to clear this is to rewrite a
+# branch that is already pushed.
+#
+# Root-level, because the fixtures in that commit were tokens of several shapes
+# (Zoho, `sk-ant-`, AWS, JWT) and which default rule claims which literal is
+# gitleaks' business, not something this repository should be pinned to. Today
+# only `generic-api-key` fires on it — measured, not assumed — and that is
+# exactly the coincidence worth not depending on.
+#
+# It stays as narrow as the thing it describes: one commit hash, one path. The
+# same fixture written again, in the same file, in any later commit still fails
+# the scan. Sabotage-proved before this entry was committed.
+[[allowlists]]
+description = "Fixture literals in one superseded commit; the file is scanned normally in every other commit."
+condition = "AND"
+commits = ["4947129530985a5a37f61d0f47c08cb09ef2739e"]
+paths = ['''tests/worker/errors\.test\.ts''']
 
 # `docs/environment.md` is the environment template — a list of variable names
 # with empty values, which is exactly the shape the generic-api-key rule looks
@@ -11,6 +40,10 @@ useDefault = true
 # variable name as the "secret" (entropy 3.61, all of it punctuation and
 # capitals). An assignment whose value is the empty string cannot be a secret,
 # so that is what this allows — not the file.
+#
+# Nested under the rule on purpose: this describes a false positive of
+# `generic-api-key` specifically, and it should not excuse any other rule that
+# ever fires on that file.
 #
 # A real value in that file still fails the scan: the regex requires `""`
 # immediately after the `=`. Proved by sabotage before this file was committed.
@@ -23,20 +56,3 @@ condition = "AND"
 paths = ['''docs/environment\.md''']
 regexTarget = "match"
 regexes = ['''[A-Z0-9_]+\s*=\s*""''']
-
-# One commit, one file. `4947129` wrote the error scrubber's test fixtures as
-# literals; `294ca61` replaced every one of them with a value assembled at test
-# time, so the working tree is clean and stays scannable. But gitleaks scans a
-# *range of commits*, not a tree, and a later commit cannot unwrite an earlier
-# one — the only other way to clear this is to rewrite a branch that is already
-# pushed.
-#
-# So the entry is pinned to that single commit and that single path, which is
-# as narrow as this file can be made: the same fixture written again, in the
-# same file, in any later commit still fails the scan. Sabotage-proved before
-# this entry was committed.
-[[rules.allowlists]]
-description = "Fixture literals in one superseded commit; the file is scanned normally in every other commit."
-condition = "AND"
-commits = ["4947129530985a5a37f61d0f47c08cb09ef2739e"]
-paths = ['''tests/worker/errors\.test\.ts''']

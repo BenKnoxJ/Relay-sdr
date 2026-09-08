@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 
 import { EXTEND_EVERY_MS, LEASE_MS, extendLease, type Claim } from "@/lib/jobs/queue";
+import { safeError } from "@/worker/errors";
 
 /**
  * Holding a job's lease open for as long as its handler runs.
@@ -143,10 +144,15 @@ export async function withLease<T>(
         // Logged, not fatal: the database blinked and the next tick may well
         // succeed. Whether this becomes fatal is the staleness check above,
         // which does not care why the extensions stopped landing.
+        //
+        // Scrubbed, though it goes to stdout rather than `Job.error`. This is
+        // the worker's only error string on that path, and the failure that
+        // reaches it most often is Prisma's — which quotes the connection
+        // string it could not reach, password and all.
         log({
           event: "lease.extend-failed",
           jobId: claim.id,
-          detail: describe(error),
+          detail: safeError(error),
         });
       })
       .finally(() => {
@@ -171,8 +177,4 @@ export async function withLease<T>(
     settled = true;
     clearInterval(timer);
   }
-}
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

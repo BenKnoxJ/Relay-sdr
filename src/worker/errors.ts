@@ -43,32 +43,32 @@ const REDACTED = "[redacted]";
 /**
  * Field names whose value is a credential, and the value that follows them.
  *
- * Built rather than written, because it must not carry an `i` flag: the tail
- * below distinguishes `authorizationCode` from `author` by the case of the
- * letter after the keyword, and `i` would blunt exactly that. So each keyword
- * is spelled in both cases and the flags stay `g`.
+ * The keyword is matched **anywhere in the name**, case-insensitively, with no
+ * boundary of any kind required either side of it. Two earlier shapes were
+ * narrower and both leaked:
  *
- *   * **In front of the keyword**, `[\w-]*` and nothing else. `\b` cannot fire
- *     in the middle of `access_token`, because an underscore is a word
- *     character, so an anchored keyword went straight past the three fields
- *     the Zoho and Graph token endpoints answer with. A loose prefix also
- *     takes the camel case the same fields wear in a JavaScript stack
- *     (`accessToken`).
- *   * **Behind it**, a plural or an `_id` or a digit, then optionally one more
- *     segment — `_`- or `-`-led (`AUTHORIZATION_HEADER`), or camelCase
- *     (`tokenValue`, `sessionId`, openid-client's own `tokenSet`). What both
- *     have in common is that they *start a new segment*: that is what makes
- *     `access_tokens` and `client_secrets` match while `author` and `keyboard`
- *     do not. Both negatives are in the test table, because "redact any name
- *     containing `key`" is the obvious wrong fix and it would redact the
- *     `keyboard` in somebody's error message.
+ *   * anchoring the keyword to the *end* of the name missed every plural and
+ *     every short form — `access_tokens`, `client_secrets`, a bare `auth`;
+ *   * requiring a *marked* boundary after it (a plural, an `_id`, a digit, or
+ *     a new `_`/`-`/camelCase segment) missed every keyword followed by plain
+ *     lowercase — `sessionid`, which is Django's own default session-cookie
+ *     field, and `authtoken`, `apikeyvalue`, `passwordhash`. Nothing in a
+ *     field name reliably marks where a word ends, so no grammar over the
+ *     name is going to hold. The opaque last net does not backstop these
+ *     either: it needs upper, lower and a digit, and a lowercase token has
+ *     two of the three.
  *
- * `key` and `auth` on their own are in the list deliberately: they cost a
- * redacted `orgId_key=` in the occasional Prisma message, and they buy every
- * `…_key` and every short-form `auth=` nobody has thought of yet. The one
- * known cost of the camelCase tail is an all-caps `AUTHOR=`, whose `OR` is
- * unreadable as anything but a second segment; `Author` and `author` are not
- * touched.
+ * What the boundary bought — telling `author` from `authorizationCode` — is
+ * bought instead by {@link NOT_CREDENTIALS}: a short list of exact names,
+ * which is a thing a reviewer can read and check, where a grammar is a thing
+ * they have to trace. The trade is deliberate and one-directional. A false
+ * positive costs a reviewer one `[redacted]` in a message they can reproduce
+ * locally; a false negative writes a live token into a column Task 11 renders
+ * to a rep.
+ *
+ * `key` and `auth` are in the list on the same reasoning: they cost a redacted
+ * `orgId_key=` in the occasional Prisma message, and they buy every `…key…`
+ * and every short-form `auth=` nobody has thought of yet.
  */
 const CREDENTIAL_WORDS = [
   "authorization",
@@ -86,16 +86,43 @@ const CREDENTIAL_WORDS = [
   "key",
 ];
 
-/** `token` → `[tT][oO][kK][eE][nN]`, so the rule needs no `i` flag. */
-function anyCase(word: string): string {
-  return word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`);
-}
+/**
+ * Names that contain a keyword and are not credentials.
+ *
+ * Exact, whole names only — `author` is exempt, `authorization` and even
+ * `authorEmail` are not. Anything looser would let the list quietly re-open
+ * the keyword it was added to narrow. Every entry is a negative in the test
+ * table; four of them (`monkey`, `turkey`, `hockey`, `password_policy_url`)
+ * were false positives of the boundary rule that shipped before it.
+ *
+ * The one known cost of the case-insensitive match is that an all-caps
+ * `AUTHOR=` is exempt too, which is the direction that errs safely for the
+ * reader and unsafely for nobody: `author` is not a credential in any case.
+ */
+const NOT_CREDENTIALS = [
+  "author",
+  "authority",
+  "keyboard",
+  "monkey",
+  "turkey",
+  "hockey",
+  "password_policy_url",
+];
+
+/** The separator a name/value pair uses, with the optional closing quote of the name. */
+const NAME_VALUE = `["']?\\s*[:=]\\s*`;
 
 const CREDENTIAL_NAME = new RegExp(
-  `(?<![\\w-])([\\w-]*(?:${CREDENTIAL_WORDS.map(anyCase).join("|")})` +
-    `(?:[eE]?[sS]|_[iI][dD]|\\d+)?(?:[_-][\\w-]+|[A-Z][a-z][\\w-]*)?)` +
-    `["']?\\s*[:=]\\s*("[^"]*"|'[^']*'|[^\\s,;}\\]]+)`,
-  "g",
+  // Not mid-name: `\b` cannot fire inside `access_token`, because `_` is a
+  // word character, so the class is spelled out.
+  `(?<![\\w-])` +
+    // …and not one of the exact names above. The lookahead runs to the
+    // separator, so it exempts the whole name and never a prefix of one.
+    `(?!(?:${NOT_CREDENTIALS.join("|")})${NAME_VALUE})` +
+    `([\\w-]*(?:${CREDENTIAL_WORDS.join("|")})[\\w-]*)` +
+    NAME_VALUE +
+    `("[^"]*"|'[^']*'|[^\\s,;}\\]]+)`,
+  "gi",
 );
 
 const SCRUB: Array<[RegExp, string]> = [

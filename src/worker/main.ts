@@ -20,11 +20,16 @@ let prisma: PrismaClient | undefined;
 async function main(): Promise<void> {
   const once = process.argv.slice(2).includes("--once");
 
-  // Before the database module, deliberately. `src/lib/db.ts` reads the
-  // environment as it loads, so validating here first is what keeps a
-  // misconfigured worker inside the JSON error contract below instead of
-  // dying on a raw stack trace during module resolution. The import is
-  // literal, which is what the boundary lint requires.
+  // What keeps a misconfigured worker inside the JSON error contract below is
+  // that this import is dynamic: `src/lib/db.ts` reads the environment as it
+  // loads, and only inside `main()` is that throw caught by `main().catch`. A
+  // static top-level import would evaluate before the handler is registered
+  // and die on a raw stack trace instead — the regression this line exists to
+  // prevent, and `tests/lib/worker.test.ts` proves it stays dynamic. The
+  // specifier is a literal, which is what the boundary lint requires.
+  //
+  // Calling `env()` first is not what makes that work; it is here to put
+  // INTEGRATIONS in scope for the "started" line below.
   const { INTEGRATIONS } = env();
   ({ prisma } = await import("@/lib/db"));
 

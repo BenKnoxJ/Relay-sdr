@@ -71,16 +71,24 @@ export function decodeTokenKey(raw: string): Buffer {
   return key;
 }
 
-const encKey = z.string().superRefine((raw, ctx) => {
-  try {
-    decodeTokenKey(raw);
-  } catch (error) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
+// Trimmed first, for the same reason connection strings are: the documented
+// way to make one is `openssl rand -base64 32`, and a value pasted from a file
+// or a terminal carries a trailing newline. Untrimmed, that fails as "not
+// valid base64" and sends the operator looking at the key instead of the
+// whitespace around it.
+const encKey = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().superRefine((raw, ctx) => {
+    try {
+      decodeTokenKey(raw);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }),
+);
 
 /**
  * A Postgres connection string. `min(1)` was not enough: `"   "` passed it and
@@ -98,7 +106,11 @@ function connectionString(name: string) {
       } catch {
         return false;
       }
-    }, `${name} must be a postgres://, postgresql:// or prisma:// connection string`);
+    }, `${name} must be a postgres://, postgresql:// or prisma:// connection string`)
+    // Return what was validated. Without this the refine parses a trimmed copy
+    // and hands back the original, so `"  postgres://…  "` passes and the
+    // whitespace still reaches whatever trusts `env().DATABASE_URL`.
+    .transform((raw) => raw.trim());
 }
 
 const schema = z
@@ -125,7 +137,19 @@ const schema = z
     TOKEN_ENC_KEY: optional(encKey),
     /** Local development only: sign every request in as this rep. */
     DEV_USER_EMAIL: optional(z.string().email()),
-    NODE_ENV: withDefault(z.enum(["development", "test", "production"]), "development"),
+    /**
+     * Unset or blank means production, not development.
+     *
+     * `INTEGRATIONS` folds an empty value to its safe end (`mock`); this one
+     * has to do the same, and its safe end is `production`. The bypass guard
+     * below is the reason: the app always has `NODE_ENV` set for it by Next,
+     * but the worker is a bare Node process under systemd or Docker where a
+     * missing variable is one forgotten line in a unit file. Defaulting to
+     * `development` there would turn that omission into a live sign-in bypass,
+     * silently. Defaulting to `production` turns it into, at worst, a terser
+     * Prisma log.
+     */
+    NODE_ENV: withDefault(z.enum(["development", "test", "production"]), "production"),
 
     // --- auth (Clerk) -----------------------------------------------------
     CLERK_SECRET_KEY: optional(z.string()),
@@ -152,21 +176,32 @@ const schema = z
   })
   .superRefine((value, ctx) => {
     // `DEV_USER_EMAIL` signs every request in as one rep with no credential.
-    // In production that is an unauthenticated door into someone's pipeline,
-    // so it is not a warning: the process refuses to start.
+    // Anywhere but a developer's own machine that is an unauthenticated door
+    // into someone's pipeline, so it is not a warning: the process refuses to
+    // start.
     //
-    // The build is carved out, and has to be. `next build` sets
+    // The rule is an allowlist, deliberately. Asking "is this production?"
+    // makes every environment the module cannot identify — unset, blank, a
+    // value nobody anticipated — permissive, and the one host where NODE_ENV
+    // is not set for us is the worker. So the bypass is accepted only where an
+    // environment says, explicitly, that it is a development or test one.
+    // Silence is production.
+    //
+    // The build is the one carve-out, and has to be. `next build` sets
     // NODE_ENV=production and loads the developer's local env file, so without
     // this every developer who filled in the documented bypass would find
     // `npm run build` dead on page-data collection. A build serves no request,
     // so the bypass cannot be used during one; a deployed server has
     // NEXT_PHASE unset or `phase-production-server` and is refused as before.
     const building = value.NEXT_PHASE === "phase-production-build";
-    if (!building && value.NODE_ENV === "production" && value.DEV_USER_EMAIL !== undefined) {
+    const bypassEnvironment = value.NODE_ENV === "development" || value.NODE_ENV === "test";
+    if (!building && !bypassEnvironment && value.DEV_USER_EMAIL !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["DEV_USER_EMAIL"],
-        message: "DEV_USER_EMAIL is a local-only bypass and must not be set in production",
+        message:
+          "DEV_USER_EMAIL is a local-only bypass: it is accepted only when NODE_ENV is " +
+          `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
       });
     }
 

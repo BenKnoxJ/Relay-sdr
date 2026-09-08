@@ -8,14 +8,16 @@ import { prisma } from "@/lib/db";
 
 // The suite uses the same client the application does, so `src/lib/db.ts` is
 // genuinely the only `new PrismaClient()` in the repository and the test
-// exercises the production wiring rather than a parallel one of its own.
+// exercises the production wiring rather than a parallel one of its own —
+// including its `datasourceUrl`, so this also proves the client connects on
+// the value `env()` validated rather than on schema.prisma's own env read.
 
 afterAll(async () => {
   await prisma.$disconnect();
 });
 
 describe("scaffold", () => {
-  it("@proof reaches the test database over the datasource in schema.prisma", async () => {
+  it("@proof reaches the test database over the connection string env.ts parsed", async () => {
     const rows = await prisma.$queryRaw<Array<{ one: number }>>`SELECT 1 AS one`;
     expect(rows[0]?.one).toBe(1);
   });
@@ -61,8 +63,13 @@ describe("scaffold", () => {
         return /\.tsx?$/.test(entry.name) ? [full] : [];
       });
 
+    // String literals go first. Otherwise `fetch("https://…", { headers: { x:
+    // process.env.Y } })` — the shape every integration will have — reads as a
+    // line comment from the `//` in the url onwards, and the breach after it
+    // is stripped along with the "comment".
     const code = (file: string): string =>
       readFileSync(file, "utf8")
+        .replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, '""')
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/\/\/.*$/gm, "");
 

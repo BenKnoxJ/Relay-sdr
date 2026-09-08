@@ -55,21 +55,34 @@ FIRECRAWL_API_KEY=""
   surfacing as an `undefined` three screens later. Call `env()`; never
   `process.env`. An empty value (`TOKEN_ENC_KEY=""`, as this template ships it)
   counts as unset.
-- **`DEV_USER_EMAIL` cannot be set in production.** It signs every request in as
-  one rep with no credential, so `NODE_ENV=production` plus a value here is a
-  refusal to start, not a warning. The one carve-out is `next build`, which sets
-  `NODE_ENV=production` itself and reads this file: a build serves no request,
-  so the bypass is unusable during one and the check is skipped there.
+- **`DEV_USER_EMAIL` is accepted only in an explicitly development or test
+  environment.** It signs every request in as one rep with no credential, so
+  anything else — `NODE_ENV=production`, or `NODE_ENV` unset or blank — plus a
+  value here is a refusal to start, not a warning. Silence means production:
+  the app always has `NODE_ENV` set for it by Next, but the worker is a bare
+  Node process, and a variable missing from a unit file must not read as
+  permission. If you run `npm run worker` locally with this filled in, export
+  `NODE_ENV=development` in the shell you run it from: the worker is a bare
+  `tsx` process and reads the process environment, never a `.env` file (the app
+  gets that from Next, and CI passes the two database keys explicitly). The one carve-out is `next build`, which
+  sets `NODE_ENV=production` itself and reads this file: a build serves no
+  request, so the bypass is unusable during one and the check is skipped there.
 - **`TOKEN_ENC_KEY` is required once `INTEGRATIONS=live`,** and must be 32
   random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
   stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`
   it may be empty.
-- **`NODE_ENV`** is read as well (`development` | `test` | `production`,
-  defaulting to `development`). The runtime sets it; it is not in the block
-  above because it is not yours to write in a local `.env`.
+- **`NODE_ENV`** is read as well (`development` | `test` | `production`),
+  and an unset or blank value defaults to `production` — the safe end of the
+  field, since the bypass rule above turns on it. The runtime normally sets it,
+  which is why it is not in the block above; add it to a local `.env` only if
+  you run the worker directly.
 - **Tests never read a local env file.** `tests/setup.ts` defaults
   `DATABASE_URL` to the `relay_test` database and refuses to start against any
   database whose name does not end in `_test`.
+- **`DATABASE_URL` is trimmed and handed to the Prisma client directly**
+  (`datasourceUrl` in `src/lib/db.ts`), so the value the application dials is
+  the one this module validated. `DIRECT_URL` stays a `schema.prisma` read: it
+  belongs to the migration CLI, which runs without the app.
 - **The worker reads `DATABASE_URL` and `DIRECT_URL` and nothing else.** It
   validates the same environment the app does, and those two are the only
   required keys, so the whole schema is satisfiable from them alone. CI runs the

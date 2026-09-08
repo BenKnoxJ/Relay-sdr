@@ -36,7 +36,7 @@ function key(explicit?: string): Buffer {
 
 export function encryptToken(plain: string, encKey?: string): string {
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv("aes-256-gcm", key(encKey), iv);
+  const cipher = createCipheriv("aes-256-gcm", key(encKey), iv, { authTagLength: TAG_BYTES });
   const ciphertext = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
   return [
     iv.toString("base64"),
@@ -53,7 +53,13 @@ export function decryptToken(blob: string, encKey?: string): string {
   const tag = Buffer.from(tagB64, "base64");
   if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) throw new Error("malformed token blob");
 
-  const decipher = createDecipheriv("aes-256-gcm", key(encKey), iv);
+  // The tag length is pinned at the crypto API, not only by the length check
+  // above. GCM will otherwise accept a short tag, and tag truncation is a
+  // forgery route; pinning it here means the guarantee does not depend on this
+  // function's internal ordering surviving a later edit.
+  const decipher = createDecipheriv("aes-256-gcm", key(encKey), iv, {
+    authTagLength: TAG_BYTES,
+  });
   decipher.setAuthTag(tag);
   return Buffer.concat([
     decipher.update(Buffer.from(dataB64, "base64")),

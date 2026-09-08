@@ -54,6 +54,17 @@ describe("encryptToken / decryptToken", () => {
     expect(() => decryptToken(withTag(blob, randomBytes(16).toString("base64")), KEY)).toThrow();
   });
 
+  it("refuses a truncated tag, at the crypto API and not only at our own check", () => {
+    // Node's GCM accepts a short tag unless `authTagLength` is pinned — it
+    // only warns — and a truncated tag is a forgery route. `decryptToken`'s
+    // own length check fires first today; this asserts the refusal, so that a
+    // later edit reordering that check cannot quietly open the door.
+    const blob = encryptToken("value", KEY);
+    const [, tag] = blob.split(".");
+    const truncated = Buffer.from(tag!, "base64").subarray(0, 12).toString("base64");
+    expect(() => decryptToken(withTag(blob, truncated), KEY)).toThrow(/malformed token blob/);
+  });
+
   it("refuses tampered ciphertext", () => {
     const [iv, tag, data] = encryptToken("value", KEY).split(".");
     const bytes = Buffer.from(data!, "base64");

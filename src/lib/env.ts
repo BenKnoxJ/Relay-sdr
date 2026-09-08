@@ -37,10 +37,15 @@ function withDefault<T extends z.ZodTypeAny>(inner: T, fallback: z.infer<T>) {
  * timing knobs.
  *
  * `z.coerce.number()` is not enough on its own: it is `Number()`, which reads
- * `""` as 0 and `"  "` as 0, so a variable defined-but-blank would become a
- * zero-millisecond poll interval — a worker spinning a database round trip as
- * fast as the event loop allows. So blank folds to the default first, and the
- * result must be an integer above zero.
+ * `""` as 0, so a variable defined-but-blank would become a zero-millisecond
+ * poll interval — a worker spinning a database round trip as fast as the event
+ * loop allows. So empty folds to the default first, and the result must be an
+ * integer above zero.
+ *
+ * The fold is `""` and nothing else, exactly as in `optional` and
+ * `withDefault`: `"  "` is not a variable somebody left unset, it is one
+ * somebody set wrong, and `Number("  ")` being 0 means `.positive()` refuses
+ * it at boot with the variable's name. Loud is the right answer there.
  */
 function positiveMs(fallback: number) {
   return z.preprocess(

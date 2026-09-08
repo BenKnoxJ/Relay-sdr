@@ -229,10 +229,13 @@ async function runJob(
   } catch (error) {
     const message = safeError(error);
     log("job.complete-failed", { ...shape, durationMs, error: message });
-    // If this throws too, the database is gone: `main().catch` exits non-zero,
-    // systemd restarts, and the reaper takes the job when the lease lapses.
-    // That is the correct end of that road, and it is not this function's to
-    // paper over.
+    // If this throws too, the database is gone, and the throw leaves `runJob`
+    // for the poll loop's own catch: it logs `poll.failed`, waits `pollMs` and
+    // tries again, and only exits non-zero once `MAX_CONSECUTIVE_FAILURES`
+    // polls in a row have failed — immediately, under `--once`. Either way the
+    // job is left on its lease and the reaper takes it when the lease lapses,
+    // which is the correct end of that road and not this function's to paper
+    // over.
     const delayMs = retryDelayMs(job.attempts);
     const requeued = await requeue(db, job, { error: message, delayMs });
     log(requeued.fenced ? "job.fenced" : "job.requeued", { ...shape, durationMs, delayMs });

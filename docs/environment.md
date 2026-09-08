@@ -49,6 +49,7 @@ RELAY_ZOHO_CLIENT_ID=""
 RELAY_ZOHO_CLIENT_SECRET=""
 RELAY_ZOHO_REFRESH_TOKEN=""
 ZOHO_CRM_BASE_URL=""
+RELAY_LIVE_TESTS=""
 
 # --- Microsoft Graph ------------------------------------------------------
 RELAY_MS_TENANT_ID=""
@@ -112,6 +113,12 @@ FIRECRAWL_API_KEY=""
   random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
   stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`
   it may be empty.
+- **`RELAY_LIVE_TESTS="1"` opts this process in to the live smoke probes,**
+  which create and then delete a real lead in the real Zoho org. It is the gate
+  on `LiveZohoService.removeLeadForSmokeTest` — the only call Relay makes that
+  destroys a record in a customer's CRM — and it is refused outright when
+  `NODE_ENV` is `production`, switch or no switch. Leave it unset everywhere
+  except a machine you are deliberately running the probe on.
 - **`NODE_ENV`** is read as well (`development` | `test` | `production`),
   and an unset or blank value defaults to `production` — the safe end of the
   field, since the bypass rule above turns on it. The runtime normally sets it,

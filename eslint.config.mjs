@@ -183,6 +183,54 @@ const WRITE_BAN = [
   },
 ];
 
+// ── The tenant is the session's, never the request's (master doc §26) ───────
+// `mutate` trusts the `orgId` it is handed — its own comment says so — so the
+// question of whether one tenant can write into another comes down to where
+// callers get that value. There is exactly one right answer: `ctx.orgId`, put
+// there by `repProcedure` after the session was resolved. A body field named
+// `orgId` is a tenant the caller picked for themselves.
+//
+// Sentinel deferred this on PR #3 for want of a caller to check. Task 8 is the
+// first one, so the rule lands with it.
+//
+// `orgId` is banned outright: there is no procedure that should take one from
+// the wire. `userId` is not, because an admin filtering by rep legitimately
+// passes one (master doc §8, "admin is additive") — it is banned only in the
+// `actor` of an Event, which must be whoever is actually signed in.
+//
+// It matches the value's shape, so it sees `input.orgId` and `input.x.orgId`
+// and does not see `const { orgId } = input`, which needs type information —
+// the same limit, and the same upgrade path, as the delete and write bans.
+//
+// It applies to `src/app/**` and `src/server/**` and nowhere else, because
+// that is where a request is. Everywhere else `input` is an ordinary function
+// parameter and reading `input.orgId` off it is not only fine but the normal
+// shape — `enqueue(db, input)` in `src/lib/jobs/queue.ts` does exactly that,
+// with an `orgId` its caller took from a session. Extending the rule there
+// bought nothing and cost a false positive on the first function it met.
+const TENANT_MESSAGE =
+  "The org comes from the session (ctx.orgId, set by repProcedure), never from request input: an orgId off the wire is a tenant the caller chose for themselves (master doc §26).";
+
+const TENANT_BAN = [
+  {
+    selector: 'Property[key.name="orgId"][value.object.name="input"]',
+    message: TENANT_MESSAGE,
+  },
+  {
+    selector: 'Property[key.name="orgId"][value.object.object.name="input"]',
+    message: TENANT_MESSAGE,
+  },
+  {
+    // The Event's actor is who did it. Taken from input, every Event in the
+    // audit trail names whoever the caller nominated.
+    selector:
+      'Property[key.name="actor"] Property[key.name="userId"][value.object.name="input"], Property[key.name="actor"] Property[key.name="userId"][value.object.object.name="input"]',
+    message:
+      "The actor of an Event is the signed-in user (ctx.userId, set by repProcedure), never a value from request input.",
+  },
+];
+
+const REQUEST_LAYERS = ["src/app/**/*.{ts,tsx}", "src/server/**/*.{ts,tsx}"];
 const WORKER_AND_LIB = ["src/worker/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"];
 const RETENTION_JOB = "src/lib/jobs/retention.ts";
 const WRITE_PATH = ["src/lib/repo/**/*.{ts,tsx}", "src/lib/jobs/queue.ts"];
@@ -203,6 +251,14 @@ const config = [
     files: ["src/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN],
+    },
+  },
+
+  // The request-shaped layers, and the only ones a request body reaches.
+  {
+    files: REQUEST_LAYERS,
+    rules: {
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...TENANT_BAN],
     },
   },
 

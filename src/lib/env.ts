@@ -295,3 +295,94 @@ export function env(): Env {
 export function resetEnv(): void {
   cached = undefined;
 }
+
+/**
+ * The two variables the sign-in bypass turns on, and nothing else.
+ *
+ * A narrow schema rather than the full one because the caller that matters is
+ * `src/middleware.ts`, which runs on the Edge runtime: validating
+ * `DATABASE_URL` there would couple the request path that never touches the
+ * database to the configuration of the one that does, and would do it on every
+ * request. The two fields are declared identically to their entries in
+ * `schema` above, so the fold of a blank value and the default of an absent
+ * one are the same in both.
+ */
+const bypassSchema = z.object({
+  NODE_ENV: withDefault(z.enum(["development", "test", "production"]), "production"),
+  DEV_USER_EMAIL: optional(z.string().email()),
+});
+
+export type BypassEnv = z.infer<typeof bypassSchema>;
+
+/**
+ * The rep the local sign-in bypass signs in as, or `null`.
+ *
+ * The bypass is decided in one place, and this is it: the middleware skipping
+ * Clerk and the tRPC context minting a session must never be able to disagree
+ * about whether a request is signed in.
+ *
+ * It is deliberately stricter than the `parseEnv` guard above rather than a
+ * restatement of it. `parseEnv` carves out `next build`, because a build loads
+ * the developer's env file and serves no request; that carve-out is inferred
+ * from Next's documented behaviour and is not yet confirmed against Vercel's
+ * bundling (CLAUDE.md; Task 13 verifies it). So the value is accepted at boot
+ * and refused here, at the one place it would actually sign somebody in. If
+ * the inference turns out to be wrong, the cost is a build that cannot use the
+ * bypass, not a production server that can.
+ */
+export function devBypassEmail(value: BypassEnv = readBypassEnv()): string | null {
+  if (value.DEV_USER_EMAIL === undefined) return null;
+  const bypassEnvironment = value.NODE_ENV === "development" || value.NODE_ENV === "test";
+  return bypassEnvironment ? value.DEV_USER_EMAIL : null;
+}
+
+/**
+ * Read the two by name, not by handing `process.env` over whole.
+ *
+ * Next inlines `process.env.SOMETHING` into an Edge bundle where it can see
+ * the property being read; a dynamic read of the object cannot be inlined and
+ * would arrive undefined in the middleware, turning "no bypass configured" and
+ * "bypass configured" into the same answer. Two static reads keep that honest.
+ *
+ * Unmemoised, unlike `env()`: it is two property reads and a small parse, and
+ * a memo here would make a test that changes the environment lie.
+ */
+export function readBypassEnv(): BypassEnv {
+  const result = bypassSchema.safeParse({
+    NODE_ENV: process.env.NODE_ENV,
+    DEV_USER_EMAIL: process.env.DEV_USER_EMAIL,
+  });
+  // A malformed bypass address is not a reason to let a request through
+  // unauthenticated, and it is not this function's job to stop the process —
+  // `parseEnv` already refuses to boot on it. Here it simply means no bypass.
+  //
+  // The caller cannot then tell "unset" from "set but unusable", so the one
+  // caller that reports it — `src/middleware.ts` — names all three
+  // possibilities rather than asserting the one it cannot know.
+  return result.success ? result.data : { NODE_ENV: "production", DEV_USER_EMAIL: undefined };
+}
+
+/**
+ * The Clerk publishable key, or `null` when this deployment has no Clerk
+ * account behind it.
+ *
+ * Read by name and not through `env()`, for two reasons. `NEXT_PUBLIC_`
+ * variables are inlined by Next at the property read, so a dynamic lookup of
+ * the whole object arrives undefined in a bundle; and the caller is
+ * `src/app/layout.tsx`, which Next prerenders at build time — validating the
+ * database connection string there would make `next build` depend on a
+ * database it never touches.
+ *
+ * `null` rather than a throw, because running without Clerk is a first-class
+ * case, not a misconfiguration: a developer on the `DEV_USER_EMAIL` bypass has
+ * no key, and neither does CI.
+ *
+ * The inlining has a consequence worth knowing: this is answered by the build,
+ * not by the environment the build runs in. An artifact built without the key
+ * has no sign-in even if the key is present at run time. `docs/environment.md`
+ * says so where an operator will read it.
+ */
+export function clerkPublishableKey(): string | null {
+  const raw = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  return raw === undefined || raw.trim() === "" ? null : raw.trim();
+}

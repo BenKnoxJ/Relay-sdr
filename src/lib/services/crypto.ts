@@ -9,10 +9,16 @@ import { decodeTokenKey, env } from "@/lib/env";
  * refresh token is a standing key to that person's mailbox and CRM. They are
  * stored as an AES-256-GCM envelope under `TOKEN_ENC_KEY`, with a fresh random
  * 12-byte IV per call, so the same token never encrypts to the same bytes twice
- * and a row edited in the database fails to decrypt rather than decrypting to
+ * and a blob edited in the database fails to decrypt rather than decrypting to
  * something else.
  *
  * Blob format: `base64(iv).base64(tag).base64(ciphertext)`.
+ *
+ * What it does NOT defend against, and what Task 10 has to carry: the envelope
+ * has no associated data and no key id, so a whole blob moved from one row to
+ * another authenticates cleanly, and rotating `TOKEN_ENC_KEY` orphans every
+ * token already stored. Binding the row's identity in as AAD and prefixing a
+ * key id are the two additions when connected accounts land.
  *
  * The key is never logged and never included in an error message.
  */

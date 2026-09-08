@@ -16,8 +16,8 @@ DIRECT_URL="postgresql://relay:relay@127.0.0.1:5435/relay"
 
 # --- app ------------------------------------------------------------------
 APP_URL="http://localhost:5200"
-# "mock" runs every external integration against a local fake. Anything else
-# hits the real provider.
+# "mock" runs every external integration against a local fake; "live" hits the
+# real provider. Those two values and no others: anything else refuses to boot.
 INTEGRATIONS="mock"
 # 32 random bytes, base64. Encrypts stored provider tokens.
 TOKEN_ENC_KEY=""
@@ -57,7 +57,9 @@ FIRECRAWL_API_KEY=""
   counts as unset.
 - **`DEV_USER_EMAIL` cannot be set in production.** It signs every request in as
   one rep with no credential, so `NODE_ENV=production` plus a value here is a
-  refusal to start, not a warning.
+  refusal to start, not a warning. The one carve-out is `next build`, which sets
+  `NODE_ENV=production` itself and reads this file: a build serves no request,
+  so the bypass is unusable during one and the check is skipped there.
 - **`TOKEN_ENC_KEY` is required once `INTEGRATIONS=live`,** and must be 32
   random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
   stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`
@@ -68,6 +70,9 @@ FIRECRAWL_API_KEY=""
 - **Tests never read a local env file.** `tests/setup.ts` defaults
   `DATABASE_URL` to the `relay_test` database and refuses to start against any
   database whose name does not end in `_test`.
-- **The worker reads `DATABASE_URL` and nothing else.** CI runs it under
-  `env -i` to keep it that way (master doc §18).
+- **The worker reads `DATABASE_URL` and `DIRECT_URL` and nothing else.** It
+  validates the same environment the app does, and those two are the only
+  required keys, so the whole schema is satisfiable from them alone. CI runs the
+  worker under `env -i` with exactly those two set to keep it that way (master
+  doc §18).
 - **Production** (Neon, Vercel) sets the same names; only the values differ.

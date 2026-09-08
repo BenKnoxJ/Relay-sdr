@@ -1,11 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, it, expect } from "vitest";
 
-import {
-  MACHINE_WORDS,
-  BANNED_DASHES,
-  readableStrings,
-} from "@/lib/copy/plainWords";
+import { MACHINE_WORDS, BANNED_DASHES, readableStrings } from "@/lib/copy/plainWords";
 
 /**
  * Every rep-facing string lives in `src/lib/copy/*`, and none of them may carry
@@ -47,6 +43,28 @@ describe("src/lib/copy", () => {
         readableStrings(exported, name),
       );
       expect(found.length, file).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * A template function (`greeting: (name) => `Hi ${name}`) is invisible to the
+   * sweep: its strings live in a closure this cannot reach, so it would carry a
+   * machine word straight to a screen with every check above passing. Copy is
+   * data. Interpolation belongs at the call site.
+   */
+  it("exports data, never a function", () => {
+    for (const [file, module] of Object.entries(modules)) {
+      for (const [name, exported] of Object.entries(module)) {
+        const found = readableStrings(exported, name).length;
+        expect(typeof exported, `${file} ${name}`).not.toBe("function");
+        // And the same one level down, where the copy objects actually live.
+        if (exported && typeof exported === "object") {
+          for (const [key, inner] of Object.entries(exported)) {
+            expect(typeof inner, `${file} ${name}.${key}`).not.toBe("function");
+          }
+        }
+        expect(found, `${file} ${name}`).toBeGreaterThan(0);
+      }
     }
   });
 

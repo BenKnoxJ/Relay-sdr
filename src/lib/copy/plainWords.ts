@@ -40,36 +40,49 @@ export const MACHINE_WORDS =
  */
 export const BANNED_DASHES = /—|\s–|–\s/;
 
-/** Every string reachable from a value, with the path that leads to it. */
-function strings(value: unknown, path: string, out: [string, string][]): void {
+/**
+ * Every string reachable from a value, with the path that leads to it.
+ *
+ * `seen` is not an optimisation: superjson payloads and Prisma rows with a
+ * back-relation are cyclic, and without it a router calling `assertPlainWords`
+ * on its own response dies with a stack overflow instead of a verdict.
+ */
+function strings(
+  value: unknown,
+  path: string,
+  out: [string, string][],
+  seen: WeakSet<object>,
+): void {
   if (typeof value === "string") {
     out.push([path, value]);
     return;
   }
+  if (typeof value !== "object" || value === null) return;
+  if (seen.has(value)) return;
+  seen.add(value);
+
   if (Array.isArray(value)) {
-    value.forEach((item, i) => strings(item, `${path}[${i}]`, out));
+    value.forEach((item, i) => strings(item, `${path}[${i}]`, out, seen));
     return;
   }
   // A Map's values and a Set's members are strings a rep reads too, and
   // Object.entries() reports neither: both would otherwise walk past unchecked.
   if (value instanceof Map) {
-    for (const [key, inner] of value) strings(inner, `${path}.get(${String(key)})`, out);
+    for (const [key, inner] of value) strings(inner, `${path}.get(${String(key)})`, out, seen);
     return;
   }
   if (value instanceof Set) {
     let i = 0;
-    for (const inner of value) strings(inner, `${path}<${i++}>`, out);
+    for (const inner of value) strings(inner, `${path}<${i++}>`, out, seen);
     return;
   }
-  if (value && typeof value === "object") {
-    for (const [key, inner] of Object.entries(value)) strings(inner, `${path}.${key}`, out);
-  }
+  for (const [key, inner] of Object.entries(value)) strings(inner, `${path}.${key}`, out, seen);
 }
 
 /** Every string in `value`, so a caller can check them all and report each one. */
 export function readableStrings(value: unknown, path = "$"): [string, string][] {
   const out: [string, string][] = [];
-  strings(value, path, out);
+  strings(value, path, out, new WeakSet());
   return out;
 }
 
@@ -79,6 +92,13 @@ export function readableStrings(value: unknown, path = "$"): [string, string][] 
  * String VALUES only: keys are skipped on purpose. `enrolmentId` and `touchId`
  * are field names the client uses, never words on a screen, and checking the
  * serialised JSON failed on those instead of on the copy.
+ *
+ * **Apply it to copy and to the fixed strings a response is assembled from, not
+ * to a whole response containing customer data.** The list holds ordinary
+ * English and thirteen first names: "Iris Chen", "Atlas Copco", "Vector
+ * Capital" and a subject line reading "Re: pricing model" are all real values
+ * from a CRM, and all of them match. A router that checks its own output
+ * should check the copy it chose, and leave the person's own words alone.
  */
 export function assertPlainWords(value: unknown): void {
   for (const [path, text] of readableStrings(value)) {

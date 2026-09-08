@@ -117,7 +117,15 @@ const schema = z
     // `DEV_USER_EMAIL` signs every request in as one rep with no credential.
     // In production that is an unauthenticated door into someone's pipeline,
     // so it is not a warning: the process refuses to start.
-    if (value.NODE_ENV === "production" && value.DEV_USER_EMAIL !== undefined) {
+    //
+    // The build is carved out, and has to be. `next build` sets
+    // NODE_ENV=production and loads the developer's local env file, so without
+    // this every developer who filled in the documented bypass would find
+    // `npm run build` dead on page-data collection. A build serves no request,
+    // so the bypass cannot be used during one; a deployed server has
+    // NEXT_PHASE unset or `phase-production-server` and is refused as before.
+    const building = process.env.NEXT_PHASE === "phase-production-build";
+    if (!building && value.NODE_ENV === "production" && value.DEV_USER_EMAIL !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["DEV_USER_EMAIL"],
@@ -141,8 +149,11 @@ const schema = z
 export type Env = z.infer<typeof schema>;
 
 /**
- * Validate an environment. Throws with the offending variable names and
- * nothing else — a value is never echoed, because most of them are secrets.
+ * Validate an environment. Throws naming the offending variables.
+ *
+ * No secret is echoed: the only issues that report what they received are the
+ * two enums, `INTEGRATIONS` and `NODE_ENV`, and neither holds a credential.
+ * Every other message names the variable and says what was wrong with it.
  */
 export function parseEnv(source: NodeJS.ProcessEnv | Record<string, string | undefined>): Env {
   const result = schema.safeParse(source);

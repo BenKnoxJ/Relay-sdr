@@ -50,6 +50,40 @@ describe("parseEnv", () => {
     ).toThrow(/local-only bypass/);
   });
 
+  it("allows DEV_USER_EMAIL during a production build, which serves no request", () => {
+    // `next build` sets NODE_ENV=production and reads the developer's local
+    // env file. Refusing here would kill `npm run build` on every machine that
+    // has the documented bypass filled in.
+    const saved = process.env.NEXT_PHASE;
+    process.env.NEXT_PHASE = "phase-production-build";
+    try {
+      expect(() =>
+        parseEnv({ ...base(), NODE_ENV: "production", DEV_USER_EMAIL: "rep@example.com" }),
+      ).not.toThrow();
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = saved;
+    }
+  });
+
+  it("still refuses DEV_USER_EMAIL on a production server, build phase or not", () => {
+    const saved = process.env.NEXT_PHASE;
+    for (const phase of [undefined, "phase-production-server"]) {
+      if (phase === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = phase;
+      expect(() =>
+        parseEnv({ ...base(), NODE_ENV: "production", DEV_USER_EMAIL: "rep@example.com" }),
+      ).toThrow(/local-only bypass/);
+    }
+    if (saved === undefined) delete process.env.NEXT_PHASE;
+    else process.env.NEXT_PHASE = saved;
+  });
+
+  it("refuses an APP_URL whose scheme a browser will not follow", () => {
+    expect(() => parseEnv({ ...base(), APP_URL: "ftp://example.com" })).toThrow(/APP_URL/);
+    expect(() => parseEnv({ ...base(), APP_URL: "javascript:alert(1)" })).toThrow(/APP_URL/);
+  });
+
   it("allows DEV_USER_EMAIL outside production", () => {
     expect(() =>
       parseEnv({ ...base(), NODE_ENV: "development", DEV_USER_EMAIL: "rep@example.com" }),

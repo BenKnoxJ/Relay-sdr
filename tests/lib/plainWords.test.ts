@@ -150,6 +150,17 @@ describe("assertPlainWords", () => {
     expect(() => assertPlainWords(new Set(["the gate said no"]))).toThrow(/machine word/);
   });
 
+  it("survives a cyclic value instead of overflowing the stack", () => {
+    // superjson payloads and a Prisma row with a back-relation are both cyclic.
+    const node: Record<string, unknown> = { title: "Ready for you" };
+    node.self = node;
+    expect(() => assertPlainWords(node)).not.toThrow();
+
+    const bad: Record<string, unknown> = { title: "their enrolment is paused" };
+    bad.self = bad;
+    expect(() => assertPlainWords(bad)).toThrow(/machine word/);
+  });
+
   it("ignores values a rep never reads", () => {
     expect(() => assertPlainWords({ count: 3, ok: true, missing: null })).not.toThrow();
   });

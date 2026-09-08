@@ -55,7 +55,7 @@ const shadcnColors: Record<string, string> = Object.fromEntries(
 
 const palette = { ...relayColors, ...shadcnColors };
 
-/** The eight sizes of the scale, as `text-11` … `text-24`, and nothing else. */
+/** The nine sizes of the scale, as `text-11` … `text-26`, and nothing else. */
 const scaleSizes: Record<string, string> = Object.fromEntries(
   scale.map((size) => [String(size), rem(size)]),
 );
@@ -128,12 +128,13 @@ export default {
 
   theme: {
     /**
-     * `colors` and `fontSize` REPLACE Tailwind's defaults rather than
-     * extending them. The signed file says "one accent" and "nothing
-     * off-scale"; leaving the stock palette and the stock `text-xs … text-9xl`
-     * in place would leave `bg-red-500` and `text-3xl` one keystroke away, and
-     * a rule nothing enforces is not a rule. Anything genuinely missing is
-     * added to the signed file first.
+     * `colors`, `fontSize` and `boxShadow` REPLACE Tailwind's defaults rather
+     * than extending them. The signed file says "one accent", "nothing
+     * off-scale", and names exactly two shadows; leaving the stock palette,
+     * the stock `text-xs … text-9xl` and the stock `shadow-sm … shadow-2xl`
+     * in place would leave `bg-red-500`, `text-3xl` and `shadow-md` one
+     * keystroke away, and a rule nothing enforces is not a rule. Anything
+     * genuinely missing is added to the signed file first.
      */
     colors: {
       transparent: "transparent",
@@ -143,6 +144,13 @@ export default {
     },
 
     fontSize: scaleSizes,
+
+    /**
+     * `card` and `nav`, and nothing else — not even `shadow-none`. A card is
+     * the only thing that carries a shadow (signed §3) and the floating nav
+     * pill is the one exception, so there is nothing to turn off.
+     */
+    boxShadow: BOX_SHADOW,
 
     /**
      * Replacing `colors` also resets everything derived from it, and the
@@ -176,7 +184,6 @@ export default {
 
       borderRadius: RADIUS,
       borderWidth: BORDER_WIDTH,
-      boxShadow: BOX_SHADOW,
       backgroundImage: BACKGROUND_IMAGE,
       spacing: SPACING,
       minHeight: MIN_HEIGHT,

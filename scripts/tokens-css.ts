@@ -25,10 +25,11 @@
  * test — would then be comparing the CSS against itself.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { kebab } from "../src/lib/theme-keys";
 import { colors, radius, themes, type Theme } from "../src/lib/tokens";
 
 export const TOKENS_CSS_PATH = "src/app/tokens.css";
@@ -36,9 +37,16 @@ export const TOKENS_CSS_PATH = "src/app/tokens.css";
 /** Repository root, from this file's own location. */
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** The CSS custom property carrying a Relay colour token. */
+/**
+ * The CSS custom property carrying a Relay colour token.
+ *
+ * `kebab` comes from `theme-keys.ts` rather than being re-written here: that
+ * file's Tailwind class names and these variable names have to agree exactly
+ * (`bg-warn-bg` reads `--relay-warn-bg`), and two copies of the rule would
+ * agree only until one of them was edited.
+ */
 export function cssVar(name: string): string {
-  return `--relay-${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+  return `--relay-${kebab(name)}`;
 }
 
 /**
@@ -140,7 +148,7 @@ export function renderTokensCss(): string {
   return `/* GENERATED FILE — do not edit by hand.
  *
  * Source:      src/lib/tokens.ts
- * Design:      products/relay/design/relay-tokens.md (v1.0, signed 2026-09-08)
+ * Design:      products/relay/design/relay-tokens.md (v1.1, signed 2026-09-08)
  * Regenerate:  npm run tokens:css
  * Verify:      npm run tokens:check   (also enforced by tests/ui/tokens.test.ts)
  *
@@ -186,7 +194,25 @@ function main(): void {
   console.log(`Wrote ${TOKENS_CSS_PATH} from src/lib/tokens.ts.`);
 }
 
-// Only when run as a script: the test imports `renderTokensCss` from here.
-if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/**
+ * Only when run as a script: the test imports `renderTokensCss` from here.
+ *
+ * Both sides are resolved through `realpath`, not just `path.resolve`.
+ * `import.meta.url` is already symlink-resolved, so comparing it against a raw
+ * `argv[1]` makes the two differ whenever the script is reached through a
+ * symlink — and the failure is silent in the worst direction: `main()` never
+ * runs, nothing is printed, and `--check` exits 0, so the `prebuild` drift
+ * gate reports success without having compared anything.
+ */
+const realpathOrNull = (target: string): string | null => {
+  try {
+    return realpathSync(target);
+  } catch {
+    return null;
+  }
+};
+
+const invokedAs = process.argv[1] === undefined ? null : realpathOrNull(process.argv[1]);
+if (invokedAs !== null && invokedAs === realpathOrNull(fileURLToPath(import.meta.url))) {
   main();
 }

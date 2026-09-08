@@ -32,7 +32,7 @@ import {
   layouts,
   radius,
   scale,
-  shadow,
+  shadows,
   space,
   type,
 } from "@/lib/tokens";
@@ -67,7 +67,7 @@ describe("tailwind theme", () => {
    * extended, `text-3xl` would still compile and "nothing off-scale" would be
    * a comment rather than a rule.
    */
-  it("offers the eight scale sizes and NOTHING else — no text-xs, no text-9xl", () => {
+  it("offers the nine scale sizes and NOTHING else — no text-xs, no text-9xl", () => {
     expect(Object.keys(theme.fontSize ?? {}).sort((a, b) => Number(a) - Number(b))).toEqual(
       scale.map(String),
     );
@@ -103,8 +103,11 @@ describe("tailwind theme", () => {
     // `control`, not `input`: `border-input` is already shadcn's border colour.
     expect(at(theme.borderWidth, "control")).toBe(`${border.input}px`);
     expect(at(theme.borderWidth, "input")).toBeUndefined();
-    expect(at(theme.boxShadow, "card")).toBe(`${shadow.card} var(--relay-shadow)`);
-    expect(at(theme.boxShadow, "nav")).toBe(`${shadow.nav} var(--relay-shadow)`);
+    expect(at(theme.boxShadow, "card")).toBe(`${shadows.card} var(--relay-shadow)`);
+    expect(at(theme.boxShadow, "nav")).toBe(`${shadows.nav} var(--relay-shadow)`);
+    // `boxShadow` replaces Tailwind's ramp rather than extending it, so the
+    // scale is these two and nothing else — see the compiled check below.
+    expect(Object.keys(theme.boxShadow ?? {}).sort()).toEqual(["card", "nav"]);
     expect(at(theme.maxWidth, "measure")).toBe(bodyMaxWidth);
     expect(at(theme.spacing, "card")).toBe(`${space.padCard[0]}px`);
     expect(at(theme.spacing, "card-rail")).toBe(`${space.padCard[1]}px`);
@@ -257,6 +260,21 @@ describe("compiled output", () => {
     expect(css).not.toContain(".bg-red-500");
     expect(css).not.toContain(".text-3xl");
     expect(css).not.toContain(".text-xs");
+  });
+
+  /**
+   * The same argument as the palette and the scale, applied to shadows. In
+   * `extend` the stock ramp survives and `shadow-md` compiles — a shadow the
+   * signed file never named, a fixed rgba that ignores the theme, on an
+   * element §3 says carries no shadow at all.
+   */
+  it("does not compile a shadow outside the signed pair", async () => {
+    const css = await compile("shadow-card shadow-md shadow-lg shadow-sm shadow");
+    expect(css).toContain(".shadow-card");
+    expect(css).not.toContain(".shadow-md");
+    expect(css).not.toContain(".shadow-lg");
+    expect(css).not.toContain(".shadow-sm");
+    expect(css).not.toMatch(/\.shadow\s*\{/);
   });
 });
 

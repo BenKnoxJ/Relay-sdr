@@ -3,8 +3,9 @@
  * space in the product.
  *
  * Transcribed from the SIGNED design system file:
- *   `products/relay/design/relay-tokens.md`, v1.0, signed by Benny-san
- *   2026-09-08 (master doc §21, LOCKED).
+ *   `products/relay/design/relay-tokens.md`, v1.1, signed by Benny-san
+ *   2026-09-08 (master doc §21, LOCKED). v1.1 amends dark `onAction` and adds
+ *   26 to the type scale, both on findings raised from this file's v1.0 pass.
  *
  * Rules for this file:
  *
@@ -73,14 +74,12 @@ export const colors = {
     line: "#2A2D3C",
     action: "#A07CF5",
     /**
-     * SIGNED as `#FFFFFF`, and white on `#A07CF5` measures 3.13:1 — below the
-     * 4.5:1 floor the same signed file demands. The signed value is kept here
-     * rather than quietly corrected; the shortfall is pinned by an explicit
-     * test in `tests/ui/tokens.test.ts` so it can neither widen nor be
-     * silently "fixed". See that test for the recommendation awaiting
-     * sign-off.
+     * Ink-on-violet, not white. v1.0 signed `#FFFFFF`, which measures 3.13:1
+     * on `#A07CF5` — below the 4.5:1 floor the same file demands. v1.1 settles
+     * it at the dark ground, 5.85:1. `tests/ui/tokens.test.ts` now holds both
+     * themes to the floor rather than pinning a shortfall.
      */
-    onAction: "#FFFFFF",
+    onAction: "#13141C",
     soft: "#2A2340",
     warn: "#F5B04C",
     warnBg: "#3A2A12",
@@ -222,11 +221,11 @@ export const type = {
 /**
  * The type scale — signed file §2, "Nothing off-scale."
  *
- * `type.monoBig` is 26 and therefore off this scale. That is a contradiction
- * inside the signed file, not a transcription slip; it is carried faithfully
- * and pinned by a test rather than resolved here.
+ * Nine sizes since v1.1: 26 was added for `type.monoBig`, the only role that
+ * uses it. v1.0 listed eight and then gave `monoBig` a size of 26, so the file
+ * contradicted itself; the amendment resolves it on the scale's side.
  */
-export const scale = [11, 12, 13, 14, 15, 16, 20, 24] as const;
+export const scale = [11, 12, 13, 14, 15, 16, 20, 24, 26] as const;
 
 /** Body text max width — signed file §2, last line. */
 export const bodyMaxWidth = "65ch";
@@ -257,10 +256,12 @@ export const space = {
 } as const;
 
 /**
- * Shadow geometry — signed file §3. The colour is the `shadow` token, applied
- * by `tailwind.config.ts` as a CSS variable so it follows the theme.
+ * Shadow geometry — signed file §3. Plural to keep it distinct from the
+ * `shadow` COLOUR token in `colors`: one is a pair of offsets, the other is
+ * the rgba the offsets are drawn in. `tailwind.config.ts` combines them,
+ * applying the colour as a CSS variable so it follows the theme.
  */
-export const shadow = {
+export const shadows = {
   /** cards only, never on rows or chips */
   card: "0 6px 24px",
   /** the floating nav pill */
@@ -289,7 +290,7 @@ export const tokens = {
   bodyMaxWidth,
   radius,
   space,
-  shadow,
+  shadows,
   border,
   layouts,
 } as const;

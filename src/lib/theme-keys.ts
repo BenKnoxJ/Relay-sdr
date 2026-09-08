@@ -17,7 +17,7 @@
 
 // Relative, not the `@/` alias: `tailwind.config.ts` imports this file, and
 // Tailwind loads its config through jiti, which does not know the alias.
-import { bodyMaxWidth, border, layouts, radius, shadow, space, type } from "./tokens";
+import { bodyMaxWidth, border, layouts, radius, shadows, space, type } from "./tokens";
 
 export const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -55,10 +55,18 @@ export const BORDER_WIDTH = {
   control: px(border.input),
 } as const;
 
-/** Geometry from the tokens; the colour follows the theme via the variable. */
+/**
+ * Geometry from the tokens; the colour follows the theme via the variable.
+ *
+ * These two are the WHOLE `boxShadow` scale — `tailwind.config.ts` sets it at
+ * theme level, not in `extend`, so `shadow-md` and the rest of Tailwind's
+ * stock ramp do not compile. Same argument as `colors` and `fontSize`: the
+ * signed file names two shadows, and a third one a keystroke away is a rule
+ * nothing enforces.
+ */
 export const BOX_SHADOW = {
-  card: `${shadow.card} var(--relay-shadow)`,
-  nav: `${shadow.nav} var(--relay-shadow)`,
+  card: `${shadows.card} var(--relay-shadow)`,
+  nav: `${shadows.nav} var(--relay-shadow)`,
 } as const;
 
 export const MIN_HEIGHT = {

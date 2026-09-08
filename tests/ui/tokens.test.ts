@@ -1,7 +1,7 @@
 /**
  * The signed design system, executed.
  *
- * `products/relay/design/relay-tokens.md` (v1.0, signed by Benny-san
+ * `products/relay/design/relay-tokens.md` (v1.1, signed by Benny-san
  * 2026-09-08) is the authority. The fixtures below are transcribed from its
  * tables by hand, on purpose: if `src/lib/tokens.ts` and the fixture were
  * derived from each other the test would only prove the file equals itself.
@@ -9,7 +9,9 @@
  * the code to the fixture.
  */
 
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -30,7 +32,7 @@ import {
   layouts,
   radius,
   scale,
-  shadow,
+  shadows,
   space,
   themes,
   type,
@@ -62,7 +64,7 @@ const SIGNED_COLORS = {
     muted: "#9AA0B3",
     line: "#2A2D3C",
     action: "#A07CF5",
-    onAction: "#FFFFFF",
+    onAction: "#13141C",
     soft: "#2A2340",
     warn: "#F5B04C",
     warnBg: "#3A2A12",
@@ -123,7 +125,7 @@ const SIGNED_SHAPE = {
     gapGrid: 16,
     gapChips: 8,
   },
-  shadow: { card: "0 6px 24px", nav: "0 4px 18px" },
+  shadows: { card: "0 6px 24px", nav: "0 4px 18px" },
   border: { hairline: 1, input: 1.5 },
   layouts: {
     home: "1.5fr 1fr",
@@ -186,11 +188,11 @@ describe("tokens", () => {
   });
 
   it("carries the signed shape, space, shadow, border and layout values", () => {
-    expect({ radius, space, shadow, border, layouts }).toEqual(SIGNED_SHAPE);
+    expect({ radius, space, shadows, border, layouts }).toEqual(SIGNED_SHAPE);
   });
 
   it("carries the signed type scale and body measure", () => {
-    expect([...scale]).toEqual([11, 12, 13, 14, 15, 16, 20, 24]);
+    expect([...scale]).toEqual([11, 12, 13, 14, 15, 16, 20, 24, 26]);
     expect(bodyMaxWidth).toBe("65ch");
   });
 
@@ -204,7 +206,7 @@ describe("tokens", () => {
     expect([...fonts.mono.fallback]).toEqual(["ui-monospace", "monospace"]);
   });
 
-  it("keeps every type size on the scale, apart from the one the signed file contradicts itself on", () => {
+  it("keeps every type size on the scale — §2, \"Nothing off-scale\"", () => {
     const offScale: Record<string, number[]> = {};
     for (const [role, spec] of Object.entries(type)) {
       const sizes: number[] = Array.isArray(spec.size) ? [...spec.size] : [spec.size];
@@ -212,11 +214,10 @@ describe("tokens", () => {
       if (bad.length > 0) offScale[role] = bad;
     }
 
-    // The signed file says "Nothing off-scale" in §2 and then gives `monoBig`
-    // a size of 26, which is not one of the eight. Pinned rather than
-    // resolved: fixing it is a design decision, and this assertion fails the
-    // moment either half changes, so it cannot be forgotten.
-    expect(offScale).toEqual({ monoBig: [26] });
+    // v1.0 said "nothing off-scale" and then gave `monoBig` a 26 the scale did
+    // not carry. v1.1 added 26, so the rule is now true of every role and this
+    // is a plain assertion rather than a pinned exception.
+    expect(offScale).toEqual({});
   });
 });
 
@@ -227,6 +228,9 @@ describe("contrast", () => {
     { pair: ["ink", "panel"], floor: 7 },
     { pair: ["muted", "panel"], floor: 4.5 },
     { pair: ["warn", "warnBg"], floor: 4.5 },
+    // Both themes since v1.1: dark `onAction` moved from `#FFFFFF` (3.13:1 on
+    // the dark violet, below this floor) to the dark ground `#13141C`.
+    { pair: ["onAction", "action"], floor: 4.5 },
   ] as const;
 
   for (const theme of themes) {
@@ -238,29 +242,10 @@ describe("contrast", () => {
     }
   }
 
-  it("light: onAction on action clears 4.5:1", () => {
-    expect(contrast(colors.light.onAction, colors.light.action)).toBeGreaterThanOrEqual(4.5);
-  });
-
-  /**
-   * The one place the signed palette misses its own floor.
-   *
-   * §1 sets dark `onAction` to `#FFFFFF` and dark `action` to `#A07CF5`, and
-   * then requires `onAction` on `action` to clear 4.5:1 in BOTH themes. White
-   * on that violet is 3.13:1 — it fails for a 14px/600 button label (AA large
-   * text is 3:1, and a button label is not large text).
-   *
-   * Forge does not settle signed design. The measured value is pinned instead,
-   * so the shortfall cannot widen unnoticed and cannot be "fixed" without this
-   * test failing and forcing the pair back into the list above.
-   *
-   * Recommendation awaiting Benny-san's sign-off: leave dark `action` alone
-   * (the master doc §21 names it) and set dark `onAction` to the dark ground
-   * `#13141C`, which measures 5.85:1 — a dark label on a light-violet button.
-   */
-  it("dark: onAction on action is pinned below the signed floor, pending sign-off", () => {
-    expect(contrast(colors.dark.onAction, colors.dark.action)).toBe(3.13);
-    expect(contrast("#13141C", colors.dark.action)).toBe(5.85);
+  /** The amendment itself: the value v1.1 chose, and the one it replaced. */
+  it("dark: onAction on action is the 5.85:1 pair, not the 3.13:1 one", () => {
+    expect(contrast(colors.dark.onAction, colors.dark.action)).toBe(5.85);
+    expect(contrast("#FFFFFF", colors.dark.action)).toBe(3.13);
   });
 });
 
@@ -273,6 +258,25 @@ describe("tokens.css", () => {
   it("is exactly what the tokens render, with no hand edits", () => {
     expect(onDisk).toBe(renderTokensCss());
   });
+
+  /**
+   * The gate above only guards drift if the SCRIPT half actually runs. Its
+   * "am I the entry point?" test compares `argv[1]` with `import.meta.url`,
+   * and `import.meta.url` is symlink-resolved while `argv[1]` is not — so
+   * reached through a symlink the two differ, `main()` is skipped, and
+   * `--check` exits 0 having compared nothing. A silent pass on the one gate
+   * whose whole job is to fail, so it is asserted rather than assumed.
+   */
+  it("runs --check even when the script is reached through a symlink", () => {
+    const link = path.join(mkdtempSync(path.join(tmpdir(), "relay-tokens-")), "tokens-css.ts");
+    symlinkSync(path.join(process.cwd(), "scripts/tokens-css.ts"), link);
+
+    const output = execFileSync("npx", ["tsx", link, "--check"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    expect(output).toContain(`${TOKENS_CSS_PATH} matches`);
+  }, 60_000);
 
   it("declares every colour token for both themes", () => {
     for (const theme of themes) {

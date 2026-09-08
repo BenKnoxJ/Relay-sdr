@@ -1,7 +1,7 @@
 /* GENERATED FILE — do not edit by hand.
  *
  * Source:      src/lib/tokens.ts
- * Design:      products/relay/design/relay-tokens.md (v1.0, signed 2026-09-08)
+ * Design:      products/relay/design/relay-tokens.md (v1.1, signed 2026-09-08)
  * Regenerate:  npm run tokens:css
  * Verify:      npm run tokens:check   (also enforced by tests/ui/tokens.test.ts)
  *
@@ -64,7 +64,7 @@
   --relay-muted: #9AA0B3;
   --relay-line: #2A2D3C;
   --relay-action: #A07CF5;
-  --relay-on-action: #FFFFFF;
+  --relay-on-action: #13141C;
   --relay-soft: #2A2340;
   --relay-warn: #F5B04C;
   --relay-warn-bg: #3A2A12;
@@ -80,7 +80,7 @@
   --popover: 230.8 19.4% 13.1%;
   --popover-foreground: 226.7 31% 94.3%;
   --primary: 257.9 85.8% 72.4%;
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 233.3 19.1% 9.2%;
   --secondary: 254.5 29.3% 19.4%;
   --secondary-foreground: 226.7 31% 94.3%;
   --muted: 254.5 29.3% 19.4%;
@@ -88,7 +88,7 @@
   --accent: 254.5 29.3% 19.4%;
   --accent-foreground: 257.9 85.8% 72.4%;
   --destructive: 35.5 89.4% 62.9%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 233.3 19.1% 9.2%;
   --border: 230 17.6% 20%;
   --input: 230 17.6% 20%;
   --ring: 257.9 85.8% 72.4%;

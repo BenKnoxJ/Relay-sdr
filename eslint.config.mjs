@@ -118,8 +118,74 @@ const DELETE_BAN = [
   },
 ];
 
+// ── One write path (master doc §25, rule 4) ─────────────────────────────────
+// "A state change and its Event commit in one transaction" is only true if
+// there is one place that can write. That place is `src/lib/repo/**`, whose
+// `mutate()` opens the transaction and inserts the Event; the queue
+// (`src/lib/jobs/queue.ts`) is the one other writer, because enqueueing a job
+// is not a domain event.
+//
+// The selector is the delete ban's shape, for the same reasons and with the
+// same limits: it matches `<something>.<model>.create(` rather than a list of
+// client names, so an aliased client is caught; it does not see a destructured
+// delegate, which needs type information.
+//
+// Two differences from the delete ban are worth knowing before widening either:
+//
+//   * There is no built-in-receiver allowlist. `delete` needed one because
+//     `req.headers.delete()` is everyday code. These verbs have no equivalent
+//     — `hash.update()` and `cipher.update()` are reached through an
+//     identifier, not a member access, so the `object.type` requirement
+//     already excludes them.
+//   * It costs more false positives. `state.form.update(v)` matches, and the
+//     answer is a one-line `eslint-disable` with a reason, which is visible in
+//     review. A missed write is a state change with no Event, which is not.
+//
+// The ban covers `src/**`, which is where the application lives — the same
+// reach the delete ban has. `prisma/seed.ts`, `scripts/**` and `tests/**` are
+// outside it on purpose: seeding and test fixtures exist to put rows in the
+// database directly, and an Event per fixture row would be noise. That is also
+// why `tests/db/harness.ts` can issue raw SQL.
+//
+// Raw SQL is banned outright outside the write path, in all four spellings. A
+// `$executeRawUnsafe` reaching past this rule is the whole rule gone, and
+// `$queryRaw` writes too — `WITH x AS (UPDATE …) SELECT` is a query as far as
+// the name goes. Reads that genuinely need raw SQL belong in the repository
+// layer with the writes.
+const WRITE_MESSAGE =
+  "Every write goes through src/lib/repo (mutate opens the transaction and records the Event — master doc §25, rule 4); the queue in src/lib/jobs/queue.ts is the only other writer. If this is not Prisma, disable this rule on the line and say why.";
+
+const WRITE_VERBS = "^(create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert)$";
+const RAW_VERBS = String.raw`^\$(executeRaw|executeRawUnsafe|queryRaw|queryRawUnsafe)$`;
+
+const WRITE_BAN = [
+  {
+    selector: `MemberExpression[computed=false][property.name=/${WRITE_VERBS}/][object.type="MemberExpression"]`,
+    message: WRITE_MESSAGE,
+  },
+  {
+    selector: `MemberExpression[computed=true][property.value=/${WRITE_VERBS}/][object.type="MemberExpression"]`,
+    message: WRITE_MESSAGE,
+  },
+  {
+    // `prisma.$executeRawUnsafe(...)` — one level, not two, so it needs its own
+    // selector. `$`-prefixed names are Prisma's alone, so no receiver check is
+    // needed and none is made.
+    selector: `MemberExpression[computed=false][property.name=/${RAW_VERBS}/]`,
+    message: WRITE_MESSAGE,
+  },
+  {
+    // And its computed twin, `prisma["$executeRawUnsafe"](...)`. Every other
+    // selector here ships one; without it this is the cheapest escape in the
+    // file.
+    selector: `MemberExpression[computed=true][property.value=/${RAW_VERBS}/]`,
+    message: WRITE_MESSAGE,
+  },
+];
+
 const WORKER_AND_LIB = ["src/worker/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"];
 const RETENTION_JOB = "src/lib/jobs/retention.ts";
+const WRITE_PATH = ["src/lib/repo/**/*.{ts,tsx}", "src/lib/jobs/queue.ts"];
 
 const config = [
   {
@@ -136,7 +202,7 @@ const config = [
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...DELETE_BAN],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN],
     },
   },
 
@@ -172,7 +238,7 @@ const config = [
           ],
         },
       ],
-      "no-restricted-syntax": ["error", ...DELETE_BAN, ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
     },
   },
 
@@ -182,7 +248,18 @@ const config = [
   {
     files: [RETENTION_JOB],
     rules: {
-      "no-restricted-syntax": ["error", ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": ["error", ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
+    },
+  },
+
+  // The write path is the carve-out from the write ban, and only from that
+  // one: nothing is deleted here either, and it is inside `src/lib`, so the
+  // boundary still applies. This block is last because these files also match
+  // `src/**` and WORKER_AND_LIB, and flat config gives the last write.
+  {
+    files: WRITE_PATH,
+    rules: {
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...BOUNDARY_DYNAMIC],
     },
   },
 ];

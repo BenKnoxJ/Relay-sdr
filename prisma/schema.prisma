@@ -1,8 +1,20 @@
 // Relay — Prisma schema.
 //
-// Datasource only. The data model (master doc §25) lands in its own task, so
-// the first migration is generated from an empty schema and every later
-// migration is a reviewable delta.
+// The Phase 1 half of the data model (master doc §25): who (Org, User,
+// ConnectedAccount, OAuthState), record (Event, Job, AgentRun, AgentRunStep)
+// and the two pointers (ProductFactsVersion, SideEffect). Campaign, people and
+// draft entities land with slice 1.
+//
+// Conventions, applied without exception:
+//   * cuid ids, `created_at` / `updated_at` on every table (Event excepted —
+//     it is append-only and has nothing to update).
+//   * snake_case table and column names via `@@map` / `@map`. The application
+//     reads camelCase; SQL written by hand reads like SQL.
+//   * `orgId` on every table but Org itself (§25, rule 3), and `ownerUserId`
+//     on the rep-scoped ones.
+//   * No `onDelete: Cascade` anywhere. Nothing is deleted (§25, rule 1), so a
+//     cascade is a route that should not exist; `Restrict` is stated rather
+//     than left to the default so the intent is on the page.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,4 +24,363 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+// ── Who ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  rep
+  admin
+
+  @@map("role")
+}
+
+enum Provider {
+  graph
+  zoho
+  linkedin
+  lusha
+
+  @@map("provider")
+}
+
+enum AccountStatus {
+  healthy
+  expiring
+  revoked
+  paused
+
+  @@map("account_status")
+}
+
+/// A tenant. The only table with no `org_id`: it is the org.
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users               User[]
+  connectedAccounts   ConnectedAccount[]
+  oauthStates         OAuthState[]
+  events              Event[]
+  jobs                Job[]
+  agentRuns           AgentRun[]
+  agentRunSteps       AgentRunStep[]
+  productFactsVersion ProductFactsVersion[]
+  sideEffects         SideEffect[]
+
+  @@map("orgs")
+}
+
+/// A rep or an admin. `clerkId` is nullable because the local development
+/// bypass (`DEV_USER_EMAIL`) signs in a user that Clerk has never seen.
+/// Deactivation is a timestamp, not a delete (§25, rule 1).
+model User {
+  id            String    @id @default(cuid())
+  orgId         String    @map("org_id")
+  clerkId       String?   @unique @map("clerk_id")
+  email         String
+  name          String?
+  role          Role      @default(rep)
+  deactivatedAt DateTime? @map("deactivated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  org               Org                @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  connectedAccounts ConnectedAccount[]
+  oauthStates       OAuthState[]
+  events            Event[]
+  jobs              Job[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@map("users")
+}
+
+/// One rep's connection to one provider. The send cap, window and ramp live
+/// here rather than on the campaign: they are properties of the mailbox, and
+/// two campaigns sharing a mailbox must share its limits (§25, "who").
+///
+/// `encTokens` holds the envelope produced by `src/lib/services/crypto.ts` —
+/// never a plaintext token.
+model ConnectedAccount {
+  id           String        @id @default(cuid())
+  orgId        String        @map("org_id")
+  userId       String        @map("user_id")
+  provider     Provider
+  encTokens    String        @map("enc_tokens")
+  scopes       String[]
+  status       AccountStatus @default(healthy)
+  connectedAt  DateTime      @default(now()) @map("connected_at")
+  expiresAt    DateTime?     @map("expires_at")
+  lastPolledAt DateTime?     @map("last_polled_at")
+  /// Provider-side cursor (Graph delta link, Zoho modified-since). Scoped to
+  /// this account so one rep's polling cannot move another's position.
+  pollCursor   String?       @map("poll_cursor")
+  dailyCap     Int           @default(10) @map("daily_cap")
+  /// Local wall-clock, `HH:MM`. A string, not a time: the rep sets a window,
+  /// not an instant, and a `time` column invites a timezone that is not there.
+  windowStart  String        @default("09:00") @map("window_start")
+  windowEnd    String        @default("16:30") @map("window_end")
+  /// Weekdays sending is allowed, lower-case three-letter. Friday is out by
+  /// default; the rep can put it back.
+  days         String[]      @default(["mon", "tue", "wed", "thu"])
+  rampStart    Int           @default(5) @map("ramp_start")
+  pausedReason String?       @map("paused_reason")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, provider])
+  @@index([orgId, provider])
+  @@index([status, expiresAt])
+  @@map("connected_accounts")
+}
+
+/// The OAuth `state` nonce, in the database rather than in a cookie or in
+/// memory: the callback can land on a different instance than the one that
+/// started the flow (master doc §24, "DB-backed OAuth state").
+model OAuthState {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  provider  Provider
+  state     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([orgId, userId])
+  @@index([expiresAt])
+  @@map("oauth_states")
+}
+
+// ── Record ──────────────────────────────────────────────────────────────────
+
+enum ActorKind {
+  user
+  system
+
+  @@map("actor_kind")
+}
+
+/// Append-only. Every state change commits with its Event in one transaction
+/// (§25, rule 4), which `src/lib/repo/mutate.ts` is the only place that does.
+///
+/// No `updated_at`: an Event that can be edited is not a record of anything.
+/// `created_at` is when the row was written; `at` is when the thing happened,
+/// which a backfill or a provider timestamp can put earlier.
+///
+/// `campaignId` and `personId` are plain columns, not relations: those tables
+/// arrive with slice 1. They are indexed now so the timeline query the record
+/// screen needs does not wait for a migration later.
+model Event {
+  id          String    @id @default(cuid())
+  orgId       String    @map("org_id")
+  actorKind   ActorKind @map("actor_kind")
+  actorUserId String?   @map("actor_user_id")
+  kind        String
+  campaignId  String?   @map("campaign_id")
+  personId    String?   @map("person_id")
+  before      Json?
+  after       Json?
+  at          DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  org       Org   @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([orgId, at])
+  @@index([kind, at])
+  @@index([campaignId, at])
+  @@index([personId, at])
+  @@map("events")
+}
+
+enum JobStatus {
+  queued
+  running
+  done
+  failed
+  cancelled
+
+  @@map("job_status")
+}
+
+/// The runtime spine and the outbox for every external write (§24, §25 rule 2).
+///
+/// A worker claims a row by moving it to `running` and setting `leaseUntil`; a
+/// reaper returns rows whose lease has passed. `idempotencyKey` is unique
+/// across the table, so an enqueue that is retried collides rather than
+/// duplicating the side effect. `responseDigest` records what the provider
+/// said, so a replay can tell "already done" from "never happened".
+model Job {
+  id             String    @id @default(cuid())
+  orgId          String    @map("org_id")
+  /// Set when the job belongs to one rep's work; null for org-level jobs.
+  ownerUserId    String?   @map("owner_user_id")
+  kind           String
+  idempotencyKey String    @map("idempotency_key")
+  status         JobStatus @default(queued)
+  priority       Int       @default(0)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3) @map("max_attempts")
+  nextAt         DateTime  @default(now()) @map("next_at")
+  leaseUntil     DateTime? @map("lease_until")
+  workerId       String?   @map("worker_id")
+  input          Json
+  responseDigest String?   @map("response_digest")
+  error          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  org         Org          @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser   User?        @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  agentRuns   AgentRun[]
+  sideEffects SideEffect[]
+
+  /// Scoped to the org, not global. An idempotency key is derived from what
+  /// the job is about ("send touch 1 to this person"), so two tenants can
+  /// legitimately produce the same string — and a global unique would answer
+  /// the second one by silently dropping its work.
+  @@unique([orgId, idempotencyKey])
+  /// The claim query: the oldest due, highest-priority queued row.
+  @@index([status, nextAt, priority])
+  /// The reaper's query: expired leases.
+  @@index([leaseUntil])
+  @@index([orgId, createdAt])
+  @@map("jobs")
+}
+
+enum AgentRunStatus {
+  running
+  done
+  failed
+
+  @@map("agent_run_status")
+}
+
+/// One agent loop, start to finish. "Every agent run is a first-class record:
+/// inputs, steps, tool calls, outputs, cost" (§24, design law).
+model AgentRun {
+  id         String         @id @default(cuid())
+  orgId      String         @map("org_id")
+  jobId      String         @map("job_id")
+  kind       String
+  model      String
+  status     AgentRunStatus @default(running)
+  startedAt  DateTime       @default(now()) @map("started_at")
+  finishedAt DateTime?      @map("finished_at")
+  /// Sum of the steps' cost, in USD. Decimal, not Float: money that is added
+  /// up thousands of times must not drift.
+  costTotal  Decimal        @default(0) @map("cost_total") @db.Decimal(12, 6)
+  error      String?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  org   Org            @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  job   Job            @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  steps AgentRunStep[]
+
+  @@index([orgId, startedAt])
+  @@index([jobId])
+  @@map("agent_runs")
+}
+
+enum AgentRunStepKind {
+  model
+  tool
+
+  @@map("agent_run_step_kind")
+}
+
+/// One model call or one tool call inside a run, with what it cost.
+///
+/// `toolKey` is the tool-level idempotency key: unique within the org, so a
+/// retried run that repeats a tool call collides instead of charging or
+/// sending twice. Null for model steps, which have nothing external to repeat.
+model AgentRunStep {
+  id              String           @id @default(cuid())
+  orgId           String           @map("org_id")
+  runId           String           @map("run_id")
+  index           Int
+  kind            AgentRunStepKind
+  name            String
+  tokensIn        Int              @default(0) @map("tokens_in")
+  tokensOut       Int              @default(0) @map("tokens_out")
+  tokensCached    Int              @default(0) @map("tokens_cached")
+  tokensReasoning Int              @default(0) @map("tokens_reasoning")
+  cost            Decimal          @default(0) @db.Decimal(12, 6)
+  toolKey         String?          @map("tool_key")
+  input           Json?
+  output          Json?
+  /// Whatever the provider returned alongside the result — request id, stop
+  /// reason, raw usage block. Kept so a cost figure can be argued with.
+  providerMeta    Json?            @map("provider_meta")
+  startedAt       DateTime         @default(now()) @map("started_at")
+  finishedAt      DateTime?        @map("finished_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  org Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, index])
+  /// Org-scoped for the same reason `Job.idempotencyKey` is.
+  @@unique([orgId, toolKey])
+  @@index([orgId, startedAt])
+  @@map("agent_run_steps")
+}
+
+/// A pointer to the product facts an org has activated. The facts file itself
+/// lives in the repository (§12); this records which version was in force, so
+/// a draft can be read back against the facts it was written from.
+model ProductFactsVersion {
+  id          String   @id @default(cuid())
+  orgId       String   @map("org_id")
+  product     String
+  version     Int
+  /// Content hash of the facts file, so "version 3" can be proved to be the
+  /// same version 3 the draft was written under.
+  hash        String
+  activatedAt DateTime @default(now()) @map("activated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Restrict)
+
+  /// Scoped to the org, not global: two orgs each run their own version 1 of
+  /// their own product, and rule 3 puts `org_id` on the row precisely so it can
+  /// key things like this.
+  @@unique([orgId, product, version])
+  @@index([orgId, activatedAt])
+  @@map("product_facts_versions")
+}
+
+/// Proof that a job's external effect happened exactly once. A job writes its
+/// key here inside the same transaction as the effect's local record; a replay
+/// of the same key collides on the unique index and stops.
+model SideEffect {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  key       String
+  jobId     String   @map("job_id")
+  at        DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  /// Org-scoped for the same reason `Job.idempotencyKey` is.
+  @@unique([orgId, key])
+  @@index([orgId, at])
+  @@index([jobId])
+  @@map("side_effects")
 }

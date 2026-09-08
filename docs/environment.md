@@ -24,6 +24,19 @@ TOKEN_ENC_KEY=""
 # The rep signed in as during local development.
 DEV_USER_EMAIL=""
 
+# --- worker ---------------------------------------------------------------
+# Milliseconds. Leave these blank unless you are tuning or testing: the
+# defaults below are the shipping values, and a blank takes the default.
+# Wait between polls when the queue is empty (default 2000).
+RELAY_WORKER_POLL_MS=""
+# How long a claim holds a job before the reaper may take it back (default
+# 120000). The proof-2 test shortens it so "wait for the lease to expire" is
+# seconds; the worker renews every quarter of it while a handler runs.
+RELAY_WORKER_LEASE_MS=""
+# How long a draining worker lets an in-flight handler finish after SIGTERM
+# (default 540000). Must stay inside the unit's TimeoutStopSec.
+RELAY_WORKER_DRAIN_MS=""
+
 # --- auth (Clerk) ---------------------------------------------------------
 CLERK_SECRET_KEY=""
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
@@ -124,3 +137,14 @@ FIRECRAWL_API_KEY=""
   worker under `env -i` with exactly those two set to keep it that way (master
   doc §18).
 - **Production** (Neon, Vercel) sets the same names; only the values differ.
+- **The worker's three knobs are milliseconds and have defaults.**
+  `RELAY_WORKER_POLL_MS` (2000), `RELAY_WORKER_LEASE_MS` (120000) and
+  `RELAY_WORKER_DRAIN_MS` (540000) each fall back to the shipping value when
+  unset or blank, so the worker needs nothing beyond the two connection
+  strings — which is all the CI boundary smoke gives it (`DATABASE_URL` and
+  `DIRECT_URL`; rubric proof 5's harness adds `INTEGRATIONS=mock`, which is
+  already the default). A value that is not a
+  whole number above zero refuses to boot rather than silently becoming a
+  zero-millisecond poll. `RELAY_WORKER_DRAIN_MS` must stay inside the systemd
+  unit's `TimeoutStopSec`: the worker has to give up before systemd does, or
+  the SIGKILL that follows is the thing the drain existed to avoid.

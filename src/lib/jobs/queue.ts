@@ -195,6 +195,28 @@ export async function enqueue(
     throw new Error("enqueue: idempotencyKey is required");
   }
 
+  // The owner must be in the org the job belongs to. The foreign key alone
+  // does not say that — `owner_user_id` references `users(id)` with no regard
+  // for which tenant that user is in — so without this check a caller that
+  // took the user id from request input could hang one org's job off another
+  // org's rep, and Task 11's "my jobs" screen would show it to them. §25 rule
+  // 3 is that every row is org-scoped; this is the one column on `jobs` where
+  // that has to be checked rather than declared.
+  //
+  // Read inside the caller's transaction, so a user created in the same
+  // transaction is visible and one rolled back is not.
+  if (input.ownerUserId !== undefined) {
+    const owner = await db.user.findUnique({
+      where: { id: input.ownerUserId },
+      select: { orgId: true },
+    });
+    if (owner === null || owner.orgId !== input.orgId) {
+      // The message names neither the other org nor the user's own: a caller
+      // that guessed an id learns only that the pairing was refused.
+      throw new Error("enqueue: ownerUserId is not a user of this org");
+    }
+  }
+
   const rows = await db.$queryRaw<JobRow[]>`
     INSERT INTO jobs (id, org_id, owner_user_id, kind, idempotency_key,
                       priority, next_at, input, created_at, updated_at)
@@ -433,6 +455,50 @@ export async function requeue(
   const row = rows[0];
   if (row === undefined) return FENCED;
   return { ok: true, fenced: false, status: row.status as "queued" | "failed" };
+}
+
+/**
+ * Hand a claimed job straight back, unattempted.
+ *
+ * The deploy case, and the one place `attempts` goes *down*. A worker draining
+ * on SIGTERM has a handler it cannot finish in the time systemd allows: the
+ * work did not fail, it was never done, and nobody but the operator decided to
+ * stop it. `requeue` is the wrong verb for that on two counts — it charges the
+ * attempt (so three deploys during a busy hour exhaust a job that has never
+ * once been tried) and it applies the cap (so a job on its last attempt is
+ * marked `failed` by a restart, which for a send is work silently dropped).
+ *
+ * So the attempt the claim spent is given back and the job is due immediately.
+ * The safety this gives up is bounded and worth stating: a worker that
+ * crash-loops *through the drain path* could hand the same job back for ever.
+ * A drain is operator-initiated and a handler that fails is a `requeue` or a
+ * `fail` like any other, so there is no path from a bad job to that loop —
+ * only from a bad operator.
+ *
+ * Fenced like every other write here: a worker that has already lost the lease
+ * cannot un-spend an attempt the reaper has accounted for.
+ */
+export async function release(
+  db: PrismaClient,
+  claim: Claim,
+  error: string,
+): Promise<FenceResult> {
+  const rows = await db.$queryRaw<Array<{ id: string }>>`
+    UPDATE jobs
+       SET status = 'queued'::"job_status",
+           attempts = GREATEST(attempts - 1, 0),
+           next_at = (now() AT TIME ZONE 'UTC'),
+           error = ${error},
+           worker_id = NULL,
+           lease_until = NULL,
+           updated_at = (now() AT TIME ZONE 'UTC')
+     WHERE id = ${claim.id}
+       AND worker_id = ${claim.workerId}
+       AND attempts = ${claim.attempts}
+       AND status = 'running'::"job_status"
+    RETURNING id
+  `;
+  return rows.length === 1 ? LANDED : FENCED;
 }
 
 export type ReapResult = { requeued: string[]; failed: string[] };

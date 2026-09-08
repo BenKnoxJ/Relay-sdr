@@ -33,6 +33,28 @@ function withDefault<T extends z.ZodTypeAny>(inner: T, fallback: z.infer<T>) {
 }
 
 /**
+ * A positive whole number of milliseconds with a default, for the worker's
+ * timing knobs.
+ *
+ * `z.coerce.number()` is not enough on its own: it is `Number()`, which reads
+ * `""` as 0, so a variable defined-but-blank would become a zero-millisecond
+ * poll interval — a worker spinning a database round trip as fast as the event
+ * loop allows. So empty folds to the default first, and the result must be an
+ * integer above zero.
+ *
+ * The fold is `""` and nothing else, exactly as in `optional` and
+ * `withDefault`: `"  "` is not a variable somebody left unset, it is one
+ * somebody set wrong, and `Number("  ")` being 0 means `.positive()` refuses
+ * it at boot with the variable's name. Loud is the right answer there.
+ */
+function positiveMs(fallback: number) {
+  return z.preprocess(
+    (value) => (value === "" || value === undefined ? fallback : value),
+    z.coerce.number().int().positive(),
+  );
+}
+
+/**
  * Base64 with no slack. `Buffer.from(s, "base64")` silently drops characters
  * outside the alphabet, so `Buffer.from("not a key!!!", "base64").length` is a
  * number like any other and a length check alone would accept junk.
@@ -150,6 +172,28 @@ const schema = z
      * Prisma log.
      */
     NODE_ENV: withDefault(z.enum(["development", "test", "production"]), "production"),
+
+    // --- worker -----------------------------------------------------------
+    /**
+     * How long the worker waits before polling again when the queue is empty.
+     * Every value below is milliseconds, and every one of them is a knob for
+     * the tests and for systemd rather than something an operator normally
+     * sets: the defaults are the shipping values.
+     */
+    RELAY_WORKER_POLL_MS: positiveMs(2_000),
+    /**
+     * How long a claim holds a job before the reaper may take it back. It
+     * defaults to the queue's own `LEASE_MS`; the proof-2 test shortens it so
+     * that "wait for the lease to expire" is seconds rather than two minutes.
+     */
+    RELAY_WORKER_LEASE_MS: positiveMs(120_000),
+    /**
+     * How long a draining worker lets an in-flight handler run after SIGTERM.
+     * Inside the unit's `TimeoutStopSec=600` on purpose (Task 13): the worker
+     * has to give up before systemd does, or the SIGKILL that follows is the
+     * one thing the drain existed to avoid.
+     */
+    RELAY_WORKER_DRAIN_MS: positiveMs(540_000),
 
     // --- auth (Clerk) -----------------------------------------------------
     CLERK_SECRET_KEY: optional(z.string()),

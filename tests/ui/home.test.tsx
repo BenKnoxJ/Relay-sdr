@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { HomeDayOne } from "@/components/HomeDayOne";
+import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
 
 const BOTH_CONNECTED = { mailbox: true, zoho: true };
@@ -86,7 +87,7 @@ describe("Home on day one", () => {
   });
 
   it("shows what Start does today, and only after it is used", async () => {
-    const startBrief = vi.fn(async () => homeCopy.campaignsNext);
+    const startBrief = vi.fn(async () => campaignsCopy.next);
 
     render(
       <HomeDayOne
@@ -97,13 +98,13 @@ describe("Home on day one", () => {
       />,
     );
 
-    expect(screen.queryByText(homeCopy.campaignsNext)).toBeNull();
+    expect(screen.queryByText(campaignsCopy.next)).toBeNull();
 
-    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder) as HTMLInputElement;
+    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder) as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: "UK logistics firms, ops directors" } });
     fireEvent.click(screen.getByRole("button", { name: homeCopy.briefStart }));
 
-    expect(await screen.findByText(homeCopy.campaignsNext)).toBeDefined();
+    expect(await screen.findByText(campaignsCopy.next)).toBeDefined();
     expect(startBrief).toHaveBeenCalledTimes(1);
     // The sentence reaches the action, which is the only thing it is for.
     const [, formData] = startBrief.mock.calls[0] as unknown as [unknown, FormData];
@@ -128,6 +129,130 @@ describe("Home on day one", () => {
     const grid = screen.getByTestId("home-grid");
     expect(grid.className).not.toContain("grid-cols-home");
     expect(screen.queryByTestId("home-rail")).toBeNull();
+  });
+
+  /**
+   * WCAG 2.4.7. The input paints no ring of its own — it is borderless inside
+   * the pill, and a ring drawn on it would sit inside the pill's own border.
+   * The ring belongs to the pill, which is the control a rep sees.
+   */
+  it("rings the whole pill when the box has focus", () => {
+    render(
+      <HomeDayOne
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        startBrief={noop}
+      />,
+    );
+
+    expect(screen.getByTestId("brief-pill").className).toContain("focus-within:ring-2");
+  });
+
+  /**
+   * The disabled Start button guards the mouse and nothing else. Enter goes
+   * straight to `requestSubmit`, so a rep leaning on it fired the action once
+   * per press — harmless against today's stub, a duplicate campaign in slice 1.
+   */
+  it("does not fire the action again on Enter while one is already in flight", async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const startBrief = vi.fn(async () => {
+      await held;
+      return campaignsCopy.next;
+    });
+
+    render(
+      <HomeDayOne
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        startBrief={startBrief}
+      />,
+    );
+
+    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "UK logistics firms, ops directors" } });
+
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.keyDown(box, { key: "Enter" });
+
+    release();
+    expect(await screen.findByText(campaignsCopy.next)).toBeDefined();
+    expect(startBrief).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The box is a textarea so the signed two-line example fits (mock 1b), which
+   * hands Enter back its newline. A brief is one sentence and the mock draws
+   * one button: Enter has to keep submitting, or the control the rep reaches
+   * for silently changes meaning.
+   */
+  it("submits on Enter and takes a newline on Shift+Enter", async () => {
+    const startBrief = vi.fn(async () => campaignsCopy.next);
+
+    render(
+      <HomeDayOne
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        startBrief={startBrief}
+      />,
+    );
+
+    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "UK logistics firms, ops directors" } });
+
+    fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+    expect(startBrief).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(await screen.findByText(campaignsCopy.next)).toBeDefined();
+    expect(startBrief).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * An IME composing Japanese or Chinese ends a candidate with Enter. Reading
+   * that as submit sends a half-typed brief, so the box waits for the key that
+   * is not part of the composition.
+   */
+  it("does not submit on the Enter that closes an IME candidate", () => {
+    const startBrief = vi.fn(async () => campaignsCopy.next);
+
+    render(
+      <HomeDayOne
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        startBrief={startBrief}
+      />,
+    );
+
+    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "\u3042" } });
+    fireEvent.keyDown(box, { key: "Enter", isComposing: true });
+
+    expect(startBrief).not.toHaveBeenCalled();
+  });
+
+  /** The mock draws the example over two lines; one line clips two of its three clauses. */
+  it("gives the box the two lines the signed example needs", () => {
+    render(
+      <HomeDayOne
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        startBrief={noop}
+      />,
+    );
+
+    const box = screen.getByPlaceholderText(homeCopy.briefPlaceholder);
+    expect(box.tagName).toBe("TEXTAREA");
+    expect(box.getAttribute("rows")).toBe("2");
+    expect(box.className).toContain("resize-none");
   });
 
   it("puts the rail beside the card once there is a widget for it", () => {

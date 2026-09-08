@@ -13,6 +13,8 @@ import {
   RADIUS,
   SHADCN_COLOR_KEYS,
   SPACING,
+  TRANSITION_DURATION,
+  TRANSITION_TIMING,
   kebab,
 } from "./src/lib/theme-keys";
 import { colorNames, fonts, layouts, scale, type } from "./src/lib/tokens";
@@ -189,6 +191,8 @@ export default {
       minHeight: MIN_HEIGHT,
       maxWidth: MAX_WIDTH,
       gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
+      transitionDuration: TRANSITION_DURATION,
+      transitionTimingFunction: TRANSITION_TIMING,
 
       screens: {
         // Above this, the two-column layouts apply; below, single column.

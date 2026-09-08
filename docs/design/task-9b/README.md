@@ -15,6 +15,7 @@ sight.
 | `settings.jpg` | Settings: the four cards, contents from Task 10b | mock section 5, §23.1f |
 | `nav-roles.jpg` | The nav as an admin and as a rep | §23.0 |
 | `home-dark.jpg` | Home in dark | mock section 6 |
+| `home-focus.jpg` | The brief box with focus in it, both themes | WCAG 2.4.7; the mock draws no focus state |
 
 Light and dark are both shown because the palette switches on one attribute
 and nothing else, so dark is where a hard-coded colour surfaces.
@@ -38,8 +39,26 @@ rules on them rather than discovering them.
 5. **Settings.** The mock draws all four cards filled in. Their contents belong
    to Task 10b and the tasks after it; the shell ships the cards and their
    signed headings.
+6. **Home's connect prompts.** The mock's 1b frame does not draw them; the
+   master doc (§23.1a) says day one carries one line per connection that is
+   not yet made. The doc wins. Endorsed by Neon in review `5147636443`.
+7. **Inbox's empty copy.** The mock's empty frame says less than the built page
+   does; §22.7 asks an empty state to say what happens next rather than that
+   there is nothing. Endorsed in the same review.
+
+## Carried, not fixed here
+
+The avatar's initials are `text-action` on `bg-soft`, which measures 4.33:1 in
+light — under the 4.5:1 floor the signed tokens set (WCAG 1.4.3; dark clears at
+~4.74). This is the 9a `soft`-as-text gap with a rendered instance, not a
+defect in this branch, and Neon routed it to the **v1.2 token pass**: the fix
+is to deepen light `soft`, which keeps the violet-on-violet the mock draws.
+Changing it here would spend a token decision inside a shell PR.
 
 ## Regenerating
+
+`home-focus.jpg` is the built page against itself: it needs no mock pane,
+because the signed mock draws no focus state.
 
 `nav-roles.jpg` needs the same page rendered for two different people, so the
 capture wants two instances: one signed in as the org's admin, one as a rep.
@@ -63,8 +82,8 @@ node scripts/design-shots.mjs
 ```
 
 `MOCK` is required: the signed mock lives outside this repository. `REP_APP` is
-optional — without it the other six images are produced and `nav-roles.jpg` is
-skipped, with a line saying so.
+optional — without it the other seven images are produced and `nav-roles.jpg`
+is skipped, with a line saying so.
 
 `scripts/design-shots.mjs` drives whatever Chrome or Chromium is on the machine
 over the DevTools Protocol, so it adds no dependency to the project.

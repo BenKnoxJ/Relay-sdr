@@ -42,14 +42,31 @@ const PORT = Number(process.env.CDP_PORT ?? 9333);
 
 const TMP = path.join(process.env.TMPDIR ?? "/tmp", "relay-design-shots");
 
-/** The signed mock's frames, by their index in document order. */
+/**
+ * The signed mock's frames, by their index in document order.
+ *
+ * Counted from the mock rather than guessed: the campaign section (3b-3f) is
+ * six frames, not the four the first pass assumed, so settings/content/dark
+ * were three short and the comparison showed "Your people" where Settings
+ * should have been.
+ *
+ *   0 1 · Home, smallest          9  3c · Campaign running
+ *   1 1b · Home on day one       10  3c · Research stopped
+ *   2 2a · Draft selected        11  3d · Start
+ *   3 2b · Reply selected        12  3e · Your people, before reveal
+ *   4 2c · Call selected         13  3f · Your people, after reveal
+ *   5 2c · Inbox empty           14  5  · Settings
+ *   6 3a · Campaigns list        15  6  · Content before its slice
+ *   7 3b · Campaign, plan ready  16  6  · Home in dark
+ *   8 3b-ii · Plan expanded
+ */
 const MOCK_FRAMES = {
   "mock-home-day-one": 1,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
-  "mock-settings": 12,
-  "mock-content-coming": 13,
-  "mock-home-dark": 14,
+  "mock-settings": 14,
+  "mock-content-coming": 15,
+  "mock-home-dark": 16,
 };
 
 const APP_PAGES = { home: "/", content: "/content", inbox: "/inbox", campaigns: "/campaigns", settings: "/settings" };
@@ -68,6 +85,8 @@ const STATES = [
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
   ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
     [["Signed mock", "mock-home-dark"], ["Built, dark", "app-home-dark"], ["Built, light", "app-home-light"]]],
+  ["home-focus", "The brief box with focus in it (WCAG 2.4.7; the mock draws no focus state)",
+    [["Built, light", "app-focus-light"], ["Built, dark", "app-focus-dark"]]],
 ];
 
 /** Only producible with a second instance signed in as a rep. */
@@ -93,9 +112,17 @@ async function launch() {
     } catch {
       // not listening yet
     }
-    if (failed !== undefined) throw new Error(`could not run ${CHROME}: ${failed.message}`);
+    if (failed !== undefined) {
+      chrome.kill();
+      throw new Error(`could not run ${CHROME}: ${failed.message}`);
+    }
     await sleep(100);
   }
+  // Both throws are BEFORE the try/finally below, so the browser they leave
+  // behind is not the finally's to clean up — and a Chrome still holding the
+  // debugging port is the next run's failure, which is the one thing the
+  // finally exists to prevent.
+  chrome.kill();
   throw new Error(`${CHROME} did not start a debuggable page on ${PORT}`);
 }
 
@@ -198,6 +225,30 @@ async function shootApp(origin, prefix, routes) {
 }
 
 await shootApp(APP, "app", APP_PAGES);
+
+/**
+ * Home with focus in the brief box, in both themes.
+ *
+ * Its own pass rather than a route, because focus is a live state: the page has
+ * to be loaded, the field focused, and the shot taken while it still is. The
+ * signed mock draws no focus state at all, so this comparison is the built page
+ * against itself in the two themes — which is the whole of what 2.4.7 asks.
+ */
+for (const theme of ["light", "dark"]) {
+  await cdp.send("Page.navigate", { url: `${APP}/` });
+  await sleep(2000);
+  await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+  await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+  const { result } = await evaluate(`(() => {
+    const field = document.querySelector('textarea[name="sentence"]');
+    if (!field) return "no brief box on Home";
+    field.focus();
+    return document.activeElement === field ? "" : "the brief box did not take focus";
+  })()`);
+  if (result.value !== "") throw new Error(`home-focus: ${result.value}`);
+  await sleep(500);
+  await capture(`app-focus-${theme}`);
+}
 
 // The rep's nav is the same page signed in as somebody without the admin item,
 // so it needs a second instance rather than a second route.

@@ -10,6 +10,8 @@ import {
   MIN_HEIGHT_KEYS,
   RADIUS_KEYS,
   SPACING_KEYS,
+  TRANSITION_DURATION_KEYS,
+  TRANSITION_TIMING_KEYS,
   TYPE_ROLE_KEYS,
 } from "@/lib/theme-keys";
 
@@ -43,6 +45,11 @@ const twMerge = extendTailwindMerge<"relay-type">({
       // The type roles are components, and two of them on one element is a
       // conflict like any other.
       "relay-type": [{ type: TYPE_ROLE_KEYS }],
+      // tailwind-merge reads a duration as a number and an ease as one of its
+      // four stock names, so `duration-micro` and `ease-standard` are invisible
+      // to it and survive a conflict with the class meant to override them.
+      duration: [{ duration: [...TRANSITION_DURATION_KEYS] }],
+      ease: [{ ease: [...TRANSITION_TIMING_KEYS] }],
     },
   },
 });

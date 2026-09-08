@@ -54,6 +54,31 @@ describe("initialsFor", () => {
     expect(initialsFor(null, "ben@example.test")).toBe("BE");
     expect(initialsFor("  ", "ben@example.test")).toBe("BE");
   });
+
+  /**
+   * The case a real account produces. Corporate addresses are `first.last`,
+   * and the two letters of a `first.last` address are the two NAMES in it —
+   * "ben.knox-johnston" is BK, not BE. `firstNameFor` already reads the
+   * address this way; the circle beside it read the first two characters and
+   * so disagreed with the greeting on the same screen.
+   */
+  it("reads a first.last address as two names, not two letters", () => {
+    expect(initialsFor(null, "ben.knox-johnston@example.test")).toBe("BK");
+    expect(initialsFor(null, "ben_knox@example.test")).toBe("BK");
+    expect(initialsFor(null, "ben-knox@example.test")).toBe("BK");
+    expect(initialsFor(null, "ben+knox@example.test")).toBe("BK");
+  });
+
+  /** A name Clerk supplied always wins over anything read out of the address. */
+  it("prefers the name over the address when there is one", () => {
+    expect(initialsFor("Sam Okafor", "ben.knox-johnston@example.test")).toBe("SO");
+  });
+
+  /** A separator with nothing after it is not a second name. */
+  it("takes two letters when the address has no second segment", () => {
+    expect(initialsFor(null, "ben.@example.test")).toBe("BE");
+    expect(initialsFor(null, "b@example.test")).toBe("B");
+  });
 });
 
 describe("dateLabel", () => {

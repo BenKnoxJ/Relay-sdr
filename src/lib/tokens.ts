@@ -279,6 +279,31 @@ export const layouts = {
   singleColumnBelow: 820,
 } as const;
 
+/**
+ * Motion — NOT from the signed file, which names none.
+ *
+ * It is deliberately outside the `tokens` aggregate below, because that object
+ * is the mirror of the signed §21 file and `tests/ui/tokens.test.ts` reads it
+ * as one. These two values come from the design doctrine's motion bands
+ * instead: micro-feedback (hover, press) is 100-150ms, and the Standard
+ * easing track is the default for all routine dashboard chrome.
+ *
+ * Two values and no more. §22.8 still governs WHAT may animate ("nothing
+ * animates unless it changed"); this only says how fast the things that may.
+ * Nothing here moves anything spatially — it is a colour and opacity
+ * crossfade — so no `prefers-reduced-motion` branch is owed.
+ *
+ * They belong in the signed file at v1.2. Until they are in it, they are
+ * here with this note rather than typed into a component as an arbitrary value,
+ * where no test could hold them to the band.
+ */
+export const motion = {
+  /** Hover and press feedback. Doctrine micro band, 100-150ms. */
+  micro: 120,
+  /** The Standard easing track: routine chrome, everywhere, by default. */
+  standard: "cubic-bezier(0.2, 0, 0, 1)",
+} as const;
+
 export const tokens = {
   themes,
   colors,

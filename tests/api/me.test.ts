@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authCopy } from "@/lib/copy/auth";
-import { homeCopy } from "@/lib/copy/home";
+import { campaignsCopy } from "@/lib/copy/campaigns";
 import { prisma } from "@/lib/db";
 import { appRouter } from "@/server/api/root";
 import { isRefusal } from "@/server/api/caller";
@@ -155,7 +155,7 @@ describe("the brief box's Start", () => {
       sentence: "UK logistics firms, ops directors",
     });
 
-    expect(answer).toEqual({ line: homeCopy.campaignsNext });
+    expect(answer).toEqual({ line: campaignsCopy.next });
   });
 
   /**

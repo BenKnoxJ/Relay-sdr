@@ -17,7 +17,7 @@
 
 // Relative, not the `@/` alias: `tailwind.config.ts` imports this file, and
 // Tailwind loads its config through jiti, which does not know the alias.
-import { bodyMaxWidth, border, layouts, radius, shadows, space, type } from "./tokens";
+import { bodyMaxWidth, border, layouts, motion, radius, shadows, space, type } from "./tokens";
 
 export const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -85,6 +85,17 @@ export const GRID_TEMPLATE_COLUMNS = {
   campaign: layouts.campaign,
 } as const;
 
+/**
+ * The one named duration and the one named curve (`motion` in the tokens).
+ *
+ * `extend`, not a replacement, unlike `colors`/`fontSize`/`boxShadow`: those
+ * three are ramps the signed file closes, and motion is not in the signed file
+ * at all. Closing Tailwind's own duration ramp here would be this file
+ * inventing a rule the design has not made.
+ */
+export const TRANSITION_DURATION = { micro: `${motion.micro}ms` } as const;
+export const TRANSITION_TIMING = { standard: motion.standard } as const;
+
 /** `.type-display`, `.type-mono-big`, … — one per signed §2 role. */
 export const TYPE_ROLE_KEYS = Object.keys(type).map(kebab);
 
@@ -137,3 +148,5 @@ export const BOX_SHADOW_KEYS = Object.keys(BOX_SHADOW);
 export const MIN_HEIGHT_KEYS = Object.keys(MIN_HEIGHT);
 export const MAX_WIDTH_KEYS = Object.keys(MAX_WIDTH);
 export const BACKGROUND_IMAGE_KEYS = Object.keys(BACKGROUND_IMAGE);
+export const TRANSITION_DURATION_KEYS = Object.keys(TRANSITION_DURATION);
+export const TRANSITION_TIMING_KEYS = Object.keys(TRANSITION_TIMING);

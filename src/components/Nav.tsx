@@ -82,8 +82,16 @@ export function Nav({
             key={area}
             href={href}
             aria-current={current ? "page" : undefined}
+            /*
+              Hover lifts an unvisited area from `text-muted` to `text-ink` —
+              the colour the current area already carries, so the cursor
+              previews the destination rather than introducing a fourth text
+              colour. The current area is already `text-ink`, so it is the one
+              link where hover is correctly a no-op.
+            */
             className={cn(
               "relative focus-visible:outline-none focus-visible:ring-2",
+              "transition-colors duration-micro ease-standard hover:text-ink",
               current ? "text-ink" : "text-muted",
             )}
           >

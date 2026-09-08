@@ -14,6 +14,17 @@ import { cn } from "@/lib/utils";
  * signed violet in both themes. `focus-visible` rather than `focus`, so a
  * mouse click does not leave a ring behind.
  *
+ * Hover and press are an opacity ramp, not a second violet. The signed file
+ * says "one accent", so a hover colour would be a second one; and the obvious
+ * candidate for the outline variant — `text-action` on `bg-soft` — is the
+ * 4.33:1 pair the v1.2 token pass is opening. An opacity ramp changes no
+ * colour, keeps the `onAction`/`action` contrast inside the button, and reads
+ * the same in both themes. `duration-micro`/`ease-standard` are the doctrine
+ * micro band and the Standard curve (`motion` in `src/lib/tokens.ts`).
+ *
+ * Nothing moves, so no `prefers-reduced-motion` branch: reduced motion asks
+ * for a crossfade in place of spatial movement, and this is already one.
+ *
  * No ring OFFSET, deliberately. An offset paints a band of
  * `ringOffsetColor.DEFAULT` — `--relay-ground` — between the element and the
  * ring, and these sit on `panel` as often as on `ground`, so the band would be
@@ -39,6 +50,7 @@ export function PillButton({
       className={cn(
         "inline-flex items-center justify-center rounded-pill border-control px-4 py-2 text-13 font-semibold",
         "focus-visible:outline-none focus-visible:ring-2",
+        "transition-opacity duration-micro ease-standard hover:opacity-90 active:opacity-80",
         "disabled:opacity-50",
         VARIANTS[variant],
         className,

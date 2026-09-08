@@ -55,9 +55,15 @@ export function firstNameFor(name: string | null, email: string): string {
  * The avatar's two letters (signed mock, `.me`).
  *
  * First and last initial where there are two words, so "Ben Knox-Johnston" is
- * BK; the first two letters of a single name; the first two of the address
- * when there is no name at all. Never empty, because an empty circle in the
- * nav reads as a broken image rather than as a person with no name.
+ * BK; the first two letters of a single name. Never empty, because an empty
+ * circle in the nav reads as a broken image rather than as a person with no
+ * name.
+ *
+ * With no name at all the ADDRESS is read the same way `firstNameFor` reads
+ * it — as `first.last` — rather than as a string to take two characters off
+ * the front of. "ben.knox-johnston" is two names, so the circle is BK; taking
+ * two characters gave BE, which disagreed with the "Welcome, Ben" derived from
+ * the same address on the same screen.
  */
 export function initialsFor(name: string | null, email: string): string {
   const parts = words(name);
@@ -65,7 +71,17 @@ export function initialsFor(name: string | null, email: string): string {
     return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
   }
   if (parts.length === 1) return (parts[0] as string).slice(0, 2).toUpperCase();
-  return email.slice(0, 2).toUpperCase();
+
+  const local = email.split("@")[0];
+  if (local === undefined || local === "") return email.slice(0, 2).toUpperCase();
+
+  // Same separators as `firstNameFor`, so the greeting and the circle cannot
+  // disagree about where the first name ends.
+  const segments = local.split(/[._+-]/).filter((segment) => segment !== "");
+  const [head, next] = segments;
+  if (head === undefined) return local.slice(0, 2).toUpperCase();
+  if (next === undefined) return head.slice(0, 2).toUpperCase();
+  return `${head[0] ?? ""}${next[0] ?? ""}`.toUpperCase();
 }
 
 /**

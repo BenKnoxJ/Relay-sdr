@@ -110,6 +110,30 @@ describe("PillButton", () => {
     expect(screen.getByRole("button").getAttribute("type")).toBe("submit");
   });
 
+  /**
+   * Banned #10 / the States gate: a control that looks identical under the
+   * cursor and under the press reads as dead. The feedback is an opacity ramp
+   * rather than a second violet, because there is one accent (signed §1) and
+   * a hover colour would be a second one — and because `text-action` on
+   * `bg-soft` is already the sub-AA pair the token pass is fixing.
+   */
+  it("answers the cursor and the press, in the doctrine micro band", () => {
+    for (const variant of ["primary", "outline", "text"] as const) {
+      const { unmount } = render(<PillButton variant={variant}>Start</PillButton>);
+      const button = screen.getByRole("button");
+
+      for (const token of [
+        "hover:opacity-90",
+        "active:opacity-80",
+        "duration-micro",
+        "ease-standard",
+      ]) {
+        expect(button.className, `${variant} ${token}`).toContain(token);
+      }
+      unmount();
+    }
+  });
+
   it("passes a click through", () => {
     const onClick = vi.fn();
     render(<PillButton onClick={onClick}>Start</PillButton>);

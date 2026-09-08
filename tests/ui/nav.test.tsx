@@ -89,4 +89,20 @@ describe("Nav", () => {
 
     expect(screen.getByLabelText(navCopy.account).textContent).toBe("BK");
   });
+
+  /**
+   * The area the rep is NOT in is `text-muted`, which under the cursor has to
+   * say it is a link. `text-ink` is the colour the current area already
+   * carries, so hovering previews the destination rather than inventing a
+   * fourth text colour.
+   */
+  it("lifts an unvisited area to ink under the cursor, in the micro band", () => {
+    render(<Nav role="rep" initials="BK" hasCampaign={false} />);
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.className).toContain("hover:text-ink");
+      expect(link.className).toContain("duration-micro");
+      expect(link.className).toContain("ease-standard");
+    }
+  });
 });

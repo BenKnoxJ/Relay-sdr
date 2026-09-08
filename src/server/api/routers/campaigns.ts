@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { homeCopy } from "@/lib/copy/home";
+import { campaignsCopy } from "@/lib/copy/campaigns";
 import { SENTENCE_MAX } from "@/lib/shell";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
@@ -24,5 +24,5 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 export const campaignsRouter = createTRPCRouter({
   stub: repProcedure
     .input(z.object({ sentence: z.string().trim().min(1).max(SENTENCE_MAX) }))
-    .mutation(() => ({ line: homeCopy.campaignsNext })),
+    .mutation(() => ({ line: campaignsCopy.next })),
 });

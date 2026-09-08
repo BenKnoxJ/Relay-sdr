@@ -31,11 +31,4 @@ export const homeCopy = {
    */
   connectMailbox: "Connect your mailbox in Settings",
   connectZoho: "Ask your admin to connect Zoho",
-
-  /**
-   * What Start says today. Starting a campaign is slice 1; until then the box
-   * takes the sentence, keeps nothing, and says what happens next — which is
-   * the §22.7 rule applied to a control rather than to a page.
-   */
-  campaignsNext: "Campaigns arrive next",
 } as const;

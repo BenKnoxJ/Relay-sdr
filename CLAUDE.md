@@ -72,6 +72,8 @@ docker-compose.yml           local Postgres 16 on 127.0.0.1:5435
 
 Environment: every variable, with placeholders, is listed in `docs/environment.md` — copy that block into a local `.env`. (A checked-in env template is not in the repo yet: Forge's guardrails refuse to write any `.env*` path, so it is Benny-san's to add.) Tests do not read `.env` — `tests/setup.ts` points them at `relay_test` and refuses to run against any database whose name does not end in `_test`.
 
+**The `DEV_USER_EMAIL` sign-in bypass needs an explicit `development` or `test` environment; silence means production.** An unset or blank `NODE_ENV` resolves to `production` and the bypass is refused, because the one process that runs without a framework setting `NODE_ENV` for it is the worker, and a line missing from a unit file must not read as permission. `next build` is carved out on `NEXT_PHASE=phase-production-build` — a build serves no request. That carve-out is inferred from Next's documented behaviour, not yet confirmed against Vercel's serverless bundling: **Task 13 verifies it on a Vercel preview with a diagnostic log line** before real credentials sit behind the guard.
+
 ### AI SDK — verified export names (`ai@7.0.93`, `@ai-sdk/anthropic@4.0.49`, install of 2026-09-07)
 
 Read off the installed package, not assumed. Re-check on upgrade.

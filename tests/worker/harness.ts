@@ -57,7 +57,28 @@ export type WorkerProcess = {
 
 /** Start a worker. `args` is `["--once"]` or nothing. */
 export function spawnWorker(args: string[] = [], extraEnv: Record<string, string> = {}): WorkerProcess {
-  const child = spawn(process.execPath, [...nodeArgs, ...args], {
+  return spawnNode([...nodeArgs, ...args], extraEnv);
+}
+
+/**
+ * The same worker, started the way systemd starts it: the tsup bundle under
+ * plain `node`, with no tsx loader anywhere.
+ *
+ * `deploy/relay-worker.service` execs this exact path, so what is proved here
+ * is the production entry point and not a near relative of it — bundling is
+ * where an alias fails to resolve, a dynamic import gets flattened into a
+ * static one, or a native dependency ends up inlined, and none of those show
+ * up when the loader is doing the resolving.
+ */
+export function spawnBundledWorker(
+  args: string[] = [],
+  extraEnv: Record<string, string> = {},
+): WorkerProcess {
+  return spawnNode([path.join(projectRoot, "dist", "worker", "main.js"), ...args], extraEnv);
+}
+
+function spawnNode(nodeArgv: string[], extraEnv: Record<string, string>): WorkerProcess {
+  const child = spawn(process.execPath, nodeArgv, {
     cwd: projectRoot,
     // Cast because Next augments `NodeJS.ProcessEnv` to require `NODE_ENV`,
     // and the whole point of this environment is that it does not set one:

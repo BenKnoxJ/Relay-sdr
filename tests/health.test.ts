@@ -46,4 +46,30 @@ describe("scaffold", () => {
 
     expect(offenders).toEqual(["lib/db.ts"]);
   });
+
+  // Same claim, same treatment: `src/lib/env.ts` says nothing else touches
+  // `process.env`, and an unvalidated read is exactly the drift it exists to
+  // stop. Comments and doc lines are stripped first so the file's own prose
+  // about the rule does not count as a breach of it.
+  it("@proof reads process.env in exactly one file", () => {
+    const root = path.resolve(import.meta.dirname, "..", "src");
+
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) return walk(full);
+        return /\.tsx?$/.test(entry.name) ? [full] : [];
+      });
+
+    const code = (file: string): string =>
+      readFileSync(file, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "");
+
+    const offenders = walk(root)
+      .filter((file) => /process\.env\b/.test(code(file)))
+      .map((file) => path.relative(root, file));
+
+    expect(offenders).toEqual(["lib/env.ts"]);
+  });
 });

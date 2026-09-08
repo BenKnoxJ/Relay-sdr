@@ -10,15 +10,23 @@
  * Today it opens the database, proves it is reachable, and exits. The job
  * claim/lease loop lands in its own task.
  */
-import { prisma } from "@/lib/db";
+import type { PrismaClient } from "@prisma/client";
+
 import { env } from "@/lib/env";
+
+// Held here so the failure handler can close a connection that main() opened.
+let prisma: PrismaClient | undefined;
 
 async function main(): Promise<void> {
   const once = process.argv.slice(2).includes("--once");
-  // The worker reads configuration the same way the app does. Under `env -i`
-  // this is also the proof that the whole schema is satisfiable from the two
-  // database variables alone.
+
+  // Before the database module, deliberately. `src/lib/db.ts` reads the
+  // environment as it loads, so validating here first is what keeps a
+  // misconfigured worker inside the JSON error contract below instead of
+  // dying on a raw stack trace during module resolution. The import is
+  // literal, which is what the boundary lint requires.
   const { INTEGRATIONS } = env();
+  ({ prisma } = await import("@/lib/db"));
 
   await prisma.$queryRaw`SELECT 1`;
   console.log(
@@ -57,6 +65,6 @@ main().catch(async (error: unknown) => {
       error: error instanceof Error ? error.message : String(error),
     }),
   );
-  await prisma.$disconnect().catch(() => undefined);
+  await prisma?.$disconnect().catch(() => undefined);
   process.exit(1);
 });

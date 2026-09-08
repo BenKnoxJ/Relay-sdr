@@ -24,6 +24,15 @@ function optional<T extends z.ZodTypeAny>(inner: T) {
 }
 
 /**
+ * The same fold for a value that has a default: a variable defined-but-blank
+ * (a Vercel env var saved empty, `INTEGRATIONS=` in a file) means "not set",
+ * and must take the default rather than fail the enum.
+ */
+function withDefault<T extends z.ZodTypeAny>(inner: T, fallback: z.infer<T>) {
+  return z.preprocess((value) => (value === "" || value === undefined ? fallback : value), inner);
+}
+
+/**
  * Base64 with no slack. `Buffer.from(s, "base64")` silently drops characters
  * outside the alphabet, so `Buffer.from("not a key!!!", "base64").length` is a
  * number like any other and a length check alone would accept junk.
@@ -73,22 +82,50 @@ const encKey = z.string().superRefine((raw, ctx) => {
   }
 });
 
+/**
+ * A Postgres connection string. `min(1)` was not enough: `"   "` passed it and
+ * reached Prisma, which is precisely the failure this module exists to stop.
+ * `prisma:` is allowed for Accelerate.
+ */
+function connectionString(name: string) {
+  return z
+    .string()
+    .min(1, `${name} is required`)
+    .refine((raw) => {
+      try {
+        const { protocol } = new URL(raw.trim());
+        return protocol === "postgres:" || protocol === "postgresql:" || protocol === "prisma:";
+      } catch {
+        return false;
+      }
+    }, `${name} must be a postgres://, postgresql:// or prisma:// connection string`);
+}
+
 const schema = z
   .object({
+    /**
+     * Set by `next build`, and read here so the guard below can tell a build
+     * from a running server. It is in the schema rather than read off ambient
+     * `process.env` so that `parseEnv(source)` is a function of its argument
+     * alone: a caller validating a candidate environment gets the same answer
+     * this process would.
+     */
+    NEXT_PHASE: optional(z.string()),
+
     // --- database ---------------------------------------------------------
-    DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-    DIRECT_URL: z.string().min(1, "DIRECT_URL is required"),
+    DATABASE_URL: connectionString("DATABASE_URL"),
+    DIRECT_URL: connectionString("DIRECT_URL"),
 
     // --- app --------------------------------------------------------------
     /** Public origin of this deployment. OAuth redirects are built from it. */
     APP_URL: optional(httpUrl),
     /** `mock` runs every external integration against a local fake. */
-    INTEGRATIONS: z.enum(["mock", "live"]).default("mock"),
+    INTEGRATIONS: withDefault(z.enum(["mock", "live"]), "mock"),
     /** Encrypts stored provider tokens. See `src/lib/services/crypto.ts`. */
     TOKEN_ENC_KEY: optional(encKey),
     /** Local development only: sign every request in as this rep. */
     DEV_USER_EMAIL: optional(z.string().email()),
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    NODE_ENV: withDefault(z.enum(["development", "test", "production"]), "development"),
 
     // --- auth (Clerk) -----------------------------------------------------
     CLERK_SECRET_KEY: optional(z.string()),
@@ -124,7 +161,7 @@ const schema = z
     // `npm run build` dead on page-data collection. A build serves no request,
     // so the bypass cannot be used during one; a deployed server has
     // NEXT_PHASE unset or `phase-production-server` and is refused as before.
-    const building = process.env.NEXT_PHASE === "phase-production-build";
+    const building = value.NEXT_PHASE === "phase-production-build";
     if (!building && value.NODE_ENV === "production" && value.DEV_USER_EMAIL !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

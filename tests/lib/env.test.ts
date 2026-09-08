@@ -54,29 +54,64 @@ describe("parseEnv", () => {
     // `next build` sets NODE_ENV=production and reads the developer's local
     // env file. Refusing here would kill `npm run build` on every machine that
     // has the documented bypass filled in.
+    expect(() =>
+      parseEnv({
+        ...base(),
+        NODE_ENV: "production",
+        DEV_USER_EMAIL: "rep@example.com",
+        NEXT_PHASE: "phase-production-build",
+      }),
+    ).not.toThrow();
+  });
+
+  it("still refuses DEV_USER_EMAIL on a production server, build phase or not", () => {
+    for (const NEXT_PHASE of [undefined, "phase-production-server"]) {
+      expect(() =>
+        parseEnv({
+          ...base(),
+          NODE_ENV: "production",
+          DEV_USER_EMAIL: "rep@example.com",
+          NEXT_PHASE,
+        }),
+      ).toThrow(/local-only bypass/);
+    }
+  });
+
+  it("reads the build phase from its argument, not from ambient process.env", () => {
+    // Otherwise validating a candidate environment silently loses the guard.
     const saved = process.env.NEXT_PHASE;
     process.env.NEXT_PHASE = "phase-production-build";
     try {
       expect(() =>
         parseEnv({ ...base(), NODE_ENV: "production", DEV_USER_EMAIL: "rep@example.com" }),
-      ).not.toThrow();
+      ).toThrow(/local-only bypass/);
     } finally {
       if (saved === undefined) delete process.env.NEXT_PHASE;
       else process.env.NEXT_PHASE = saved;
     }
   });
 
-  it("still refuses DEV_USER_EMAIL on a production server, build phase or not", () => {
-    const saved = process.env.NEXT_PHASE;
-    for (const phase of [undefined, "phase-production-server"]) {
-      if (phase === undefined) delete process.env.NEXT_PHASE;
-      else process.env.NEXT_PHASE = phase;
-      expect(() =>
-        parseEnv({ ...base(), NODE_ENV: "production", DEV_USER_EMAIL: "rep@example.com" }),
-      ).toThrow(/local-only bypass/);
+  it("takes the default when a variable is defined but blank", () => {
+    // A Vercel env var saved empty arrives as "", not as absent.
+    const parsed = parseEnv({ ...base(), INTEGRATIONS: "", NODE_ENV: "" });
+    expect(parsed.INTEGRATIONS).toBe("mock");
+    expect(parsed.NODE_ENV).toBe("development");
+  });
+
+  it("refuses a connection string that is not one", () => {
+    for (const bad of ["   ", "relay", "http://example.com/db", "postgres"]) {
+      expect(() => parseEnv({ ...base(), DATABASE_URL: bad }), bad).toThrow(/DATABASE_URL/);
     }
-    if (saved === undefined) delete process.env.NEXT_PHASE;
-    else process.env.NEXT_PHASE = saved;
+  });
+
+  it("accepts the connection-string shapes the stack uses", () => {
+    for (const good of [
+      "postgresql://relay:relay@127.0.0.1:5435/relay",
+      "postgres://relay:relay@127.0.0.1:5435/relay",
+      "prisma://accelerate.prisma-data.net/?api_key=x",
+    ]) {
+      expect(() => parseEnv({ ...base(), DATABASE_URL: good }), good).not.toThrow();
+    }
   });
 
   it("refuses an APP_URL whose scheme a browser will not follow", () => {

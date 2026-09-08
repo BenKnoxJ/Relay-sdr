@@ -76,12 +76,12 @@ describe("tenant id ban", () => {
     }
   });
 
-  it("applies in the lib and worker layers too, where the blocks are separate", async () => {
+  it("@proof applies across the request-shaped layers", async () => {
     for (const file of [
-      "src/lib/repo/thing.ts",
-      "src/lib/jobs/retention.ts",
-      "src/worker/thing.ts",
-      "src/lib/thing.ts",
+      "src/server/api/routers/thing.ts",
+      "src/server/auth/thing.ts",
+      "src/app/api/thing/route.ts",
+      "src/app/(app)/thing/actions.ts",
     ]) {
       const findings = await lintFixture(
         file,
@@ -90,6 +90,33 @@ describe("tenant id ban", () => {
       );
 
       expect(findingsFor(findings, RULE), file).toHaveLength(1);
+    }
+  });
+
+  /**
+   * And nowhere else. Outside the request-shaped layers `input` is an ordinary
+   * function parameter, and `input.orgId` is the normal shape — this is
+   * `enqueue` in `src/lib/jobs/queue.ts`, whose caller took the `orgId` off a
+   * session. The rule fired on it, which is the false positive that scoped it.
+   */
+  it("@proof stays out of the lib and worker layers, where input is a parameter", async () => {
+    for (const file of [
+      "src/lib/jobs/queue.ts",
+      "src/lib/repo/thing.ts",
+      "src/lib/jobs/retention.ts",
+      "src/worker/thing.ts",
+    ]) {
+      const findings = await lintFixture(
+        file,
+        "declare const db: any;\n" +
+          "export async function enqueue(input: { orgId: string; idempotencyKey: string }) {\n" +
+          "  return db.job.findUniqueOrThrow({\n" +
+          "    where: { orgId_idempotencyKey: { orgId: input.orgId, idempotencyKey: input.idempotencyKey } },\n" +
+          "  });\n" +
+          "}\n",
+      );
+
+      expect(findingsFor(findings, RULE), file).toHaveLength(0);
     }
   });
 });

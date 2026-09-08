@@ -200,9 +200,14 @@ const WRITE_BAN = [
 //
 // It matches the value's shape, so it sees `input.orgId` and `input.x.orgId`
 // and does not see `const { orgId } = input`, which needs type information —
-// the same limit, and the same upgrade path, as the delete and write bans. A
-// legitimate `orgId` sourced from a variable called `input` (there is none
-// today) takes a one-line `eslint-disable` with a reason.
+// the same limit, and the same upgrade path, as the delete and write bans.
+//
+// It applies to `src/app/**` and `src/server/**` and nowhere else, because
+// that is where a request is. Everywhere else `input` is an ordinary function
+// parameter and reading `input.orgId` off it is not only fine but the normal
+// shape — `enqueue(db, input)` in `src/lib/jobs/queue.ts` does exactly that,
+// with an `orgId` its caller took from a session. Extending the rule there
+// bought nothing and cost a false positive on the first function it met.
 const TENANT_MESSAGE =
   "The org comes from the session (ctx.orgId, set by repProcedure), never from request input: an orgId off the wire is a tenant the caller chose for themselves (master doc §26).";
 
@@ -225,6 +230,7 @@ const TENANT_BAN = [
   },
 ];
 
+const REQUEST_LAYERS = ["src/app/**/*.{ts,tsx}", "src/server/**/*.{ts,tsx}"];
 const WORKER_AND_LIB = ["src/worker/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"];
 const RETENTION_JOB = "src/lib/jobs/retention.ts";
 const WRITE_PATH = ["src/lib/repo/**/*.{ts,tsx}", "src/lib/jobs/queue.ts"];
@@ -243,6 +249,14 @@ const config = [
   // whichever one lost the last write.
   {
     files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN],
+    },
+  },
+
+  // The request-shaped layers, and the only ones a request body reaches.
+  {
+    files: REQUEST_LAYERS,
     rules: {
       "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...TENANT_BAN],
     },
@@ -280,7 +294,7 @@ const config = [
           ],
         },
       ],
-      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...TENANT_BAN, ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
     },
   },
 
@@ -290,7 +304,7 @@ const config = [
   {
     files: [RETENTION_JOB],
     rules: {
-      "no-restricted-syntax": ["error", ...WRITE_BAN, ...TENANT_BAN, ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": ["error", ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
     },
   },
 
@@ -301,7 +315,7 @@ const config = [
   {
     files: WRITE_PATH,
     rules: {
-      "no-restricted-syntax": ["error", ...DELETE_BAN, ...TENANT_BAN, ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...BOUNDARY_DYNAMIC],
     },
   },
 ];

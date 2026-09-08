@@ -67,6 +67,34 @@ FIRECRAWL_API_KEY=""
   gets that from Next, and CI passes the two database keys explicitly). The one carve-out is `next build`, which
   sets `NODE_ENV=production` itself and reads this file: a build serves no
   request, so the bypass is unusable during one and the check is skipped there.
+  Accepted at boot is not the same as usable: `devBypassEmail()` in
+  `src/lib/env.ts` is the one place that decides the bypass applies, and it
+  refuses the build carve-out as well, so a build cannot sign anybody in even
+  though it can start.
+- **`DEV_USER_EMAIL` must be a work address, not a free mailbox provider.** The
+  org a sign-in lands in is derived from the email domain, so `@gmail.com`,
+  `@outlook.com` and the rest are refused for the bypass exactly as they are
+  for a real sign-in — otherwise every holder of an address at one of them
+  would be a member of the same org. `me@gmail.com` gives an app that looks
+  signed in and refuses every action; use something like `you@yourcompany.com`
+  (the domain need not exist).
+- **A running server needs either the Clerk keys or the bypass — one or the
+  other, never neither.** With `DEV_USER_EMAIL` set the middleware skips Clerk
+  entirely, which is the local development case. With the keys set, sign-in is
+  Clerk's. With neither, there is no way to establish who anybody is, so the
+  middleware refuses every request with a 503 and one log line naming the
+  missing variable rather than serving anything. Building and testing without
+  either is fine and supported — that is how CI runs, with no Clerk account
+  behind it — and it is only a *served request* that needs one of the two. Set
+  both keys together: a publishable key with no secret key gives a sign-in
+  screen that cannot complete.
+- **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` must be set at BUILD time, not only at
+  run time.** Next inlines every `NEXT_PUBLIC_` variable into the output at the
+  point it is read, so whether the app mounts a `ClerkProvider` and renders a
+  sign-in form is decided by the build, not by the environment the build is
+  deployed into. An artifact built without the key and deployed with it has no
+  working sign-in and says nothing about why. Set it on the project before the
+  first deployed build, and rebuild after changing it.
 - **`TOKEN_ENC_KEY` is required once `INTEGRATIONS=live`,** and must be 32
   random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
   stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`

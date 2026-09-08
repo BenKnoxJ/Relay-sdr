@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { describe, it, expect, afterEach } from "vitest";
 
-import { parseEnv, env, resetEnv } from "@/lib/env";
+import { devBypassEmail, parseEnv, env, resetEnv } from "@/lib/env";
 
 /** A valid 32-byte base64 key, generated rather than checked in. */
 const KEY = randomBytes(32).toString("base64");
@@ -235,5 +235,37 @@ describe("env", () => {
     expect(env().INTEGRATIONS).toBe(before);
     resetEnv();
     expect(env().INTEGRATIONS).not.toBe(before);
+  });
+});
+
+describe("devBypassEmail", () => {
+  it("hands back the bypass rep in a development or test environment", () => {
+    for (const NODE_ENV of ["development", "test"] as const) {
+      const parsed = parseEnv({ ...base(), NODE_ENV, DEV_USER_EMAIL: "rep@example.com" });
+      expect(devBypassEmail(parsed), NODE_ENV).toBe("rep@example.com");
+    }
+  });
+
+  it("hands back nothing when no bypass rep is configured", () => {
+    expect(devBypassEmail(parseEnv({ ...base(), NODE_ENV: "development" }))).toBeNull();
+  });
+
+  /**
+   * `parseEnv` lets `DEV_USER_EMAIL` through during `next build`, because a
+   * build loads the developer's env file and serves no request. This is the
+   * second half of that carve-out: the value is accepted at boot and still
+   * refused at the point it would sign somebody in. CLAUDE.md records that the
+   * build carve-out is inferred rather than verified against Vercel (Task 13);
+   * if it is ever wrong, this is what stops it becoming a live bypass.
+   */
+  it("refuses the bypass during a production build, which parseEnv accepts", () => {
+    const parsed = parseEnv({
+      ...base(),
+      NODE_ENV: "production",
+      DEV_USER_EMAIL: "rep@example.com",
+      NEXT_PHASE: "phase-production-build",
+    });
+    expect(parsed.DEV_USER_EMAIL).toBe("rep@example.com");
+    expect(devBypassEmail(parsed)).toBeNull();
   });
 });

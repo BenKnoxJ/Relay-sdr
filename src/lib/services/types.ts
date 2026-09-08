@@ -9,7 +9,7 @@
  * do the call, and hand the result back; persisting a refreshed token or
  * recording a ServiceCall row is the caller's job, through `src/lib/repo`.
  * That is not a convention — `eslint.config.mjs` bans `@/lib/db` and
- * `@prisma/client` under `src/lib/services/**`, and `tests/lint/services.test.ts`
+ * `@prisma/client` under `src/lib/services/**`, and `tests/lint/serviceAdapters.test.ts`
  * proves it.
  *
  * Carried from Sales360, which built and tested both clients against the live
@@ -167,6 +167,7 @@ export class ServiceError extends Error {
     code?: string;
     requestId?: string;
     message?: string;
+    cause?: unknown;
   }) {
     super(
       args.message ??
@@ -177,6 +178,7 @@ export class ServiceError extends Error {
     this.status = args.status;
     this.code = args.code;
     this.requestId = args.requestId;
+    if (args.cause !== undefined) this.cause = args.cause;
   }
 }
 

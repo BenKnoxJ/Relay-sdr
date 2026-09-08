@@ -50,6 +50,11 @@ let cachedDeps: ServicesDeps | undefined;
 
 /**
  * The process-wide adapter set: mocks under `INTEGRATIONS=mock`, live otherwise.
+ *
+ * One set for the process, which is right while Relay is one org: the Zoho
+ * credentials are org-level and the Graph token cache is keyed per account
+ * anyway. A second tenant makes this a per-org instance keyed on the org id —
+ * an H2 change, and this function is where it lands.
  * Memoised per `deps` identity — pass the same object (or none) to reuse the set;
  * a different object rebuilds it, so hold the deps in a module constant rather
  * than building a fresh literal per call.

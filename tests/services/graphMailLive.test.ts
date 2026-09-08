@@ -18,7 +18,7 @@ import {
   type MailTokens,
 } from "@/lib/services/types";
 
-import { TEST_ENC_KEY, account, empty, json, stubFetch, testEnv } from "./helpers";
+import { TEST_ENC_KEY, account, empty, json, stubFetch, testEnv, type StubCall } from "./helpers";
 
 const NOW = new Date("2026-09-02T09:00:00.000Z");
 const now = () => NOW;
@@ -479,5 +479,188 @@ describe("LiveGraphMailService — tokens", () => {
     );
     await expect(graph.createDraft(fresh(), draft)).rejects.toThrow();
     expect(fetchStub.calls).toHaveLength(0);
+  });
+});
+
+describe("LiveGraphMailService — concurrent callers holding different blobs", () => {
+  /** The same account row, projected from a different stored token chain. */
+  const withRefresh = (refreshToken: string): ConnectedAccountRef => ({
+    ...expired(),
+    encTokens: encryptToken(
+      JSON.stringify({ accessToken: "access-old", refreshToken, expiresAt: "2026-09-02T08:00:00.000Z" }),
+      TEST_ENC_KEY,
+    ),
+  });
+
+  /**
+   * Answer the token endpoint from the refresh token it was handed rather than
+   * from call order: two concurrent refreshes arrive in whichever order the
+   * event loop chooses, and a queue of responders would make the assertion a
+   * coin toss.
+   */
+  const byRefreshToken =
+    (answer: (refreshToken: string) => Response) =>
+    (call: StubCall): Response => {
+      if (!call.url.includes("login.microsoftonline.com")) return json({ id: "AAMk-live-1" });
+      return answer(new URLSearchParams(call.body ?? "").get("refresh_token") ?? "");
+    };
+
+  it("refreshes each caller's own chain instead of collapsing both onto the first", async () => {
+    // The dedup fence exists so one account does not POST the same refresh
+    // token twice. Two callers holding DIFFERENT blobs are not that case: they
+    // hold different credentials, and merging them spends one chain and
+    // silently discards the other.
+    const { graph, calls } = client([
+      byRefreshToken((rt) => json({ access_token: `access-${rt}`, refresh_token: `${rt}-next`, expires_in: 3600 })),
+    ]);
+
+    await Promise.all([
+      graph.createDraft(withRefresh("refresh-a"), draft),
+      graph.createDraft(withRefresh("refresh-b"), draft),
+    ]);
+
+    const sent = calls
+      .filter((c) => c.url.includes("login.microsoftonline.com"))
+      .map((c) => new URLSearchParams(c.body ?? "").get("refresh_token"))
+      .sort();
+    expect(sent).toEqual(["refresh-a", "refresh-b"]);
+  });
+
+  it("does not report a healthy blob as refused because a concurrent blob was", async () => {
+    // The false onRefreshFailed: caller B's spent token loses the race, caller
+    // A's healthy mailbox inherits the refusal and Settings asks the rep to
+    // re-link a mailbox with nothing wrong with it.
+    const onRefreshFailed = vi.fn();
+    const spent = withRefresh("refresh-spent");
+    const healthy = withRefresh("refresh-healthy");
+    const { graph } = client(
+      [
+        byRefreshToken((rt) =>
+          rt === "refresh-spent"
+            ? json({ error: "invalid_grant" }, 400)
+            : json({ access_token: "access-2", refresh_token: "refresh-2", expires_in: 3600 }),
+        ),
+      ],
+      { onRefreshFailed },
+    );
+
+    const [ok, refused] = await Promise.allSettled([
+      graph.createDraft(healthy, draft),
+      graph.createDraft(spent, draft),
+    ]);
+
+    expect(ok.status).toBe("fulfilled");
+    expect(refused.status).toBe("rejected");
+    expect(onRefreshFailed).toHaveBeenCalledTimes(1);
+    expect((onRefreshFailed.mock.calls[0]?.[0] as ConnectedAccountRef).encTokens).toBe(spent.encTokens);
+  });
+
+  it("does not replay a chain it has already rotated once the other blob evicted it", async () => {
+    // The composite key on the refresh fence is only half the fix: the token
+    // cache is what has to REMEMBER each blob's rotated chain. One slot per
+    // account means the two callers evict each other, and the next call on
+    // either blob re-decrypts the original — POSTing a refresh token AAD has
+    // already rotated, which is what trips reuse detection.
+    const a = withRefresh("refresh-a");
+    const b = withRefresh("refresh-b");
+    const { graph, calls } = client([
+      byRefreshToken((rt) => json({ access_token: `access-${rt}`, refresh_token: `${rt}-next`, expires_in: 3600 })),
+    ]);
+
+    await Promise.all([graph.createDraft(a, draft), graph.createDraft(b, draft)]);
+    await graph.createDraft(a, draft);
+
+    const sent = calls
+      .filter((c) => c.url.includes("login.microsoftonline.com"))
+      .map((c) => new URLSearchParams(c.body ?? "").get("refresh_token"));
+    expect(sent.filter((rt) => rt === "refresh-a")).toHaveLength(1);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("does not let one account's blob churn evict another account's live chain", async () => {
+    // The reason the bound is per account and not global: an evicted entry
+    // costs a replayed refresh token, so a busy account must not be able to
+    // spend a quiet one's.
+    const other = (blob: string): ConnectedAccountRef => ({ ...withRefresh(blob), id: "acc_2" });
+    const quiet = other("refresh-quiet");
+    const { graph, calls } = client([
+      byRefreshToken((rt) => json({ access_token: `access-${rt}`, refresh_token: `${rt}-next`, expires_in: 3600 })),
+    ]);
+
+    await graph.createDraft(quiet, draft);
+    for (let i = 0; i < 8; i += 1) await graph.createDraft(withRefresh(`refresh-busy-${i}`), draft);
+    await graph.createDraft(quiet, draft);
+
+    const sent = calls
+      .filter((c) => c.url.includes("login.microsoftonline.com"))
+      .map((c) => new URLSearchParams(c.body ?? "").get("refresh_token"));
+    expect(sent.filter((rt) => rt === "refresh-quiet")).toHaveLength(1);
+  });
+
+  it("still makes one token call when two callers race the SAME blob", async () => {
+    // The fence the divergent-blob key must not undo.
+    const shared = withRefresh("refresh-shared");
+    const { graph, calls } = client([
+      byRefreshToken(() => json({ access_token: "access-2", refresh_token: "refresh-2", expires_in: 3600 })),
+    ]);
+
+    await Promise.all([graph.createDraft(shared, draft), graph.createDraft(shared, draft)]);
+
+    expect(calls.filter((c) => c.url.includes("login.microsoftonline.com"))).toHaveLength(1);
+  });
+});
+
+describe("LiveGraphMailService — nothing after a delivered send escapes as a plain error", () => {
+  it("reports a read-back that fails for a reason we did not model as sent but unverified", async () => {
+    // Past the send POST the mail is gone. Rethrowing anything here tells the
+    // caller the send failed, and the retry sends it a second time — so the
+    // catch is total by intent, including for failures that are our own bug.
+    const boom = new TypeError("fetch is not a function");
+    const { graph } = client([
+      () => empty(202), // the send POST itself: delivered
+      () => {
+        throw boom; // the read-back
+      },
+    ]);
+
+    const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
+
+    expect(failure).toBeInstanceOf(SentButUnverifiedError);
+    expect((failure as SentButUnverifiedError).cause).toBe(boom);
+  });
+});
+
+describe("LiveGraphMailService — a send Microsoft refused is not a send", () => {
+  it("reports a 401 on the send POST as a failure when the refresh behind it 5xxs", async () => {
+    // Graph answered the send POST with 401: nothing was delivered. The
+    // refresh that follows is an attempt to recover, and its failure says
+    // nothing about delivery — so the 5xx must not be read as "the send may
+    // have landed", which is what records an unsent mail as sent.
+    const { graph } = client([
+      () => empty(401), // the send POST
+      () => json({ error: "temporarily_unavailable" }, 503), // the refresh behind it
+    ]);
+
+    const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
+
+    expect(failure).not.toBeInstanceOf(SentButUnverifiedError);
+    expect(failure).toBeInstanceOf(ServiceError);
+    expect((failure as ServiceError).status).toBe(401);
+  });
+
+  it("reports a 401 on the send POST as a failure when the refresh cannot even be attempted", async () => {
+    // Missing RELAY_MS_* throws a plain Error out of doRefresh, which the send
+    // catch reads as "no ServiceError, so we cannot tell" — and cannot tell is
+    // exactly what it is not.
+    const fetchStub = stubFetch([() => empty(401)]);
+    const graph = new LiveGraphMailService(testEnv({ RELAY_MS_CLIENT_SECRET: "" }), {
+      fetchImpl: fetchStub.impl,
+      now,
+    });
+
+    const failure = await graph.send(fresh(), "AAMk-live-1").catch((e: unknown) => e);
+
+    expect(failure).not.toBeInstanceOf(SentButUnverifiedError);
+    expect((failure as ServiceError).status).toBe(401);
   });
 });

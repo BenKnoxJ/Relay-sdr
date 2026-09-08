@@ -255,3 +255,84 @@ describe("LiveZohoService — reading the CRM", () => {
     expect((error as ServiceError).code).toBe("INVALID_DATA");
   });
 });
+
+describe("LiveZohoService — the domain a criteria search will accept", () => {
+  it("refuses a label longer than a hostname label may be", async () => {
+    // 63 octets is the DNS limit. Anything longer is not a hostname, so it is
+    // not something to build a criteria expression out of and send to Zoho.
+    const { zoho, calls } = client([() => json(token), () => empty(204)]);
+
+    expect(await zoho.findLead({ domain: `${"a".repeat(64)}.example` })).toBeNull();
+
+    expect(calls.filter((c) => c.url.includes("/Leads/search"))).toHaveLength(0);
+  });
+
+  it("refuses a name longer than a domain name may be", async () => {
+    const { zoho, calls } = client([() => json(token), () => empty(204)]);
+    const tooLong = `${Array.from({ length: 60 }, () => "abcd").join(".")}.example`;
+
+    expect(tooLong.length).toBeGreaterThan(253);
+    expect(await zoho.findLead({ domain: tooLong })).toBeNull();
+
+    expect(calls.filter((c) => c.url.includes("/Leads/search"))).toHaveLength(0);
+  });
+
+  it("answers a pathological non-hostname promptly rather than backtracking over it", async () => {
+    // The bound, not the shape, is what makes this safe to say: the pattern is
+    // anchored at both ends and every quantifier inside it is counted, and the
+    // value is rejected on length before the matcher is asked at all.
+    const { zoho } = client([() => json(token), () => empty(204)]);
+    const pathological = `${"a".repeat(20_000)}${"-".repeat(20_000)}`;
+
+    const started = performance.now();
+    expect(await zoho.findLead({ domain: pathological })).toBeNull();
+    expect(performance.now() - started).toBeLessThan(50);
+  });
+
+  it("still searches on an ordinary hostname", async () => {
+    const { zoho, calls } = client([
+      () => json(token),
+      () => json({ data: [{ id: "5566001", Lead_Status: "Contacted" }] }),
+    ]);
+
+    expect(await zoho.findLead({ domain: "sub.brackenmoor.example" })).toEqual({
+      id: "5566001",
+      optOut: false,
+      isCustomer: false,
+    });
+    expect(calls[1]?.url).toContain(encodeURIComponent("(Website:equals:sub.brackenmoor.example)"));
+  });
+});
+
+describe("LiveZohoService — the smoke-probe delete is gated at runtime", () => {
+  function gated(overrides: Record<string, string>) {
+    const fetchStub = stubFetch([() => json(token), () => empty(200)]);
+    const zoho = new LiveZohoService(testEnv(overrides), { fetchImpl: fetchStub.impl, now });
+    return { zoho, calls: fetchStub.calls };
+  }
+
+  it("refuses to delete unless the live-test switch is on", async () => {
+    const { zoho, calls } = gated({ NODE_ENV: "test" });
+
+    await expect(zoho.removeLeadForSmokeTest("5566001")).rejects.toThrow(/RELAY_LIVE_TESTS/);
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("refuses to delete in production even with the switch on", async () => {
+    const { zoho, calls } = gated({ NODE_ENV: "production", RELAY_LIVE_TESTS: "1" });
+
+    await expect(zoho.removeLeadForSmokeTest("5566001")).rejects.toThrow(/production/);
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("deletes when the switch is on outside production", async () => {
+    const { zoho, calls } = gated({ NODE_ENV: "test", RELAY_LIVE_TESTS: "1" });
+
+    await zoho.removeLeadForSmokeTest("5566001");
+
+    expect(calls[1]?.method).toBe("DELETE");
+    expect(calls[1]?.url).toBe("https://www.zohoapis.eu/crm/v8/Leads/5566001");
+  });
+});

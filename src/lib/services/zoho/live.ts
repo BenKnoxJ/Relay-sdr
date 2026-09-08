@@ -19,14 +19,34 @@ import {
 // is in the EU, so that is a Phase-2 problem and not a guess made now.
 const ACCOUNTS_BASE = "https://accounts.zoho.eu";
 const API_BASE = "https://www.zohoapis.eu/crm/v8";
-/** A plain hostname, which is all `findLead`'s criteria search may interpolate. */
-const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+/**
+ * A plain hostname, which is all `findLead`'s criteria search may interpolate.
+ *
+ * Anchored at both ends and every quantifier counted: a label is 1–63 octets
+ * (the DNS limit), so there is no unbounded repetition for a pathological value
+ * to backtrack through. `MAX_HOSTNAME` rejects an over-long value before the
+ * matcher is asked at all — the input reaching here is a website field off an
+ * enriched record, and nothing upstream promises it is short.
+ */
+const HOSTNAME = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+/** A domain name is at most 253 octets once the root's trailing dot is dropped. */
+const MAX_HOSTNAME = 253;
 const TIMEOUT_MS = 20_000;
 const EXPIRY_SKEW_MS = 60_000;
 
 type Json = Record<string, unknown>;
 
-type ZohoEnv = Pick<Env, "RELAY_ZOHO_CLIENT_ID" | "RELAY_ZOHO_CLIENT_SECRET" | "RELAY_ZOHO_REFRESH_TOKEN">;
+type ZohoEnv = Pick<
+  Env,
+  | "RELAY_ZOHO_CLIENT_ID"
+  | "RELAY_ZOHO_CLIENT_SECRET"
+  | "RELAY_ZOHO_REFRESH_TOKEN"
+  // Read by `removeLeadForSmokeTest`'s gate. Taken by injection like the rest,
+  // so the one destructive call in this file is a function of the environment
+  // the client was handed and can be tested without mutating `process.env`.
+  | "RELAY_LIVE_TESTS"
+  | "NODE_ENV"
+>;
 
 /**
  * Live Zoho CRM v8 client. The access token is cached in memory until expiry and
@@ -95,7 +115,7 @@ export class LiveZohoService implements ZohoService {
     // space still produces a malformed expression and a 400 — turning "this
     // enriched record has a junk website field" into an adapter error. A domain
     // that is not a plain hostname simply does not match anything.
-    if (query.domain && HOSTNAME.test(query.domain)) {
+    if (query.domain && query.domain.length <= MAX_HOSTNAME && HOSTNAME.test(query.domain)) {
       const criteria = `(Website:equals:${query.domain})`;
       const byDomain = await this.searchLeads(`/Leads/search?criteria=${encodeURIComponent(criteria)}`);
       if (byDomain) return byDomain;
@@ -129,8 +149,19 @@ export class LiveZohoService implements ZohoService {
    * and reaching it requires naming `LiveZohoService` rather than the interface
    * — which is exactly the friction that should stand between application code
    * and this call.
+   *
+   * The runtime gate below is the half of that friction a rename cannot undo.
+   * Naming discipline is a convention, and a convention is one refactor away
+   * from being gone; this is the only call Relay makes that destroys a record
+   * in a customer's CRM, so it is worth a check that survives the refactor.
    */
   async removeLeadForSmokeTest(id: string): Promise<void> {
+    if (this.env.RELAY_LIVE_TESTS !== "1" || this.env.NODE_ENV === "production") {
+      throw new Error(
+        "removeLeadForSmokeTest is the live smoke probe's own cleanup: it runs only when " +
+          'RELAY_LIVE_TESTS="1" and NODE_ENV is not "production"',
+      );
+    }
     await this.request("DELETE", `/Leads/${encodeURIComponent(id)}`);
   }
 

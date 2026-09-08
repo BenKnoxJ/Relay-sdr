@@ -21,6 +21,19 @@ const TIMEOUT_MS = 20_000;
 const EXPIRY_SKEW_MS = 60_000;
 /** Mailbox poll reads at most this many pages per account per run. */
 const MAX_PAGES = 2;
+/**
+ * How many token chains stay cached for ONE account.
+ *
+ * The cache is keyed per blob, so a worker that re-reads a rotated row
+ * accumulates an entry per rotation and something has to bound it. Bounded per
+ * account rather than globally, because a global cap lets one busy account's
+ * churn evict another's live entry — and an evicted entry is not free: the next
+ * call on that blob re-decrypts the original and POSTs a refresh token AAD has
+ * already rotated, which is the reuse-detection trip this cache exists to
+ * avoid. Per account, reaching the bound means a blob superseded four times
+ * over, which once 10b persists the rotation is a blob no caller still holds.
+ */
+const MAX_CHAINS_PER_ACCOUNT = 4;
 const IMMUTABLE_ID = { Prefer: 'IdType="ImmutableId"' } as const;
 
 type Json = Record<string, unknown>;
@@ -68,9 +81,21 @@ export class LiveGraphMailService implements GraphMailService {
   private readonly now: () => Date;
   private readonly onTokenRefresh?: GraphMailDeps["onTokenRefresh"];
   private readonly onRefreshFailed?: GraphMailDeps["onRefreshFailed"];
-  /** Per account: the tokens, and the `encTokens` blob they were derived from. */
-  private readonly tokens = new Map<string, { from: string; tokens: MailTokens }>();
-  /** Per account: a refresh already in flight, so two callers make one call. */
+  /**
+   * The chain each token blob was exchanged for, keyed as `refreshing` is.
+   *
+   * One entry per blob rather than one per account: two callers holding
+   * different blobs for one account would otherwise evict each other, and the
+   * next call on either blob would re-decrypt its original and POST a refresh
+   * token AAD has already rotated — reuse detection, and a healthy mailbox
+   * reported as needing a re-link. Bounded by `MAX_CACHED_CHAINS`.
+   */
+  private readonly tokens = new Map<string, MailTokens>();
+  /**
+   * Per account AND per token blob: a refresh already in flight, so two callers
+   * holding the same credentials make one call. Keyed exactly as `tokens` is —
+   * see `refresh()` for why the blob has to be part of the key.
+   */
   private readonly refreshing = new Map<string, Promise<string>>();
 
   constructor(
@@ -138,6 +163,14 @@ export class LiveGraphMailService implements GraphMailService {
         `/me/messages/${encodeURIComponent(draftId)}?$select=id,internetMessageId,conversationId`,
       );
     } catch (cause) {
+      // Total by intent, and it swallows more than the network: a timeout or a
+      // dropped connection, a 404 because Graph moved the sent item to a new
+      // id, a refused token refresh mid-read-back, and a TypeError out of our
+      // own code all land here. None of them is evidence about delivery, and
+      // the mail has already gone — so none of them may leave as a plain
+      // error, because the caller's retry would send it a second time. What is
+      // lost by not rethrowing is a loud signal about a bug in this file; what
+      // would be lost by rethrowing is the customer's inbox.
       const failure = cause instanceof ServiceError ? cause : undefined;
       throw new SentButUnverifiedError({
         draftId,
@@ -224,8 +257,24 @@ export class LiveGraphMailService implements GraphMailService {
     if (res.status === 401) {
       // One refresh-and-retry: the cached token may have been revoked early.
       // Drain the unread 401 body so the connection is released.
-      void res.body?.cancel();
-      token = await this.refresh(account);
+      // Caught, not floated: an unhandled rejection is fatal to the bare-Node
+      // worker, and failing to release a connection is not worth a process.
+      void res.body?.cancel().catch(() => undefined);
+      try {
+        token = await this.refresh(account);
+      } catch (cause) {
+        // Microsoft has already REFUSED this request with a 401, so nothing was
+        // done by it. The refresh is an attempt to recover, and its own failure
+        // says nothing about the original call — but `send()` reads a 5xx or a
+        // non-ServiceError as "we cannot tell whether the mail went", and here
+        // we can: it did not. Reported as the 401 Graph actually gave.
+        throw new ServiceError({
+          service: "graph",
+          status: 401,
+          code: cause instanceof ServiceError ? cause.code : "refresh_failed",
+          cause,
+        });
+      }
       res = await this.call(url, method, token, body);
     }
     const json = await readJson(res);
@@ -265,23 +314,31 @@ export class LiveGraphMailService implements GraphMailService {
   }
 
   /**
-   * The cached tokens for this account, but only if they were derived from the
-   * blob the caller is holding now.
+   * The cached tokens for the blob the caller is holding now, if any.
    *
    * Keying on `account.id` alone meant a client that had refreshed once ignored
    * its caller's projection for the rest of the process: hand it a freshly read
    * row after another process rotated the token and it would still present the
    * chain it happened to have in memory, eventually presenting a dead refresh
    * token and getting the mailbox marked as needing re-linking with nothing
-   * wrong in the database. The blob a cache entry came from is part of its key.
+   * wrong in the database. The blob a cache entry came from is its key.
    */
   private cached(account: ConnectedAccountRef): MailTokens | undefined {
-    const entry = this.tokens.get(account.id);
-    return entry?.from === account.encTokens ? entry.tokens : undefined;
+    return this.tokens.get(cacheKey(account));
   }
 
   private store(account: ConnectedAccountRef, tokens: MailTokens): MailTokens {
-    this.tokens.set(account.id, { from: account.encTokens, tokens });
+    const key = cacheKey(account);
+    // Re-insert so the map's iteration order is least-recently-stored first,
+    // which is what makes the eviction below drop the right entry.
+    // eslint-disable-next-line no-restricted-syntax -- in-memory Map, not Prisma
+    this.tokens.delete(key);
+    this.tokens.set(key, tokens);
+    const mine = [...this.tokens.keys()].filter((k) => k.startsWith(`${account.id}:`));
+    for (const stale of mine.slice(0, Math.max(0, mine.length - MAX_CHAINS_PER_ACCOUNT))) {
+      // eslint-disable-next-line no-restricted-syntax -- in-memory Map, not Prisma
+      this.tokens.delete(stale);
+    }
     return tokens;
   }
 
@@ -312,13 +369,23 @@ export class LiveGraphMailService implements GraphMailService {
     // token: AAD rotates it twice, the second `onTokenRefresh` write wins, and
     // refresh-token reuse detection can invalidate the whole family — the rep's
     // mailbox needs re-linking for no reason a log would explain.
-    const inFlight = this.refreshing.get(account.id);
+    //
+    // Keyed on the blob as well as the id, because two callers holding
+    // DIFFERENT blobs for one account are not that case: they hold different
+    // credentials. Merging them spends the winner's chain twice over and
+    // discards the loser's silently — and if the winner's refresh token is the
+    // spent one, the healthy caller inherits the refusal and its rep is asked
+    // to re-link a mailbox with nothing wrong with it. Same key as `tokens`,
+    // for the same reason: a token chain is identified by its blob, not by the
+    // row it was read from.
+    const key = cacheKey(account);
+    const inFlight = this.refreshing.get(key);
     if (inFlight) return inFlight;
     const started = this.doRefresh(account).finally(() => {
       // eslint-disable-next-line no-restricted-syntax -- in-memory Map, not Prisma
-      this.refreshing.delete(account.id);
+      this.refreshing.delete(key);
     });
-    this.refreshing.set(account.id, started);
+    this.refreshing.set(key, started);
     return started;
   }
 
@@ -384,6 +451,11 @@ async function readJson(res: Response): Promise<Json> {
   } catch {
     return {};
   }
+}
+
+/** A token chain is identified by the blob it came from, not by its account row. */
+function cacheKey(account: ConnectedAccountRef): string {
+  return `${account.id}:${account.encTokens}`;
 }
 
 function str(value: unknown): string {

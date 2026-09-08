@@ -164,6 +164,12 @@ const schema = z
     RELAY_ZOHO_REFRESH_TOKEN: optional(z.string()),
     /** Where this org's Zoho lives, e.g. `https://crm.zoho.eu/crm/org12345`. */
     ZOHO_CRM_BASE_URL: optional(httpUrl),
+    /**
+     * `"1"` opts this process in to the live smoke probes, which write to — and
+     * clean up after themselves in — the real CRM. Anything else, including
+     * unset, is off, and it is refused outright when `NODE_ENV` is production.
+     */
+    RELAY_LIVE_TESTS: optional(z.string()),
 
     // --- Microsoft Graph --------------------------------------------------
     RELAY_MS_TENANT_ID: optional(z.string()),

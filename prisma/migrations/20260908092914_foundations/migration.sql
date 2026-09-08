@@ -251,9 +251,6 @@ CREATE INDEX "agent_runs_org_id_started_at_idx" ON "agent_runs"("org_id", "start
 CREATE INDEX "agent_runs_job_id_idx" ON "agent_runs"("job_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "agent_run_steps_tool_key_key" ON "agent_run_steps"("tool_key");
-
--- CreateIndex
 CREATE INDEX "agent_run_steps_org_id_started_at_idx" ON "agent_run_steps"("org_id", "started_at");
 
 -- CreateIndex

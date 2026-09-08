@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { prisma } from "@/lib/db";
 
-import { listColumns, listTables, resetDatabase } from "./harness";
+import { listColumns, listTables, listUniqueIndexes, resetDatabase } from "./harness";
 
 // The migration is the artefact under test, not the Prisma schema: what the
 // database ends up shaped like is what every later task builds on. So this
@@ -38,7 +38,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("0001_foundations", () => {
+describe("foundations", () => {
   it("@proof migrates a fresh database cleanly", () => {
     // `migrate deploy` exits non-zero on failure, so reaching here is most of
     // the claim; the assertion pins that it actually applied something rather
@@ -78,6 +78,37 @@ describe("0001_foundations", () => {
     }
     expect(missing).toEqual([]);
   });
+
+  // Master doc §25, rule 3. A semantically-derived key ("send touch 1 to this
+  // person") can legitimately repeat across tenants, so each of these is unique
+  // within the org and nowhere else. Read from `pg_index` rather than from the
+  // schema file: `prisma migrate diff` only proves the schema and the migration
+  // agree with each other, which is how a leftover global `@unique` on
+  // `tool_key` survived the first round of this task.
+  const ORG_SCOPED_KEYS: Array<{ table: string; column: string; index: string[] }> = [
+    { table: "jobs", column: "idempotency_key", index: ["org_id", "idempotency_key"] },
+    { table: "side_effects", column: "key", index: ["org_id", "key"] },
+    { table: "agent_run_steps", column: "tool_key", index: ["org_id", "tool_key"] },
+    { table: "product_facts_versions", column: "version", index: ["org_id", "product", "version"] },
+  ];
+
+  for (const { table, column, index } of ORG_SCOPED_KEYS) {
+    it(`@proof scopes ${table}.${column} to the org and nowhere wider`, async () => {
+      // Matched on the key text, not the column list: a unique index over
+      // `lower(tool_key)` constrains the tool key just as hard as one over the
+      // bare column, and covers no column at all as far as `pg_attribute` is
+      // concerned.
+      const mentions = new RegExp(`\\b${column}\\b`);
+      const covering = (await listUniqueIndexes(table)).filter((unique) =>
+        mentions.test(unique.keys),
+      );
+
+      // Exactly one, and it is the composite: a second unique index over the
+      // same column — the bare `(column)` one Prisma writes for a field-level
+      // `@unique` — puts the constraint back across the whole table.
+      expect(covering.map((unique) => unique.columns)).toEqual([index]);
+    });
+  }
 
   it("names columns in snake_case", async () => {
     const offenders: string[] = [];

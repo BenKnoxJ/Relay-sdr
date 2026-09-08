@@ -302,7 +302,7 @@ enum AgentRunStepKind {
 
 /// One model call or one tool call inside a run, with what it cost.
 ///
-/// `toolKey` is the tool-level idempotency key: unique across the table, so a
+/// `toolKey` is the tool-level idempotency key: unique within the org, so a
 /// retried run that repeats a tool call collides instead of charging or
 /// sending twice. Null for model steps, which have nothing external to repeat.
 model AgentRunStep {
@@ -317,7 +317,7 @@ model AgentRunStep {
   tokensCached    Int              @default(0) @map("tokens_cached")
   tokensReasoning Int              @default(0) @map("tokens_reasoning")
   cost            Decimal          @default(0) @db.Decimal(12, 6)
-  toolKey         String?          @unique @map("tool_key")
+  toolKey         String?          @map("tool_key")
   input           Json?
   output          Json?
   /// Whatever the provider returned alongside the result — request id, stop

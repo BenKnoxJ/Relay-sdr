@@ -95,3 +95,40 @@ export async function listColumns(table: string): Promise<string[]> {
   `;
   return rows.map((row) => row.column_name);
 }
+
+/**
+ * Every unique index on `table`: the columns it covers, and the key list
+ * exactly as Postgres prints it.
+ *
+ * `pg_index`, not `schema.prisma`: an idempotency key that is org-scoped in the
+ * model and globally unique in the database is exactly the bug this reads for,
+ * and only the database can be asked which of the two shipped.
+ *
+ * `columns` is the plain-column view and reads `(expression)` for an index over
+ * one — `lower(tool_key)` is a unique index on the tool key that no column list
+ * would show. `keys` is the raw text, so a caller looking for constraints over a
+ * column finds those too rather than being told, wrongly, that there are none.
+ */
+export async function listUniqueIndexes(
+  table: string,
+): Promise<Array<{ columns: string[]; keys: string }>> {
+  const rows = await prisma.$queryRaw<Array<{ columns: string[]; definition: string }>>`
+    SELECT array_agg(COALESCE(a.attname, '(expression)') ORDER BY k.ord) AS columns,
+           MIN(pg_get_indexdef(i.oid)) AS definition
+      FROM pg_class t
+      JOIN pg_index ix ON ix.indrelid = t.oid
+      JOIN pg_class i ON i.oid = ix.indexrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+      JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS k(attnum, ord) ON TRUE
+      LEFT JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+     WHERE n.nspname = 'public' AND t.relname = ${table} AND ix.indisunique
+     GROUP BY i.relname
+     ORDER BY i.relname
+  `;
+  return rows.map((row) => ({
+    columns: row.columns,
+    // The key list, between the first bracket of `... USING btree (...)` and
+    // the last of the whole definition.
+    keys: row.definition.slice(row.definition.indexOf("(") + 1, row.definition.lastIndexOf(")")),
+  }));
+}

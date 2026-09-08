@@ -32,6 +32,12 @@ export type EventKind = "org.created" | "user.upserted" | "account.connected" | 
 export type Actor = { kind: "user"; userId: string } | { kind: "system" };
 
 export type Mutation<T> = {
+  /**
+   * The tenant the change belongs to. It must come from the session — Task 8
+   * derives it there — and never from request input: this function trusts what
+   * it is given, so a caller that forwards a body field lets one tenant write
+   * into another.
+   */
   orgId: string;
   actor: Actor;
   kind: EventKind;

@@ -37,16 +37,23 @@ export type TRPCContext = {
   actor: () => Promise<Actor>;
 };
 
-export const createTRPCContext = async ({
-  req,
-}: FetchCreateContextFnOptions): Promise<TRPCContext> => {
+/**
+ * The context, from the headers alone.
+ *
+ * Split out from `createTRPCContext` because the fetch adapter is no longer
+ * the only caller: a server component reaches the same routers through
+ * `appRouter.createCaller` (`src/server/api/caller.ts`), and it has headers
+ * but no `Request`. Two builders would be two definitions of who is signed in,
+ * which is the one thing in this file that must have exactly one.
+ */
+export const createContextFromHeaders = async (headers: Headers): Promise<TRPCContext> => {
   const session = await getSession();
 
   let pending: Promise<Actor> | undefined;
 
   return {
     prisma,
-    headers: req.headers,
+    headers,
     session,
     actor: () => {
       if (session === null) {
@@ -64,6 +71,10 @@ export const createTRPCContext = async ({
     },
   };
 };
+
+/** The fetch adapter's entry point. */
+export const createTRPCContext = ({ req }: FetchCreateContextFnOptions): Promise<TRPCContext> =>
+  createContextFromHeaders(req.headers);
 
 const t = initTRPC.context<TRPCContext>().create({
   transformer: superjson,

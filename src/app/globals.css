@@ -1,3 +1,22 @@
+/* Hand-written. The token custom properties live in the GENERATED
+ * `tokens.css` next to this file (see `scripts/tokens-css.ts`); everything a
+ * person writes — and anything the shadcn CLI adds — goes here.
+ *
+ * The import comes first so the custom properties are defined before any rule
+ * reads them.
+ */
+@import "./tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    background-color: var(--relay-ground);
+    /* The dot grid sits on the ground and nowhere else (signed file §1). */
+    background-image: radial-gradient(var(--relay-dot) 1px, transparent 1px);
+    background-size: 22px 22px;
+    color: var(--relay-ink);
+  }
+}

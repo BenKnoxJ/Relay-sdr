@@ -1,0 +1,96 @@
+/* GENERATED FILE — do not edit by hand.
+ *
+ * Source:      src/lib/tokens.ts
+ * Design:      products/relay/design/relay-tokens.md (v1.0, signed 2026-09-08)
+ * Regenerate:  npm run tokens:css
+ * Verify:      npm run tokens:check   (also enforced by tests/ui/tokens.test.ts)
+ *
+ * Edit the tokens, not this file. Any hand edit is reverted by the next
+ * regeneration and fails the build before that. Hand-written CSS — including
+ * anything the shadcn CLI adds — belongs in src/app/globals.css, which imports
+ * this file.
+ */
+
+/* light is the pilot default (signed file §5, rule 5). */
+:root {
+  color-scheme: light;
+  --relay-ground: #F7F7FB;
+  --relay-panel: #FFFFFF;
+  --relay-ink: #272F4A;
+  --relay-muted: #6B7280;
+  --relay-line: #E6E8EF;
+  --relay-action: #804EE7;
+  --relay-on-action: #FFFFFF;
+  --relay-soft: #F1EBFD;
+  --relay-warn: #B45309;
+  --relay-warn-bg: #FFF4E5;
+  --relay-dot: rgba(39,47,74,.10);
+  --relay-shadow: rgba(39,47,74,.08);
+  --relay-gradient: linear-gradient(90deg,#7B5CFF 0%,#B055C8 45%,#FD910C 100%);
+
+  /* shadcn/ui, taking its values from the tokens above. */
+  --background: 240 33.3% 97.6%;
+  --foreground: 226.3 31% 22.2%;
+  --card: 0 0% 100%;
+  --card-foreground: 226.3 31% 22.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 226.3 31% 22.2%;
+  --primary: 259.6 76.1% 60.6%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 260 81.8% 95.7%;
+  --secondary-foreground: 226.3 31% 22.2%;
+  --muted: 260 81.8% 95.7%;
+  --muted-foreground: 220 8.9% 46.1%;
+  --accent: 260 81.8% 95.7%;
+  --accent-foreground: 259.6 76.1% 60.6%;
+  --destructive: 26 90.5% 37.1%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 226.7 22% 92%;
+  --input: 226.7 22% 92%;
+  --ring: 259.6 76.1% 60.6%;
+  --radius: 16px;
+}
+
+/* The root is ALWAYS stamped with a theme — see src/app/layout.tsx. There is
+ * deliberately no `prefers-color-scheme` fallback here: Tailwind's `dark:`
+ * variant is bound to this same attribute, so a palette that could switch
+ * without the attribute switching would put the custom properties in one theme
+ * and every `dark:` utility in the other. One switch, not two. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --relay-ground: #13141C;
+  --relay-panel: #1B1D28;
+  --relay-ink: #ECEEF5;
+  --relay-muted: #9AA0B3;
+  --relay-line: #2A2D3C;
+  --relay-action: #A07CF5;
+  --relay-on-action: #FFFFFF;
+  --relay-soft: #2A2340;
+  --relay-warn: #F5B04C;
+  --relay-warn-bg: #3A2A12;
+  --relay-dot: rgba(236,238,245,.07);
+  --relay-shadow: rgba(0,0,0,.35);
+  --relay-gradient: linear-gradient(90deg,#7B5CFF 0%,#B055C8 45%,#FD910C 100%);
+
+  /* shadcn/ui, taking its values from the tokens above. */
+  --background: 233.3 19.1% 9.2%;
+  --foreground: 226.7 31% 94.3%;
+  --card: 230.8 19.4% 13.1%;
+  --card-foreground: 226.7 31% 94.3%;
+  --popover: 230.8 19.4% 13.1%;
+  --popover-foreground: 226.7 31% 94.3%;
+  --primary: 257.9 85.8% 72.4%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 254.5 29.3% 19.4%;
+  --secondary-foreground: 226.7 31% 94.3%;
+  --muted: 254.5 29.3% 19.4%;
+  --muted-foreground: 225.6 14.1% 65.3%;
+  --accent: 254.5 29.3% 19.4%;
+  --accent-foreground: 257.9 85.8% 72.4%;
+  --destructive: 35.5 89.4% 62.9%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 230 17.6% 20%;
+  --input: 230 17.6% 20%;
+  --ring: 257.9 85.8% 72.4%;
+  --radius: 16px;
+}

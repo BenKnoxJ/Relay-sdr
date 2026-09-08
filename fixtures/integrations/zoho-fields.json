@@ -1,0 +1,30 @@
+{
+  "fields": [
+    { "api_name": "First_Name", "field_label": "First Name", "data_type": "text", "length": 40, "read_only": false },
+    { "api_name": "Last_Name", "field_label": "Last Name", "data_type": "text", "length": 80, "read_only": false },
+    { "api_name": "Email", "field_label": "Email", "data_type": "email", "length": 100, "read_only": false },
+    { "api_name": "Company", "field_label": "Company", "data_type": "text", "length": 200, "read_only": false },
+    { "api_name": "Designation", "field_label": "Title", "data_type": "text", "length": 100, "read_only": false },
+    { "api_name": "Website", "field_label": "Website", "data_type": "website", "length": 255, "read_only": false },
+    { "api_name": "City", "field_label": "City", "data_type": "text", "length": 100, "read_only": false },
+    { "api_name": "Country", "field_label": "Country", "data_type": "text", "length": 100, "read_only": false },
+    { "api_name": "Email_Opt_Out", "field_label": "Email Opt Out", "data_type": "boolean", "read_only": false },
+    { "api_name": "Lead_Source", "field_label": "Lead Source", "data_type": "picklist", "read_only": false, "pick_list_values": [
+      { "display_value": "Outbound", "actual_value": "Outbound" },
+      { "display_value": "Website", "actual_value": "Website" },
+      { "display_value": "Referral", "actual_value": "Referral" },
+      { "display_value": "Relay", "actual_value": "Relay" }
+    ] },
+    { "api_name": "Lead_Status", "field_label": "Lead Status", "data_type": "picklist", "read_only": false, "pick_list_values": [
+      { "display_value": "Not Contacted", "actual_value": "Not Contacted" },
+      { "display_value": "Contacted", "actual_value": "Contacted" },
+      { "display_value": "Replied", "actual_value": "Replied" },
+      { "display_value": "Meeting Booked", "actual_value": "Meeting Booked" },
+      { "display_value": "Not Interested", "actual_value": "Not Interested" },
+      { "display_value": "Do Not Contact", "actual_value": "Do Not Contact" },
+      { "display_value": "Customer", "actual_value": "Customer" },
+      { "display_value": "Junk Lead", "actual_value": "Junk Lead" }
+    ] },
+    { "api_name": "id", "field_label": "Record Id", "data_type": "bigint", "read_only": true }
+  ]
+}

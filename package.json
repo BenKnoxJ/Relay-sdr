@@ -19,7 +19,7 @@
     "tokens:check": "tsx scripts/tokens-css.ts --check",
     "audit": "node scripts/audit-check.mjs",
     "proofs": "vitest run --project node -t @proof",
-    "worker": "tsx src/worker/main.ts",
+    "worker": "node --import tsx src/worker/main.ts",
     "worker:build": "tsup",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

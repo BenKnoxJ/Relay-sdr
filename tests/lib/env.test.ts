@@ -238,6 +238,54 @@ describe("env", () => {
   });
 });
 
+describe("parseEnv and the worker's timing knobs", () => {
+  const KNOBS = [
+    ["RELAY_WORKER_POLL_MS", 2_000],
+    ["RELAY_WORKER_LEASE_MS", 120_000],
+    ["RELAY_WORKER_DRAIN_MS", 540_000],
+  ] as const;
+
+  it.each(KNOBS)("%s defaults when it is unset", (name, fallback) => {
+    expect(parseEnv(base())[name]).toBe(fallback);
+  });
+
+  it.each(KNOBS)("%s folds a defined-but-blank value to the default", (name, fallback) => {
+    // Deliberate, and the reason `positiveMs` exists: `z.coerce.number()` is
+    // `Number()`, which reads `""` as 0 — a zero-millisecond poll interval is
+    // a worker spinning a database round trip as fast as the event loop
+    // allows. A blank variable is an operator who set nothing, so it gets the
+    // shipping value rather than a boot failure.
+    expect(parseEnv({ ...base(), [name]: "" })[name]).toBe(fallback);
+  });
+
+  it.each(KNOBS)("%s refuses whitespace, which is set-wrong rather than unset", (name) => {
+    // The fold is `""` and nothing else. `Number("  ")` is 0, so this fails
+    // `.positive()` and stops the boot with the variable's name — which is the
+    // right answer for a value somebody typed rather than left alone.
+    expect(() => parseEnv({ ...base(), [name]: "   " })).toThrow(new RegExp(name));
+  });
+
+  it.each(KNOBS)("%s refuses zero, which would busy-loop the database", (name) => {
+    expect(() => parseEnv({ ...base(), [name]: "0" })).toThrow(new RegExp(name));
+  });
+
+  it.each(KNOBS)("%s refuses a negative interval", (name) => {
+    expect(() => parseEnv({ ...base(), [name]: "-1" })).toThrow(new RegExp(name));
+  });
+
+  it.each(KNOBS)("%s refuses a value that is not a number", (name) => {
+    expect(() => parseEnv({ ...base(), [name]: "abc" })).toThrow(new RegExp(name));
+  });
+
+  it.each(KNOBS)("%s refuses a fraction of a millisecond", (name) => {
+    expect(() => parseEnv({ ...base(), [name]: "1.5" })).toThrow(new RegExp(name));
+  });
+
+  it.each(KNOBS)("%s accepts a whole number of milliseconds", (name) => {
+    expect(parseEnv({ ...base(), [name]: "2000" })[name]).toBe(2_000);
+  });
+});
+
 describe("devBypassEmail", () => {
   it("hands back the bypass rep in a development or test environment", () => {
     for (const NODE_ENV of ["development", "test"] as const) {

@@ -230,6 +230,65 @@ const TENANT_BAN = [
   },
 ];
 
+// The boundary as `no-restricted-imports` patterns, named so the adapter block
+// below can extend the list instead of restating it. Flat config replaces a
+// rule's options rather than merging them, so a second block that forgot one of
+// these would silently reopen it.
+const BOUNDARY_IMPORTS = [
+  {
+    group: [
+      "next",
+      "next/*",
+      "@clerk/*",
+      // Bare and sub-path both: a barrel at `src/server/index.ts`
+      // would otherwise be reachable as plain `@/server`.
+      "@/app",
+      "@/app/*",
+      "@/server",
+      "@/server/*",
+      // The only route to `createRequire`, which reopens everything
+      // above. Banned at the import, not just at the call site.
+      "node:module",
+      "module",
+    ],
+    message: BOUNDARY_MESSAGE,
+  },
+  {
+    regex: RELATIVE_ESCAPE,
+    message: BOUNDARY_MESSAGE,
+  },
+];
+
+// ── Adapters never touch the database (§19) ─────────────────────────────────
+const ADAPTER_DB_MESSAGE =
+  "An integration adapter never touches the database: it takes the projection it needs, makes the call, and hands the result back. Persisting a refreshed token is the caller's job, through the onTokenRefresh hook in src/lib/services/index.ts and mutate() in src/lib/repo.";
+
+// A relative specifier reaching `db` or `repo` after a `..` segment: `../db`,
+// `../../lib/db`, `./../repo/users`. Same shape as RELATIVE_ESCAPE, and same
+// blind spot — a `src/lib/services/db.ts` reached as `./db` is not an escape
+// and is not matched.
+const ADAPTER_DB_RELATIVE = String.raw`^(?=\.)(?:[^/]+\/)*\.\.\/(?:[^/]+\/)*(db|repo)(\/|$)`;
+
+const SERVICE_ADAPTERS = ["src/lib/services/**/*.{ts,tsx}"];
+
+// `no-restricted-imports` only visits static import/export nodes, so
+// `await import("@/lib/db")` walks straight past the ban above — the same gap
+// BOUNDARY_DYNAMIC exists to close for Next and Clerk, and the one that would
+// make "banning the import is total" untrue. The non-literal-specifier case is
+// already covered by BOUNDARY_DYNAMIC, which applies to these files too.
+const ADAPTER_DB_SPECIFIER = String.raw`/^(@\/lib\/(db|repo)($|\/)|@?\.?prisma\/client($|\/)|(?=\.)([^/]+\/)*\.\.\/([^/]+\/)*(db|repo)(\/|$))/`;
+
+const ADAPTER_DB_DYNAMIC = [
+  {
+    selector: `ImportExpression[source.value=${ADAPTER_DB_SPECIFIER}]`,
+    message: ADAPTER_DB_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.value=${ADAPTER_DB_SPECIFIER}]`,
+    message: ADAPTER_DB_MESSAGE,
+  },
+];
+
 const REQUEST_LAYERS = ["src/app/**/*.{ts,tsx}", "src/server/**/*.{ts,tsx}"];
 const WORKER_AND_LIB = ["src/worker/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"];
 const RETENTION_JOB = "src/lib/jobs/retention.ts";
@@ -265,36 +324,55 @@ const config = [
   {
     files: WORKER_AND_LIB,
     rules: {
+      "no-restricted-imports": ["error", { patterns: BOUNDARY_IMPORTS }],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
+    },
+  },
+
+  // The adapters are on the far side of the write path: they take the
+  // projection they need, make the call, and hand the result back. Nothing in
+  // `src/lib/services/**` may reach the database at all — not through `db`, not
+  // through a Prisma client it builds itself, not through the repository layer
+  // whose whole job is writing. A refreshed token reaches `ConnectedAccount`
+  // through a callback the CALLER supplies (`ServicesDeps` in
+  // `src/lib/services/index.ts`), which is what keeps `mutate` the one writer.
+  //
+  // The write and delete bans above already stop `db.thing.update()`, but only
+  // by call shape, and a name-shape heuristic is the wrong tool for "this layer
+  // has no database access": banning the import is total, and it also catches
+  // the reads, which the verb bans deliberately do not.
+  //
+  // Carries every WORKER_AND_LIB rule, because flat config replaces a rule's
+  // options rather than merging them — dropping the boundary patterns here
+  // would let Next and Clerk into the adapters.
+  {
+    files: SERVICE_ADAPTERS,
+    rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
+            ...BOUNDARY_IMPORTS,
             {
-              group: [
-                "next",
-                "next/*",
-                "@clerk/*",
-                // Bare and sub-path both: a barrel at `src/server/index.ts`
-                // would otherwise be reachable as plain `@/server`.
-                "@/app",
-                "@/app/*",
-                "@/server",
-                "@/server/*",
-                // The only route to `createRequire`, which reopens everything
-                // above. Banned at the import, not just at the call site.
-                "node:module",
-                "module",
-              ],
-              message: BOUNDARY_MESSAGE,
+              group: ["@/lib/db", "@/lib/repo", "@/lib/repo/*", "@prisma/client", ".prisma/*"],
+              message: ADAPTER_DB_MESSAGE,
             },
             {
-              regex: RELATIVE_ESCAPE,
-              message: BOUNDARY_MESSAGE,
+              // The same escape hatch the boundary rule closes: `../db`,
+              // `../../lib/db`, `./../repo/users`.
+              regex: ADAPTER_DB_RELATIVE,
+              message: ADAPTER_DB_MESSAGE,
             },
           ],
         },
       ],
-      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...BOUNDARY_DYNAMIC],
+      "no-restricted-syntax": [
+        "error",
+        ...DELETE_BAN,
+        ...WRITE_BAN,
+        ...BOUNDARY_DYNAMIC,
+        ...ADAPTER_DB_DYNAMIC,
+      ],
     },
   },
 

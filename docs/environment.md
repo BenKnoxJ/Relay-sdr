@@ -24,6 +24,19 @@ TOKEN_ENC_KEY=""
 # The rep signed in as during local development.
 DEV_USER_EMAIL=""
 
+# --- worker ---------------------------------------------------------------
+# Milliseconds. Leave these blank unless you are tuning or testing: the
+# defaults below are the shipping values, and a blank takes the default.
+# Wait between polls when the queue is empty (default 2000).
+RELAY_WORKER_POLL_MS=""
+# How long a claim holds a job before the reaper may take it back (default
+# 120000). The proof-2 test shortens it so "wait for the lease to expire" is
+# seconds; the worker renews every quarter of it while a handler runs.
+RELAY_WORKER_LEASE_MS=""
+# How long a draining worker lets an in-flight handler finish after SIGTERM
+# (default 540000). Must stay inside the unit's TimeoutStopSec.
+RELAY_WORKER_DRAIN_MS=""
+
 # --- auth (Clerk) ---------------------------------------------------------
 CLERK_SECRET_KEY=""
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
@@ -36,6 +49,7 @@ RELAY_ZOHO_CLIENT_ID=""
 RELAY_ZOHO_CLIENT_SECRET=""
 RELAY_ZOHO_REFRESH_TOKEN=""
 ZOHO_CRM_BASE_URL=""
+RELAY_LIVE_TESTS=""
 
 # --- Microsoft Graph ------------------------------------------------------
 RELAY_MS_TENANT_ID=""
@@ -99,6 +113,12 @@ FIRECRAWL_API_KEY=""
   random bytes base64-encoded (`openssl rand -base64 32`). It is the key for the
   stored provider tokens in `src/lib/services/crypto.ts`. Under `INTEGRATIONS=mock`
   it may be empty.
+- **`RELAY_LIVE_TESTS="1"` opts this process in to the live smoke probes,**
+  which create and then delete a real lead in the real Zoho org. It is the gate
+  on `LiveZohoService.removeLeadForSmokeTest` — the only call Relay makes that
+  destroys a record in a customer's CRM — and it is refused outright when
+  `NODE_ENV` is `production`, switch or no switch. Leave it unset everywhere
+  except a machine you are deliberately running the probe on.
 - **`NODE_ENV`** is read as well (`development` | `test` | `production`),
   and an unset or blank value defaults to `production` — the safe end of the
   field, since the bypass rule above turns on it. The runtime normally sets it,
@@ -117,3 +137,14 @@ FIRECRAWL_API_KEY=""
   worker under `env -i` with exactly those two set to keep it that way (master
   doc §18).
 - **Production** (Neon, Vercel) sets the same names; only the values differ.
+- **The worker's three knobs are milliseconds and have defaults.**
+  `RELAY_WORKER_POLL_MS` (2000), `RELAY_WORKER_LEASE_MS` (120000) and
+  `RELAY_WORKER_DRAIN_MS` (540000) each fall back to the shipping value when
+  unset or blank, so the worker needs nothing beyond the two connection
+  strings — which is all the CI boundary smoke gives it (`DATABASE_URL` and
+  `DIRECT_URL`; rubric proof 5's harness adds `INTEGRATIONS=mock`, which is
+  already the default). A value that is not a
+  whole number above zero refuses to boot rather than silently becoming a
+  zero-millisecond poll. `RELAY_WORKER_DRAIN_MS` must stay inside the systemd
+  unit's `TimeoutStopSec`: the worker has to give up before systemd does, or
+  the SIGKILL that follows is the thing the drain existed to avoid.

@@ -11,6 +11,7 @@ import {
   fail,
   requeue,
   reapExpired,
+  release,
 } from "@/lib/jobs/queue";
 import { mutate } from "@/lib/repo/mutate";
 
@@ -545,5 +546,110 @@ describe("reapExpired", () => {
     expect(result).toEqual({ requeued: [], failed: [job!.id] });
     expect(after.status).toBe("failed");
     expect(after.error).toBe("lease expired");
+  });
+});
+
+describe("enqueue and the job's owner", () => {
+  const makeUser = (orgId: string, id: string) =>
+    mutate(prisma, {
+      orgId,
+      actor: { kind: "system" },
+      kind: "user.upserted",
+      apply: (tx) => tx.user.create({ data: { id, orgId, email: `${id}@example.com` } }),
+    });
+
+  it("accepts an owner who is a user of the job's org", async () => {
+    await makeUser(ORG_ID, "user_owner");
+    const { job } = await enqueue(prisma, {
+      orgId: ORG_ID,
+      kind: "noop",
+      idempotencyKey: "owned",
+      ownerUserId: "user_owner",
+      input: {},
+    });
+    expect(job.ownerUserId).toBe("user_owner");
+  });
+
+  it("refuses an owner from another org", async () => {
+    // The foreign key does not check this: `owner_user_id` references
+    // `users(id)` with no regard for the tenant, so without the check in
+    // `enqueue` a caller could hang one org's job off another org's rep and
+    // the "my jobs" screen would show it to them (§25, rule 3).
+    await makeUser(OTHER_ORG_ID, "user_elsewhere");
+    await expect(
+      enqueue(prisma, {
+        orgId: ORG_ID,
+        kind: "noop",
+        idempotencyKey: "cross-tenant",
+        ownerUserId: "user_elsewhere",
+        input: {},
+      }),
+    ).rejects.toThrow("ownerUserId is not a user of this org");
+    expect(await prisma.job.count()).toBe(0);
+  });
+
+  it("refuses an owner who does not exist", async () => {
+    await expect(
+      enqueue(prisma, {
+        orgId: ORG_ID,
+        kind: "noop",
+        idempotencyKey: "ghost",
+        ownerUserId: "user_missing",
+        input: {},
+      }),
+    ).rejects.toThrow("ownerUserId is not a user of this org");
+    expect(await prisma.job.count()).toBe(0);
+  });
+});
+
+describe("release", () => {
+  it("gives the job back without spending the attempt", async () => {
+    await add("released");
+    const claim = await claimNext(prisma, "worker-one");
+    expect(claim?.attempts).toBe(1);
+    if (claim === null) throw new Error("tests: the claim returned nothing");
+
+    expect(await release(prisma, claim, "worker drained")).toEqual({ ok: true, fenced: false });
+
+    const row = await prisma.job.findUniqueOrThrow({ where: { id: claim.id } });
+    expect(row.status).toBe("queued");
+    // Back where it started. A deploy is not an attempt.
+    expect(row.attempts).toBe(0);
+    expect(row.workerId).toBeNull();
+    expect(row.leaseUntil).toBeNull();
+    expect(row.nextAt.getTime()).toBeLessThanOrEqual((await databaseNow()).getTime());
+  });
+
+  it("does not fail a job that was on its last attempt", async () => {
+    await add("last-attempt");
+    let claim = await claimNext(prisma, "worker-one");
+    for (let spent = 1; spent < MAX_ATTEMPTS; spent += 1) {
+      if (claim === null) throw new Error("tests: the claim returned nothing");
+      await requeue(prisma, claim, { error: "transient", delayMs: 0 });
+      claim = await claimNext(prisma, "worker-one");
+    }
+    if (claim === null) throw new Error("tests: the claim returned nothing");
+    expect(claim.attempts).toBe(MAX_ATTEMPTS);
+
+    // `requeue` here would cap out and mark the job `failed`, which for a send
+    // is work dropped by a restart.
+    expect(await release(prisma, claim, "worker drained")).toEqual({ ok: true, fenced: false });
+    const row = await prisma.job.findUniqueOrThrow({ where: { id: claim.id } });
+    expect(row.status).toBe("queued");
+    expect(row.attempts).toBe(MAX_ATTEMPTS - 1);
+  });
+
+  it("is fenced once the claim is superseded", async () => {
+    await add("released-zombie");
+    const claim = await claimNext(prisma, "worker-one", { leaseMs: 1 });
+    if (claim === null) throw new Error("tests: the claim returned nothing");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await reapExpired(prisma);
+    const second = await claimNext(prisma, "worker-two");
+
+    expect(await release(prisma, claim, "worker drained")).toEqual({ ok: false, fenced: true });
+    const row = await prisma.job.findUniqueOrThrow({ where: { id: claim.id } });
+    expect(row.status).toBe("running");
+    expect(row.attempts).toBe(second?.attempts);
   });
 });

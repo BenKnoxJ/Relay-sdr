@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "Oyster IT managed print Office Options Midlands acquisition August 2026 Birmingham",
+    "region": "GB",
+    "recencyMonths": 6,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:26:25.936Z"
+}

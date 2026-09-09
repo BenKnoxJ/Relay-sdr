@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"Elmdale Maintenance\" OR \"Vitale Digital\" OR \"Evolve Document Solutions\" managed print office location",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Managed Print Support - Vitale Digital",
+        "url": "https://vitaledigital.co.uk/managed-print-support",
+        "snippet": "Head Office The Barn, Friday Street Farm Friday Street, Chart Sutton Kent, ME17 3DD. Head Office : 01622 278007 · info@vitaledigital.co.uk · Service Calls"
+      },
+      {
+        "title": "How to Choose the Best Managed Print Services Company",
+        "url": "https://elmdalemaintenance.co.uk/news/best-managed-print-services-company",
+        "snippet": "Elmdale Maintenance Ltd works with organisations that want exactly that – dependable print equipment support combined with managed print expertise"
+      },
+      {
+        "title": "Print Management Solutions Berkshire | Elmdale Maintenance Ltd",
+        "url": "https://elmdalemaintenance.co.uk/print-management-solutions-berkshire",
+        "snippet": "Can employees print from mobile devices using PaperCut and Konica Minolta in Berkshire offices?\n\nAbsolutely. PaperCut MF enables BYOD (Bring Your Own Device) printing from iOS, Android, and Chromebooks to any Konica Minolta device across your Berkshire locations. Employees can submit print jobs remotely and release them securely at any bizhub device using their authentication credentials. This supports flexible working arrangements popular with Reading and Windsor businesses. [...] Skip to content\n\n 0118 982 1444\n (/cdn-cgi/l/email-protection#81f2e0ede4f2c1e4edece5e0ede4ece0e8eff5e4efe0efe2e4afe2eeaff4ea)\n\n. Most devices require OpenAPI 2.3.1+ support, with some older models needing ROM upgrades. We handle all technical requirements for businesses across Bracknell, Windsor, and Maidenhead to ensure smooth PaperCut deployment on supported bizhub models.\n\nCan PaperCut track printing costs by department for our Slough office? [...] PaperCut MF deployment typically takes 1-2 days for most Berkshire businesses, depending on the number of Konica Minolta devices and integration requirements. We handle all configuration including user setup, authentication methods, and print policies. Training for administrators and users is included, with ongoing support available. Most Wokingham businesses are fully operational with enhanced print management within 48 hours of deployment."
+      },
+      {
+        "title": "Printer & Copier Sales in Berkshire | Elmdale Maintenance Ltd ...",
+        "url": "https://www.approvedbusiness.co.uk/companies/elmdale-maintenance-ltd/printer-copier-sales-in-berkshire",
+        "snippet": "Contact details: Telephone: 0118 982 1444 Email: dpo@elmdalemaintenance.co.uk … hus HouseCalleva Park, AldermastonBerkshire, RG7 8EN"
+      },
+      {
+        "title": "Software | Evolve Business Solutions | Managed Print",
+        "url": "https://evolve-businesssolutions.co.uk/products/software",
+        "snippet": "With the software we offer, we can provide document management solutions to enhance your office productivity. These include cloud-based print management and"
+      },
+      {
+        "title": "Unlock efficiency with our flexible document management solution ...",
+        "url": "https://www.instagram.com/reel/DJrvht7KxXv",
+        "snippet": "Two Service Calls. Two Customers. One Goal. Keeping businesses productive with fast, reliable printer maintenance and support."
+      },
+      {
+        "title": "Managed Print Services (MPS)",
+        "url": "https://www.mmbt.co.uk/managed-print-services-mps",
+        "snippet": "Optimise your print environment with managed print services. Reduce costs, improve document security, and streamline printer management for your business."
+      },
+      {
+        "title": "Managed Print Services | Konica Minolta, Ricoh, Sharp, Canon",
+        "url": "https://www.agilico.co.uk/services/managed-print-services",
+        "snippet": "Our comprehensive managed print services mean we can supply, manage and maintain large and wide-format printing and scanning machines in addition to more specialist equipment – with the same level of outstanding service and expertise we’re valued for. [...] Keeping your print infrastructure operational and optimised is critical for team productivity – especially as it becomes pivotal to your digital document workflow strategy. Our managed print services focus on service excellence throughout the customer experience: from our expert engineers who provide outstanding onsite service to our customer service teams who deliver rapid, high-quality support. We’ve also invested in cutting-edge technology to help drive continuous service improvement. [...] #### Head Office\n\nCando House, Bournemouth Rd, Chandler’s Ford, Hampshire, SO53 3QB\n\n#### 0330 058 0505\n\n##### Cookies\n\nWe use cookies on our website to give you the most relevant experience by remembering your preferences and repeat visits. By clicking “Accept”, you consent to the use of ALL the cookies.\n\nCookie settingsAccept\n\nPrivacy & Cookies Policy\n\n#### Privacy Overview"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:27:59.226Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "XBM acquires Alba Technology contracts managed print Wales Midlands announcement",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "XBM Acquires Alba Technology",
+        "url": "https://www.xbmltd.com/xbm-acquires-alba-technology",
+        "snippet": "XBM announces acquisition of Alba Technology's contracts and assets, further expanding its Managed Print base across Wales and the Midlands."
+      },
+      {
+        "title": "XBM Acquires Alba Technology",
+        "url": "https://technologyreseller.uk/xbm-acquires-alba-technology",
+        "snippet": "4 Dec 2024 — XBM announces the acquisition of Alba Technology's contracts and assets, further expanding its Managed Print base across Wales and the Midlands.Read more"
+      },
+      {
+        "title": "Richard Taylor's Post - xbm #growth #epson",
+        "url": "https://www.linkedin.com/posts/richard-taylor-2aa3623b_xbm-growth-epson-activity-7270125646545047552-Vpzp",
+        "snippet": "XBM announces the acquisition of Alba Technology's contracts and assets, further expanding its Managed Print base across Wales and the Midlands."
+      },
+      {
+        "title": "Acquisitions Archives",
+        "url": "https://www.xbmltd.com/category/xbm/acquisitions",
+        "snippet": "XBM announces acquisition of Alba Technology's contracts and assets, further expanding its Managed Print base across Wales and the Midlands. Yorkshire based XBM ...Read more"
+      },
+      {
+        "title": "XBM expands Wales and Midlands presence with acquisition",
+        "url": "https://www.insidermedia.com/news/national/xbm-expands-wales-and-midlands-presence-with-acquisition",
+        "snippet": "6 Dec 2024 — The Leeds-based company has acquired the contracts and assets of Alba Technology, a North Wales and Midlands-based reseller of Epson, Sharp ...Read more"
+      },
+      {
+        "title": "XBM Limited Continues Expansion with Acquisition ...",
+        "url": "https://pitr.uk/xbm-limited-continues-expansion-with-acquisition-of-managed-print-solutions-scotland-limited",
+        "snippet": "9 Jun 2023 — XBM Limited, one of the UK's fastest growing managed print ・ today announced its continued expansion ・ wards the goal of being a £30million"
+      },
+      {
+        "title": "Managed print reseller XBM acquires iDOC to boost ...",
+        "url": "https://www.channelweb.co.uk/news/4057028/managed-print-reseller-xbm-acquires-idoc-boost-sustainability-credentials",
+        "snippet": "27 Sept 2022 — Office technology supplier XBM has acquired iDOC Services as it looks to expand its business through heat-free ink jet printing.Read more"
+      },
+      {
+        "title": "XBM gains over 2000 machines with Office Odyssey ...",
+        "url": "https://www.printmonthly.co.uk/news/business/xbm-gains-over-2000-machines-with-office-odyssey-acquisition",
+        "snippet": "19 Mar 2025 — Major Epson reseller, XBM, have announced the acquisition of Office Odyssey, adding 2300 machines to its portfolio."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:28:58.817Z"
+}

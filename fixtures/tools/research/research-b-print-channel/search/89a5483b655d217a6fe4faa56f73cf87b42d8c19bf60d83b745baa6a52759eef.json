@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "channel partners struggle to sell AI low customer demand SMEs not buying AI analytics 2026 survey",
+    "region": "GB",
+    "recencyMonths": 14,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "2026 Top 15 Channel Partner Business Challenges and Priorities",
+        "url": "https://techaisle.com/smb-infographics/31-smb-infographics/250-2026-top15-channel-partner-business-challenges-priorities",
+        "snippet": "However, this ambition is tempered by the reality of \"Clients stuck in Pilot Purgatory\" (#4 Challenge). The data signals that partners are struggling to bridge the gap between \"AI experimentation\" and \"Packaging 'Agentic AI' Outcomes\" (#2 Priority). They are no longer just deploying technology; they are engineering \"Time-to-Value.\" [...] +1 408-253-4416  |   twitter linkedin  blog\n\nTechaisle \n\n# 2026 Top 15 Channel Partner Business Challenges and Priorities\n\n2026 Top 15 Channel Partner Business Challenges and Priorities\n\nTechaisle infographics are free to download and free to use. For a PDF, click the Download button.\n\n Download\n\nAs we move into 2026, Techaisle’s latest global study of 4,500 partners reveals a decisive shift in the Channel mindset: the transition from \"Service Delivery\" to \"Agentic Orchestration.\" [...] Techaisle - TA\n\n© 2026 Techaisle, LLC | All rights reserved. Reproduction is forbidden unless authorized."
+      },
+      {
+        "title": "AI in Sales & Marketing for AI Vendors: UK Survey 2026 | aibl",
+        "url": "https://aiblmedia.com/downloads/ai-in-sales-and-marketing-uk-2026-vendor",
+        "snippet": "81% of UK mid-market GTM leaders have AI embedded in at least one team. Common use cases include AI-assisted outreach, lead scoring, content generation, proposal automation, and conversational AI in customer communications.\n\n### Why do UK GTM leaders struggle to prove AI ROI? [...] ## The headline numbers\n\n68% of GTM leaders are in momentum or all-in, the highest of any function\n\n45% report measurable AI ROI, 13.2pp behind Tech/IT despite running in a function built on measurement\n\n94% measurable ROI among GTM functions with mature, embedded governance\n\n51% report shadow AI as common, commercial invisibility, not legal exposure\n\n30% of GTM leaders sit at Level 3 governance: the single largest cohort, reporting only 15% ROI [...] 72% of GTM leaders have experienced at least one AI failure. The most common: model or tool failure disrupting a commercial process (39%) and AI output used without human review causing errors (30%).\n\n### Can I cite the data in a presentation or report?\n\nYes. Use: “aibl Media, State of UK AI Adoption Survey 2026, GTM segment n=158, full base n=755, Jan–Mar 2026.”\n\n## Related downloads"
+      },
+      {
+        "title": "Artificial Intelligence Adoption in SMEs: Survey Based on TOE&ndash;DOI Framework, Primary Methodology and Challenges",
+        "url": "https://www.mdpi.com/2076-3417/15/12/6465",
+        "snippet": "This subsection addresses the technological infrastructure and system compatibility barriers that fall under the technological dimension of the TOE framework. Many SMEs struggle with legacy systems, fragmented digital architectures, and limited capacity to adopt AI solutions that require modern, scalable environments. These limitations hinder seamless integration and the long-term scalability of AI initiatives. [...] As highlighted by, inadequate data infrastructures and fragmented legacy systems are the key technological barriers for SMEs to implement AI. Ref. emphasize that poor data standardization and lack of interoperability often delay the development and decision-making of AI models. Furthermore, ref. argue that without access to robust and well-governed data streams, SMEs cannot benefit from generative AI tools or real-time analytics. From a governance perspective, ref. underscore that data quality [...] In terms of technological readiness, poor IT infrastructure and fragmented data practices were frequently mentioned, while social challenges such as management skepticism and low acceptance of AI surfaced as major inhibitors. Quantitative indicators such as low ROI visibility and high risk of failure were also emphasized, especially in cases where AI implementation lacked strategic alignment or adequate planning. This review reinforces the complexity and interdependence of SME-specific"
+      },
+      {
+        "title": "Most SMEs Still Struggling to Embrace AI  - British Chambers of Commerce",
+        "url": "https://www.britishchambers.org.uk/news/2024/07/most-smes-still-struggling-to-embrace-ai",
+        "snippet": "The BCC research found overall, 43% of respondents had no plans to use AI at all, 25% said they were currently using a specific AI technology, while 8% were not sure if they were, and 24% planned to in future. [...] “Our data is a stark reminder of the challenge ahead to get all firms equipped for the digital future.\n\n“It’s encouraging to see 25% of businesses are now using AI – that’s progress from our survey this time last year. But nearly half of firms still don’t have plans to use the technology.\n\n“Without direct action by the Government to help SMEs – many firms risk being left behind. Businesses need advice and support to make the digital steps forward. [...] There are significant sectoral differences. The new data shows that B2B companies are most likely to be currently using AI (33%). Meanwhile, manufacturing firms are the sector least likely to be using AI technology (19%) – with nearly half of manufacturers (49%) also saying they have no plans to adopt the technology, while just 24% intend to use it in the future."
+      },
+      {
+        "title": "Medium",
+        "url": "https://medium.com/@ai_93276/the-real-barriers-to-ai-adoption-in-uk-smes-and-how-to-overcome-them-09ee5931efef",
+        "snippet": "Among SMEs not planning to use AI, the explicit reason given by 49% is data privacy and security concerns. These are legitimate. But they are also often used as a catch-all reason to defer a decision indefinitely. [...] The second missing piece is domain expertise combined with AI knowledge. A consultant who understands your sector, your workflows, and your actual constraints is worth far more than a generalist AI agency. The problem is finding them. UK SMEs often resort to generalist agencies in London or Manchester, which come with high day rates and often lack sector-specific knowledge. [...] The British Chambers of Commerce survey in 2024 found that 43% of UK SMEs have no plans to use AI at all. That is down from 48% the previous year, which sounds like progress. But the trend is shallow. Among firms that have abandoned AI initiatives, the stated reason is rarely that the technology was bad. It is that the organisation could not sustain it."
+      },
+      {
+        "title": "Understanding the use of AI among small businesses",
+        "url": "https://www.jpmorganchase.com/institute/all-topics/business-growth-and-entrepreneurship/understanding-ai-use-by-small-businesses",
+        "snippet": "Suggested citation\n\nWheat, Christopher, Chi Mac, and Andrea Passalacqua. 2026. \"Understanding the use of AI among small businesses.\" JPMorgan Chase Institute.\n\nFootnotes [...] Industry:Generative AI:Marketing:AI infrastructure:Audio video processing:Customer relationship management:Other:\nTransportation and warehousing 65.96%10.13%7.50%5.80%3.52%7.10%\nConstruction 64.55%10.46%9.09%5.47%2.71%7.73%\nFood services and drinking places 62.46%15.30%6.00%5.20%3.88%7.15%\nHealth care and social assistance 60.48%11.31%5.66%6.85%3.21%12.49%\nWholesale trade 60.46%16.85%7.32%6.20%2.14%7.03%\nReal estate, rentals, leasing 60.31%12.45%9.28%6.65%3.05%8.25% [...] The right panel displays the share of firms by services paid for over the same period, highlighting a dramatic compositional shift in the market. In the early years, AI services purchased by small businesses were limited mostly to marketing, with a smaller share toward AI infrastructure and customer relationship management. Over time, small businesses have substantially expanded the portfolio of AI services they pay for, with generative AI emerging as the dominant category and other services"
+      },
+      {
+        "title": "SME Digital Adoption Taskforce: final report - GOV.UK",
+        "url": "https://www.gov.uk/government/publications/sme-digital-adoption-taskforce-final-report/sme-digital-adoption-taskforce-final-report",
+        "snippet": "SMEs with clear internal policies permitting AI use are more likely to adopt AI tools. Conversely, ambiguity or lack of guidance often leads to hesitation among employees\n SMEs where leadership actively support and communicates the benefits of AI adoption see higher engagement and implementation rates among employees\n tailoring AI tools to address specific challenges within sectors (for example, inventory management in retail) leads to more effective adoption and utilisation [...] | Develop comprehensive understanding of how to drive demand for digital adoption using behavioural science | SMEs struggle with tech adoption due to time constraints and lack of understanding. Further research is needed to identify specific behavioural nudges that can raise engagement with digital adoption support |\n| Establish standards for e-invoicing | Establish common standards for e-invoicing in the UK and encourage awareness among UK businesses | [...] the UK ranks 25th worldwide for future digital readiness in the IMD 2024 index, while research by Be the Business shows that UK SMEs invest less in new technology and management than their G7 peers\n forty-three per cent of SMEs surveyed by the British Chambers of Commerce in 2024 said they have no plans to use AI, compared to 48 per cent in 2023\n innovative SMEs recorded 14.8 per cent revenue growth, the Federation of Small Businesses (FSB) research shows"
+      },
+      {
+        "title": "The impact of AI adoption on market dynamics",
+        "url": "https://www.oecd.org/en/publications/artificial-intelligence-and-competitive-dynamics-in-downstream-markets_ccf0624a-en/full-report/component-5.html",
+        "snippet": "Economic Outlook 23 September 2026 [...] Economic Outlook 23 September 2026 [...] customer outcomes: AI-powered outreach systems have boosted customer retention by 10% in some cases and increased the identification of sales “leads” by up to 40%7[(LinkedIn/Ipsos, 2025)]( In some sectors, AI adoption may fundamentally change business models and raise productivity at scale.8 In agriculture, for example, AI-enabled systems for crop monitoring and predictive management have been shown to boost output and resilience, offering particular benefits for smallholders facing the"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:28:00.327Z"
+}

@@ -64,6 +64,18 @@ empty. Everything in `hook.answeredBy` must be a live fact id.
   each with a page you fetch this run, or drop it and say so in `unknowns`.
 - The output shape reaches you as the structured output schema; every field the
   runtime validates is in it. Ids are stable slugs, unique across the pack.
+- Three rules the schema cannot show you, and the runtime refuses the whole
+  pack on: (1) at most three distinct pages from any one domain across the
+  pack, however many items cite them, so once you hold three FCA pages you cite
+  those three and no fourth; (2) `evidence.domains` lists exactly the hosts of
+  `evidence.urls`; (3) rep words only in anything you write, so none of these
+  words in `text`, `situation`, `name`, `say`, `summary`, `unknowns` or
+  `contradictions`, in any case or plural: agent run, run id, orchestrator,
+  specialist, enrolment, cohort, persona, archetype, autopilot, verdict, judge,
+  gate, stage, module, pipeline, payload, prompt, token, model, job, ICP, LLM,
+  touch, signal, pitch. Say "specialty insurer" not "specialist insurer",
+  "warning sign" not "signal", "kind of buyer" not "archetype". Dates are ISO
+  8601 (`2026-07-10` or `2026-07-10T09:00:00Z`); urls are absolute.
 
 ## Method notes — from Signal's skills, 2026-09-09
 How the fleet's researcher works, kept because it works. These do not change

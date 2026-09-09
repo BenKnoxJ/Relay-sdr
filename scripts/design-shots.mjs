@@ -20,7 +20,8 @@
  *   APP      the running app, signed in as an admin (default localhost:5200)
  *   REP_APP  a second instance signed in as a rep. Optional; when it is set,
  *            the nav-roles comparison is produced as well.
- *   SET      which set of signed states to shoot: 9b (the shell and Home) or
+ *   SET      which set of signed states to shoot: 9b or 9c (the shell, Home
+ *            and Campaigns, one set since Task 9c; the key picks OUT) or
  *            6b (the bench, which renders the slice 1 screens from fixtures).
  *            Default 9b.
  *   OUT      where the comparisons go   (default docs/design/task-<SET>)
@@ -41,6 +42,7 @@ if (MOCK === undefined || MOCK === "") {
 }
 const SET = process.env.SET ?? "9b";
 const OUT = process.env.OUT ?? `docs/design/task-${SET}`;
+const ONLY = process.env.ONLY ?? "";
 const CHROME = process.env.CHROME ?? "chromium";
 const PORT = Number(process.env.CDP_PORT ?? 9333);
 
@@ -66,8 +68,16 @@ const TMP = path.join(process.env.TMPDIR ?? "/tmp", "relay-design-shots");
  */
 const MOCK_FRAMES_9B = {
   "mock-home-day-one": 1,
+  "mock-inbox-draft": 2,
+  "mock-inbox-reply": 3,
+  "mock-inbox-call": 4,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
+  "mock-campaign-plan-ready": 7,
+  "mock-plan-expanded": 8,
+  "mock-campaign-running": 9,
+  "mock-campaign-stopped": 10,
+  "mock-start": 11,
   "mock-settings": 14,
   "mock-content-coming": 15,
   "mock-home-dark": 16,
@@ -98,16 +108,60 @@ const APP_PAGES_6B = {
   start: "/bench/orchestrator/pre-fill",
 };
 
+/**
+ * The Campaigns routes (Task 9c). The ids are the fixture adapter's own
+ * (`src/lib/fixtures/campaigns.ts`), so a renamed fixture fails here loudly
+ * rather than shooting a 404 and calling it a state.
+ */
+const CAMPAIGN_PAGES = {
+  start: "/campaigns/new",
+  "start-prefilled":
+    "/campaigns/new?said=" +
+    encodeURIComponent(
+      "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users",
+    ),
+  "campaign-researching": "/campaigns/midlands-fleet-operators",
+  "campaign-plan-ready": "/campaigns/managed-print-partners-midlands",
+  "campaign-running": "/campaigns/uk-logistics-ops",
+  "campaign-stopped": "/campaigns/vets-scotland",
+};
+
 /** One row per signed state: what to show, in what order. */
 const STATES_9B = [
   ["home-day-one", "Home, day one (signed mock section 1b)",
     [["Signed mock", "mock-home-day-one"], ["Built, light", "app-home-light"], ["Built, dark", "app-home-dark"]]],
   ["content-coming", "Content before its slice (signed mock section 6)",
     [["Signed mock", "mock-content-coming"], ["Built, light", "app-content-light"], ["Built, dark", "app-content-dark"]]],
-  ["inbox-empty", "Inbox, empty (signed mock section 2c)",
-    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
-  ["campaigns-empty", "Campaigns, none yet (signed mock section 3a shows the populated list)",
+  ["inbox-draft", "Inbox, a draft selected (signed mock section 2a)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-draft-light"], ["Built, dark", "app-inbox-draft-dark"]]],
+  ["inbox-draft-reject", "Inbox, the draft's four reject reasons open (signed mock section 2a draws them under the card)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-reject-light"], ["Built, dark", "app-inbox-reject-dark"]]],
+  ["inbox-needs-you", "Inbox, a draft that needs the rep (signed mock section 2a, the first row of Drafts)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-needs-you-light"], ["Built, dark", "app-inbox-needs-you-dark"]]],
+  ["inbox-reply", "Inbox, a reply selected (signed mock section 2b)",
+    [["Signed mock", "mock-inbox-reply"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
+  ["inbox-call", "Inbox, a call selected (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-call-light"], ["Built, dark", "app-inbox-call-dark"]]],
+  ["inbox-call-spoke", "Inbox, Spoke asking for one line (signed mock section 2c draws the box under the outcomes)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-spoke-light"], ["Built, dark", "app-inbox-spoke-dark"]]],
+  ["inbox-empty", "Inbox, empty, reached by working every row (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-empty-light"], ["Built, dark", "app-inbox-empty-dark"]]],
+  ["campaigns-list", "Campaigns, the list (signed mock section 3a)",
     [["Signed mock", "mock-campaigns-list"], ["Built, light", "app-campaigns-light"], ["Built, dark", "app-campaigns-dark"]]],
+  ["start", "Start, nothing said yet (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
+  ["start-prefilled", "Start, pre-filled from the sentence (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-prefilled-light"], ["Built, dark", "app-start-prefilled-dark"]]],
+  ["campaign-researching", "Campaign page, Researching (§23.1c; the mock draws the state row in 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-researching-light"], ["Built, dark", "app-campaign-researching-dark"]]],
+  ["campaign-plan-ready", "Campaign page, Plan ready (signed mock section 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-plan-ready-light"], ["Built, dark", "app-campaign-plan-ready-dark"]]],
+  ["plan-expanded", "The plan, one card expanded, and the unknowns card (signed mock 3b-ii)",
+    [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-expanded-light"], ["Built, dark", "app-plan-expanded-dark"]]],
+  ["campaign-running", "Campaign page, Running (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-running"], ["Built, light", "app-campaign-running-light"], ["Built, dark", "app-campaign-running-dark"]]],
+  ["campaign-stopped", "Campaign page, the research stop (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-stopped"], ["Built, light", "app-campaign-stopped-light"], ["Built, dark", "app-campaign-stopped-dark"]]],
   ["settings", "Settings (signed mock section 5; the cards fill in with Task 10b)",
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
   ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
@@ -128,7 +182,10 @@ const STATES_6B = [
 ];
 
 const SETS = {
-  "9b": { frames: MOCK_FRAMES_9B, pages: APP_PAGES_9B, states: STATES_9B, focusPass: true, roles: true },
+  // Task 9c added the Campaigns frames and states to the shell set in place, so
+  // "9b" and "9c" are one set; the key only picks the output directory.
+  "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
   "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
 };
 
@@ -278,6 +335,92 @@ async function shootApp(origin, prefix, routes) {
 await shootApp(APP, "app", APP_PAGES);
 
 /**
+ * The Inbox's states (Task 9d, mock 2a, 2b, 2c and empty).
+ *
+ * Its own pass rather than routes, because every one of them is a live state
+ * of one page: which row is selected, whether the reasons are open, and — for
+ * empty — that every row has been worked. `/inbox` itself lands on the first
+ * row, a reply, which is 2b and is already shot above as `app-inbox-*`.
+ *
+ * The rows are found by their test ids and the buttons by their text, which
+ * is the copy file's; a renamed button fails here loudly rather than shooting
+ * the wrong state and calling it signed.
+ */
+const INBOX_STATES = {
+  draft: `rows()[4].click();`,
+  reject: `rows()[4].click(); await tick(); button("Reject…").click();`,
+  "needs-you": `rows()[3].click();`,
+  call: `rows()[2].click();`,
+  spoke: `rows()[2].click(); await tick(); button("Spoke").click();`,
+  empty: `
+    // Two labels, one outcome, three approves.
+    button("Warm").click(); await tick();
+    button("Warm").click(); await tick();
+    button("Voicemail").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+  `,
+};
+
+for (const [name, steps] of Object.entries(INBOX_STATES)) {
+  for (const theme of ["light", "dark"]) {
+    await cdp.send("Page.navigate", { url: `${APP}/inbox` });
+    await sleep(2000);
+    await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+    await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+    const { result } = await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: `(async () => {
+        const rows = () => [...document.querySelectorAll('[data-testid="queue-row"]')];
+        const button = (text) => {
+          const found = [...document.querySelectorAll("button")].find((el) => el.textContent.trim() === text);
+          if (!found) throw new Error("no button " + JSON.stringify(text) + " on the Inbox");
+          return found;
+        };
+        const tick = () => new Promise((resolve) => setTimeout(resolve, 150));
+        if (rows().length === 0) throw new Error("no rows on the Inbox: is the queue rendering?");
+        ${steps}
+        await tick();
+        // Focus stays where the click left it, and the ring is not the state.
+        document.activeElement?.blur();
+        return "";
+      })().catch((error) => error.message)`,
+    });
+    if (result.value !== "") throw new Error(`inbox-${name}: ${result.value}`);
+    await sleep(500);
+    await capture(`app-inbox-${name}-${theme}`);
+  }
+}
+
+/**
+ * The plan with one card open (mock 3b-ii).
+ *
+ * Its own pass rather than a route, because "expanded" is a live state: the
+ * card is a disclosure the rep opens, and there is no url that lands on it.
+ * The card opened is "Their pain, in their words", which is the one the signed
+ * mock draws open.
+ */
+for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
+  await cdp.send("Page.navigate", { url: `${APP}/campaigns/managed-print-partners-midlands` });
+  await sleep(2000);
+  await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+  await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+  const { result } = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-testid="plan-card"]')];
+    const card = cards[2];
+    if (!card) return "no third plan card on the campaign page";
+    const toggle = card.querySelector("button");
+    if (!toggle) return "the plan card has no disclosure to open";
+    toggle.click();
+    return "";
+  })()`);
+  if (result.value !== "") throw new Error(`plan-expanded: ${result.value}`);
+  await sleep(500);
+  await capture(`app-plan-expanded-${theme}`);
+}
+
+/**
  * Home with focus in the brief box, in both themes.
  *
  * Its own pass rather than a route, because focus is a live state: the page has
@@ -314,6 +457,10 @@ if (!chosen.roles) {
 }
 
 // One comparison image per signed state, stacked so each pane is full width.
+// Filtered last rather than first: the app shots are cheap, and a filter
+// applied to the capture loops is one more place for a name to drift.
+const wanted = states.filter(([id]) => id.startsWith(ONLY));
+if (wanted.length === 0) throw new Error(`ONLY=${JSON.stringify(ONLY)} matches no state`);
 const inline = (name) => `data:image/png;base64,${readFileSync(path.join(TMP, `${name}.png`)).toString("base64")}`;
 const page = `<!doctype html><meta charset="utf-8"><style>
   body{margin:0;background:#fff;font:14px/1.5 system-ui,sans-serif;color:#272f4a}
@@ -324,7 +471,7 @@ const page = `<!doctype html><meta charset="utf-8"><style>
   figure{margin:0}
   figcaption{font-size:13px;margin:0 0 6px;font-weight:600}
   img{width:100%;display:block;border:1px solid #e6e8ef;border-radius:8px}
-</style>${states.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
+</style>${wanted.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
 <p class="why">The signed mock first, then this branch. Any difference is a finding.</p>
 <div class="row">${panes.map(([caption, file]) => `<figure><figcaption>${caption}</figcaption><img src="${inline(file)}"></figure>`).join("")}</div></section>`).join("")}`;
 
@@ -339,7 +486,7 @@ await cdp.send("Emulation.setDeviceMetricsOverride", {
 await cdp.send("Page.navigate", { url: `file://${composed}` });
 await sleep(2500);
 
-for (const [id] of states) {
+for (const [id] of wanted) {
   const box = await boxOf(`document.getElementById(${JSON.stringify(id)})`);
   if (box === null) throw new Error(`the composed page has no section ${id}`);
   const { data } = await cdp.send("Page.captureScreenshot", {

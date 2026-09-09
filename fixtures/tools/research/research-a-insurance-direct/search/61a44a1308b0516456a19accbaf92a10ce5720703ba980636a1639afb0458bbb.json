@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"complaints\" claims handler forum \"we only listen to\" calls QA sample percent",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Call center quality assurance best practices: 2026 guide",
+        "url": "https://thelevel.ai/blog/call-center-quality-assurance-best-practices",
+        "snippet": "However, teams that rely solely on manual QA processes will run into one big issue: They’re only able to evaluate 1–2% of calls, which inevitably leads to gaps in coaching and customer experience data (more on this below).\n\nThis one problem leads to issues such as agents getting frustrated during coaching sessions because they’re being coached on one-off mistakes, or missing certain customer complaints because they never came up in the calls that were reviewed. [...] How many calls should actually be scored for call center QA?\n\nTraditional manual QA typically evaluates only about 2–5 calls per agent per week, which works out to roughly 1–2% of total volume. The common complaint is that this tiny sample isn't representative and lets both great and poor calls go unseen. The modern best practice is to use automated quality assurance software to score close to 100% of interactions, then route the flagged outliers to humans for deeper review. [...] ### Key takeaways\n\nCall center quality assurance (QA) is the structured process of evaluating customer interactions against defined standards to improve service quality, agent performance, and customer experience.\n\nManual QA only reviews about 1–2% of calls, creating blind spots in coaching and customer insight data. Industry research shows roughly 33% of agents feel they aren't evaluated fairly."
+      },
+      {
+        "title": "What 2% QA coverage misses across five channels - Aveni.ai",
+        "url": "https://aveni.ai/blog/182408-calls-nobody-reviewed",
+        "snippet": "What percentage of customer calls do compliance teams review? Most FCA-regulated firms sample fewer than 5% of customer interactions, and 2% is"
+      },
+      {
+        "title": "QA for Call Centers: The Complete 2026 Playbook (AI-Powered)",
+        "url": "https://www.omind.ai/blog/qms/qa-for-call-center",
+        "snippet": "Traditional QA samples only a tiny fraction of calls, creating blind spots and reactive insights. QA analyst typically reviews 2–5 interactions"
+      },
+      {
+        "title": "Call Center QA Software: AI-Powered Quality Monitoring for Contact Centers | Coval",
+        "url": "https://www.coval.ai/blog/call-center-qa-software",
+        "snippet": "Coval raises $28M Series A to make voice AI deployment-ready →\n Coval \n\nLog In Get Started\n\nLog In Get Started\n\n# Call Center QA Software: AI-Powered Quality Monitoring for Contact Centers\n\nBrooke Hopkins, Founder and CEO\n\nMarch 4, 2026 · 11 min read\n\nYour QA team listens to 2-5% of calls. Maybe 8% if they are aggressive about it. The other 92% go unreviewed — and that is where the compliance violations, missed upsells, and customer churn hide. [...] This workflow has three fundamental problems. First, sample bias. When you are only reviewing a handful of calls, you are probably selecting based on duration, escalation, or gut instinct — not a representative sample. Second, evaluator inconsistency. Two QA analysts scoring the same call will often disagree. Studies in contact center operations put inter-rater reliability somewhere between 60-80%, depending on rubric clarity. Third, delayed feedback. Coaching an agent about a call that [...] This has been the painful reality of call center quality assurance for decades. Manual QA simply cannot scale. A supervisor can listen to maybe 10-15 calls per day if they do nothing else. In a contact center handling 50,000 calls per month, that means roughly 300 get reviewed. The rest are invisible."
+      },
+      {
+        "title": "Feels like QA and call reviews only take my worst calls - Reddit",
+        "url": "https://www.reddit.com/r/CallCenterWorkers/comments/1ghayih/feels_like_qa_and_call_reviews_only_take_my_worst",
+        "snippet": "Just for the sake of argument, let's say you have to listen to 3 calls until you find a bad one. Now we're up to 18 hours listening to calls."
+      },
+      {
+        "title": "30 Tips to Improve Your Call Quality Monitoring",
+        "url": "https://www.callcentrehelper.com/tips-to-improve-your-call-quality-monitoring-4732.htm",
+        "snippet": "Thank you for sharing these are excellent tips! I also recommending using analytics to focus your call quality monitoring efforts – you’ll experience exponential value. You can not possibly listen to every call and only a very small percentage of calls are actually coachable and worth listening to. Are all your calls of equal value? Instead of recording a small percentage of calls and randomly listening to a few of them each month, I recommend focusing on the areas that you want to improve [...] Using this data, newer call quality monitoring systems can automatically deliver a sample of the high-value calls to managers and QA analysts for evaluation. By monitoring and evaluating these high-value calls, you’ll be able to rapidly identify issues and opportunities for improvement and make accurate business decisions about what to address and solve the issues. [...] These calls are then monitored by two QA members and, providing the average score is over 90%, then we sign them off or advise if more training is needed before going live on the phones.\n\nContributed by: Mia, a Call Centre Helper reader\n\nIf you want ideas of role-playing exercises to use with your agents, read our article: 9 Customer Service Role Plays\n\n### 30. Spend Five Minutes Reviewing Yesterday’s Calls"
+      },
+      {
+        "title": "18 best practices for call center quality assurance - Aircall",
+        "url": "https://aircall.io/en-gb/blog/customer-happiness/call-center-quality-assurance",
+        "snippet": "Listen to or read a sample of customer conversations and score them using a clear, consistent rubric. Bring QA analysts together to compare how"
+      },
+      {
+        "title": "Complaints and root cause analysis: good practice and ...",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
+        "snippet": "Smaller firms might consider using checks to test whether issues are being missed. For example, they could listen to a sample of customer calls, review a small number of completed customer journeys, or ask customer-facing staff to discuss recent examples where customers appeared confused, dissatisfied, vulnerable or at risk of harm. [...] A proportionate approach may involve greater focus on recurring issues or risks and compare what happens before and after changes are implemented. This coupled with other mechanisms could support better monitoring. For example, if a firm changes a customer communication because customers were misunderstanding it, the firm could review a small sample of later customer interactions, listen to relevant calls, or ask staff whether customers are still raising the same issue. [...] The baseline for inclusion in our sample was that firms had at least 90 complaints to the FOS in the last three years. This gave us a statistically meaningful dataset to determine if complaint volumes were improving or getting worse over time at the firm."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:25:10.131Z"
+}

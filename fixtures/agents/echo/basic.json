@@ -1,0 +1,24 @@
+{
+  "kind": "echo",
+  "name": "basic",
+  "source": "run",
+  "recordedAt": "2026-09-09T09:48:19.029Z",
+  "live": false,
+  "input": {
+    "text": "the bench is the sign-off surface"
+  },
+  "output": {
+    "text": "THE BENCH IS THE SIGN-OFF SURFACE"
+  },
+  "run": {
+    "steps": 3,
+    "modelSteps": 2,
+    "cost": "0.022000",
+    "durationMs": 57,
+    "replayedToolCalls": 0
+  },
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}

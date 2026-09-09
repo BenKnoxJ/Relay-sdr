@@ -2,6 +2,7 @@ import { approvalsRouter } from "@/server/api/routers/approvals";
 import { campaignsRouter } from "@/server/api/routers/campaigns";
 import { connectionsRouter } from "@/server/api/routers/connections";
 import { meRouter } from "@/server/api/routers/me";
+import { runsRouter } from "@/server/api/routers/runs";
 import { createTRPCRouter } from "@/server/api/trpc";
 
 /**
@@ -12,6 +13,7 @@ export const appRouter = createTRPCRouter({
   campaigns: campaignsRouter,
   approvals: approvalsRouter,
   connections: connectionsRouter,
+  runs: runsRouter,
 });
 
 export type AppRouter = typeof appRouter;

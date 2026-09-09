@@ -20,7 +20,9 @@
  *   APP      the running app, signed in as an admin (default localhost:5200)
  *   REP_APP  a second instance signed in as a rep. Optional; when it is set,
  *            the nav-roles comparison is produced as well.
- *   OUT      where the comparisons go   (default docs/design/task-9b)
+ *   OUT      where the comparisons go   (default docs/design/task-9e)
+ *   ONLY     a state id prefix; only the matching comparisons are produced
+ *            (default: all of them)
  *   CHROME   the browser binary         (default chromium)
  */
 import { spawn } from "node:child_process";
@@ -36,7 +38,8 @@ if (MOCK === undefined || MOCK === "") {
     "MOCK is required: the file:// URL of the signed shell mock. It is not in this repository.",
   );
 }
-const OUT = process.env.OUT ?? "docs/design/task-9b";
+const OUT = process.env.OUT ?? "docs/design/task-9e";
+const ONLY = process.env.ONLY ?? "";
 const CHROME = process.env.CHROME ?? "chromium";
 const PORT = Number(process.env.CDP_PORT ?? 9333);
 
@@ -81,8 +84,14 @@ const STATES = [
     [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
   ["campaigns-empty", "Campaigns, none yet (signed mock section 3a shows the populated list)",
     [["Signed mock", "mock-campaigns-list"], ["Built, light", "app-campaigns-light"], ["Built, dark", "app-campaigns-dark"]]],
-  ["settings", "Settings (signed mock section 5; the cards fill in with Task 10b)",
+  ["settings", "Settings, the four cards as the page lands (signed mock section 5)",
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
+  ["settings-voice-open", "Settings, Your voice unfolded with the Add box open (signed mock section 5 draws the list folded)",
+    [["Signed mock", "mock-settings"], ["Built, light", "app-settings-voice-open-light"], ["Built, dark", "app-settings-voice-open-dark"]]],
+  ["settings-refused", "Settings, a link that is not a profile link and a note over ten lines, each refused in plain words (§22.4; the mock draws no refusal)",
+    [["Built, light", "app-settings-refused-light"], ["Built, dark", "app-settings-refused-dark"]]],
+  ["settings-focus", "Settings, the Calls switch with focus on it (WCAG 2.4.7; the mock draws no focus state)",
+    [["Built, light", "app-settings-focus-light"], ["Built, dark", "app-settings-focus-dark"]]],
   ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
     [["Signed mock", "mock-home-dark"], ["Built, dark", "app-home-dark"], ["Built, light", "app-home-light"]]],
   ["home-focus", "The brief box with focus in it (WCAG 2.4.7; the mock draws no focus state)",
@@ -227,6 +236,76 @@ async function shootApp(origin, prefix, routes) {
 await shootApp(APP, "app", APP_PAGES);
 
 /**
+ * Settings' states (Task 9e, mock section 5).
+ *
+ * Its own pass, and a taller viewport, because the four cards run past 760px
+ * and a comparison that cuts the page at the Mailbox card shows nothing of
+ * the three cards this task built. The default pass above already shot
+ * `app-settings-*` at the shell height; these overwrite it.
+ *
+ * The fields are driven the way React sees them: the native value setter and
+ * an `input` event, then focus and blur, so a controlled field saves on blur
+ * exactly as it does under a rep's hands. Buttons are found by their text,
+ * which is the copy file's; a renamed button fails here loudly rather than
+ * shooting the wrong state and calling it signed.
+ */
+const SETTINGS_STATES = {
+  "": ``,
+  "voice-open": `button((text) => text.startsWith("Show ") && text.endsWith(" more")).click(); await tick();
+    button("Add an email you are proud of").click(); await tick();
+    document.activeElement?.blur();`,
+  refused: `type(field('input[type="url"]'), "https://www.linkedin.com/company/relay"); await tick();
+    type(field("textarea[rows]:not([placeholder^='Paste'])"), Array.from({ length: 12 }, (_, i) => "Line " + (i + 1)).join(String.fromCharCode(10))); await tick();
+    document.activeElement?.blur();`,
+  focus: `const sw = document.querySelector('[role="switch"]');
+    if (!sw) throw new Error("no switch on Settings");
+    sw.focus();
+    if (document.activeElement !== sw) throw new Error("the switch did not take focus");`,
+};
+
+await viewport(1280, 1560);
+for (const [name, steps] of Object.entries(SETTINGS_STATES)) {
+  for (const theme of ["light", "dark"]) {
+    await cdp.send("Page.navigate", { url: `${APP}/settings` });
+    await sleep(2000);
+    await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+    await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+    const { result } = await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: `(async () => {
+        const tick = () => new Promise((resolve) => setTimeout(resolve, 150));
+        const button = (want) => {
+          const match = typeof want === "function" ? want : (text) => text === want;
+          const found = [...document.querySelectorAll("button")].find((el) => match(el.textContent.trim()));
+          if (!found) throw new Error("no button " + JSON.stringify(String(want)) + " on Settings");
+          return found;
+        };
+        const field = (selector) => {
+          const found = document.querySelector(selector);
+          if (!found) throw new Error("no field " + selector + " on Settings");
+          return found;
+        };
+        const type = (el, value) => {
+          const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          // A headless page has no window focus, so focus() and blur() may
+          // fire nothing; the focusout React listens for is sent by hand.
+          el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+        };
+        ${steps}
+        await tick();
+        return "";
+      })().catch((error) => error.message)`,
+    });
+    if (result.value !== "") throw new Error(`settings-${name}: ${result.value}`);
+    await sleep(500);
+    await capture(`app-settings-${name === "" ? "" : `${name}-`}${theme}`);
+  }
+}
+await viewport(1280, 760);
+
+/**
  * Home with focus in the brief box, in both themes.
  *
  * Its own pass rather than a route, because focus is a live state: the page has
@@ -261,6 +340,10 @@ if (REP_APP !== undefined && REP_APP !== "") {
 }
 
 // One comparison image per signed state, stacked so each pane is full width.
+// Filtered last rather than first: the app shots are cheap, and a filter
+// applied to the capture loops is one more place for a name to drift.
+const wanted = states.filter(([id]) => id.startsWith(ONLY));
+if (wanted.length === 0) throw new Error(`ONLY=${JSON.stringify(ONLY)} matches no state`);
 const inline = (name) => `data:image/png;base64,${readFileSync(path.join(TMP, `${name}.png`)).toString("base64")}`;
 const page = `<!doctype html><meta charset="utf-8"><style>
   body{margin:0;background:#fff;font:14px/1.5 system-ui,sans-serif;color:#272f4a}
@@ -271,7 +354,7 @@ const page = `<!doctype html><meta charset="utf-8"><style>
   figure{margin:0}
   figcaption{font-size:13px;margin:0 0 6px;font-weight:600}
   img{width:100%;display:block;border:1px solid #e6e8ef;border-radius:8px}
-</style>${states.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
+</style>${wanted.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
 <p class="why">The signed mock first, then this branch. Any difference is a finding.</p>
 <div class="row">${panes.map(([caption, file]) => `<figure><figcaption>${caption}</figcaption><img src="${inline(file)}"></figure>`).join("")}</div></section>`).join("")}`;
 
@@ -286,7 +369,7 @@ await cdp.send("Emulation.setDeviceMetricsOverride", {
 await cdp.send("Page.navigate", { url: `file://${composed}` });
 await sleep(2500);
 
-for (const [id] of states) {
+for (const [id] of wanted) {
   const box = await boxOf(`document.getElementById(${JSON.stringify(id)})`);
   if (box === null) throw new Error(`the composed page has no section ${id}`);
   const { data } = await cdp.send("Page.captureScreenshot", {

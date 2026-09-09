@@ -1,0 +1,495 @@
+{
+  "product": "insights360",
+  "version": 1,
+  "draftedAt": "2026-09-07",
+  "status": "draft-awaiting-signature",
+  "codeBaseline": {
+    "repo": "insights360",
+    "branch": "main",
+    "commit": "5a89fd99af1f429ae96aa09f93e314597d8ac5c7",
+    "commitDate": "2026-09-04",
+    "note": "develop was 0 commits ahead of main on 2026-09-07, so files read on disk equal what ships."
+  },
+  "facts": [
+    {
+      "id": "i360.product.post-call-call-analytics",
+      "area": "product",
+      "claim": "Insights360 takes recordings from a contact centre's existing phone system, transcribes and analyses each call after it ends, and shows QA scores, agent performance and risk flags in a web app.",
+      "status": "live",
+      "source": {
+        "path": "insights360:README.md",
+        "section": "Intro paragraph and Features table",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Post-call only. Never describe it as real-time or as a call-recording product."
+    },
+    {
+      "id": "i360.product.every-ingested-call-analysed",
+      "area": "product",
+      "claim": "Every call the pipeline ingests is transcribed and scored, not a sampled subset.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "2. Data flow: ingestion -> analysis -> sync -> UI",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Say 'every call we ingest', not 'every call you make'. The vault roadmap step 0.10 records that the pipeline can lose calls silently on failure paths; do not promise literal 100% completeness in writing."
+    },
+    {
+      "id": "i360.product.roles-admin-supervisor-viewer",
+      "area": "product",
+      "claim": "Users are given one of three roles, admin, supervisor or viewer, and the role is enforced on the server for every write.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/lib/auth-utils.ts",
+        "section": "lines 13 and 102",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "A finer-grained role model (team lead, QA evaluator, risk officer, agent) exists in the schema but is switched off by the RBAC_ENFORCED flag. Do not sell those roles."
+    },
+    {
+      "id": "i360.product.hosted-eu-frankfurt",
+      "area": "compliance",
+      "claim": "The application runs in Vercel's Frankfurt region and the analysis pipeline, storage and database run in AWS eu-central-1 (Frankfurt); call data is processed and stored in the EU.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/vercel.json",
+        "section": "regions: fra1 (pipeline region: infra/cci-lite/cci-lite-analyser.yaml line 47, inference profile eu-central-1)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "This is EU (Germany), not UK. The wiki brand-voice example 'never leaves UK Vercel + AWS' is wrong; say 'EU (Frankfurt)'. No US processing."
+    },
+    {
+      "id": "i360.product.analysis-model-bedrock-claude-haiku",
+      "area": "product",
+      "claim": "Scoring, summaries, sentiment and risk flags are produced by a Claude Haiku 4.5 model run through Amazon Bedrock inside the customer's EU pipeline; the web app itself runs no AI.",
+      "status": "live",
+      "source": {
+        "path": "insights360:infra/cci-lite/cci-lite-analyser.yaml",
+        "section": "lines 46-47, BEDROCK_MODEL",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Sentiment is Bedrock, not AWS Comprehend. The wiki overview and integrations articles still say Comprehend; the code has no Comprehend reference. Code wins."
+    },
+    {
+      "id": "i360.product.results-lag-up-to-about-an-hour",
+      "area": "product",
+      "claim": "Analysed calls appear in the dashboard within roughly an hour of the pipeline finishing them, because the database sync runs hourly.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "9. Known limitations (sync latency) and 2.4 Sync to PostgreSQL",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "The wiki overview says 'typically within minutes'. Ingestion itself polls every ~15 minutes, then transcription, then hourly sync. Say 'same day' or 'within a couple of hours', never 'minutes'."
+    },
+    {
+      "id": "i360.feature.dashboard-kpis-with-period-comparison",
+      "area": "feature",
+      "claim": "The dashboard shows volume and quality KPIs for a chosen period and compares them against the previous period of the same length.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/api/stats/route.ts",
+        "section": "lines 222-261 (period, prevStartDate, trend)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Automatic anomaly callouts are not built (roadmap Theme 3)."
+    },
+    {
+      "id": "i360.feature.calls-explorer-search-and-filters",
+      "area": "feature",
+      "claim": "Calls can be searched by text and filtered by agent, queue, direction, category, grade, sentiment, resolution status, minimum score, risk presence and needs-attention status.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/api/calls/route.ts",
+        "section": "lines 56-85 (searchParams)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": ""
+    },
+    {
+      "id": "i360.feature.call-detail-transcript-scores-summary-risks",
+      "area": "feature",
+      "claim": "Each call has a detail page with the transcript, per-rule QA breakdown, sentiment, summary, risk flags and coaching points.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/call/[callId]/page.tsx",
+        "section": "lines 162 (transcript), 589-647 (coaching and actions)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Summary and resolution status are pipeline output (docs/ARCHITECTURE.md 2.3)."
+    },
+    {
+      "id": "i360.feature.auto-qa-scoring-against-tenant-rules",
+      "area": "feature",
+      "claim": "Every analysed call is scored against the customer's own QA rules, each with a weight and pass threshold, and given a score, a grade and a per-rule pass/fail list.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "2.3 Analysis",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "One scorecard per tenant. Per-team scorecards are not built (vault master doc section 6 gap list). Scores map to grades A-E around the tenant's pass threshold (frontend/src/lib/grade-bands.ts). A per-tenant 'not applicable' gate exists in the schema but is off by default for most tenants; do not claim it."
+    },
+    {
+      "id": "i360.feature.qa-rules-self-serve-editor",
+      "area": "feature",
+      "claim": "Admins edit QA rules, weights and pass thresholds themselves in Settings, without raising a support request.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/settings/page.tsx",
+        "section": "lines 157-163 (tabs) and 1140-1152 (thresholds)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "There is no 'test this rule against a call' validation (roadmap Theme 2)."
+    },
+    {
+      "id": "i360.feature.sentiment-per-call-and-customer-side",
+      "area": "feature",
+      "claim": "Each call gets an overall sentiment and a customer-side sentiment, shown on the call and rolled up in the dashboard sentiment chart.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/prisma/schema.prisma",
+        "section": "Call model, sentiment* columns",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Agent-side sentiment is computed but not surfaced to users (vault master doc section 6, v4.0 correction). Do not claim 'per-speaker sentiment on the agent scorecard'."
+    },
+    {
+      "id": "i360.feature.call-reason-and-category-configurable",
+      "area": "feature",
+      "claim": "Calls are classified by reason and category using a category list the customer maintains in Settings.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/settings/page.tsx",
+        "section": "Categories tab; addCategory / commitCategory around line 1271-1324",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": ""
+    },
+    {
+      "id": "i360.feature.risk-flagging-configurable-types",
+      "area": "feature",
+      "claim": "Calls are flagged against a list of risk types the customer defines, and flagged calls are listed on a Risks page and counted on the dashboard.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/settings/page.tsx",
+        "section": "riskTypes state and getRiskTypeUsage, lines 22 and 1324-1326; Risks page at app/(dashboard)/risks/page.tsx",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "This is configurable risk types, not a purpose-built vulnerability-detection module. Follow the campaign REFRAME on Angle 4: 'configurable risk types that flag vulnerability-related calls'."
+    },
+    {
+      "id": "i360.feature.coaching-points-read-only",
+      "area": "feature",
+      "claim": "Each call shows coaching points and training opportunities generated by the pipeline, which a team leader can copy out.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/call/[callId]/page.tsx",
+        "section": "lines 197-205 (copyCoachingNotes) and 644-647",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Read-only. There is no in-app editing or authoring of coaching notes (campaign HOLD list)."
+    },
+    {
+      "id": "i360.feature.agent-performance-pages",
+      "area": "feature",
+      "claim": "There is an agents list and a per-agent page showing that agent's scores, sentiment and development areas over time.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/agent/[agentName]/page.tsx",
+        "section": "route exists on main (also agents/page.tsx)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Agent identity comes from the provider's display name unless agent seeding has been run for the tenant (vault master doc section 6, 2026-07-14 note)."
+    },
+    {
+      "id": "i360.feature.needs-review-list",
+      "area": "feature",
+      "claim": "The QA page lists calls that need manual review because of low scores, failed critical rules or unresolved issues.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/qa/page.tsx",
+        "section": "lines 515-531 (Needs Review)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "It is a list, not a workflow. No assignment to reviewers, no open/in-review/resolved status, no SLA tracking (roadmap Theme 3)."
+    },
+    {
+      "id": "i360.feature.audit-log-append-only",
+      "area": "feature",
+      "claim": "Settings changes are written to an append-only audit log recording who changed what, when, from which IP, with before and after values, and admins can view it in Settings.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/prisma/schema.prisma",
+        "section": "AuditEvent model and comment (SPRNT-575 immutability triggers); UI at app/(dashboard)/settings AuditTab.tsx",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Coverage today is settings writes; team, membership and role changes are being added. Do not call it 'a full audit trail of every user action'."
+    },
+    {
+      "id": "i360.feature.transcript-pdf-export",
+      "area": "feature",
+      "claim": "A user can download a single call's transcript and analysis as a PDF from the call page.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/app/(dashboard)/call/[callId]/page.tsx",
+        "section": "lines 218-292 (exportTranscriptPDF, jsPDF)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Single call, browser-side. There is no bulk CSV or scheduled export. A bulk subject-access-request export endpoint exists on main (app/api/dsar/export/route.ts) but has no UI; confirm the operator path before promising it."
+    },
+    {
+      "id": "i360.feature.analysis-output-language-selectable",
+      "area": "feature",
+      "claim": "The language of the analysis output (summaries, coaching notes) can be set per customer from a list of 20 languages including English, Welsh, Dutch, French, German, Spanish and Polish.",
+      "status": "live",
+      "source": {
+        "path": "insights360:frontend/src/lib/languages.ts",
+        "section": "LANGUAGES list; selector at settings/page.tsx lines 2639-2663",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "This is output language. Do not claim transcription accuracy figures for non-English audio; no number is written down."
+    },
+    {
+      "id": "i360.integration.3cx-automated-feed",
+      "area": "integration",
+      "claim": "3CX (cloud and self-hosted) is connected with an automated feed: recordings are pulled on a schedule with no manual upload.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "2.1 Ingestion (per provider); handler infra/cci-lite/cci-lite-3cx-ingestion.py",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": ""
+    },
+    {
+      "id": "i360.integration.oak-clarifygo-automated-feed",
+      "area": "integration",
+      "claim": "OAK / ClarifyGo call recording is connected with an automated feed.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "2.1 Ingestion (per provider); handler infra/cci-lite/cci-lite-oak-ingest.py",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": ""
+    },
+    {
+      "id": "i360.integration.ringcentral-ingestion-in-code",
+      "area": "integration",
+      "claim": "A RingCentral ingestion connector (RingCX and RingEX) is in the shipped pipeline code.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/ARCHITECTURE.md",
+        "section": "2.1 Ingestion (per provider); handler infra/cci-lite/cci-lite-ringcentral-ingestion.py",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "The wiki (integrations.md, roadmap.md) still says only 3CX and OAK are wired; the code now includes RingCentral, so code wins. Not verified that a production tenant runs on it. Say 'supported', not 'proven at customer X', until confirmed."
+    },
+    {
+      "id": "i360.integration.other-platforms-scoped-per-customer",
+      "area": "integration",
+      "claim": "Microsoft Teams, Cisco, Avaya, Mitel, 8x8 and Five9 are not connected today; a connector would be scoped and built per customer during onboarding.",
+      "status": "planned",
+      "source": {
+        "path": "product-wiki:insights360/articles/integrations.md",
+        "section": "Telephony: compatible-vs-wired",
+        "lastVerified": "2026-06-29"
+      },
+      "notes": "Never write 'integrates with Teams' or 'seamless' for these. 'Works with recordings from' is the ceiling."
+    },
+    {
+      "id": "i360.price.per-seat-plans",
+      "area": "price",
+      "claim": "Three plans, priced per seat per month with a pooled monthly allowance of analysed call hours: Starter GBP 4.99 with 40 hours, Professional GBP 7.99 with 70 hours, Enterprise GBP 9.99 with 100 hours.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/overview.md",
+        "section": "Pricing",
+        "lastVerified": "2026-06-29"
+      },
+      "notes": "Found only in the wiki and brand-voice; nothing in code and no dated price list document. The vault master doc section 28 says future platform pricing is TBD but that existing customers pay the current tier. Signature needed before any rep quotes these."
+    },
+    {
+      "id": "i360.price.overage-per-hour",
+      "area": "price",
+      "claim": "Hours analysed beyond the plan's pooled allowance are charged at GBP 0.50 per hour.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/overview.md",
+        "section": "Pricing",
+        "lastVerified": "2026-06-29"
+      },
+      "notes": "Same caveat as i360.price.per-seat-plans."
+    },
+    {
+      "id": "i360.price.setup-and-config-review-fees",
+      "area": "price",
+      "claim": "There is a one-off setup fee of GBP 1,280 for tenant provisioning and telephony wiring, and a one-off GBP 640 configuration review around month one.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/overview.md",
+        "section": "Pricing",
+        "lastVerified": "2026-06-29"
+      },
+      "notes": "Same caveat as i360.price.per-seat-plans. Because of the setup fee, never say 'get started in seconds' or 'free to start'."
+    },
+    {
+      "id": "i360.price.no-seat-minimum-no-annual-lock-in",
+      "area": "price",
+      "claim": "There is no minimum number of seats and no annual commitment; plans are month to month.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/overview.md",
+        "section": "Pricing (bullets)",
+        "lastVerified": "2026-06-29"
+      },
+      "notes": "Corroborated by the vault master doc section 28 ('month-to-month + no seat minimum ... carried forward'). Still wiki-sourced; sign before use."
+    },
+    {
+      "id": "i360.proof.paying-customers-in-production",
+      "area": "proof",
+      "claim": "Insights360 is in production with paying customers using it day to day.",
+      "status": "live",
+      "source": {
+        "path": "product-docs:insights360/insights360-master-doc.md",
+        "section": "0. How to read this document (paragraph 1) and section 42 v4.1 entry ('six live customers', 2026-08-19)",
+        "lastVerified": "2026-08-25"
+      },
+      "notes": "No customer may be named. No customer count should be quoted in outreach. Trifle Solutions is not a customer and must not be referenced. No case-study numbers (time saved, uplift) exist anywhere in the sources."
+    },
+    {
+      "id": "i360.proof.tenant-isolation-independently-audited",
+      "area": "proof",
+      "claim": "Tenant data scoping across all API routes was independently audited on 12 July 2026 with no cross-tenant leaks found.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/SECURITY.md",
+        "section": "2. Multi-tenant isolation (Independent audit)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Internal audit, not a third-party penetration test. Say 'internally audited', not 'pen-tested'."
+    },
+    {
+      "id": "i360.compliance.iso27001-aligned-not-certified-claim",
+      "area": "compliance",
+      "claim": "The development and operations process is documented against ISO/IEC 27001:2022 Annex A controls; the product documentation itself claims alignment of practice, not certification.",
+      "status": "live",
+      "source": {
+        "path": "insights360:docs/DEVELOPMENT_PROCESS.md",
+        "section": "line 3 and section 9 alignment statement",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Conflict: the vault ISMS gap register (2026-08-18) reads the group certificate 21362-ISMS-001 as already covering Insights360, and the wiki overview says ISO 27001 and ISO 9001 at group level. Confirmation with the ISMS owner is pending (worklist Gate 0). Until signed, reps say 'Conversant operates an ISO 27001 ISMS' only if the product owner approves that wording; never 'Insights360 is ISO 27001 certified'."
+    },
+    {
+      "id": "i360.boundary.does-not-record-calls",
+      "area": "boundary",
+      "claim": "Insights360 does not record calls; it analyses recordings made by the customer's existing phone system.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/boundaries.md",
+        "section": "Product",
+        "lastVerified": "2026-05-07"
+      },
+      "notes": "Not a MiFID or voice-retention product."
+    },
+    {
+      "id": "i360.boundary.not-real-time",
+      "area": "boundary",
+      "claim": "Insights360 does nothing during a live call; there is no live agent assist, whisper or real-time alerting.",
+      "status": "live",
+      "source": {
+        "path": "product-wiki:insights360/articles/boundaries.md",
+        "section": "Architecture (No real-time features) and Product",
+        "lastVerified": "2026-05-07"
+      },
+      "notes": "Confirmed by code: no websockets or SSE, request/response only. A real-time capstone is a long-range plan in the vault master doc, not a roadmap date."
+    },
+    {
+      "id": "i360.boundary.no-audio-playback-in-app",
+      "area": "boundary",
+      "claim": "Users cannot listen to recordings inside Insights360 today; playback controls are switched off.",
+      "status": "planned",
+      "source": {
+        "path": "insights360:frontend/src/lib/playback.ts",
+        "section": "RECORDING_PLAYBACK_ENABLED = false (SPRNT-412)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Campaign HOLD. No 'listen to the evidence', no synchronised transcript, no word-level confidence."
+    },
+    {
+      "id": "i360.boundary.no-agent-self-service",
+      "area": "boundary",
+      "claim": "Agents are not users of Insights360; there is no agent login or personal dashboard.",
+      "status": "planned",
+      "source": {
+        "path": "campaign-notes:insights360-insurance-01/angle-verdicts.md",
+        "section": "HOLD angles: Agent self-service portal",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Campaign HOLD. Do not target outreach at agents."
+    },
+    {
+      "id": "i360.boundary.no-compliance-evidence-packs",
+      "area": "boundary",
+      "claim": "Insights360 does not generate regulator-ready evidence packs (for example FCA Consumer Duty packs); evidence today is the per-call PDF and the audit log.",
+      "status": "planned",
+      "source": {
+        "path": "campaign-notes:insights360-insurance-01/angle-verdicts.md",
+        "section": "HOLD angles: Auto-generated FCA compliance evidence packs",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Campaign HOLD."
+    },
+    {
+      "id": "i360.boundary.no-group-or-cross-tenant-dashboard",
+      "area": "boundary",
+      "claim": "There is no group-level view across several companies or tenants; each entity sees only its own tenant, though the same QA rule set can be applied to each.",
+      "status": "planned",
+      "source": {
+        "path": "campaign-notes:insights360-insurance-01/angle-verdicts.md",
+        "section": "Angle 11 (REFRAME)",
+        "lastVerified": "2026-09-07"
+      },
+      "notes": "Not on the roadmap either. Use the Angle 11 reframe wording only."
+    },
+    {
+      "id": "i360.boundary.no-sso-scim-no-pii-redaction-no-crm",
+      "area": "boundary",
+      "claim": "Insights360 has no SAML SSO or SCIM provisioning, no PII or card-number redaction, and no CRM connectors.",
+      "status": "planned",
+      "source": {
+        "path": "product-docs:insights360/insights360-master-doc.md",
+        "section": "6. The starting asset (gap list)",
+        "lastVerified": "2026-08-25"
+      },
+      "notes": "Login is via Clerk (email/password and Clerk's built-in options). Do not promise these to regulated buyers."
+    },
+    {
+      "id": "i360.boundary.no-automated-retention-or-deletion",
+      "area": "boundary",
+      "claim": "There is no automated retention or deletion policy on stored recordings and transcripts; data is kept until removed manually.",
+      "status": "live",
+      "source": {
+        "path": "product-docs:insights360/insights360-master-doc.md",
+        "section": "PART IX, Retention honesty note (2026-07-14)",
+        "lastVerified": "2026-08-25"
+      },
+      "notes": "Do not state a retention period in outreach. If asked, the honest answer is that retention is agreed per contract and applied manually today."
+    },
+    {
+      "id": "i360.boundary.no-team-entities-in-ui",
+      "area": "boundary",
+      "claim": "Teams are not yet a first-class thing in the product; there is no team page, team filter or per-team scorecard in the interface.",
+      "status": "planned",
+      "source": {
+        "path": "product-docs:insights360/insights360-roadmap.md",
+        "section": "Current Position: MERGED-NOT-DONE 0.3b (backend only, UI removed)",
+        "lastVerified": "2026-08-25"
+      },
+      "notes": "A teams API exists on main but no /team route ships. Do not sell team-level comparison."
+    }
+  ]
+}

@@ -74,6 +74,8 @@ export type AgentSdkRunOptions = {
   tools: ToolSet;
   /** The definition's model-step budget. The SDK's `maxTurns` is the cap on this transport. */
   maxTurns: number;
+  /** The definition's effort level, when it names one. */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   observe: AgentSdkObserver;
 };
 

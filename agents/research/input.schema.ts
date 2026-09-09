@@ -61,11 +61,27 @@ export const priorRunSchema = z
   })
   .strict();
 
+/**
+ * What the runtime names when it re-runs a pack that failed the §7 provenance
+ * check: the items that could not be found in the corpus, and why. A runtime
+ * field, not one the rep or the orchestrator supplies; approved 2026-09-09 as
+ * an amendment note beside §2.
+ */
+export const provenanceRerunSchema = z
+  .object({
+    failures: z
+      .array(z.object({ id: z.string().min(1).max(120), text: z.string().min(1).max(1000), reason: z.string().min(1).max(300) }).strict())
+      .min(1)
+      .max(80),
+  })
+  .strict();
+
 export const researchInputSchema = z
   .object({
     brief: researchBriefSchema,
     facts: productFactsSchema,
     priorRun: priorRunSchema.optional(),
+    provenanceRerun: provenanceRerunSchema.optional(),
     /** Set by the runtime from the brief (§6), never chosen by the model. */
     breadth: z.enum(BREADTHS),
   })

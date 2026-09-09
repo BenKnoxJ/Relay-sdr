@@ -10,8 +10,28 @@ import InboxPage from "@/app/(app)/inbox/page";
 import SettingsPage from "@/app/(app)/settings/page";
 import { HomeDayOne } from "@/components/HomeDayOne";
 import { Nav } from "@/components/Nav";
+import { mailboxCopy } from "@/lib/copy/settings";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/", redirect: () => undefined }));
+
+/**
+ * Settings reads the rep's mailbox through the router (Task 10b), so the
+ * snapshot needs an answer rather than a database. The unconnected state is
+ * the one every other page here is snapshotted in: day one, nothing set up.
+ */
+vi.mock("@/server/api/caller", () => ({
+  serverCaller: async () => ({
+    connections: {
+      get: async () => ({
+        connected: false,
+        adminCap: 10,
+        none: mailboxCopy.none,
+        connect: mailboxCopy.connect,
+      }),
+    },
+  }),
+  isRefusal: () => false,
+}));
 
 const THEMES = ["light", "dark"] as const;
 
@@ -27,7 +47,9 @@ const PAGES = {
   content: () => <ContentPage />,
   inbox: () => <InboxPage />,
   campaigns: () => <CampaignsPage />,
-  settings: () => <SettingsPage />,
+  // Async, because it resolves the session and reads the mailbox. Awaited in
+  // the loop below, which every other entry passes through unchanged.
+  settings: () => SettingsPage({ searchParams: Promise.resolve({}) }),
   "nav-rep": () => <Nav role="rep" initials="BK" hasCampaign={false} />,
   "nav-admin": () => <Nav role="admin" initials="BK" hasCampaign />,
 };
@@ -61,9 +83,9 @@ const stable = (html: string) => html.replace(/_r_[0-9a-z]+_/g, "_id_");
  */
 describe.each(THEMES)("the shell in %s", (theme) => {
   for (const [name, Page] of Object.entries(PAGES)) {
-    it(`renders ${name} as signed`, () => {
+    it(`renders ${name} as signed`, async () => {
       document.documentElement.setAttribute("data-theme", theme);
-      const { container } = render(<Page />);
+      const { container } = render(await Page());
       expect(stable(container.innerHTML)).toMatchSnapshot();
     });
   }

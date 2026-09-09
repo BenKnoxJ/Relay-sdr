@@ -52,6 +52,13 @@ ZOHO_CRM_BASE_URL=""
 RELAY_LIVE_TESTS=""
 
 # --- Microsoft Graph ------------------------------------------------------
+# The Entra app registration a rep's mailbox connect runs against. Under
+# INTEGRATIONS=mock none of the three is read: Connect goes straight back to
+# Relay's own callback with a fixed token set, so the whole flow is walkable
+# with no app registration at all. Under INTEGRATIONS=live all three are, and
+# the registration's redirect URI must be exactly
+# "$APP_URL/api/oauth/graph/callback" - the app builds it from APP_URL and
+# never from the request's own Host header, which is client-supplied.
 RELAY_MS_TENANT_ID=""
 RELAY_MS_CLIENT_ID=""
 RELAY_MS_CLIENT_SECRET=""

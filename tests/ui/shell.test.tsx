@@ -5,31 +5,10 @@ import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ContentPage from "@/app/(app)/content/page";
-import SettingsPage from "@/app/(app)/settings/page";
 import { HomeDayOne } from "@/components/HomeDayOne";
 import { Nav } from "@/components/Nav";
-import { mailboxCopy } from "@/lib/copy/settings";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", redirect: () => undefined }));
-
-/**
- * Settings reads the rep's mailbox through the router (Task 10b), so the
- * snapshot needs an answer rather than a database. The unconnected state is
- * the one every other page here is snapshotted in: day one, nothing set up.
- */
-vi.mock("@/server/api/caller", () => ({
-  serverCaller: async () => ({
-    connections: {
-      get: async () => ({
-        connected: false,
-        adminCap: 10,
-        none: mailboxCopy.none,
-        connect: mailboxCopy.connect,
-      }),
-    },
-  }),
-  isRefusal: () => false,
-}));
 
 const THEMES = ["light", "dark"] as const;
 
@@ -50,9 +29,9 @@ const PAGES = {
   // four states, and all six are snapshotted in `tests/ui/campaigns/
   // snapshots.test.tsx`. Two copies of the same snapshot is two files to update
   // and one of them to forget.
-  // Async, because it resolves the session and reads the mailbox. Awaited in
-  // the loop below, which every other entry passes through unchanged.
-  settings: () => SettingsPage({ searchParams: Promise.resolve({}) }),
+  // Settings is not here any more either: Task 9e made it a page of live
+  // fields with state of its own, and its states are snapshotted in
+  // `tests/ui/settings/snapshots.test.tsx`.
   "nav-rep": () => <Nav role="rep" initials="BK" hasCampaign={false} />,
   "nav-admin": () => <Nav role="admin" initials="BK" hasCampaign />,
 };

@@ -1,6 +1,8 @@
 import { MailboxCard } from "@/components/MailboxCard";
-import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
+import { CallsCard } from "@/components/settings/CallsCard";
+import { LinkedInCard } from "@/components/settings/LinkedInCard";
+import { VoiceCard } from "@/components/settings/VoiceCard";
 import { mailboxCopy, settingsCopy } from "@/lib/copy/settings";
 import { serverCaller } from "@/server/api/caller";
 
@@ -9,11 +11,11 @@ import { connectMailbox, disconnectMailbox, saveDailyCap } from "./actions";
 /**
  * Settings (master doc §23.1f).
  *
- * The four signed cards in one column, no tabs, in the signed order. Mailbox is
- * real as of Task 10b; the other three still say they arrive with their own
- * task, into these cards rather than beside them.
+ * The four signed cards in one column, no tabs, in the signed order. Mailbox
+ * is real as of Task 10b and reads the connection through the router; the
+ * other three are real as of Task 9e and read the rep's profile through
+ * `src/lib/fixtures/repProfile.ts`, the seam a repository replaces.
  */
-const COMING = [settingsCopy.linkedin, settingsCopy.voice, settingsCopy.calls];
 
 /**
  * The line the card shows after a callback, keyed by what the callback put in
@@ -54,11 +56,9 @@ export default async function SettingsPage({
           disconnect={disconnectMailbox}
           saveCap={saveDailyCap}
         />
-        {COMING.map((heading) => (
-          <Card key={heading} label={heading}>
-            <p className="type-body text-muted">{settingsCopy.coming}</p>
-          </Card>
-        ))}
+        <LinkedInCard />
+        <VoiceCard />
+        <CallsCard />
       </div>
     </>
   );

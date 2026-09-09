@@ -22,7 +22,8 @@
  *            the nav-roles comparison is produced as well.
  *   SET      which set of signed states to shoot: 9b or 9c (the shell, Home
  *            and Campaigns, one set since Task 9c; the key picks OUT) or
- *            6b (the bench, which renders the slice 1 screens from fixtures).
+ *            6b (the bench, which renders the slice 1 screens from fixtures)
+ *            or 9e (Settings in full: the page and its live states).
  *            Default 9b.
  *   OUT      where the comparisons go   (default docs/design/task-<SET>)
  *   CHROME   the browser binary         (default chromium)
@@ -181,12 +182,30 @@ const STATES_6B = [
     [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
 ];
 
+/**
+ * Task 9e's set: Settings in full. The page as it lands against the mock's
+ * section 5, then three live states of it. Its own set rather than more rows
+ * on the shell's, because the four cards need a taller viewport than the
+ * shell's pages, and a one-page task should not re-shoot the shell.
+ */
+const STATES_9E = [
+  ["settings", "Settings, the four cards as the page lands (signed mock section 5)",
+    [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
+  ["settings-voice-open", "Settings, Your voice unfolded with the Add box open (signed mock section 5 draws the list folded)",
+    [["Signed mock", "mock-settings"], ["Built, light", "app-settings-voice-open-light"], ["Built, dark", "app-settings-voice-open-dark"]]],
+  ["settings-refused", "Settings, a link that is not a profile link and a note over ten lines, each refused in plain words (§22.4; the mock draws no refusal)",
+    [["Built, light", "app-settings-refused-light"], ["Built, dark", "app-settings-refused-dark"]]],
+  ["settings-focus", "Settings, the Calls switch with focus on it (WCAG 2.4.7; the mock draws no focus state)",
+    [["Built, light", "app-settings-focus-light"], ["Built, dark", "app-settings-focus-dark"]]],
+];
+
 const SETS = {
   // Task 9c added the Campaigns frames and states to the shell set in place, so
   // "9b" and "9c" are one set; the key only picks the output directory.
   "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
   "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
   "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
+  "9e": { frames: MOCK_FRAMES_9B, pages: { settings: "/settings" }, states: STATES_9E, focusPass: false, roles: false, settings: true },
 };
 
 const chosen = SETS[SET];
@@ -363,7 +382,8 @@ const INBOX_STATES = {
   `,
 };
 
-for (const [name, steps] of Object.entries(INBOX_STATES)) {
+// Only for a set that has the Inbox on it: 6b and 9e shoot other pages.
+for (const [name, steps] of APP_PAGES.inbox === undefined ? [] : Object.entries(INBOX_STATES)) {
   for (const theme of ["light", "dark"]) {
     await cdp.send("Page.navigate", { url: `${APP}/inbox` });
     await sleep(2000);
@@ -419,6 +439,75 @@ for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
   await sleep(500);
   await capture(`app-plan-expanded-${theme}`);
 }
+
+/**
+ * Settings' states (Task 9e, mock section 5).
+ *
+ * Its own pass, and a taller viewport, because the four cards run past 760px
+ * and a comparison that cuts the page at the Mailbox card shows nothing of
+ * the three cards this task built. The route pass above already shot
+ * `app-settings-*` at the shell height; these overwrite it.
+ *
+ * The fields are driven the way React sees them: the native value setter, an
+ * `input` event and then a `focusout`, sent by hand because a headless page
+ * has no window focus and `blur()` may fire nothing; so a controlled field
+ * saves on blur exactly as it does under a rep's hands. Buttons are found by
+ * their text, which is the copy file's; a renamed button fails here loudly
+ * rather than shooting the wrong state and calling it signed.
+ */
+const SETTINGS_STATES = {
+  "": ``,
+  "voice-open": `button((text) => text.startsWith("Show ") && text.endsWith(" more")).click(); await tick();
+    button("Add an email you are proud of").click(); await tick();
+    document.activeElement?.blur();`,
+  refused: `type(field('input[type="url"]'), "https://www.linkedin.com/company/relay"); await tick();
+    type(field("textarea[rows]:not([placeholder^='Paste'])"), Array.from({ length: 12 }, (_, i) => "Line " + (i + 1)).join(String.fromCharCode(10))); await tick();
+    document.activeElement?.blur();`,
+  focus: `const sw = document.querySelector('[role="switch"]');
+    if (!sw) throw new Error("no switch on Settings");
+    sw.focus();
+    if (document.activeElement !== sw) throw new Error("the switch did not take focus");`,
+};
+
+if (chosen.settings) await viewport(1280, 1560);
+for (const [name, steps] of chosen.settings ? Object.entries(SETTINGS_STATES) : []) {
+  for (const theme of ["light", "dark"]) {
+    await cdp.send("Page.navigate", { url: `${APP}/settings` });
+    await sleep(2000);
+    await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+    await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+    const { result } = await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: `(async () => {
+        const tick = () => new Promise((resolve) => setTimeout(resolve, 150));
+        const button = (want) => {
+          const match = typeof want === "function" ? want : (text) => text === want;
+          const found = [...document.querySelectorAll("button")].find((el) => match(el.textContent.trim()));
+          if (!found) throw new Error("no button " + JSON.stringify(String(want)) + " on Settings");
+          return found;
+        };
+        const field = (selector) => {
+          const found = document.querySelector(selector);
+          if (!found) throw new Error("no field " + selector + " on Settings");
+          return found;
+        };
+        const type = (el, value) => {
+          const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+        };
+        ${steps}
+        await tick();
+        return "";
+      })().catch((error) => error.message)`,
+    });
+    if (result.value !== "") throw new Error(`settings-${name}: ${result.value}`);
+    await sleep(500);
+    await capture(`app-settings-${name === "" ? "" : `${name}-`}${theme}`);
+  }
+}
+if (chosen.settings) await viewport(1280, 760);
 
 /**
  * Home with focus in the brief box, in both themes.

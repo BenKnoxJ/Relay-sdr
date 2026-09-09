@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SettingsPage from "@/app/(app)/settings/page";
 import { MailboxCard, type MailboxState } from "@/components/MailboxCard";
-import { mailboxCopy, settingsCopy } from "@/lib/copy/settings";
+import { callsCopy, linkedinCopy, mailboxCopy, settingsCopy, voiceCopy } from "@/lib/copy/settings";
 
 /**
  * Settings, with the Mailbox card real (master doc §23.1f, mock section 5).
@@ -68,12 +68,16 @@ describe("Settings", () => {
     ).toEqual([settingsCopy.mailbox, settingsCopy.linkedin, settingsCopy.voice, settingsCopy.calls]);
   });
 
-  it("leaves the other three cards saying they are coming", async () => {
+  it("has no card left saying it is coming", async () => {
     await renderPage(NOT_CONNECTED);
 
-    // Three, not four: Mailbox is real now, and a card that still said this
-    // would be the regression worth catching.
-    expect(screen.getAllByText(settingsCopy.coming)).toHaveLength(3);
+    // All four are real as of Task 9e. The line the placeholders carried is
+    // gone from the copy file; what is checked here is that nothing on the
+    // page still reads like a card waiting for its task.
+    expect(screen.queryByText(/coming/i)).toBeNull();
+    expect(screen.getByRole("textbox", { name: linkedinCopy.profileLabel })).toBeDefined();
+    expect(screen.getByRole("textbox", { name: voiceCopy.noteLabel })).toBeDefined();
+    expect(screen.getByRole("switch", { name: callsCopy.toggle })).toBeDefined();
   });
 
   it("offers Connect when there is no mailbox", async () => {
@@ -105,7 +109,9 @@ describe("Settings", () => {
   it("says nothing at all for a query string nobody wrote", async () => {
     await renderPage(NOT_CONNECTED, { connect: "invented" });
 
-    expect(screen.queryByRole("status")).toBeNull();
+    // The other cards keep an always-mounted, empty status line each (Task
+    // 9e); "nothing" is no status on the page with anything in it.
+    expect(screen.queryAllByRole("status").map((line) => line.textContent).filter(Boolean)).toEqual([]);
   });
 });
 

@@ -8,6 +8,13 @@ export * from "./types";
 export { encryptToken, decryptToken } from "./crypto";
 export { createGraphMailService } from "./graphMail";
 export { createZohoService } from "./zoho";
+// The research tools' providers are built per run by `agents/research/tools.ts`
+// — the one place a Tavily or Firecrawl client is constructed — and are not
+// part of the memoised process-wide set below.
+export { createTavilyService, COUNTRY_NAMES, countryName, timeRange, type ResearchServiceMode } from "./tavily";
+export { createFirecrawlService } from "./firecrawl";
+export { searchDiscriminator, fetchDiscriminator } from "./research/discriminator";
+export { readRecording, writeRecording, recordingPath } from "./research/recordings";
 
 /**
  * What the caller wants to happen when a token is refreshed or refused.

@@ -249,6 +249,27 @@ export async function failToolStep(
   });
 }
 
+/**
+ * Give a claimed key back without losing the row.
+ *
+ * For a call that failed **before it spent anything** — a budget cap, a
+ * provider refusing the request — the record of the attempt must stay (the
+ * step, its input, when it happened) but the key must not: a retry that finds
+ * the key taken would replay the refusal as if it were the tool's answer. So
+ * the key is cleared and the reason is stored under the failure key, on the
+ * same row. An update, never a delete (master §25 rule 1): the row is the
+ * record that this attempt reached this call and was stopped.
+ */
+export async function releaseToolStep(
+  db: PrismaClient,
+  input: { orgId: string; stepId: string; failureKey: string; error: string },
+): Promise<AgentRunStep> {
+  return db.agentRunStep.update({
+    where: { id: input.stepId, orgId: input.orgId },
+    data: { toolKey: null, output: { [input.failureKey]: `released: ${input.error}` }, finishedAt: new Date() },
+  });
+}
+
 /** Every step of a run, in the order they happened. Org-scoped, as every read is. */
 export async function listSteps(
   db: PrismaClient,

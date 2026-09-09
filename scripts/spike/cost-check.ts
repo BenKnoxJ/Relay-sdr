@@ -173,6 +173,27 @@ async function main(): Promise<number> {
     );
   }
 
+  // Order: every tool step sits above the model step whose `tool_use` block
+  // asked for it. On the Agent SDK the two writes come off two channels, so
+  // this is checked on the wire rather than assumed from the mock.
+  const orderRows: string[] = [];
+  let lastToolUseTurn: number | null = null;
+  for (const step of result.steps) {
+    if (step.kind === "model") {
+      const blocks = ((step.providerMeta as { blocks?: string[] } | null)?.blocks ?? []).filter((block) =>
+        block.startsWith("tool_use:"),
+      );
+      if (blocks.length > 0) lastToolUseTurn = step.index;
+      continue;
+    }
+    if (lastToolUseTurn === null || lastToolUseTurn > step.index) {
+      mismatches += 1;
+      orderRows.push(`| ${step.index} | tool: ${step.name} | **no model step with a tool_use block precedes it** |`);
+    } else {
+      orderRows.push(`| ${step.index} | tool: ${step.name} | after model step ${lastToolUseTurn}, ok |`);
+    }
+  }
+
   // The run total against the steps, in integer micro-dollars so the comparison
   // is not itself a rounding question.
   const summedMicro = result.steps.reduce(
@@ -225,6 +246,9 @@ async function main(): Promise<number> {
       ...rows,
       "",
       `costTotal: ${result.run.costTotal.toString()} · steps summed: ${(Number(summedMicro) / 1_000_000).toFixed(6)} · ${summedMicro === runMicro ? "equal" : "**DIFFERENT**"}`,
+      ...(orderRows.length === 0
+        ? ["", "No tool steps this run (every tool call was replayed from an earlier run of the job)."]
+        : ["", "Order (a tool step after the model step that asked for it):", "", "| step | kind | verdict |", "|---|---|---|", ...orderRows]),
       ...(sdkRows.length === 0
         ? []
         : [

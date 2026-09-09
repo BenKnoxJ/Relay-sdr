@@ -85,7 +85,28 @@ import { appendModelStep, finishRun, listSteps, startRun } from "@/lib/repo/agen
  * the whole run and not the visible part of it; a model the price table does
  * not know fails the run (`step-record`), because a cost that cannot be
  * computed must not be recorded as zero. The observer's failures abort the run
- * the same way a swallowed callback's do.
+ * the same way a swallowed callback's do — and they *are* swallowed: the bridge
+ * calls `onSdkMessage` synchronously as it reads each message off the SDK's
+ * stream and does **not** await it (`invokeObservabilityCallback` in
+ * `ai-sdk-provider-claude-code/dist/index.js`: `void Promise.resolve(result)
+ * .catch(logError)`), so a throw there is a log line and nothing more.
+ *
+ * ## Why a tool step never takes a lower index than the turn that asked for it
+ *
+ * On the Messages API the paragraph above ("Why `onLanguageModelCallEnd`") is
+ * the whole argument. On the Agent SDK the two writes come from two channels:
+ * the assistant message reaches `onTurn` through the SDK's message stream, and
+ * the tool call reaches the tool's `execute` through the SDK's control channel
+ * (an `mcp_message` control request that the SDK dispatches from the same read
+ * loop). The stream order is fixed — the CLI emits the assistant message before
+ * it calls the tool — and `onTurn` takes its index **synchronously**, before
+ * its first `await`, so in practice the order holds (every live run so far:
+ * model, tool, model). But "in practice" is not the standard this file keeps,
+ * so on this transport the tools are gated: a tool may not take an index until
+ * the ledger has seen at least as many `tool_use` blocks as tool executions
+ * have started. If a control request ever overtook its own assistant message,
+ * the tool would wait for the turn rather than write ahead of it.
+ * `tests/agents/agentSdk.test.ts` plays that inversion and shows the order.
  */
 
 /** Why a run ended without an answer. */
@@ -289,7 +310,11 @@ export async function runAgent<IN, OUT>({
       : null;
   const model =
     handle.transport === "agent-sdk"
-      ? handle.forRun({ tools, maxTurns: definition.budget.maxModelSteps, observe: sdk!.observer })
+      ? handle.forRun({
+          tools: sdk!.gateTools(tools),
+          maxTurns: definition.budget.maxModelSteps,
+          observe: sdk!.observer,
+        })
       : handle.model;
 
   try {
@@ -553,12 +578,33 @@ function agentSdkLedger(args: {
   takeIndex: () => number;
   addCost: (micro: bigint) => void;
   fail: (error: unknown) => void;
-}): { observer: AgentSdkObserver; readonly capped: boolean; readonly result: AgentSdkResult | undefined } {
+}): {
+  observer: AgentSdkObserver;
+  /** The run's tools, each made to wait for the turn that asked for it. See the module comment. */
+  gateTools(tools: ToolSet): ToolSet;
+  readonly capped: boolean;
+  readonly result: AgentSdkResult | undefined;
+} {
   const { ctx, runId, takeIndex, addCost, fail } = args;
   /** Tokens already written as turn steps, by canonical model id. */
   const recorded = new Map<string, Totals>();
   let capped = false;
   let result: AgentSdkResult | undefined;
+
+  // The ordering gate. `toolUsesSeen` counts `tool_use` blocks on the turns
+  // the ledger has indexed; `toolStarts` counts executions that have begun. A
+  // tool may begin only while the first exceeds the second; otherwise it waits
+  // for the next turn to be indexed. Resolved, never rejected: a run that ends
+  // with a waiter still waiting is a run the bridge has already torn down.
+  let toolUsesSeen = 0;
+  let toolStarts = 0;
+  let waiters: Array<() => void> = [];
+  const releaseWaiters = (): void => {
+    const pending = waiters;
+    waiters = [];
+    for (const wake of pending) wake();
+  };
+  const turnIndexed = (): Promise<void> => new Promise((resolve) => waiters.push(resolve));
 
   const note = (id: string, usage: StepUsage): void => {
     const totals = recorded.get(id) ?? { tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensOut: 0 };
@@ -571,6 +617,18 @@ function agentSdkLedger(args: {
 
   const observer: AgentSdkObserver = {
     async onTurn(turn) {
+      // Everything up to the write is synchronous on purpose: the bridge calls
+      // this as it reads the message, and the index has to be taken before the
+      // loop can read the control request that follows. See the module comment.
+      let index: number;
+      try {
+        index = takeIndex();
+        toolUsesSeen += turn.blocks.filter((block) => block.startsWith("tool_use:")).length;
+        releaseWaiters();
+      } catch (error) {
+        fail(error);
+        return;
+      }
       try {
         const usage = usageFromAnthropic(turn.usage);
         // Priced under the pinned id, as on the other transport: the row says
@@ -582,7 +640,7 @@ function agentSdkLedger(args: {
         await appendModelStep(ctx.db, {
           orgId: ctx.orgId,
           runId,
-          index: takeIndex(),
+          index,
           name: ctx.modelId,
           tokensIn: usage.tokensIn,
           tokensOut: usage.tokensOut,
@@ -662,8 +720,29 @@ function agentSdkLedger(args: {
     },
   };
 
+  const gateTools = (tools: ToolSet): ToolSet => {
+    const gated: ToolSet = {};
+    for (const [name, tool] of Object.entries(tools)) {
+      const execute = tool.execute;
+      if (execute === undefined) {
+        gated[name] = tool;
+        continue;
+      }
+      gated[name] = {
+        ...tool,
+        execute: async (input: unknown, options: Parameters<typeof execute>[1]) => {
+          while (toolUsesSeen <= toolStarts) await turnIndexed();
+          toolStarts += 1;
+          return execute(input as never, options);
+        },
+      } as typeof tool;
+    }
+    return gated;
+  };
+
   return {
     observer,
+    gateTools,
     get capped() {
       return capped;
     },

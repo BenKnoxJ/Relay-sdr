@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+
+import { createClaudeCode, type ClaudeCodeSettings } from "@relay/claude-code-bridge";
 
 import { echoTools } from "../../agents/echo/tools";
 import { RELAY_MCP_SERVER, mcpToolName, relayToolServer } from "@/lib/agents/mcpTools";
@@ -226,6 +228,74 @@ describe("the Agent SDK subprocess", () => {
         errors: ["Reached maximum number of turns (1)"],
       },
     ]);
+  });
+});
+
+describe("the environment the SDK subprocess is actually spawned with", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  });
+
+  /**
+   * Through the real bridge and the real SDK, up to the moment of `spawn`.
+   *
+   * The bridge builds the subprocess environment from an allowlist of this
+   * process's variables — `ANTHROPIC_*` and `CLAUDE_*` among them — and merges
+   * `env` over it. `subprocessEnv` relies on an explicit `undefined` removing a
+   * key from that merge. A pure-function test cannot show that; this one hands
+   * the SDK a `spawnClaudeCodeProcess` that records what it was asked to spawn
+   * and refuses, so the exact `env` a real run would give the CLI is captured
+   * without starting one.
+   */
+  async function spawnEnvFor(settings: ClaudeCodeSettings): Promise<Record<string, string | undefined>> {
+    let captured: Record<string, string | undefined> | undefined;
+    const model = createClaudeCode({
+      defaultSettings: {
+        ...settings,
+        spawnClaudeCodeProcess: (options) => {
+          captured = { ...options.env };
+          throw new Error("captured the spawn; not starting a subprocess in a test");
+        },
+      },
+    })("claude-opus-5");
+    await (model as unknown as { doGenerate: (options: unknown) => Promise<unknown> })
+      .doGenerate({ prompt: [{ role: "user", content: [{ type: "text", text: "hi" }] }] })
+      .catch(() => undefined);
+    if (captured === undefined) throw new Error("the bridge never reached spawn");
+    return captured;
+  }
+
+  it("carries the token and the config dir, and not the API key this process holds", async () => {
+    // Both credentials in this process, the way a worker with both variables
+    // configured would be. The allowlist would inherit both; the explicit map
+    // must leave exactly one.
+    process.env.ANTHROPIC_API_KEY = "key_in_process_example";
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "tok_in_process_example";
+    const env = await spawnEnvFor(
+      agentSdkSettings({
+        configDir: "/tmp/relay-home-spawn-test",
+        token: "tok_relay_example",
+        run: { tools: {}, maxTurns: 1, observe: silent },
+      }),
+    );
+    expect(env.CLAUDE_CONFIG_DIR).toBe("/tmp/relay-home-spawn-test");
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("tok_relay_example");
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(Object.values(env).join(" ")).not.toContain("key_in_process_example");
+  });
+
+  it("would have inherited the key without the explicit removal, which is why the removal is there", async () => {
+    process.env.ANTHROPIC_API_KEY = "key_in_process_example";
+    const settings = agentSdkSettings({
+      configDir: "/tmp/relay-home-spawn-test",
+      token: "tok_relay_example",
+      run: { tools: {}, maxTurns: 1, observe: silent },
+    });
+    const withoutTheRemoval = Object.fromEntries(Object.entries(settings.env ?? {}).filter(([key]) => key !== "ANTHROPIC_API_KEY"));
+    const env = await spawnEnvFor({ ...settings, env: withoutTheRemoval });
+    expect(env.ANTHROPIC_API_KEY).toBe("key_in_process_example");
   });
 });
 

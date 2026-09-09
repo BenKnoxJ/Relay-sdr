@@ -202,6 +202,57 @@ describe("the Agent SDK ledger", () => {
     expect(result.steps[0]?.providerMeta).toMatchObject({ rawUsage: TURN_1, responseId: "msg_1", blocks: ["tool_use:mcp__relay__shout"] });
   });
 
+  it("keeps a tool step after the turn that asked for it, even if the tool call arrives first", async () => {
+    // The inversion the gate exists for: the MCP control request is processed
+    // before the assistant message that carries the tool_use block has been
+    // delivered. The tool must wait for the turn, not write ahead of it.
+    const jobId = await seedJob("echo", { text: "the quick brown fox" });
+    const handle: RunModel = {
+      transport: "agent-sdk",
+      forRun({ tools, observe }) {
+        return new MockLanguageModelV4({
+          modelId: MODEL,
+          provider: "claude-code",
+          doGenerate: async (): Promise<LanguageModelV4GenerateResult> => {
+            const execute = tools.shout?.execute as
+              | ((input: { text: string }, options: { toolCallId: string; messages: never[] }) => Promise<unknown>)
+              | undefined;
+            if (execute === undefined) throw new Error("no shout tool");
+            // Start the tool first; it must not take an index yet.
+            let toolDone = false;
+            const toolRun = execute({ text: "the quick brown fox" }, { toolCallId: "call-1", messages: [] }).then(() => {
+              toolDone = true;
+            });
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            expect(toolDone).toBe(false);
+            // Now the turn arrives; the tool is released behind it.
+            await observe.onTurn({ messageId: "msg_1", model: MODEL, stopReason: "tool_use", blocks: ["tool_use:mcp__relay__shout"], usage: TURN_1 });
+            await toolRun;
+            await observe.onTurn({ messageId: "msg_2", model: MODEL, stopReason: "end_turn", blocks: ["text"], usage: TURN_2 });
+            await observe.onResult({ ...RESULT, modelUsage: { "claude-opus-5": RESULT.modelUsage["claude-opus-5"]! } });
+            return {
+              content: [{ type: "text", text: JSON.stringify({ text: "THE QUICK BROWN FOX" }) }],
+              finishReason: { unified: "stop", raw: "end_turn" },
+              usage: { inputTokens: { total: 1620, noCache: 4, cacheRead: 754, cacheWrite: 862 }, outputTokens: { total: 138, text: undefined, reasoning: undefined } },
+              providerMetadata: { "claude-code": { sessionId: "s" } },
+              warnings: [],
+            };
+          },
+        });
+      },
+    };
+    const result = await runAgent({
+      definition: loadDefinition("echo"),
+      input: { text: "the quick brown fox" },
+      ctx: { db: prisma, orgId: ORG_ID, jobId, model: handle, modelId: MODEL, tools: (recorder) => echoTools(recorder) },
+    });
+    expect(result.steps.map((step) => [step.index, step.kind])).toEqual([
+      [0, "model"],
+      [1, "tool"],
+      [2, "model"],
+    ]);
+  });
+
   it("reports the SDK's turn cap as `cap`, with the turns it spent recorded", async () => {
     const jobId = await seedJob("echo", { text: "the quick brown fox" });
     const standIn = agentSdkStandIn({

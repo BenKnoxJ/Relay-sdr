@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm vacancy \"client care advisor\" \"call quality\" OR \"call monitoring\" solicitors 10-50 staff",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T16:06:44.058Z"
+}

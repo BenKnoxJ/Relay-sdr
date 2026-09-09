@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"managing partner\" law firm complaints \"keep clients informed\" phone calls quote Legal Futures",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Communication failures are the top cause of legal complaints",
+        "url": "https://i-agree.io/blog/communication-failures-are-the-top-cause-of-legal-complaints",
+        "snippet": "Legal outcomes matter, but how you make clients feel during the journey matters just as much. The evidence is overwhelming that communication – or the lack of it – is the number one driver of complaints against law firms. The solution is both simple and challenging: make client communication a priority at every stage of your service. That means setting expectations, keeping clients informed, being honest about hiccups, and showing empathy when issues arise. Law firms that do this will not only [...] On a broader scale, firms that communicate well build long-term trust in their communities. Legal issues are often stressful for clients – they want an advisor who not only knows the law but also has their back when it comes to guidance and support. By showing through actions that you’ll keep them informed (good news or bad), you position your firm as a reliable partner in their legal affairs. That trust is invaluable; it can be the deciding factor for someone choosing your firm over another. [...] Leverage technology for client communication: Consider tools that help keep clients informed automatically. For example, client portal software or secure messaging apps can give clients 24/7 access to updates on their case status. Automated notifications (e.g. “Your contract has been sent to the other party today”) can save time and reduce inbound “just checking in” calls. Modern clients appreciate on-demand information – providing it can set your firm apart."
+      },
+      {
+        "title": "Law firms \"getting even worse\" at handling telephone enquiries ...",
+        "url": "https://www.legalfutures.co.uk/latest-news/law-firms-getting-even-worse-at-handling-telephone-enquiries-says-mystery-shopper",
+        "snippet": "The way law firms handle telephone enquiries from prospective clients is so bad that “it's as if every managing partner in the land met up"
+      },
+      {
+        "title": "Client Communication for Law Firms - Legal - The Access Group",
+        "url": "https://www.theaccessgroup.com/en-gb/legal/client-experience/client-management",
+        "snippet": "Proactive, predictable updates can dramatically reduce calls asking for case updates, keeping clients informed and confident throughout their legal journey."
+      },
+      {
+        "title": "“Basic errors” keep law firms scoring low for customer experience",
+        "url": "https://www.facebook.com/insight6CX/posts/its-great-to-see-insight6-featured-on-legal-futures-basic-errors-keep-law-firms-/266422025536140",
+        "snippet": "Clear Communication: Keep clients informed throughout the legal process, explaining complex concepts in plain language. 2. Proactive Problem-"
+      },
+      {
+        "title": "Law firms disagree on what should be considered a complaint",
+        "url": "https://www.legalfutures.co.uk?p=147242",
+        "snippet": "Law firms are divided over what should be regarded as a complaint from clients, a survey by the Solicitors Regulation Authority (SRA) has found."
+      },
+      {
+        "title": "How law firms can talk to clients about what really matters | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/business-management/partner-content/how-law-firms-can-talk-to-clients-about-what-really-matters",
+        "snippet": "If law firms can use technology to work faster and more efficiently, clients may ask how it will impact pricing.\n\nFirms and their clients have different expectations about how pricing is evolving, and it’s still an issue up for debate.\n\nThe survey found that 86% of firms plan to increase their rates, while 80% of Fortune 1000 general counsels expect to reduce their legal spend.\n\nDespite this, only 9% of law firm partners report that clients have raised concerns about billing. [...] Client care\n\nIn-house Network\n\nLarge Firms Network\n\nPractice manager\n\n###### Partner information\n\nBusiness insurance does not need to be complicated. It should just be right for your business.\n\nTravelers helps your business find the right cover so you can focus on building business.\n\nTravelers operates through several underwriting entities in the UK and Europe. Please consult your policy documentation or visit our websites for more information:\n\n travelers.co.uk\n travelers.ie [...] In fact, 33% of firms reported losing clients due to uncompetitive pricing, and 34% of in-house counsel are reducing their panel sizes.\n\nTakeaway: failing to respond to client concerns about billing may cost you clients.\n\nAction: consider how your firm can be more responsive and show value by providing innovative services. This will help client retention and create competitive advantage.\n\n## Managing expectations on pricing and billing"
+      },
+      {
+        "title": "Clients expect lawyers to give them “at least weekly updates”",
+        "url": "https://www.legalfutures.co.uk/latest-news/clients-expect-lawyers-to-give-them-at-least-weekly-updates",
+        "snippet": "The vast majority of clients expect their lawyers to update them “at least” weekly and also provide same-day responses to queries."
+      },
+      {
+        "title": "Survey highlights communication gap between conveyancers and ...",
+        "url": "https://www.legalfutures.co.uk/latest-news/survey-highlights-communication-gap-conveyancers-clients",
+        "snippet": "Almost half of conveyancing clients complain of a lack of communication during the process, while two-thirds of conveyancers believe they keep"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:05:59.564Z"
+}

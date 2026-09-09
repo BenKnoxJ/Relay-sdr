@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firms call recording legal privilege GDPR risk why firms do not record client calls",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Recording Calls in the UK: Legal After GDPR? | eReceptionist",
+        "url": "https://www.ereceptionist.co.uk/blog/legal-to-record-phone-calls-uk",
+        "snippet": "1. Always ask for consent. This is the most vital rule.Asking for consent to record calls is a vital precautionary measure to protect your business. This includes notifying customers when your policy changes, as well as notifying them each time they are subject to being recorded. If you intend to share data with third-parties, such as partner firms, you’ll need to both ask and inform your customer base first. [...] These pieces of legislation — including the GDPR — attempt to establish what ethical data recording should look like. The law stipulates that covert call recording must be kept private and only be obtained in cases of public or business interests. For all other types of call recording, consent is the name of the game. Obtaining consent from the other party to collect (and even share) data is crucial. [...] In the current GDPR legislation there is a comprehensive set of guidelines on sharing data, specifically on sharing data in exchange for profit. However, this is a long document, so the key takeaways are that ethical call recording is supposed to aid the common good, such as providing evidence to settle a dispute or to build further intelligence about internal fraud."
+      },
+      {
+        "title": "How legal firms use call recording",
+        "url": "https://www.adooa.com/how-legal-firms-use-call-recording",
+        "snippet": "However, firms must navigate strict data protection laws, such as GDPR, ensuring that recordings are handled lawfully and ethically."
+      },
+      {
+        "title": "The legalities of recording calls, meetings and using ...",
+        "url": "https://chroniclelaw.co.uk/blogs/2026/03/10/law-firms-the-legalities-of-recording-calls-meetings-and-using-whatsapp",
+        "snippet": "10 Mar 2026 — Whenever law firms record calls or meetings, they are processing personal data. As a result, firms must identify a lawful basis for that ...Read more"
+      },
+      {
+        "title": "Legal professional privilege when working in-house - Guidance",
+        "url": "https://www.sra.org.uk/solicitors/guidance/professional-privilege-in-house",
+        "snippet": "Legal professional privilege is a fundamental legal right which, when properly applied, allows a party to withhold disclosure of certain communications and documents. It flows from the established relationship of trust that exists between a client and their lawyer. Clients must be able to speak openly with their lawyer in order that they can receive the best advice and do so knowing that those communications, in specific contexts (described further below), will not be disclosed without their [...] Once a legal context is established, LAP applies, not only to communications which expressly seek or give legal advice but also to the 'continuum of communications' between a lawyer and client aimed at keeping both informed so that advice may be sought and given as required. In practice, this would include continuing discussions which might not be prefaced by a formal request for legal advice, as it will usually be implied in the relationship that the lawyer will at each stage (whether or [...] As noted above, where legal advice privilege applies, this will only attach to communications between in-house lawyers and their client."
+      },
+      {
+        "title": "Data processing: legal professional privilege (LPP) and client confidentiality | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/data-protection/lpp-and-client-confidentiality",
+        "snippet": "If you obtain information relating to a prospective client, you may be bound by a duty of confidentiality. This applies even if the client does not go on to instruct your firm.\n\n## Resources\n\nFor more detailed guidance on LPP, read our legal professional privilege practice note.\n\nFor more data protection guidance, read our guides on:\n\n GDPR for solicitors\n reporting a data breach\n responding to a subject access request (SAR)\")\n\nSave to bookmark\n\nPrint\n\nData protection\n\nDispute resolution [...] LPP protects certain confidential communications from disclosure without your client’s permission.\n\nThe right to assert LPP belongs to the client, not the lawyer.\n\nAssessing whether LPP applies may require drawing delicate and difficult balances.\n\nFor these reasons, you must take great care to advise clients on LPP appropriately.\n\nThere are narrow exceptions to LPP. It may also be waived by clients (explicitly or by implication). [...] Litigation privilege protects communications between lawyers, their clients and third parties.\n\nFor litigation privilege to apply, the communication must be:\n\n to obtain advice or information for litigation that has already commenced or is reasonably anticipated, and\n made for the sole or dominant purpose of conducting that litigation"
+      },
+      {
+        "title": "How call recording can improve your law practice",
+        "url": "https://bslgroup.com/call-recording-can-improve-law-practice",
+        "snippet": "When a formal complaint does happen, firms can reduce the risk of liability by utilising call recordings to fact check information and resolve disputes ideally"
+      },
+      {
+        "title": "Call Recording Policy",
+        "url": "https://www.carrandcosolicitors.com/call-recording-policy",
+        "snippet": "This policy links to our Privacy Policy and applies to the recording of incoming and outgoing calls by our members of staff in the performance of their duties.Read more"
+      },
+      {
+        "title": "Recording telephone calls and face-to-face meetings",
+        "url": "https://uk.practicallaw.thomsonreuters.com/1-510-2012?transitionType=Default&contextData=%28sc.Default%29",
+        "snippet": "A practice note that provides guidance on the legal framework in the UK governing the recording of telephone calls and face-to-face meetings by businesses,"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:07:25.319Z"
+}

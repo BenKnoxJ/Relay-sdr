@@ -72,8 +72,8 @@ empty. Everything in `hook.answeredBy` must be a live fact id.
   words in `text`, `situation`, `name`, `say`, `summary`, `unknowns` or
   `contradictions`, in any case or plural: agent run, run id, orchestrator,
   enrolment, cohort, persona, archetype, autopilot, verdict, payload, prompt,
-  ICP, LLM, pitch. Say "kind of buyer" not "archetype", "the people you want
-  to reach" not "ICP". Dates are ISO 8601 (`2026-07-10` or
+  ICP, LLM. Say "kind of buyer" not "archetype", "the people you want to
+  reach" not "ICP". Dates are ISO 8601 (`2026-07-10` or
   `2026-07-10T09:00:00Z`); urls are absolute.
 
 ## Method notes — from Signal's skills, 2026-09-09

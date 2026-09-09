@@ -3,16 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import CampaignsPage from "@/app/(app)/campaigns/page";
 import ContentPage from "@/app/(app)/content/page";
-import InboxPage from "@/app/(app)/inbox/page";
 import { contentCopy } from "@/lib/copy/content";
 import { emptyCopy } from "@/lib/copy/empty";
 
 /**
- * The three areas that have nothing behind them yet. Every one of them is in
- * the nav from day one and opens to a state that says what is coming
- * (master doc §23.0 and §22.7) — so every one of them is checked here, not
- * only Content. Settings left this file when Task 10b made its first card
- * real; it is covered in `settings.test.tsx`.
+ * The areas that have nothing behind them yet. Every one of them is in the
+ * nav from day one and opens to a state that says what is coming (master doc
+ * §23.0 and §22.7) — so every one of them is checked here, not only Content.
+ * Settings left this file when Task 10b made its first card real; Inbox left
+ * it when Task 9d gave it a queue. They are covered in `settings.test.tsx`
+ * and `inbox/*.test.tsx`.
  */
 describe("Content before its slice", () => {
   it("says what it will do and when", () => {
@@ -29,17 +29,6 @@ describe("Content before its slice", () => {
 
     expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(screen.queryAllByRole("link")).toHaveLength(0);
-  });
-});
-
-describe("Inbox before the first campaign", () => {
-  it("says what happens next rather than that it is empty", () => {
-    render(<InboxPage />);
-
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(emptyCopy.inbox.title);
-    expect(screen.getByText(emptyCopy.inbox.note)).toBeDefined();
-    expect(screen.getByText(emptyCopy.inbox.heading)).toBeDefined();
-    expect(screen.getByText(emptyCopy.inbox.body)).toBeDefined();
   });
 });
 

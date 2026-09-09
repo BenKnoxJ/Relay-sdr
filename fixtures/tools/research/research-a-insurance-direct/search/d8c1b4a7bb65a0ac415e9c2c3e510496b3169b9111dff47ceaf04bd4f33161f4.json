@@ -1,0 +1,33 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "Aveni OR Evaluagent UK insurance customer story \"head of quality\" OR \"compliance manager\" quote calls reviewed",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Compliance - Aveni",
+        "url": "https://aveni.ai/blog/compliance",
+        "snippet": "## Paul Titterton, Chief Operating Officer, Octopus Money\n\n## “At Octopus Money, we’re always looking for ways to ensure every customer gets the money support they need - not just the wealthiest few. Aveni’s solutions are helping us digitise and streamline our customer call reviews, ensuring we maintain the highest standards while reducing the time spent on manual processes.”\n\n## Ray Milne, Chief Risk Officer, Schroders Personal Wealth [...] ## “Our partnership with Aveni shows our commitment to using technology to ensure the quality of our advice. Aveni Detect enables us to identify vulnerable and other high risk clients, helping us support them in the best possible way.”\n\n## Karina Bowden, Group Chief Risk Officer, TFAS Enterprises [...] ## \"7IM is a business that has a long history of putting its clients first by staying at the forefront of technological innovation. This approach is reflected in the choice to partner with Aveni for strategic AI adoption.\"\n\n## Elizabeth Chapman, VP Operations, Transformation and Change at Equifax UK\n\nVP Operations, Transformation and Change at Equifax UK"
+      },
+      {
+        "title": "Head of Quality Assurance - evaluagent",
+        "url": "https://www.evaluagent.com/solutions/head-of-qa",
+        "snippet": "Customer stories\n\n## Organisations already making it work.\n\nThroughout Europe, North America and Asia-Pacific.\n\nThe Share Centre\n\nIncreasing QA Productivity Inside The Share Centre\n\n285% increase in QA productivity\n\nAudit time cut from 24 mins to 6 mins\n\nPass rate increased from 73% to 85%\n\nRead the story Atos Outsourcing\n\nDelivering customer-focused efficiency savings for Atos Outsourcing\n\nSignificant reduction in average handle time\n\nImproved first contact resolution [...] Stay in control of compliance.\n\nWhat our customers say\n\n## Trusted by quality teams worldwide.\n\n★★★★★\n\n\"evaluagent was one of the best decisions we've ever made as a company.\"\n\nJonas Fandrey\n\nDirector, Newstel GmbH\n\n★★★★★\n\n\"Easy to set up, easy to use and every piece of MI you could ever want!\"\n\nPhil Heighes\n\nHead of Operations, Etika\n\n★★★★★\n\n\"Excellent QA tool that comes with a reactive customer service team, what more do you need?\"\n\nGeorge Moffatt\n\nQuality Specialist, Channable [...] English (United Kingdom) (English (United Kingdom))\")\n English (United States) (English (United States))\")"
+      },
+      {
+        "title": "Product Manager - Compliance @ Aveni - Jobs",
+        "url": "https://jobs.ashbyhq.com/aveni/d6e44d6a-74ad-4229-90f2-b70405d1a559",
+        "snippet": "We are seeking a Product Manager – Assurance to play a central role in Aveni's Assurance portfolio: products that help financial services firms govern, test,"
+      },
+      {
+        "title": "Detects Compliance Issues in Minutes with AI | Aveni posted on the ...",
+        "url": "https://www.linkedin.com/posts/aveni-ai_ai-qa-less-listen-listen-activity-7491451405241794560-UH7T",
+        "snippet": "+ AI + QA Less: listen listen still listening nearly there More: found it. Donald Martin Stewart from Octopus Money on how"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:04:56.497Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "reddit UK insurance complaints team backlog eight weeks overwhelmed handler workload",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Legal ombudsman or await complaint response? : r/LegalAdviceUK",
+        "url": "https://www.reddit.com/r/LegalAdviceUK/comments/1nul3qg/legal_ombudsman_or_await_complaint_response",
+        "snippet": "... backlog is 8 weeks! My question is, is there any point waiting for this team to pick it up? It's clear they have messed up and the"
+      },
+      {
+        "title": "Impossible Workload : r/Insurance - Reddit",
+        "url": "https://www.reddit.com/r/Insurance/comments/svk76i/impossible_workload",
+        "snippet": "I expected a high pressure, heavy workload job. But man, this workload feels pysically impossible. I work a minimum of 50 hours per week and am"
+      },
+      {
+        "title": "[Update] Has anyone had success stories in negotiating with a motor ...",
+        "url": "https://www.reddit.com/r/UKPersonalFinance/comments/p9uuol/update_has_anyone_had_success_stories_in",
+        "snippet": "Only once you've exhausted their complaints procedure, and waited another 8 weeks after that. Otherwise the FSO doesn't want to know. They were"
+      },
+      {
+        "title": "Complain about a claims company - GOV.UK",
+        "url": "https://www.gov.uk/complain-about-claims-company",
+        "snippet": "1. Ask the claims company for a copy of their complaints procedure or check their website.\n2. Contact the claims company with your complaint so they have a chance to put things right.\n3. Keep a record of your complaint, for example details about any communication between you and the claims company.\n4. Contact the Financial Ombudsman Service if your claims company does not resolve your complaint in 8 weeks.\n\n## Complaining about poor conduct [...] Complain to the Financial Ombudsman Service if you’re unhappy with the service you’ve received from a claims company, for example the results of your claim or the fees they’ve charged you. [...] View cookies\n\n# Complain about a claims company\n\nContact your claims company, the Financial Ombudsman Service, or the Financial Conduct Authority (FCA) to make a complaint.\n\nClaims management companies can help you make certain types of claims against financial services providers for a fee, such as claiming for mis-sold payment protection insurance (PPI). They can give you advice on what you can claim and help you with the legal process.\n\n## Complaining about poor service"
+      },
+      {
+        "title": "How the CAA can help | UK Civil Aviation Authority",
+        "url": "https://www.caa.co.uk/air-passengers/travel-problems-and-rights/travel-complaints/how-the-caa-can-help",
+        "snippet": "The CAA is committed to improving how we deliver services, help us by completing a short survey about your experiences today\n\n# How the CAA can help\n\nIf you are not satisfied with the response from your airline or airport.\n\nIf you have already made a written complaint to an airline or airport and you are not satisfied with the outcome or have not received a reply within 8 weeks, the CAA's Passenger Advice and Complaints Team (PACT) may be able to help. [...] PACT is only likely to consider your complaint if the airline or airport you've complained to is not a member of an approved ADR body.\n\nFollowing a review of our complaint handling activities the Passenger Advice and Complaints Team (PACT) will only handle complaints related to:\n\nPACT will advise on whether we think you have a valid complaint, and if so will take it up with the business concerned, but we do not have the legal powers to impose a solution on an airline. [...] The Claim Management Company, Flight Reclaim Ltd, has ceased trading and any ongoing cases registered by this company have been placed on hold. Any consumer that wishes to proceed with their case, or did not receive information from Flight Reclaim Ltd about the conclusion of their case and the Civil Aviation Authority's opinion, can email our passenger advice and complaints team at passenger.complaints@caa.co.uk, including their Civil Aviation Authority case reference. The team will update the"
+      },
+      {
+        "title": "8 weeks since making a formal complaint. Finance company are ...",
+        "url": "https://www.reddit.com/r/UKPersonalFinance/comments/1ikl0o1/8_weeks_since_making_a_formal_complaint_finance",
+        "snippet": "8 weeks since making a formal complaint. Finance company are saying I can now escalate to the Ombudsman. Is it a tricky process?"
+      },
+      {
+        "title": "FCA Handbook - DISP 1.6 Complaints time limit rules",
+        "url": "https://handbook.fca.org.uk/handbook/disp1/disp1s6",
+        "snippet": "01/06/2026G\n\nWhere the complaint is due to be dealt with through the Lloyd’s complaint procedures, and consistently with DISP 1.1.7R, the respondent will be able to satisfy the requirement at DISP 1.6.1R(1)(b) by including information about the timelines applicable under the Lloyd’s complaint procedures.\n\n### Final or other response within eight weeks\n\n12/07/2019R\n\nSubject to DISP 1.6.2AR, the respondent must, by the end of eight weeks after its receipt of the complaint, send the complainant: [...] 01/07/2012G\n\nIt is expected that within eight weeks of their receipt, almost all complaints to a respondent will have been substantively addressed by it through a final response or response as described in DISP 1.6.4 R.\n\n01/04/2013G\n\nWhen assessing a respondent's response to a complaint, the FCA may have regard to a number of factors, including, the quality of response, as against the complaints resolution rules, as well as the speed with which it was made. [...] 2. (B) in exceptional circumstances, a holding response within 15 business days of its receipt of the complaint and a final response within 35 business days of its receipt of the complaint, in accordance with DISP 1.6.2AR(2); or\n      2. (ii) in the case of any other complaint, a written response within 8 weeks of its receipt of the complaint, that being either a final response in accordance with DISP 1.6.2R(1) or a written response in accordance with DISP 1.6.2R(2); and\n2. (2)"
+      },
+      {
+        "title": "Make A Customer Complaint | Hastings Direct",
+        "url": "https://www.hastingsdirect.com/about-us/customer-complaints",
+        "snippet": "Hastings Direct Logo\n\nContact us\n\nWoman on a sofa with laptop and phone.\n\n# Hastings Direct Complaints\n\nIf you feel we've let you down or you've had an issue with the service we've provided, we want to put this right.\n\n## What to expect\n\nHow to raise a complaint\n\n## Complaints publication report"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:38:48.640Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"complaints manager\" insurance job description quality assurance call listening vulnerable customers",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Vulnerable Customer Reviews & Consumer Duty Support | TCC",
+        "url": "https://tcc.group/vulnerable-customers",
+        "snippet": "Firms should combine customer outcome testing, management information, customer journey reviews, complaints analysis, quality assurance and governance reporting to understand whether vulnerable customers are receiving the support they need.\n\nHow often should firms review their vulnerability framework? [...] The FCA expects firms to do more than identify vulnerability. They must show that vulnerable customers receive appropriate support, can access products and services effectively, understand communications and achieve outcomes comparable to other customers. TCC combines specialist conduct expertise with managed services, flexible resourcing and technology-enabled monitoring to help organisations close assurance gaps and evidence good outcomes. [...] Vulnerability framework reviews\n Consumer Duty vulnerability assessments\n Vulnerable customer outcome testing\n Customer journey reviews\n Customer support assessments\n Communication reviews and testing\n Foreseeable harm assessments\n Vulnerability governance reviews\n Board reporting and oversight\n MI and outcome monitoring frameworks\n Complaints and vulnerability reviews\n Vulnerability assurance reviews\n Quality assurance programmes\n Vulnerability training programmes"
+      },
+      {
+        "title": "Call Center Quality Management: Best Practices & Scorecards",
+        "url": "https://www.tdsgs.com/blog/call-center-quality-assurance-best-practices",
+        "snippet": "‍\n\n## What Is Call Center Quality Assurance?\n\nCall center quality assurance, often called call center QA, is the process of evaluating customer interactions to make sure agents meet company standards, follow required procedures, and provide a positive customer experience. [...] Book a free consultation to discuss your goals, service needs, and provider options with a TDS outsourcing expert.\n\nSchedule now\n\nCall center quality assurance is the process of reviewing customer interactions, measuring agent performance, identifying service gaps, and improving the overall customer experience. [...] Customers often judge a company by the quality of its support experience. A single poor interaction can lead to frustration, repeat contacts, negative reviews, or lost business.\n\nCall center quality assurance helps reduce that risk by giving companies a structured way to monitor performance and improve service delivery.\n\nStrong QA programs can help businesses:"
+      },
+      {
+        "title": "Contact Center Quality Assurance Automation - Comprehensive Guide",
+        "url": "https://www.sqmgroup.com/resources/library/blog/customer-quality-assurance-cqa",
+        "snippet": "1. They evaluate too few interactions. Manual QA commonly reviews only a small fraction of each agent's calls (e.g., less than 2%), making scores vulnerable to sampling error and unrepresentative call selection.\n2. They use an Inside-Out perspective. QA standards are usually based on company-defined behaviors, scripts, and procedures, rather than on whether the customer was satisfied or whether their issue was resolved from the customer's perspective. [...] Most call center managers believe their QA program is broken and needs improvement to achieve consistently high customer satisfaction, so it is appropriate to consider the following questions. [...] Well-defined standards create a more consistent customer experience and help build customer satisfaction, loyalty, and trust. They also provide a clear framework for QA scoring, CSAT prediction, coaching, training, and agent development.\n\nManual QA involves supervisors or quality evaluators listening to recorded calls or monitoring live interactions to assess agent performance against predefined criteria."
+      },
+      {
+        "title": "Call center supervision: What it is and how to improve | Replicant",
+        "url": "https://www.replicant.com/blog/call-center-supervision",
+        "snippet": "Quality assurance involves systematic call reviews and agent adherence assessments. Supervisors evaluate interactions against established criteria, such as did the agent verify the customer's identity properly, offer the correct solution, follow the required script elements, and document the call accurately. They check compliance with industry regulations, company policies, and legal requirements. Regular QA reviews ensure consistent service quality and identify process improvements. [...] Quality assurance involves systematic call reviews and agent adherence assessments. Supervisors evaluate interactions against established criteria, such as did the agent verify the customer's identity properly, offer the correct solution, follow the required script elements, and document the call accurately. They check compliance with industry regulations, company policies, and legal requirements. Regular QA reviews ensure consistent service quality and identify process improvements. [...] Call center supervision is the process of monitoring, coaching, and guiding agents to ensure high-quality service. Supervisors track performance, identify training needs, conduct quality assurance assessments, manage compliance, and handle escalations that require specialized attention."
+      },
+      {
+        "title": "Question for QA and Call Center IT: How Does Call Grading Actually ...",
+        "url": "https://www.reddit.com/r/callcentres/comments/1q2fmvk/question_for_qa_and_call_center_it_how_does_call",
+        "snippet": "We'd only keep listening to a bad call if it was customer impacting, breaching regulations or if it was too bad you can't ignore it."
+      },
+      {
+        "title": "How to Prioritise High-Risk Calls for QA Review - Aveni.ai",
+        "url": "https://aveni.ai/blog/prioritise-high-risk-calls-qa-review",
+        "snippet": "Learn how QA managers can identify, rank and prioritise high-risk calls for QA review using risk-based monitoring and automated QA."
+      },
+      {
+        "title": "Call Center Quality Monitoring Guide: AI, KPIs, 10 Tools (2026) - Capacity",
+        "url": "https://capacity.com/blog/call-center-quality-monitoring",
+        "snippet": "Delivering consistently great customer experiences isn’t easy. Every interaction matters, yet ensuring customers leave satisfied after every conversation with your support team is a challenge. As your contact center grows, quality assurance becomes even more critical and complex. When thousands of customers reach out each day, outdated, manual QA methods simply can’t keep up. [...] When it comes to customer experience, you need to ensure your tool stack can meet growing customer demand and evolving business needs. Quality assurance, though it happens in the background, is one of the most important drivers of the service your customers expect and deserve.\n\nIf you want to provide quality monitoring while also integrating a full customer and employee support toolkit into your business, you can’t miss Capacity. [...] ## How does call center quality monitoring improve KPIs?\n\nCall center quality monitoring improves KPIs by turning real customer interactions into actionable behavior change, with more efficient calls, enhanced agent performance, personalized coaching and reduced agent turnover. As the saying goes, “You can’t improve what you can’t measure,,” which is best applied to call center quality assurance."
+      },
+      {
+        "title": "Top 7 call center performance management software in 2026",
+        "url": "https://thelevel.ai/blog/call-center-performance-management-software",
+        "snippet": "Enthu.AI supports teams in customer support and sales across healthcare, utilities, insurance, and financial industries. It includes agent training, quality assurance, and sales performance optimization features.\n\nAdditionally, Enthu.AI offers scheduling capabilities to help reduce wait times for customers who need to book appointments, such as with healthcare providers.\n\nEnthu.AI offers a 14-day free trial, but doesn’t provide any pricing information on the website. [...] This helps QA staff and call center managers more accurately track and measure the impact of agent performance on the customer experience, and quickly identify opportunities for improvement.\n\n#### Feature 3: automated scoring and reviews\n\nTraditionally, call center staff listened through calls and manually graded how well agents did, which was time-consuming and limited the number of interactions that could be reviewed (usually 1–2% of calls). [...] Our voice of customer software also identifies recurring topics of customer complaints or other issues, such as their experience using a product or service. You can filter data by time, channel, and categories to zoom in on specific issues.\n\n##### Exploring previously uncovered opportunities"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:37:50.099Z"
+}

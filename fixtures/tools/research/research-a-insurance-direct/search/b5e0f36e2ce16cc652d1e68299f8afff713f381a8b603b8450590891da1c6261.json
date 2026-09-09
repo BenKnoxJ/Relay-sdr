@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurers already using speech analytics 100% call monitoring adoption UK contact centres saturated",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "AI Speech Analytics for Contact Centre Compliance - MaxContact",
+        "url": "https://www.maxcontact.com/articles/how-to-remain-compliant-with-ai-speech-analytics",
+        "snippet": "The contact centres with the strongest metrics aren't necessarily running more AI tools. They're running them in a different place. Conversation Analytics applied across 100% of calls gives you a fundamentally different picture than manual QA on 2-5%. You can see patterns. You can identify what high-performing agents are doing differently. You can stop guessing at why a metric is underperforming and start knowing. Most contact centres already have the technology to do this. The question is [...] The contact centres with the strongest CSAT scores aren't waiting for survey results to tell them something's wrong. They're using Conversation Analytics to understand sentiment across 100% of calls, spotting where calls are going wrong before it shows up in a survey score and before the customer has already decided not to come back.\n\n## Speed of answer: you're prioritising a metric you're not hitting\n\n#### Sector mean: 17.4 seconds. High performer target: under 10 seconds [...] Two thirds of UK contact centres are now using or piloting AI, with 99% of those operations feeling confident in its impact. Yet across the metrics that matter most, performance has barely shifted year-on-year. FCR is flat or declining. Conversion rates are down. AHT is unchanged. Agent workloads are up 10%. The sector has invested heavily in technology but the performance gap remains as wide as ever."
+      },
+      {
+        "title": "Speech Analytics in Customer Service",
+        "url": "https://www.callcentrehelper.com/speech-analytics-in-customer-service-57210.htm",
+        "snippet": "14 Mar 2010 — David Mason highlights how speech analytics is being adopted in UK contact centres, showing how it drives ROI through efficiency gains,"
+      },
+      {
+        "title": "What Is Speech Analytics in the Contact Centre? | EdgeTier",
+        "url": "https://www.edgetier.com/pillar/speech-analytics-contact-centre",
+        "snippet": "Speech analytics allows contact centres to assess and QA 100% of conversations instead of manually reviewing small samples. Every interaction, voice or text, can be evaluated against defined standards, such as:\n\n Required disclosures and regulated language\n Identity verification steps\n Agent behaviours (empathy, interruptions, talk-to-listen balance)\n Risk events (complaints, threats to cancel, sensitive data sharing) [...] Quality assurance at scale: replacing sampled call reviews with objective analysis across 100% of interactions\n Compliance monitoring: detecting missing disclosures, risky language, and process gaps early, not weeks later\n Repeat contact reduction: uncovering the true drivers behind avoidable calls and unresolved issues\n Churn prevention: surfacing dissatisfaction signals in language and sentiment before customers cancel [...] ### Quality assurance (QA)\n\nTraditionally, QA teams review a small sample of calls and extrapolate from there. Speech analytics changes that model entirely. By analysing 100% of conversations across voice and digital channels, teams can:\n\n Measure agent performance consistently, not selectively\n Identify coaching opportunities based on real behaviour patterns\n Spot systemic issues that individual scorecards and samples miss"
+      },
+      {
+        "title": "How speech analytics can build the contact centre of the future",
+        "url": "https://davies-group.com/knowledge/how-speech-analytics-can-build-the-contact-centre-of-the-future",
+        "snippet": "Instead of relying on time-consuming manual call listening, speech analytics can examine 100% of interactions and report with certainty on compliance levels"
+      },
+      {
+        "title": "Speech analytics: The top benefits for contact centres",
+        "url": "https://www.infinity.co/uk/resources/news-and-views/top-benefits-of-using-speech-analytics-for-contact-centres",
+        "snippet": "3 Sept 2024 — Speech analytics is a solution that monitors, analyses, and extracts data from customer calls - at scale. The data is then transcribed into"
+      },
+      {
+        "title": "Customer Insights & Speech Analytics Software for Contact Centres",
+        "url": "https://www.route101.com/contact-centre-software/customer-insights",
+        "snippet": "Analyse 100% of interactions and enable proactive issue resolution.\n Increase results across all contact centre channels by gaining visibility into the performance of your digital channels. Systematically target your business KPIs and create real improvement that sticks.\n Develop specific coaching and training topics for agent improvement and provide transparency and accountability with data access. [...] ### Global cruise line adopts AI-powered platform to expand digital service channels with Route 101\n\nLearn how Carnival UK modernised guest communications and advanced its AI roadmap with a future-ready contact centre platform.\n\nRead More\n\nBar and venue group achieves 97% answer rate and 50% more outbound calls with support from Route 101 logo\n\n### Bar and venue group achieves 97% answer rate and 50% more outbound calls with support from Route 101 [...] # Customer Insights\n\n Home\n Products\n Contact Centre Software\n Analytics\n Customer Insights\n\nHeader image\n\n## Customer insights and speech analytics software\n\nAutomate the process of listening to your customer interactions. Extract valuable business intelligence that may otherwise be lost in random call sampling and improve compliance, operational efficiency and agent performance with powerful speech analytics software in the cloud.\n\nBook a discovery call\n\ncall record"
+      },
+      {
+        "title": "The best ways to utilise Speech Analytics in the contact ...",
+        "url": "https://bslgroup.com/advice-hub/the-best-ways-to-utilise-speech-analytics-in-the-contact-centre",
+        "snippet": "With a Speech Analytics solution you are able to monitor customers and call centre agents alike. For example, by isolating and tracking successful calls, it ...Read more"
+      },
+      {
+        "title": "How to monitor for vulnerable customers using Speech ...",
+        "url": "https://www.svlbusinesssolutions.com/how-to-monitor-for-vulnerable-customers-using-speech-analytics-in-regulated-contact-centres",
+        "snippet": "18 May 2021 — How to monitor for vulnerable customers using Speech Analytics in regulated contact centres · 1. Record all customer interactions (the Golden ...Read more"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:04:32.885Z"
+}

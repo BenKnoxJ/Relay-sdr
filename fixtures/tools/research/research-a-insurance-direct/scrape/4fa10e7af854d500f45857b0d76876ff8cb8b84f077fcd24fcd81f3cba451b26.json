@@ -1,0 +1,10 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://www.esure.com/about/complaints-statistics"
+  },
+  "response": {
+    "markdown": "[Skip to main content](https://www.esure.com/about/complaints-statistics#main-content)\n\n# Complaints statistics\n\nAt esure Insurance Limited we want all our customers to have a good experience when using our service so we do all we can to make the journey as smooth as possible for you.\n\nWe recognise that despite our best efforts there are times when things do go wrong. In these cases, we are committed to offering you a fair and timely review of your complaint, with a view to getting things back on track for you.\n\nThe table below provides some information on the complaint volumes esure Insurance has received. The ‘Insurance and pure protection’ details refer to complaints received between 1st January 2026 and 30th June 2026. The ‘Claims Management’ details refer to complaints received between 1st January 2025 and 31st December 2025.\n\nesure Insurance Limited, part of the esure Group, incorporates the following brands: esure, esure Flex, esure Multicar, esure Home, Sheilas’ Wheels, Sheilas’ Wheels Essentials, Sheilas’ Wheels Multicar, Sheilas’ Wheels Home and First Alternative.\n\n|     |     |     |     |     |     |     |     |     |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n|  | Number of complaints opened by volume of business |  |  |  |  |  |  |\n|  | Provision (at reporting period end date) | Intermediation (within the reporting period) | Number of complaints opened | Number of complaints closed | Percentage closed within 3 days | Percentage closed after 3 days but within 8 weeks | Percentage upheld | Main cause of complaints opened |\n| Insurance and pure protection | 2.76 complaints opened per 1,000 policies in force | N/A | 12,179 | 12,496 | 45.3% | 49.1% | 67.3% | Other general admin/customer service |\n| Claims Management | / | N/A | 6 | 7 | 0.0% | 71.4% | 57.1% | Personal Injury - Customer Service Issues (including call handling) |"
+  },
+  "recordedAt": "2026-09-09T15:26:55.860Z"
+}

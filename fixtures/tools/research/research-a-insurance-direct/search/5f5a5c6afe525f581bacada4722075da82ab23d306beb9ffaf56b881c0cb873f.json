@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurers cut costs technology budget claims 2026 UK outsourcing complaints instead of software",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Claims Management Software: The Free 2026 Insurer Guide",
+        "url": "https://www.genasystech.com/insurance-claims-management-software",
+        "snippet": "Artificial intelligence is moving from pilots to production across claims, from automated damage assessment to fraud analytics and generative AI for case summaries.\n\nThe clearest UK proof point is Aviva. McKinsey reports the insurer rolled out more than 80 AI models in claims. That work cut liability assessment time for complex cases by 23 days, improved routing accuracy by 30 percent, reduced customer complaints by 65 percent and saved more than £60 million in 2024.19 [...] It cuts cost by automating repetitive tasks, validating data at source, applying rules consistently and routing simple claims through straight-through processing. McKinsey estimates that more than half of claims activities could be replaced by automation by 2030, and puts the potential reduction in loss adjustment expenses from digitising claims at 25 to 30 percent (McKinsey, \"Claims 2030,\" 2020; \"Claims management with Samantha Prymaka,\" 2022). [...] The early savings are broad-based. EY found insurers realised generative AI cost savings of 5 to 10 percent over the past one to two years, with most expecting larger gains ahead.20 The consistent caveat across these sources is that insurers must keep AI transparent, auditable and accountable.\n\n## SelectionHow to evaluate a claims management system\n\nChoosing a new claims management platform is a decision that will shape your operation for a decade. Weigh it across four dimensions."
+      },
+      {
+        "title": "2026 global insurance outlook",
+        "url": "https://www.deloitte.com/us/en/insights/industry/financial-services/financial-services-industry-outlooks/insurance-industry-outlook.html",
+        "snippet": "To improve client experience, many insurers need better data and more connected teams. This shift can drive satisfaction, reduce service costs, and help deliver well-timed, relevant offers. For instance, insurers can align callers and contact types to the most preferred resolution channels, including self-service bots (voice and chat), messaging platforms, and live voice support. This could enhance customer experience, reduce service costs by pushing lower-priority contacts to low-cost [...] Fraud detection is one such area. For example, Zurich deployed AI technologies to spot claims fraud, including the use of machine learning to detect anomalies in filed claims.61 Deloitte estimates that by deploying AI-driven, real-time fraud analytics, P&C insurers could save up to US$160 billion by 2032.62 [...] As enterprise architecture decisions grow more complex, insurers should carefully select technology partners and solutions, including those offering integrated AI services. Success may largely depend on creating adaptable architectures that align with business goals and keeping pace with industry evolution."
+      },
+      {
+        "title": "Prudential Regulation Authority Business Plan 2026/27",
+        "url": "https://www.bankofengland.co.uk/prudential-regulation/publication/2026/april/pra-business-plan-2026-27",
+        "snippet": "The budget consists of both the PRA's direct costs and centrally allocated costs for services provided by the wider Bank, such as central support and technology investments. Compared to 2025/26, direct costs are planned to fall by £4 million, primarily due to efficiency improvements and prioritisation. [...] Furthermore, in March 2026, the PRA published final policy on operational incidents and outsourcing and third-party reporting, which will come into force in March 2027. The policy, developed jointly with the FCA and Bank, establishes a single, standardised reporting regime that improves supervisory visibility of operational incidents and material third‑party dependencies, reducing duplication and compliance burden for firms, while advancing the PRA’s primary objective of safety and soundness. [...] The PRA will focus on firms’ dependencies on third parties in particular by assessing how SS2/21 – Outsourcing and third party risk management has been implemented. The PRA will also continue to work with the FCA to advance the new regime for Critical Third Parties to mitigate risks and vulnerabilities arising from systemic third-party dependencies. The joint PRA-industry sector-wide exercise, SIMEX26, will focus on the impacts of an extended outage at a major third-party technology provider."
+      },
+      {
+        "title": "FCA Review Highlights Outsourcing Challenges in ...",
+        "url": "https://www.linkedin.com/posts/michael-gorner_home-and-travel-claims-handling-arrangements-activity-7483088953156349952-30F_",
+        "snippet": "The FCA's review of home and travel claims handling highlights the challenges insurers still face with outsourced claims oversight. Outsourcing part of an"
+      },
+      {
+        "title": "Average Medical Billing Software Cost in the UK (2026)",
+        "url": "https://www.medesk.net/en/blog/medical-billing-software-cost",
+        "snippet": "23 May 2026 — Discover the average medical billing software cost in the UK for 2026. Compare pricing models, hidden fees, and budget tips for private practices."
+      },
+      {
+        "title": "UK health service funding cuts and insurance issues",
+        "url": "https://www.facebook.com/groups/1236518733173056/posts/3352564248235150",
+        "snippet": "The potential costs associated with taking a claim to court include filing fees, court reporter and transcript fees, expert witness fees, and other expenses ...Read more"
+      },
+      {
+        "title": "Analysing 2025 Solvency and Financial Condition Reports (SFCRs) of health insurers in the UK and Ireland",
+        "url": "https://www.milliman.com/en/insight/2025-sfcr-health-uk-ireland",
+        "snippet": "### Expense ratio\n\n Increasing spend on digital transformation and customer experience, with new-business growth adding upfront acquisition costs.\n ILH’s higher expense ratio reflects the impact of reinsurance, whereas VHI Insurance operates without reinsurance.\n For Vitality Health UK, absolute expenses increased from 2024 level driven by acquisition costs; however, the expense ratio improved due to a much higher rise in net earned premiums. [...] “In 2025, VHI saw private hospital claims increase by approximately 13%, accompanied by an 8% uplift in volume relative to 2024, reflecting higher healthcare utilisationand the growing cost of delivering care. Cost pressures across the healthcare sector continue to be influenced by persistent medical inflation, demographic changes associated with an ageing population, and the introduction of new drugs, technologies, and clinical procedures.”\n\n- VHI Insurance SFCR 2025 [...] MARKET RISK\n\n Secondary contributor to SCR\n Reflects exposure to investment assets, primarily bonds and short-term instruments\n Bonds and Collective Investment Undertakings (CIUs) dominate (>75% of total holdings in 2025), with the balance largely in cash, cash equivalents and short-term instruments held for liquidity\n\nOPERATIONAL RISK\n\n Material component driven by operational complexity, outsourcing, IT/cyber risk and regulatory requirements\n\nCOUNTERPARTY DEFAULT"
+      },
+      {
+        "title": "Martin Lewis' 2026 Guide to Private Medical Insurance: A...",
+        "url": "https://wecovr.com/guides/martin-lewis-2026-in-depth-guide-to-private-health-insurance",
+        "snippet": "7 Aug 2026 — In this in-depth review, we'll break down Martin Lewis' 2026 advice on PMI, enrich it with the latest industry data and trends, and explore what it means for ...Read more"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:54:04.493Z"
+}

@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "UK insurance broker cost pressure 2026 technology spend cuts headcount claims operations",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:04:53.978Z"
+}

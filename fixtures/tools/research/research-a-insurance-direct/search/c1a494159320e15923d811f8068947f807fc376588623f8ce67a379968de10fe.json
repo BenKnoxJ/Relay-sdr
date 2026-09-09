@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"head of claims\" OR \"claims operations manager\" UK insurer LinkedIn post complaints backlog quality assurance sample calls",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:13:58.225Z"
+}

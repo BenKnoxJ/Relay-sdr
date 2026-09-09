@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "claims director interview \"complaints\" quality assurance coaching contact centre insurer Post magazine",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Claims Manager Interview Questions | Personal Job Coach",
+        "url": "https://personaljobcoach.com/interview-questions/claims-manager",
+        "snippet": "Claims Manager interviews sit at the intersection of technical insurance knowledge, legal awareness, and people management, and interviewers expect candidates to demonstrate all three. The role carries real financial and reputational exposure for the insurer, so hiring decisions are careful. This guide covers the questions that consistently come up and the answers that show interviewers you can handle both the complexity of large claims and the day-to-day demands of running a team. [...] Regulatory awareness as a mindset, not a compliance tick-box. FCA consumer duty, vulnerable customer obligations, and fair claims settlement are table stakes. Interviewers want to see these embedded in how you think, not listed as something you are aware of.\n Commercial awareness alongside technical excellence. Claims Managers who understand the relationship between claims performance, reserving, and the underwriting cycle are more valuable than those who see the role as purely technical. [...] Interviewer insight:\n\nShow that you understand both the individual claim and the portfolio level. Interviewers in senior roles want to see strategic fraud awareness, not just process knowledge."
+      },
+      {
+        "title": "Insurance Interview articles",
+        "url": "https://www.postonline.co.uk/interview",
+        "snippet": "Latest insurance Interview articles. Phone: 1+44 (0)870 240 8859 Email: csqueries@infopro-digital.com. Matt Cox, chief claims officer, Allianz UK Claims Big"
+      },
+      {
+        "title": "Top customer service quality assurance interview questions",
+        "url": "https://www.zendesk.com/blog/customer-service/support/quality-assurance-interview-questions",
+        "snippet": "The exact questions will depend on the position and the type of the business. For example, some businesses combine this role with coaching, with responsibilities that include designing and carrying out training programs. Business Process Outsourcers (BPOs) may be looking for a person that can assess outsourced quality assurance for their customers, or the customers themselves may wish to have an in-house quality specialist to analyze BPO agent performance. [...] The exact metrics tracked varies per team, depending on operations, priorities, and even support channels offered.\n\n### How do you improve customer satisfaction?\n\nAlthough it may seem like a customer service QA specialist has a huge cluster of responsibilities, their ultimate goal is to help their team improve customer satisfaction.\n\nExcellent customer experience relies on:\n\nHelping to construct and bolster onboarding and coaching programs. [...] When interviewing candidates or applying for a QA Specialist position, it’s important to assess knowledge, skills, and experience related to the role. That’s what quality assurance interview questions are for."
+      },
+      {
+        "title": "8 Claims Interview Questions and Answers - Himalayas",
+        "url": "https://himalayas.app/interview-questions/claims",
+        "snippet": "Describe how you train and educate your team on compliance matters. Highlight any systems or tools you use to monitor compliance. Explain how"
+      },
+      {
+        "title": "Quality assurance manager interview questions (With answers)",
+        "url": "https://uk.indeed.com/career-advice/interviewing/quality-assurance-manager-interview-questions",
+        "snippet": "Find out all about quality assurance manager interview questions and use the sample answers provided to prepare your own responses for a successful"
+      },
+      {
+        "title": "Quality Assurance Specialist Interview - LinkedIn Business Solutions",
+        "url": "https://business.linkedin.com/hire/resources/how-to-hire-guides/quality-assurance-specialist-interview-questions",
+        "snippet": "Hiring a quality assurance specialist for your organization? This interview guide will help you assess your candidates' soft skills, behavioral intelligence"
+      },
+      {
+        "title": "50 Interview Questions About Quality Assurance (With Answers)",
+        "url": "https://huntr.co/interview-questions/quality-assurance",
+        "snippet": "This post includes reasons why quality assurance is important and includes 50 interview questions about quality assurance. Preparing for a"
+      },
+      {
+        "title": "Quality Analyst Call Center Interview Questions Answers for 2026",
+        "url": "https://www.youtube.com/watch?v=6PsXx9eZZ4o&vl=en",
+        "snippet": "Get your copy of “100 Must-Know Quality Analyst Call Center Interview Questions (With Detailed Answers)” and ace your next interview:"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:38:18.910Z"
+}

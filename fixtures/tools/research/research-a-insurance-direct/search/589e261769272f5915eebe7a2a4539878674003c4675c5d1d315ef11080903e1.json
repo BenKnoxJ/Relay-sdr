@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance contact centre quality assurance call monitoring UK",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:24:24.917Z"
+}

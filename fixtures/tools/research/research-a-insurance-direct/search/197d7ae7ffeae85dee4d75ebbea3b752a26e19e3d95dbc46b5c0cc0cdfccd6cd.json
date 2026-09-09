@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "linkedin complaints manager insurance \"root cause\" calls listening sample frustrated post",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Strategies for Addressing Customer Complaints - LinkedIn",
+        "url": "https://www.linkedin.com/top-content/business-strategy/customer-centric-business-approaches/strategies-for-addressing-customer-complaints",
+        "snippet": "Engaging in respectful listening—yes, even in written form—builds trust and alleviates frustration. ... Root cause • Corrective action • Evidence of effectiveness"
+      },
+      {
+        "title": "Why are insurance complaints still the same after 10 years? - LinkedIn",
+        "url": "https://www.linkedin.com/posts/rav-sandhu-a249297b_%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F%3F%3F%3F%3F-activity-7385587954892558336-GjPc",
+        "snippet": "unsampled calls had resolution failures. Real quality: 69%. They'd been celebrating false success for two years. The Hidden Heroes Retail client's \"average\" agent turned out to be their best. In the 97% unsampled calls: zero escalations, highest resolution rate, customers requesting her by name. She nearly quit, thinking she was mediocre. The Repeat Contact Epidemic Utilities company couldn't understand their 35% repeat rate. The answer was in the 97%: agents were giving inconsistent [...] giving inconsistent information. But their 3% sample kept missing these conversations. The Innovation Insights In the 97%, customers tell you exactly how to improve. They explain what competitors do better. They share why they're considering leaving. You're just not listening. Here's the maths that should terrify you: - 3% sample = 97% blind spots - 97% blind spots = unknown risks - Unknown risks = inevitable disasters What disaster is brewing in your 97%? #CustomerExperience #ContactCenter [...] You evaluate 3% of interactions. You make 100% of your decisions based on that 3%. Here's what's lurking in the 97% you're not seeing: The Compliance Bombshells Last month, a financial services firm discovered their \"compliant\" team had been mis-selling for six months. Found during an FCA review, not their 3% sampling. Cost: £3.2M fine plus remediation. The Silent Service Failures Insurance client sampled 3%, showed 94% quality scores. Full analysis revealed 31% of unsampled calls had"
+      },
+      {
+        "title": "Complaint Handling: Turning Negatives into Positives - LinkedIn",
+        "url": "https://www.linkedin.com/posts/mark-tucker-04179214_what-actually-matters-8-complaint-handling-activity-7460623376127107073-HCLt",
+        "snippet": "• It listens properly. • It addresses the root cause. • It restores confidence. That matters because complaints often reveal what a process"
+      },
+      {
+        "title": "Complaints and root cause analysis: good practice and areas for ...",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
+        "snippet": "Smaller firms might consider using checks to test whether issues are being missed. For example, they could listen to a sample of customer calls, review a small number of completed customer journeys, or ask customer-facing staff to discuss recent examples where customers appeared confused, dissatisfied, vulnerable or at risk of harm. [...] A proportionate approach may involve greater focus on recurring issues or risks and compare what happens before and after changes are implemented. This coupled with other mechanisms could support better monitoring. For example, if a firm changes a customer communication because customers were misunderstanding it, the firm could review a small sample of later customer interactions, listen to relevant calls, or ask staff whether customers are still raising the same issue. [...] For our final sample of 40 firms, we captured retail sectors including banking, insurance, payments, consumer investments and consumer finance.\n\nSmaller firms\n\nWe deliberately included different sized firms to help us understand their differing experiences. This included firms that may have fewer resources due to the size of the firm and/or the complexity of the products or services they offer."
+      },
+      {
+        "title": "Building Trust Through Effective Complaint Handling - LinkedIn",
+        "url": "https://www.linkedin.com/top-content/customer-experience/addressing-customer-complaints-effectively/building-trust-through-effective-complaint-handling",
+        "snippet": "Use feedback to improve: Regularly review complaints, spot patterns, and act on root causes to make meaningful changes that prevent future issues. Summarized by"
+      },
+      {
+        "title": "Building Trust by Responding to Customer Complaints - LinkedIn",
+        "url": "https://www.linkedin.com/top-content/customer-experience/building-customer-trust/building-trust-by-responding-to-customer-complaints",
+        "snippet": "When companies listen, acknowledge, and act on complaints, they demonstrate reliability and turn negative experiences into positive relationships. Listen and"
+      },
+      {
+        "title": "How to use the 5 Whys to solve complaints and improve governance",
+        "url": "https://www.linkedin.com/videos/rav-sandhu-a249297b_complaints-rca-5whys-activity-7369259177921183747-YXVZ",
+        "snippet": "SOLVED by Rav Sandhu – Post 7: Getting to the Root ... Root cause analysis isn't about closing complaints."
+      },
+      {
+        "title": "Transforming a Bad Customer Experience with Good Follow-Up",
+        "url": "https://www.linkedin.com/posts/velvet-octopus_i-had-a-really-frustrating-customer-service-activity-7493229843518640128-xoQj",
+        "snippet": "I needed to help a family member make two fairly simple changes to an insurance policy. Three phone calls. More than two hours on hold. One call"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:25:32.260Z"
+}

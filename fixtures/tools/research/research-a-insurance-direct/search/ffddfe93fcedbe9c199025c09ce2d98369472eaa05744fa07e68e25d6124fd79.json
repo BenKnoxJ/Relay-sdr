@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"root cause\" complaints insurance \"we only sample\" OR \"2% of calls\" quality assurance manual review time",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T14:38:50.761Z"
+}

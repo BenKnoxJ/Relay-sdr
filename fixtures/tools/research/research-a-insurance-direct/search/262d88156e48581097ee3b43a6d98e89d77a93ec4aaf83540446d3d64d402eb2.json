@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"complaints data\" insurer website 2026 \"upheld\" Policy Expert OR \"1st Central\" OR Staysure OR \"Animal Friends\" OR Covea",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:27:35.092Z"
+}

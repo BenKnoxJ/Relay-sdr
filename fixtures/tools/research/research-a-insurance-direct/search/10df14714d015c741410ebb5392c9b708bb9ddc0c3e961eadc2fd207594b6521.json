@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"quality assurance\" insurance contact centre manager named \"we only review\" calls case study UK",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "A Fool-Proof Guide to Call Centre QA ...",
+        "url": "https://www.ringcentral.com/gb/en/blog/definitions/call-centre-qa",
+        "snippet": "All in all, contact centre quality assurance is about nurturing customer satisfaction by monitoring and improving agent performance on a consistent basis. Effective quality assurance allows call centre managers to spot any problems within their teams before they get out of hand. [...] Workplace quality assurance software helps keep employees engaged and supported with comprehensive training, feedback and coaching options to improve agent performance. With RingCentral, you can improve interactions by recording calls and screens, creating and managing evaluation forms and calibration reviews, and selecting calls to review. \n\nQuality Assurance Diagram | RingCentral UK Blog\n\nImage Source\n\n### Increase productivity [...] Quality assurance isn’t a one-time fix. Maintaining high quality workflows and customer service levels requires constant evaluation. Your call centre manager or QA process manager should be evaluating team performance on a regular basis. This is the only way you’ll be able to get a representative impression of how your call centre is performing."
+      },
+      {
+        "title": "One Call Insurance Customer Story - Voyc AI",
+        "url": "https://voyc.ai/one-call-insurance-customer-story",
+        "snippet": "## Client experience\n\n“We’re able to identify a lot more vulnerabilities in the calls. To be able to check 100% of the calls for these departments, it’s a really good tool”\n\nHannah Tinsley\n\nHannah TinsleyQuality Assurance, One Call Insurance\n\n## The Results\n\nGoal icon\n\n### Key results and impact [...] Laborious Manual Process: QA relied on agents manually listening to lengthy call recordings—some over 60 minutes.\n Delayed Feedback Loops: Call reviews, scoring, and reports took up to two weeks before feedback reached managers.\n Limited Visibility: With only a fraction of calls checked, key service issues and vulnerabilities could be missed.\n Compliance Risks: Missed signs of vulnerability or complaints could lead to poor outcomes and regulatory exposure. [...] #### \n\n3:58\n\nHannah Tinsley, Quality Assurance, One Call Insurance interview with Voyc\n\n#### \n\n1:44\n\nSarah Chadburn, Compliance Director, One Call Insurance interview with Voyc\n\n#### \n\n3:18\n\n## The Challenge\n\nBefore Voyc, One Call’s QA team monitored call quality manually, listening to long, randomly selected call recordings—some lasting over 60 minutes. As the business grew and compliance demands increased, several challenges emerged:"
+      },
+      {
+        "title": "Quality Assurance in Call Centres: An Ultimate Guide",
+        "url": "https://www.dialpad.com/uk/blog/call-center-quality-assurance",
+        "snippet": "In call centres and contact centres, managers use QA to maintain consistent and high-quality customer service. This involves monitoring every interaction between agents and customers, to assess overall call quality, agent skills, and compliance.\n\nThe data gathered from customer service quality assurance helps you to measure performance against key metrics, and use it to improve not just customer experiences but also operational efficiency. [...] ## What is quality assurance (QA) in a call centre or contact centre?\n\nQuality assurance (QA) is a process that ensures your products or services are meeting the standards you’ve put in place. Through continuous monitoring and evaluation, organisations can identify any problems or gaps in service and take necessary actions to improve. [...] Managers need to know that agents are delivering consistently positive experiences across all interactions, backed by efficient operations and processes. Call centre quality assurance gives you the means to measure performance and ensure you’re maintaining the highest standards.\n\nIn this post, we’ll explore the meaning of quality assurance in a call centre, and find why it’s about more than just ticking boxes. We’ll also provide you with some top tips for getting it right."
+      },
+      {
+        "title": "Quality Assurance Call Center Jobs (with Salaries) - Indeed",
+        "url": "https://uk.indeed.com/q-quality-assurance-call-center-jobs.html",
+        "snippet": "Conduct quality reviews of customer interactions, including telephone calls, emails, web chats, and case handling activities. Up to £30,000 per year (DOE)."
+      },
+      {
+        "title": "Call Centre Quality Assurance: Everything You Need to Know",
+        "url": "https://www.qualtrics.com/en-gb/articles/customer-experience/call-center-quality-assurance",
+        "snippet": "In this article we’re going to focus on call centre quality assurance in particular – the what, why, and how. In that setting, quality assurance refers to the act of monitoring every customer interaction your contact centre has, and using a defined process to improve the customer experience. [...] In general, call centre quality assurance is all about tightening the various nuts and bolts of your contact centre, fine-tuning agent performance, and delivering more positive customer interactions.\n\n## Call centre quality assurance: Why should businesses care? [...] Quality assurance (often abbreviated to QA) is the act of ensuring your various services are meeting (or exceeding) the standards of quality you’ve set out for them. This often includes monitoring and evaluating customer service calls, chats, and other interactions between your agents and your customers."
+      },
+      {
+        "title": "A guide to call centre quality management - Liquid Voice",
+        "url": "https://www.liquidvoice.com/call-centre-quality-management",
+        "snippet": "Call centre quality management refers to the systematic process of evaluating and improving the quality of customer interactions in a contact centre. It involves reviewing recorded interactions, scoring them against standardised criteria and providing actionable feedback to agents. [...] Service consistency: Standardising interactions across agents, channels and customer journeys. QA processes ensure every customer receives the same high-quality service.\n Regulatory compliance: Ensuring that calls adhere to industry-specific and legal standards, essential for sectors like finance, healthcare and insurance.\n Customer satisfaction: Addressing customer needs promptly and professionally directly impacts satisfaction scores and loyalty. [...] Whether you’re scaling your contact centre operations or striving to meet stringent compliance standards, call centre quality management provides a strategic framework to measure, monitor and enhance service. It aligns teams around consistent evaluation standards, empowers agents through feedback and coaching and lays the foundation for sustainable improvement.\n\n## What is call centre quality management?"
+      },
+      {
+        "title": "Call Center Quality Assurance Best Practices Guide | Verint",
+        "url": "https://www.verint.com/guides/call-center-quality-assurance-best-practices",
+        "snippet": "With manual review, most contact centers typically review only a small percentage of interactions (often in the range of 1–3%, on a periodic basis). With AI-driven automated QA, a much larger share of interactions can be evaluated on an ongoing basis. The right cadence for coaching sessions will vary, but is often weekly per agent, with timing and focus anchored by what the QA data helps surface, rather than by a fixed calendar. [...] Mary Lou Joseph is a Sr. Director, Content Marketing at Verint. For almost 20 years she’s been sharing how workforce engagement solutions can help ease the burden on front-line managers and staff in contact centers, back offices, and bank branch environments. Mary Lou especially enjoys working with Verint customers to understand and share their stories of how they improved productivity, employee engagement, and retention, and delivered faster, better service to their customers with CX [...] Sampling only a small percentage of interactions (often in the range of 1–3%) reflects legacy approaches that many organizations are now moving beyond. Many contact centers who have expanded their use of automated QA across every interaction and every channel, with solutions like Verint Quality Automation, are . They connect the insights gained at scale into real-time coaching, performance reviews, operational improvements. The analytics surfaces what’s actually driving customer experience."
+      },
+      {
+        "title": "Insurance multi-firm review of outcomes monitoring under the ...",
+        "url": "https://www.fca.org.uk/publications/multi-firm-reviews/insurance-multi-firm-review-outcomes-monitoring-under-consumer-duty",
+        "snippet": "Some firms had made considerable efforts to build an approach to monitoring under this heading, which included data points from a number of sources (as per above). The approach often included firms adapting their internal Quality Assurance (QA) processes and methodology to have a clear focus on monitoring customer understanding (amongst other Duty outcomes). This included clearly mapping a wide range of customer journeys so that the consumer understanding outcome could be tested methodically [...] This was sometimes developed as a new initiative, or sometimes adapted from existing Quality Assurance frameworks. In the good examples we saw, the analysis from such testing was clearly and directly linked to the four Duty outcomes. We saw evidence that a clear testing framework led to good identification of poor outcomes, and such an approach allowed root causes to be identified and rectified.\n\n### Poor practice: repackaging existing data [...] Some firms were able to demonstrate clear thinking about the categories of data they required, such as: service level agreement (SLA) compliance, product performance data, second- and third-line reviews, customer feedback, internal quality assurance, complaints analysis, process completion, product governance findings, employee surveys and deep dive analysis. Firms that had demonstrated such thinking were able to provide more meaningful and comprehensive insights on customer outcomes."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:04:08.271Z"
+}

@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm job advert \"client care\" call quality monitoring listening to calls solicitors",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Category: Job adverts - Mental Health Lawyers Association",
+        "url": "https://www.mhla.co.uk/category/job-adverts",
+        "snippet": "Care Quality Commission Senior Lawyer. Client Care: Deep empathy and professionalism when dealing with vulnerable clients and sensitive issues."
+      },
+      {
+        "title": "Call Quality Monitoring Jobs (with Salaries) | Indeed United Kingdom",
+        "url": "https://uk.indeed.com/q-call-quality-monitoring-jobs.html",
+        "snippet": "Conduct regular call listening and quality assurance checks. Monitor call quality, productivity, donor retention and overall caller performance."
+      },
+      {
+        "title": "Legal Archives | Anthem Consulting",
+        "url": "https://anthemconsulting.co.uk/industry/legal",
+        "snippet": "Client Listening Manager – leading on client listening and client feedback in mid-sized law firm. Hybrid working. Good work-life balance."
+      },
+      {
+        "title": "Head of Legal Services and Deputy Monitoring Officer | 23 July, 2026",
+        "url": "https://jobs.bcpcouncil.gov.uk/jobs/job/Head-of-Legal-Services-and-Deputy-Monitoring-Officer/3685",
+        "snippet": "Starting salary for this role is £84251 ・ role is £84,251 ・ high quality customer outcomes. Salary £44,075. Solicitor/Lawyer. Salary £44,075"
+      },
+      {
+        "title": "Jobs | 2i Recruit",
+        "url": "https://www.2irecruit.co.uk/jobs",
+        "snippet": "Our client is a forward-thinking law firm with a strong reputation, and they are looking for an enthusiastic and proactive Legal Assistant to support their busy Lending Department and front-of-house operations. You’ll work closely with solicitors and fee earners while also creating a warm, professional, and welcoming experience for clients and visitors. Key Responsibilities: Meeting and greeting clients in a professional and friendly manner Providing administrative and legal support to [...] Our client is a forward-thinking law firm with a strong reputation, and they are looking for an enthusiastic and proactive Legal Assistant to support their busy Lending Department and front-of-house operations. You’ll work closely with solicitors and fee earners while also creating a warm, professional, and welcoming experience for clients and visitors. Key Responsibilities: Meeting and greeting clients in a professional and friendly manner Providing administrative and legal support to [...] legal support to solicitors and fee earners within the Lending Department Managing incoming calls and directing enquiries efficiently Coordinating meeting rooms and hospitality arrangements Handling incoming and outgoing post and deliveries Maintaining a polished and welcoming reception area Supporting the wider office with administrative coordination as needed Providing administrative and legal support to solicitors and fee earners Preparing, formatting, and amending legal documents and"
+      },
+      {
+        "title": "Engaging clients | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/client-care/engaging-clients",
+        "snippet": "This information is likely to be included in your client care letters and terms of business: see our practice note on the Consumer Contracts Regulations 2013.\n\nSave to bookmark\n\nPrint\n\nClient care\n\nFreelance solicitor\n\nJunior Solicitors Network\n\nRegulation\n\nSmall Firms Network\n\nSolicitor\n\nBooks\n\nAdvising Clients with Mental Health Conditions\n\nGo to bookshop\n\nBooks\n\nAdvising Clients with Mental Health Conditions\n\nGo to bookshop\n\n## Find out more [...] Log in\n\nSign up\n\nFind a Solicitor\n\nLegal Jobs\n\nLog in Sign up\n\nGuide\n\n# Engaging clients\n\nWhen taking on new clients, you should make sure they have the information they need to make informed decisions about your services.\n\n21 Apr 2020\n\n6 minutes read\n\nMany clients are not regular users of solicitors’ services. Often they will be experiencing stressful situations, such as a divorce or moving house. [...] You should always keep in mind the requirement in the SRA Code of Conduct for Solicitors to treat your clients fairly.\n\nYou should have procedures to:"
+      },
+      {
+        "title": "We're Hiring! Client Relations Advisor Carmarthen | Permanent",
+        "url": "https://www.facebook.com/redkitesolicitors/posts/-were-hiring-client-relations-advisor-carmarthen-full-time-375-hours-9am5pm-monf/1587551783375246",
+        "snippet": "Key Responsibilities: - Handling customer calls, ensuring relevant productivity and quality measures are achieved for customers in line with"
+      },
+      {
+        "title": "AO Customer Service Advisor - Civil Service Jobs - GOV.UK",
+        "url": "https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?jcode=2008893",
+        "snippet": "A Customer Service Advisor is responsible for handling telephone calls, emails, and online enquiries from members of the public and other"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:06:00.841Z"
+}

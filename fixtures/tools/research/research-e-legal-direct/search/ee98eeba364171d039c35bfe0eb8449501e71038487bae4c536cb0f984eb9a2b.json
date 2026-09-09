@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "reed.co.uk OR totaljobs \"solicitors\" client liaison call handler vacancy law firm 2026 inbound client calls",
+    "region": "GB",
+    "recencyMonths": 6,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T16:08:12.690Z"
+}

@@ -44,6 +44,9 @@ export const factIdSchema = z
   .max(120)
   .regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/, "fact ids are dotted or dashed slugs");
 
+/** `YYYY` or `YYYY-MM`, the precision a source often gives. */
+export const partialDateSchema = z.string().regex(/^\d{4}(-(0[1-9]|1[0-2]))?$/, "a date is YYYY-MM-DD, YYYY-MM or YYYY");
+
 export const CONFIDENCE = ["strong", "moderate", "weak", "speculative"] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
 
@@ -120,8 +123,14 @@ const itemFields = {
   quote: z.string().min(1).max(600).optional(),
   speaker: z.string().min(1).max(160).optional(),
   role: z.string().min(1).max(160).optional(),
-  /** When the source said it. ISO date or date-time. */
-  publishedAt: z.string().datetime({ offset: true }).or(z.string().date()).optional(),
+  /**
+   * When the source said it. ISO date-time, date, year-month or a bare year:
+   * a report is often dated "March 2026" or just "2026", and refusing a pack
+   * over the precision a source did not give cost a live run (brief E,
+   * 2026-09-09). `monthsOld` reads a partial date as its first day, which is
+   * the older reading, so recency errs towards demotion.
+   */
+  publishedAt: z.string().datetime({ offset: true }).or(z.string().date()).or(partialDateSchema).optional(),
   /** When this run read it. Always present: a citation with no read date cannot be re-checked. */
   accessedAt: z.string().datetime({ offset: true }).or(z.string().date()),
   evidence: evidenceSchema,

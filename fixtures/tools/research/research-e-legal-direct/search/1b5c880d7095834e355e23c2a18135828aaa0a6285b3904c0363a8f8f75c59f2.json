@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "todaysconveyancer complaints rise conveyancing firm director says communication clients 2026",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Communication, unclear expectations and unjustified delays are key ...",
+        "url": "https://todaysconveyancer.co.uk/communication-unclear-expectations-and-unjustified-delays-are-key-causes-of-residential-conveyancing-complaints",
+        "snippet": "Complaints about residential conveyancing accounted for 36% of accepted complaints in Q3 2025/26, up from 30% the previous year. Communication and delay remain"
+      },
+      {
+        "title": "AI super complaints and why managing client expectations is getting ...",
+        "url": "https://todaysconveyancer.co.uk/ai-super-complaints-managing-client-expectations-getting-harder",
+        "snippet": "Matt Gillies, director at RG Law, explores the rise in AI-generated complaints sent to conveyancers, and how the technology is reshaping the way clients"
+      },
+      {
+        "title": "Conveyancing complaints surge 41% to Legal Ombudsman - LinkedIn",
+        "url": "https://www.linkedin.com/posts/rob-hailstone-91027113_big-spike-in-conveyancing-complaints-to-legal-activity-7488104288381112321-Z6jp",
+        "snippet": "The Legal Ombudsman (LeO) has reported a 41% increase in the number of complaints about conveyancing, driven by delays, poor communication and problems"
+      },
+      {
+        "title": "LeO sees 36% increase in complaints in 12 months, with one in 10 ...",
+        "url": "https://todaysfamilylawyer.co.uk/36-increase-in-complaints-to-leo-in-the-last-12-months-with-1in-10-relating-to-family-law",
+        "snippet": "Residential conveyancing topped the list of most complained-about services in the Office for Legal Complaints (OLC) 2025/26 annual report, with 36.1%. Personal"
+      },
+      {
+        "title": "Important Changes from 30 March 2026 At O'Donnell Solicitors, we ...",
+        "url": "https://www.facebook.com/groups/3076636609229782/posts/4981599895400101",
+        "snippet": "Conveyancing Update: Important Changes from 30 March 2026 At O'Donnell Solicitors, we're committed to keeping our clients informed and ahead of"
+      },
+      {
+        "title": "Complaints in property transactions: causes and solutions - LinkedIn",
+        "url": "https://www.linkedin.com/posts/today%27s-conveyancer_communication-unclear-expectations-and-unjustified-activity-7445077585195130880-c_q2",
+        "snippet": "Communication, unclear expectations and unjustified delays are key causes of residential conveyancing complaints Poor communication,"
+      },
+      {
+        "title": "Property Plus - Facebook",
+        "url": "https://www.facebook.com/propertyplus.co.uk/posts/busy-days-in-the-conveyancing-world-and-we-wouldnt-have-it-any-other-wayour-part/1754055286719996",
+        "snippet": "Busy days in the conveyancing world — and we wouldn't have it any other way! Our partner solicitors are seeing a huge increase in completed sales, and"
+      },
+      {
+        "title": "Landlords Face Proactive Enforcement by Local Authorities - LinkedIn",
+        "url": "https://www.linkedin.com/posts/attwellssolicitors_landlordlaw-propertylawuk-landlords-activity-7477405729285468160-AMT-",
+        "snippet": "More from this author. What happens when a conveyancing firm is subject to regulatory intervention? Attwells Solicitors 3mo · Attwells Solicitors Featured on"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:06:41.904Z"
+}

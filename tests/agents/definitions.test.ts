@@ -196,6 +196,20 @@ describe("research: confidence is derived, never asserted", () => {
     expect(demoteStale({ publishedAt: "2024-01-01", confidence: "speculative" }, now).confidence).toBe("speculative");
   });
 
+  it("accepts the precision a source gives on publishedAt: a date-time, a date, a month or a year", () => {
+    const pack = fixture("research", "output.good.json") as { hook: { whyNow: { publishedAt?: string } } };
+    for (const value of ["2026-07-10T09:00:00Z", "2026-07-10", "2026-07", "2026"]) {
+      const copy = JSON.parse(JSON.stringify(pack)) as typeof pack;
+      copy.hook.whyNow.publishedAt = value;
+      expect(researchOutputSchema.safeParse(copy).success, value).toBe(true);
+    }
+    for (const value of ["July 2026", "2026-13", "26"]) {
+      const copy = JSON.parse(JSON.stringify(pack)) as typeof pack;
+      copy.hook.whyNow.publishedAt = value;
+      expect(researchOutputSchema.safeParse(copy).success, value).toBe(false);
+    }
+  });
+
   it("caps a pack at three sources per domain", () => {
     const pack = fixture("research", "output.good.json") as Record<string, unknown>;
     const parsed = researchOutputSchema.parse(pack);

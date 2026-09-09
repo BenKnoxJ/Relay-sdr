@@ -43,6 +43,11 @@ WorkingDirectory=%h/projects/relay
 # relationship with TimeoutStopSec at runtime, so an override above 600s buys
 # a SIGKILL instead of a clean release. Raise TimeoutStopSec with it.
 Environment=RELAY_WORKER_DRAIN_MS=540000
+# The Claude Agent SDK subprocess's config home (CLAUDE_CONFIG_DIR): a
+# worker-owned directory, so the model transport reads no fleet agent's
+# settings, hooks or MCP servers. Created by the worker on first use. Same
+# override rule as above: the environment file wins if it names it.
+Environment=RELAY_AGENT_HOME=%h/.relay/agent-home
 EnvironmentFile=%h/.secrets/relay-worker.env
 Restart=on-failure
 RestartSec=15

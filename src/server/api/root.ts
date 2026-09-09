@@ -1,3 +1,4 @@
+import { approvalsRouter } from "@/server/api/routers/approvals";
 import { campaignsRouter } from "@/server/api/routers/campaigns";
 import { meRouter } from "@/server/api/routers/me";
 import { createTRPCRouter } from "@/server/api/trpc";
@@ -8,6 +9,7 @@ import { createTRPCRouter } from "@/server/api/trpc";
 export const appRouter = createTRPCRouter({
   me: meRouter,
   campaigns: campaignsRouter,
+  approvals: approvalsRouter,
 });
 
 export type AppRouter = typeof appRouter;

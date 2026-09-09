@@ -82,13 +82,13 @@ journalctl --user -u relay-worker -f
 
 A healthy start is one line: `{"event":"started","mode":"loop","db":"ok", …}`.
 
-`worker:build` emits more than the entry point. tsup code-splits, so `dist/` also holds the sibling chunks `main.js` imports at runtime — including the one carrying the dynamic `@/lib/db` import, which is deliberately a separate chunk. Deploy the **whole `dist/` tree**; copying `dist/worker/main.js` on its own gives `ERR_MODULE_NOT_FOUND` at the first claim rather than at startup.
+`worker:build` emits more than the entry point. tsup code-splits, so `dist/` also holds the sibling chunks `main.js` imports at runtime — including the one carrying the dynamic `@/lib/db` import, which is deliberately a separate chunk. Deploy the **whole `dist/` tree**; copying `dist/worker/main.js` on its own gives `ERR_MODULE_NOT_FOUND`. That import is reached inside `main()` before the `SELECT 1` probe logs `started`, so it fails at startup, not on the first claim.
 
 ### Upgrading
 
 Same steps without the `install`/`enable` pair, then `systemctl --user restart relay-worker`. The restart is a drain (below), so it is safe with jobs in flight.
 
-`npx prisma generate` is not optional on an upgrade. `@prisma/client` is deliberately **external** to the tsup bundle — the generated client loads a native query engine by path, and bundling it breaks that lookup — so the bundle imports a client that has to be present and current in `node_modules`.
+`node_modules/.bin/prisma generate` — the pinned CLI, never `npx`, for the reason given under the guard below — is not optional on an upgrade. `@prisma/client` is deliberately **external** to the tsup bundle — the generated client loads a native query engine by path, and bundling it breaks that lookup — so the bundle imports a client that has to be present and current in `node_modules`.
 
 ## Restart and drain
 

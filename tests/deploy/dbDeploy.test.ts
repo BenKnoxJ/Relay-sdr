@@ -261,6 +261,76 @@ describe("scripts/db-deploy.sh", () => {
       expect(result.stderr).toMatch(/refusing to deploy migrations/);
     });
 
+    // libpq takes the query part as connection parameters and resolves a
+    // repeated key word by taking the *last* non-empty value; WHATWG
+    // `searchParams.get()` returns the *first*. Read with `get`, a duplicated
+    // key classifies on one host and connects to another — so every value is
+    // classified, and a repeat is refused whichever way round it is written.
+    it.each([
+      [
+        "remote first, then an address",
+        "postgresql://relay:relay@db.example.com:5435/relay?host=db.example.com&host=127.0.0.1",
+      ],
+      [
+        "an address first, then remote",
+        "postgresql://relay:relay@db.example.com:5435/relay?host=127.0.0.1&host=db.example.com",
+      ],
+      [
+        "remote first, then a socket directory",
+        "postgresql://relay@db.example.com/relay?host=db.example.com&host=/var/run/postgresql",
+      ],
+      [
+        "remote first, then an empty value",
+        "postgresql://relay:relay@db.example.com:5435/relay?host=db.example.com&host=",
+      ],
+      // Neither value is local, and it is still refused: which one libpq picks
+      // is a question the guard would have to answer to say anything true
+      // about the string, and no deploy string has two hosts in it.
+      [
+        "two different remote hosts",
+        "postgresql://relay:relay@db.example.com:5435/relay?host=a.example.com&host=b.example.com",
+      ],
+    ])("refuses a duplicated ?host= key: %s", async (_name, url) => {
+      const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: url, DIRECT_URL: url });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    // `?hostaddr=` connects to a literal address and skips name resolution
+    // entirely, so its presence is refused rather than classified.
+    it.each([
+      ["loopback", "postgresql://relay:relay@db.example.com:5435/relay?hostaddr=127.0.0.1"],
+      ["a public address", "postgresql://relay:relay@db.example.com:5435/relay?hostaddr=203.0.113.9"],
+      ["an empty value", "postgresql://relay:relay@db.example.com:5435/relay?hostaddr="],
+    ])("refuses a URL that sets ?hostaddr= to %s", async (_name, url) => {
+      const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: url, DIRECT_URL: url });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    // libpq multi-host syntax. A comma is in no DNS label, so the shape rule
+    // refuses the whole value — which is the wanted answer: a migration goes
+    // to one database, and a list of candidates is not one.
+    it.each([
+      ["in the authority", "postgresql://relay:relay@db.example.com,127.0.0.1:5435/relay"],
+      ["in the override", "postgresql://relay:relay@db.example.com:5435/relay?host=db.example.com,localhost"],
+    ])("refuses a comma-separated host list %s", async (_name, url) => {
+      const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: url, DIRECT_URL: url });
+
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing to deploy migrations/);
+    });
+
+    it("still allows a single ?host= override that is a named remote host", async () => {
+      const url = "postgresql://relay:relay@db.example.com:5435/relay?host=ep-x.eu-west-2.aws.neon.tech";
+      const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: url, DIRECT_URL: url });
+
+      expect(result.stderr).toBe("");
+      expect(result.code).toBe(0);
+    });
+
     it("still allows a Neon host, which is what the rule has to leave through", async () => {
       const result = await deployFromCopy({ NODE_ENV: "production", DATABASE_URL: NEON, DIRECT_URL: NEON });
 

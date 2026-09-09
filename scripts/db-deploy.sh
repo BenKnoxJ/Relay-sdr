@@ -101,7 +101,8 @@ export DATABASE_URL DIRECT_URL
 [ -n "${DATABASE_URL:-}" ] || die "DATABASE_URL is not set, and no .env supplied one."
 [ -n "${DIRECT_URL:-}" ] || die "DIRECT_URL is not set, and no .env supplied one (Prisma migrates over the direct connection)."
 
-# "local <host>", "remote <host>" or "unparseable", for one connection string.
+# "local <host>", "remote <host>", "ambiguous <why>" or "unparseable", for one
+# connection string.
 #
 # The rule, stated once: **production migrations go to a named host, never an
 # address.** A connection string is "remote" only if its host is a DNS name —
@@ -112,7 +113,9 @@ export DATABASE_URL DIRECT_URL
 # every IPv6 literal bracketed or not, a bare single-label hostname, an empty
 # host, and a unix socket. A `?host=` parameter is what Prisma actually
 # connects to, so it is classified by the same rule and can only widen the
-# refusal, never narrow it.
+# refusal, never narrow it. A string that names its host more than once, or
+# sets `?hostaddr=`, is "ambiguous" and refused without being classified at
+# all — see the `?host=` block below.
 #
 # It is inverted deliberately. The first version of this guard enumerated the
 # spellings of loopback — `localhost`, `::1`, `0.0.0.0`, `^127\.` — and that
@@ -152,8 +155,10 @@ classify_url() {
       if (host === "") return false;
 
       // An IPv4 literal as `getaddrinfo` reads one: up to four parts, each
-      // decimal, octal (leading zero) or hex (leading 0x). This is what makes
-      // `0x7f.1` an address rather than a two-label name with a letter in it.
+      // decimal, octal (leading zero) or hex (leading 0x). This branch fires
+      // first and returns, so it — not the DNS test below — is what refuses
+      // `127.1`, `0177.0.0.1` and `2130706433`. It is also what makes `0x7f.1`
+      // an address rather than a two-label name with a letter in it.
       const parts = host.split(".");
       const numeric =
         parts.length <= 4 &&
@@ -176,22 +181,56 @@ classify_url() {
       );
     };
 
+    // `hostaddr` skips name resolution and connects to a literal address, so
+    // any value of it is a host this guard would refuse on shape alone — and
+    // libpq takes the query part as connection parameters, so the key is
+    // reachable here (PostgreSQL §34.1.1.2: "Values that would normally appear
+    // in the hierarchical part of the URI can alternatively be given as named
+    // parameters"). It has no place in a deploy string. Refused on presence
+    // rather than classified, so there is nothing to get wrong about its value.
+    if (url.searchParams.has("hostaddr")) {
+      process.stdout.write("ambiguous the connection string sets ?hostaddr=, which connects to a literal address and bypasses the host name entirely");
+      process.exit(0);
+    }
+
     // `?host=` is not decoration. libpq — and so Prisma — connects to the host
     // in that parameter and ignores the one in the authority, so a URL whose
     // authority is an unresolvable public name and whose `?host=` is 127.0.0.1
     // reaches the local database. It is the host that gets connected to, so it
     // is the host that gets classified. A value starting with `/` is a unix
     // socket directory: this machine by definition.
-    const override = url.searchParams.get("host");
-    if (override !== null) {
+    //
+    // `getAll`, not `get`, and every value classified. libpq resolves a
+    // repeated key word by taking the *last* non-empty value; WHATWG
+    // `searchParams.get()` returns the *first*. Read with `get`, a string
+    // carrying `?host=db.example.com&host=127.0.0.1` classifies on the name
+    // and connects to the address — the same bypass shape as the
+    // authority-vs-parameter one, reached by duplicating the key instead.
+    // Classifying every value closes it in the direction that fails closed:
+    // one local value anywhere refuses, whichever end libpq picks.
+    const overrides = url.searchParams.getAll("host");
+    for (const override of overrides) {
+      // A value starting with `/` is a unix socket directory: this machine.
       if (override.startsWith("/")) {
         process.stdout.write("local " + override);
         process.exit(0);
       }
+      // A comma-separated list is libpq multi-host syntax. It contains no
+      // label a DNS name may contain, so `named` refuses the whole value —
+      // deliberately, since a deploy has exactly one database.
       if (!named(override)) {
         process.stdout.write("local ?host=" + override);
         process.exit(0);
       }
+    }
+
+    // Every value was remote, and there was more than one of them. Which one
+    // libpq picks is then a question the guard would have to answer correctly
+    // to say anything true about this string, and no legitimate deploy string
+    // has two `host=` keys. Refuse rather than resolve.
+    if (overrides.length > 1) {
+      process.stdout.write("ambiguous the connection string sets ?host= " + overrides.length + " times, so which host it connects to depends on parser precedence");
+      process.exit(0);
     }
 
     // The authority host is checked even when an override supersedes it: no
@@ -209,6 +248,12 @@ case "${NODE_ENV:-}" in
       case "${classified%% *}" in
         local)
           die "refusing to deploy migrations: ${name} points at ${classified#* }, which is not a named remote host — production migrations go to a named host, never an address — and NODE_ENV is \"${NODE_ENV:-unset}\" rather than an explicit \"development\" or \"test\". The production database is Neon. Check the environment this shell inherited; if this really is a local run, export NODE_ENV=development."
+          ;;
+        ambiguous)
+          # A string that more than one parser reads differently is a string
+          # this guard cannot make a true statement about. Same reasoning as
+          # the unparseable branch: refuse rather than pick a reading.
+          die "refusing to deploy migrations: ${name} is ambiguous — ${classified#* }. Give one unambiguous host."
           ;;
         unparseable)
           # Fail closed. An unreadable connection string is the one case where

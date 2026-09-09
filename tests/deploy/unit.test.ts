@@ -42,13 +42,16 @@ async function haveSystemdAnalyze(): Promise<boolean> {
 }
 
 describe("deploy/relay-worker.service", () => {
-  it("passes systemd's own verifier with no warnings", async () => {
+  it("passes systemd's own verifier with no warnings", async (ctx) => {
     // Skipped rather than failed where systemd is absent — a container, a Mac
     // — because the unit's correctness is not a property of the machine
     // reading it. The VPS and the CI runner both have it.
+    //
+    // `ctx.skip()`, not an early `return`: a return reports the test as
+    // *passed*, so on a runner without systemd this — the only thing that
+    // lints the unit — would report green while checking nothing.
     if (!(await haveSystemdAnalyze())) {
-      console.log("skipped: systemd-analyze is not installed here");
-      return;
+      ctx.skip();
     }
 
     // ExecStart is rewritten to this process's node only because

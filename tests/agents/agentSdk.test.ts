@@ -253,6 +253,86 @@ describe("the Agent SDK ledger", () => {
     ]);
   });
 
+  it("releases a parked tool with an error when the run aborts, rather than hanging", async () => {
+    // Critic's finding on the gate: a tool parked on the gate has to settle
+    // when the run ends for any reason other than the turn arriving. Here the
+    // lease is lost while a tool is waiting; the tool rejects, the bridge (the
+    // mock) throws as it would on abort, and the run closes as `aborted`.
+    const jobId = await seedJob("echo", { text: "the quick brown fox" });
+    const lease = new AbortController();
+    let parkedOutcome: string | undefined;
+    const handle: RunModel = {
+      transport: "agent-sdk",
+      forRun({ tools }) {
+        return new MockLanguageModelV4({
+          modelId: MODEL,
+          provider: "claude-code",
+          doGenerate: async (): Promise<LanguageModelV4GenerateResult> => {
+            const execute = tools.shout?.execute as
+              | ((input: { text: string }, options: { toolCallId: string; messages: never[] }) => Promise<unknown>)
+              | undefined;
+            if (execute === undefined) throw new Error("no shout tool");
+            const parked = execute({ text: "the quick brown fox" }, { toolCallId: "call-1", messages: [] }).then(
+              () => "ran",
+              (error: unknown) => `rejected: ${String(error)}`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            lease.abort(new Error("lease lost"));
+            parkedOutcome = await parked;
+            throw new Error("the bridge aborted the query");
+          },
+        });
+      },
+    };
+    const failure = await runAgent({
+      definition: loadDefinition("echo"),
+      input: { text: "the quick brown fox" },
+      ctx: { db: prisma, orgId: ORG_ID, jobId, model: handle, modelId: MODEL, signal: lease.signal, tools: (recorder) => echoTools(recorder) },
+    }).catch((error: unknown) => error);
+    expect(parkedOutcome).toMatch(/^rejected: .*aborted/);
+    expect(failure).toBeInstanceOf(AgentRunFailedError);
+    expect((failure as AgentRunFailedError).reason).toBe("aborted");
+    const run = await prisma.agentRun.findFirstOrThrow({ where: { jobId } });
+    expect(run.status).toBe("failed");
+    // The parked tool never took an index, so nothing was recorded for it.
+    expect(await prisma.agentRunStep.count({ where: { runId: run.id } })).toBe(0);
+  });
+
+  it("releases a parked tool with an error when the SDK closes the run without the turn", async () => {
+    const jobId = await seedJob("echo", { text: "the quick brown fox" });
+    let parkedOutcome: string | undefined;
+    const handle: RunModel = {
+      transport: "agent-sdk",
+      forRun({ tools, observe }) {
+        return new MockLanguageModelV4({
+          modelId: MODEL,
+          provider: "claude-code",
+          doGenerate: async (): Promise<LanguageModelV4GenerateResult> => {
+            const execute = tools.shout?.execute as
+              | ((input: { text: string }, options: { toolCallId: string; messages: never[] }) => Promise<unknown>)
+              | undefined;
+            if (execute === undefined) throw new Error("no shout tool");
+            const parked = execute({ text: "the quick brown fox" }, { toolCallId: "call-1", messages: [] }).then(
+              () => "ran",
+              (error: unknown) => `rejected: ${String(error)}`,
+            );
+            await observe.onResult({ subtype: "error_during_execution", numTurns: 0, totalCostUsd: 0, modelUsage: {}, errors: ["boom"] });
+            parkedOutcome = await parked;
+            throw new Error("the bridge reported an execution error");
+          },
+        });
+      },
+    };
+    const failure = await runAgent({
+      definition: loadDefinition("echo"),
+      input: { text: "the quick brown fox" },
+      ctx: { db: prisma, orgId: ORG_ID, jobId, model: handle, modelId: MODEL, tools: (recorder) => echoTools(recorder) },
+    }).catch((error: unknown) => error);
+    expect(parkedOutcome).toMatch(/^rejected: .*run ended \(error_during_execution\)/);
+    expect(failure).toBeInstanceOf(AgentRunFailedError);
+    expect((failure as AgentRunFailedError).reason).toBe("error");
+  });
+
   it("reports the SDK's turn cap as `cap`, with the turns it spent recorded", async () => {
     const jobId = await seedJob("echo", { text: "the quick brown fox" });
     const standIn = agentSdkStandIn({

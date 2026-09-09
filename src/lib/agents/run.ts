@@ -306,6 +306,7 @@ export async function runAgent<IN, OUT>({
             costMicro += micro;
           },
           fail: noteCallbackFailure,
+          signal: controller.signal,
         })
       : null;
   const model =
@@ -578,6 +579,8 @@ function agentSdkLedger(args: {
   takeIndex: () => number;
   addCost: (micro: bigint) => void;
   fail: (error: unknown) => void;
+  /** The run's own signal: a parked tool is released with an error when it fires. */
+  signal: AbortSignal;
 }): {
   observer: AgentSdkObserver;
   /** The run's tools, each made to wait for the turn that asked for it. See the module comment. */
@@ -585,7 +588,7 @@ function agentSdkLedger(args: {
   readonly capped: boolean;
   readonly result: AgentSdkResult | undefined;
 } {
-  const { ctx, runId, takeIndex, addCost, fail } = args;
+  const { ctx, runId, takeIndex, addCost, fail, signal } = args;
   /** Tokens already written as turn steps, by canonical model id. */
   const recorded = new Map<string, Totals>();
   let capped = false;
@@ -594,17 +597,45 @@ function agentSdkLedger(args: {
   // The ordering gate. `toolUsesSeen` counts `tool_use` blocks on the turns
   // the ledger has indexed; `toolStarts` counts executions that have begun. A
   // tool may begin only while the first exceeds the second; otherwise it waits
-  // for the next turn to be indexed. Resolved, never rejected: a run that ends
-  // with a waiter still waiting is a run the bridge has already torn down.
+  // for the next turn to be indexed.
+  //
+  // A parked tool is released one of three ways, and never left hanging: the
+  // next turn is indexed (it runs); the run's signal fires — a lost lease, a
+  // failed write on an earlier turn, the caller — (it fails with `aborted`);
+  // or the SDK's closing result arrives with no turn having asked for it (it
+  // fails, because a run that has ended has no turn coming). The bridge tears
+  // the subprocess down on abort, but the tool's promise is this process's,
+  // and a promise that never settles is a leak at best and, if anything
+  // upstream awaited it, a hang.
   let toolUsesSeen = 0;
   let toolStarts = 0;
-  let waiters: Array<() => void> = [];
+  let closed: Error | null = null;
+  let waiters: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
   const releaseWaiters = (): void => {
     const pending = waiters;
     waiters = [];
-    for (const wake of pending) wake();
+    for (const waiter of pending) waiter.resolve();
   };
-  const turnIndexed = (): Promise<void> => new Promise((resolve) => waiters.push(resolve));
+  const closeGate = (error: Error): void => {
+    closed ??= error;
+    const pending = waiters;
+    waiters = [];
+    for (const waiter of pending) waiter.reject(error);
+  };
+  const turnIndexed = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      if (closed !== null) {
+        reject(closed);
+        return;
+      }
+      waiters.push({ resolve, reject });
+    });
+  const abortedError = (): Error =>
+    new Error("aborted: the run ended while a tool was waiting for the turn that asked for it", {
+      cause: signal.reason,
+    });
+  if (signal.aborted) closeGate(abortedError());
+  else signal.addEventListener("abort", () => closeGate(abortedError()), { once: true });
 
   const note = (id: string, usage: StepUsage): void => {
     const totals = recorded.get(id) ?? { tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensOut: 0 };
@@ -668,6 +699,8 @@ function agentSdkLedger(args: {
       }
     },
     async onResult(closing) {
+      // No further turn is coming, so nothing parked can be released by one.
+      closeGate(new Error(`the run ended (${closing.subtype}) before the turn that asked for a waiting tool was seen`));
       try {
         result = closing;
         capped = closing.subtype === "error_max_turns";
@@ -731,7 +764,10 @@ function agentSdkLedger(args: {
       gated[name] = {
         ...tool,
         execute: async (input: unknown, options: Parameters<typeof execute>[1]) => {
-          while (toolUsesSeen <= toolStarts) await turnIndexed();
+          while (toolUsesSeen <= toolStarts) {
+            if (closed !== null) throw closed;
+            await turnIndexed();
+          }
           toolStarts += 1;
           return execute(input as never, options);
         },

@@ -20,7 +20,8 @@
  *   APP      the running app, signed in as an admin (default localhost:5200)
  *   REP_APP  a second instance signed in as a rep. Optional; when it is set,
  *            the nav-roles comparison is produced as well.
- *   SET      which set of signed states to shoot: 9b (the shell and Home) or
+ *   SET      which set of signed states to shoot: 9b or 9c (the shell, Home
+ *            and Campaigns, one set since Task 9c; the key picks OUT) or
  *            6b (the bench, which renders the slice 1 screens from fixtures).
  *            Default 9b.
  *   OUT      where the comparisons go   (default docs/design/task-<SET>)
@@ -68,6 +69,11 @@ const MOCK_FRAMES_9B = {
   "mock-home-day-one": 1,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
+  "mock-campaign-plan-ready": 7,
+  "mock-plan-expanded": 8,
+  "mock-campaign-running": 9,
+  "mock-campaign-stopped": 10,
+  "mock-start": 11,
   "mock-settings": 14,
   "mock-content-coming": 15,
   "mock-home-dark": 16,
@@ -98,6 +104,24 @@ const APP_PAGES_6B = {
   start: "/bench/orchestrator/pre-fill",
 };
 
+/**
+ * The Campaigns routes (Task 9c). The ids are the fixture adapter's own
+ * (`src/lib/fixtures/campaigns.ts`), so a renamed fixture fails here loudly
+ * rather than shooting a 404 and calling it a state.
+ */
+const CAMPAIGN_PAGES = {
+  start: "/campaigns/new",
+  "start-prefilled":
+    "/campaigns/new?said=" +
+    encodeURIComponent(
+      "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users",
+    ),
+  "campaign-researching": "/campaigns/midlands-fleet-operators",
+  "campaign-plan-ready": "/campaigns/managed-print-partners-midlands",
+  "campaign-running": "/campaigns/uk-logistics-ops",
+  "campaign-stopped": "/campaigns/vets-scotland",
+};
+
 /** One row per signed state: what to show, in what order. */
 const STATES_9B = [
   ["home-day-one", "Home, day one (signed mock section 1b)",
@@ -106,8 +130,22 @@ const STATES_9B = [
     [["Signed mock", "mock-content-coming"], ["Built, light", "app-content-light"], ["Built, dark", "app-content-dark"]]],
   ["inbox-empty", "Inbox, empty (signed mock section 2c)",
     [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
-  ["campaigns-empty", "Campaigns, none yet (signed mock section 3a shows the populated list)",
+  ["campaigns-list", "Campaigns, the list (signed mock section 3a)",
     [["Signed mock", "mock-campaigns-list"], ["Built, light", "app-campaigns-light"], ["Built, dark", "app-campaigns-dark"]]],
+  ["start", "Start, nothing said yet (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
+  ["start-prefilled", "Start, pre-filled from the sentence (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-prefilled-light"], ["Built, dark", "app-start-prefilled-dark"]]],
+  ["campaign-researching", "Campaign page, Researching (§23.1c; the mock draws the state row in 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-researching-light"], ["Built, dark", "app-campaign-researching-dark"]]],
+  ["campaign-plan-ready", "Campaign page, Plan ready (signed mock section 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-plan-ready-light"], ["Built, dark", "app-campaign-plan-ready-dark"]]],
+  ["plan-expanded", "The plan, one card expanded, and the unknowns card (signed mock 3b-ii)",
+    [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-expanded-light"], ["Built, dark", "app-plan-expanded-dark"]]],
+  ["campaign-running", "Campaign page, Running (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-running"], ["Built, light", "app-campaign-running-light"], ["Built, dark", "app-campaign-running-dark"]]],
+  ["campaign-stopped", "Campaign page, the research stop (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-stopped"], ["Built, light", "app-campaign-stopped-light"], ["Built, dark", "app-campaign-stopped-dark"]]],
   ["settings", "Settings (signed mock section 5; the cards fill in with Task 10b)",
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
   ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
@@ -128,7 +166,10 @@ const STATES_6B = [
 ];
 
 const SETS = {
-  "9b": { frames: MOCK_FRAMES_9B, pages: APP_PAGES_9B, states: STATES_9B, focusPass: true, roles: true },
+  // Task 9c added the Campaigns frames and states to the shell set in place, so
+  // "9b" and "9c" are one set; the key only picks the output directory.
+  "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
   "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
 };
 
@@ -276,6 +317,33 @@ async function shootApp(origin, prefix, routes) {
 }
 
 await shootApp(APP, "app", APP_PAGES);
+
+/**
+ * The plan with one card open (mock 3b-ii).
+ *
+ * Its own pass rather than a route, because "expanded" is a live state: the
+ * card is a disclosure the rep opens, and there is no url that lands on it.
+ * The card opened is "Their pain, in their words", which is the one the signed
+ * mock draws open.
+ */
+for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
+  await cdp.send("Page.navigate", { url: `${APP}/campaigns/managed-print-partners-midlands` });
+  await sleep(2000);
+  await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+  await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+  const { result } = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-testid="plan-card"]')];
+    const card = cards[2];
+    if (!card) return "no third plan card on the campaign page";
+    const toggle = card.querySelector("button");
+    if (!toggle) return "the plan card has no disclosure to open";
+    toggle.click();
+    return "";
+  })()`);
+  if (result.value !== "") throw new Error(`plan-expanded: ${result.value}`);
+  await sleep(500);
+  await capture(`app-plan-expanded-${theme}`);
+}
 
 /**
  * Home with focus in the brief box, in both themes.

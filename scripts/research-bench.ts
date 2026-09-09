@@ -117,7 +117,12 @@ async function main(): Promise<number> {
   const runs = await prisma.agentRun.findMany({ where: { jobId: job.id }, orderBy: { createdAt: "asc" } });
   const steps = await prisma.agentRunStep.findMany({ where: { runId: { in: runs.map((r) => r.id) } }, orderBy: [{ runId: "asc" }, { index: "asc" }] });
   const cost = runs.reduce((sum, run) => sum + Number(run.costTotal), 0);
-  const searchQueries = steps.filter((s) => s.kind === "tool" && s.name === "search").map((s) => (s.input as { query?: string } | null)?.query ?? "");
+  const searches = steps
+    .filter((s) => s.kind === "tool" && s.name === "search")
+    .map((s) => {
+      const input = s.input as { query?: string; purpose?: string } | null;
+      return { query: input?.query ?? "", ...(input?.purpose === undefined ? {} : { purpose: input.purpose }) };
+    });
   const event = eventId === null ? null : await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
   const report = (event?.after as { report?: { actuals?: { searches: number; fetches: number; seconds: number } } } | undefined)?.report;
 
@@ -131,7 +136,7 @@ async function main(): Promise<number> {
       ? []
       : scoreRubric({
           pack: output,
-          searchQueries,
+          searches,
           actuals: { ...(report?.actuals ?? { searches: 0, fetches: 0, seconds: Math.round(durationMs / 1000) }), modelSteps: steps.filter((s) => s.kind === "model").length, costUsd: cost },
           budget: budgetFor(breadth),
           expectInsufficient: args.expectInsufficient,

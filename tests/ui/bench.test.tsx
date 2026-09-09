@@ -169,4 +169,69 @@ describe("the draft card", () => {
     expect(screen.getByText(draftCopy.openerMissing)).toBeTruthy();
     expect(screen.queryByText(draftCopy.noPersonFact)).toBeNull();
   });
+
+  /**
+   * The other half of the same union. An `archetype_pain` opener names a pain
+   * in the pack, and a pack is always there — so unlike a `person_fact` on an
+   * unusable lookup, a pain that cannot be found has no legitimate reading and
+   * must always be said out loud. Before this test the guard only fired for
+   * `person_fact`, and a dangling pain drew a clean card.
+   */
+  it("says so when the opener names a pain that is not in the plan", () => {
+    const fixture = readFixture("outreach", "first-email");
+    const output = fixture.output as { opener: { kind: string; ref: string } };
+    const input = fixture.input as { pack: { archetype: { pains: { id: string }[] } } };
+    const onPain = { ...output, opener: { kind: "archetype_pain", ref: "pain-sampling" } };
+    const broken = {
+      ...input,
+      pack: {
+        ...input.pack,
+        archetype: {
+          ...input.pack.archetype,
+          pains: input.pack.archetype.pains.map((pain) => ({ ...pain, id: "not-the-one" })),
+        },
+      },
+    };
+
+    render(<RenderFixture kind="outreach" output={onPain} input={broken} />);
+    expect(screen.getByText(draftCopy.openerMissing)).toBeTruthy();
+    expect(screen.queryByText(draftCopy.noPersonFact)).toBeNull();
+  });
+
+  it("draws the pain's evidence when an archetype_pain opener resolves", () => {
+    const fixture = readFixture("outreach", "first-email");
+    const output = fixture.output as { opener: { kind: string; ref: string } };
+    const onPain = { ...output, opener: { kind: "archetype_pain", ref: "pain-sampling" } };
+
+    render(<RenderFixture kind="outreach" output={onPain} input={fixture.input} />);
+    expect(screen.getByText(/one call in fifty/)).toBeTruthy();
+    expect(screen.queryByText(draftCopy.openerMissing)).toBeNull();
+    expect(screen.queryByText(draftCopy.noPersonFact)).toBeNull();
+  });
+});
+
+describe("your people, before the reveal", () => {
+  /**
+   * The `pick` branch has no `Row`: there is no email status until a reveal,
+   * so the chip that IS the status cannot be drawn. What the screen has is the
+   * "N of M found" line, each name and why it was picked.
+   */
+  it("draws the names and why each was picked, with no email status", () => {
+    const fixture = readFixture("leadgen", "before-reveal");
+    const output = fixture.output as { phase: string; found: { n: number; ofM: number }; chosen: { name: string; whyPicked: string }[] };
+    expect(output.phase).toBe("pick");
+
+    render(<RenderFixture kind="leadgen" output={fixture.output} input={fixture.input} />);
+
+    expect(screen.getByText(`${output.found.n} of ${output.found.ofM}`)).toBeTruthy();
+    for (const person of output.chosen) {
+      expect(screen.getByText(new RegExp(person.name))).toBeTruthy();
+    }
+    for (const person of output.chosen) {
+      expect(screen.getAllByText(person.whyPicked).length).toBeGreaterThan(0);
+    }
+    for (const status of Object.values(peopleCopy.status)) {
+      expect(screen.queryByText(status)).toBeNull();
+    }
+  });
 });

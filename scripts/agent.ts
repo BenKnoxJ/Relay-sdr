@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { LanguageModel, ToolSet } from "ai";
+import type { ToolSet } from "ai";
 
 import { echoTools } from "../agents/echo/tools";
 import { loadDefinition, AGENT_KINDS, type AgentKind } from "@/lib/agents/definitions";
 import { costMicroDollars, formatMicroDollars, type PricedModel } from "@/lib/agents/pricing";
+import type { RunModel } from "@/lib/agents/model";
 import { credentialKind, makeModel } from "@/lib/agents/provider";
 import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
 import type { ToolRecorder } from "@/lib/agents/tools";
@@ -253,6 +254,7 @@ export function liveCeilingUsd(model: PricedModel, maxModelSteps: number): strin
       tokensInUncached: ASSUMED_TOKENS_PER_CALL.in,
       tokensCacheRead: 0,
       tokensCacheWrite: 0,
+      tokensCacheWrite1h: 0,
       tokensOut: ASSUMED_TOKENS_PER_CALL.out,
     },
     model,
@@ -293,7 +295,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const source = env();
-  let model: LanguageModel;
+  let model: RunModel;
   if (args.live) {
     if (credentialKind(source) === "none") {
       throw new UsageError(

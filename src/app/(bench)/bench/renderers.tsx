@@ -146,12 +146,34 @@ function dueLabel(dueAt: string): string {
   }).format(new Date(dueAt));
 }
 
-export function OutreachRender({ draft, input }: { draft: MessageDraft; input: OutreachInput }) {
-  const opener: Item | null =
-    (draft.opener.kind === "person_fact"
-      ? input.lookup.items.find((item) => item.id === draft.opener.ref)
-      : input.pack.archetype.pains.find((pain) => pain.id === draft.opener.ref)) ?? null;
+/**
+ * What a draft's opener points at, or why it points at nothing.
+ *
+ * One function for both kinds of reference, because the two are one union in
+ * the output schema (`openerSchema`) and a guard that covered only one of them
+ * is exactly the gap this file's own comment warned about. A `person_fact`
+ * names a lookup item; an `archetype_pain` names a pain in the pack. Either
+ * is `dangling` when it names something that is not there.
+ *
+ * `dangling` is not the same as `item === null`. A `person_fact` on an
+ * unusable lookup resolves to nothing legitimately — that is the ordinary
+ * "no usable fact about this person" card — and `checkTouchLimits` has its
+ * own rule (`opener-usable`) for it. An `archetype_pain` has no such
+ * carve-out: the pack is always there, so a pain that cannot be found is
+ * always a defect.
+ */
+export function resolveOpener(
+  opener: MessageDraft["opener"],
+  input: OutreachInput,
+): { item: Item | null; dangling: boolean } {
+  const pool: readonly Item[] =
+    opener.kind === "person_fact" ? input.lookup.items : input.pack.archetype.pains;
+  const item = pool.find((candidate) => candidate.id === opener.ref) ?? null;
+  const expected = opener.kind === "archetype_pain" || input.lookup.usable;
+  return { item, dangling: item === null && expected };
+}
 
+export function OutreachRender({ draft, input }: { draft: MessageDraft; input: OutreachInput }) {
   // A reference that resolves to nothing is NOT the same as opening on the
   // pain because there was no usable fact, and the card must not read as
   // though it were. The output schema cannot catch this — the thing being
@@ -159,15 +181,15 @@ export function OutreachRender({ draft, input }: { draft: MessageDraft; input: O
   // in the outreach definition's own words for it (`checkTouchLimits`,
   // `opener-ref`). A bench that quietly drew a dangling opener as a clean card
   // would hide exactly the failure it exists to find.
-  const dangling = opener === null && draft.opener.kind === "person_fact" && input.lookup.usable;
+  const opener = resolveOpener(draft.opener, input);
 
   return (
     <DraftCard
       draft={draft}
       who={`${input.person.name} · ${input.person.title}, ${input.person.company}`}
       note={draftCopy.touchKind[input.touch.kind]}
-      opener={opener}
-      openerProblem={dangling ? draftCopy.openerMissing : undefined}
+      opener={opener.item}
+      openerProblem={opener.dangling ? draftCopy.openerMissing : undefined}
       chips={[peopleCopy.status[input.person.status], `${draftCopy.sends} ${dueLabel(input.touch.dueAt)}`]}
     />
   );

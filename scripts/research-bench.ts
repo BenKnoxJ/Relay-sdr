@@ -21,9 +21,11 @@
 
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 
 import { agentsDir, loadDefinition } from "@/lib/agents/definitions";
+import { rejectedAnswerText, validationIssues } from "@/lib/agents/run";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { enqueue } from "@/lib/jobs/queue";
@@ -91,6 +93,7 @@ async function main(): Promise<number> {
   let output: ResearchPack | null = null;
   let error: string | null = null;
   let eventId: string | null = null;
+  let rejected: { issues: string[]; text: string | null } | null = null;
   try {
     const result = (await researchHandler(deps)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
     eventId = result.eventId;
@@ -98,6 +101,16 @@ async function main(): Promise<number> {
     output = (event.after as { pack: ResearchPack }).pack;
   } catch (thrown) {
     error = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown);
+    // A pack the schema refused is the most useful thing a failed run can leave
+    // behind; the subprocess that wrote it is gone by now.
+    rejected = { issues: validationIssues(thrown), text: rejectedAnswerText(thrown) };
+    if (rejected.text !== null) {
+      const dir = path.join(homedir(), ".relay", "agents", "research", "runs");
+      mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, `${new Date().toISOString().replace(/[:.]/g, "")}-${args.name}-rejected.json`);
+      writeFileSync(file, `${JSON.stringify({ issues: rejected.issues, text: rejected.text }, null, 2)}\n`);
+      console.error(`rejected answer written to ${file}`);
+    }
   }
   const durationMs = Date.now() - started;
 
@@ -140,6 +153,7 @@ async function main(): Promise<number> {
     run: { steps: steps.length, modelSteps: steps.filter((s) => s.kind === "model").length, toolSteps: steps.filter((s) => s.kind === "tool").length, attempts: runs.length, cost: cost.toFixed(6), durationMs, replayedToolCalls: 0, jobId: job.id, eventId },
     validation,
     error,
+    rejectedIssues: rejected?.issues ?? null,
     rubric,
   };
   const out = path.join(root, "fixtures", "agents", "research", `${args.name}.json`);

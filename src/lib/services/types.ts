@@ -153,7 +153,7 @@ export interface ZohoService {
 
 // ----------------------------------------------------------------- Errors
 
-export type ServiceName = "graph" | "zoho";
+export type ServiceName = "graph" | "zoho" | "tavily" | "firecrawl";
 
 /** Thrown by every live client on a non-2xx response. Carries no response body. */
 export class ServiceError extends Error {
@@ -208,3 +208,41 @@ export type LiveDeps = {
   fetchImpl?: typeof globalThis.fetch;
   now?: () => Date;
 };
+
+// ------------------------------------------------------------ research tools
+
+/** One search hit, as the research agent's `search` tool returns it (research v2 §4). */
+export type SearchHit = {
+  title: string;
+  url: string;
+  snippet: string;
+  /** ISO date when the provider reports one. */
+  publishedAt?: string;
+};
+
+export type SearchInput = {
+  query: string;
+  /** ISO-3166 alpha-2; the adapter maps it to the provider's vocabulary. */
+  region: string;
+  recencyMonths?: number;
+  /** Provider maximum applies; the research tool asks for eight. */
+  maxResults?: number;
+};
+
+/** A page's main content as markdown, or the reason it could not be read. */
+export type PageRead = { markdown: string } | { unreadable: true; reason: string };
+
+/**
+ * Web search plus the page-extract fallback of the fetch cascade — both
+ * Tavily, so they share a client and a key.
+ */
+export interface SearchService {
+  search(input: SearchInput): Promise<{ hits: SearchHit[] }>;
+  /** Tier two of the fetch cascade: Tavily's extract endpoint. */
+  extract(url: string): Promise<PageRead>;
+}
+
+/** Tier one of the fetch cascade: Firecrawl's scrape. */
+export interface FetchService {
+  scrape(url: string): Promise<PageRead>;
+}

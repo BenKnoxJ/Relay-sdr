@@ -105,12 +105,24 @@ export const insufficientSchema = z
   })
   .strict();
 
+/**
+ * The pack's minimums live in `refinePack`, not on the arrays: §3 asks for two
+ * to four archetypes and four to ten seed firms, and §5 rule 7 asks the agent
+ * to answer `insufficient` with *what it did find* when an archetype has fewer
+ * than three sourced pains or there are fewer than four firms. Both are the
+ * signed contract, and the second is only reachable if the first is waived
+ * when `insufficient` is present. Amendment note approved 2026-09-09 (plan
+ * "Relay research agent"); `definition.md` untouched.
+ */
+export const ARCHETYPES_MIN = 2;
+export const SEED_FIRMS_MIN = 4;
+
 const packShape = z
   .object({
     summary: z.tuple([z.string().min(1).max(400), z.string().min(1).max(400), z.string().min(1).max(400)]),
-    archetypes: z.array(archetypeSchema).min(2).max(4),
+    archetypes: z.array(archetypeSchema).max(4),
     hook: hookSchema,
-    seedFirms: z.array(firmSchema).min(4).max(10),
+    seedFirms: z.array(firmSchema).max(10),
     recipe: recipeSchema,
     /** Never empty (§3): a pack with no unknowns is a pack that did not look. */
     unknowns: z.array(unknownSchema).min(1).max(60),
@@ -151,7 +163,44 @@ export function domainCounts(pack: z.infer<typeof packShape>): Map<string, numbe
   return counts;
 }
 
-export const researchOutputSchema = packShape.superRefine((pack, ctx) => {
+/**
+ * The pack's rules, in two strengths.
+ *
+ * `researchOutputSchema` is the contract: everything §3 says, including that a
+ * dated item older than twelve months is not stronger than `weak`. The loop
+ * cannot parse with it, because the runtime applies `demoteStale` *after* the
+ * model answers and *before* ingest (§3: "drop to `weak` automatically") — a
+ * pack parsed against the strict rule inside the loop would fail as `schema`
+ * on the one thing the runtime is about to fix. So the loop parses
+ * `researchRawSchema`, every rule but the stale check, and `validatePack`
+ * (`src/lib/research/validate.ts`) demotes and then parses the strict one.
+ * Amendment note approved 2026-09-09; `definition.md` untouched.
+ */
+function refinePack(pack: z.infer<typeof packShape>, ctx: z.RefinementCtx, options: { staleCheck: boolean }): void {
+  // §3 / §5 rule 7: the minimums, waived only when the agent has stopped.
+  if (pack.insufficient === undefined) {
+    if (pack.archetypes.length < ARCHETYPES_MIN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: ARCHETYPES_MIN,
+        type: "array",
+        inclusive: true,
+        path: ["archetypes"],
+        message: `a pack needs at least ${ARCHETYPES_MIN} archetypes unless it is insufficient`,
+      });
+    }
+    if (pack.seedFirms.length < SEED_FIRMS_MIN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: SEED_FIRMS_MIN,
+        type: "array",
+        inclusive: true,
+        path: ["seedFirms"],
+        message: `a pack needs at least ${SEED_FIRMS_MIN} seed firms unless it is insufficient`,
+      });
+    }
+  }
+
   // §3: the domain cap is a validation error, not advice.
   for (const [host, count] of domainCounts(pack)) {
     if (count > DOMAIN_CAP) {
@@ -167,7 +216,7 @@ export const researchOutputSchema = packShape.superRefine((pack, ctx) => {
   // by the ingest before validation so that the edit is visible; what is left
   // here is the check that it happened.
   const now = new Date();
-  if (staleAndOverClaimed(pack.hook.whyNow, now)) {
+  if (options.staleCheck && staleAndOverClaimed(pack.hook.whyNow, now)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["hook", "whyNow", "confidence"],
@@ -175,7 +224,7 @@ export const researchOutputSchema = packShape.superRefine((pack, ctx) => {
     });
   }
   pack.seedFirms.forEach((firm, index) => {
-    if (staleAndOverClaimed(firm.signal, now)) {
+    if (options.staleCheck && staleAndOverClaimed(firm.signal, now)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["seedFirms", index, "signal", "confidence"],
@@ -209,7 +258,13 @@ export const researchOutputSchema = packShape.superRefine((pack, ctx) => {
       message: error instanceof Error ? error.message : "the pack uses words a rep would not",
     });
   }
-});
+}
+
+/** Every §3 rule. What a pack must satisfy at ingest, after `demoteStale`. */
+export const researchOutputSchema = packShape.superRefine((pack, ctx) => refinePack(pack, ctx, { staleCheck: true }));
+
+/** Every §3 rule but the stale check. What the loop parses the model's answer with. */
+export const researchRawSchema = packShape.superRefine((pack, ctx) => refinePack(pack, ctx, { staleCheck: false }));
 
 /**
  * The strings the pack itself wrote, as opposed to the ones it quoted.

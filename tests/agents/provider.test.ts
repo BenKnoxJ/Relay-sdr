@@ -33,7 +33,10 @@ function probeRecorder(): ToolRecorder {
     beginCall: refuse,
     endCall: refuse,
     failCall: refuse,
+    releaseCall: refuse,
     noteReplay: refuse,
+    abortRun: refuse,
+    modelSteps: 0,
   };
 }
 

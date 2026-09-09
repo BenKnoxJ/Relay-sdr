@@ -139,6 +139,7 @@ export function agentSdkSettings({ configDir, token, run }: AgentSdkSettingsInpu
     permissionMode: "bypassPermissions",
     allowDangerouslySkipPermissions: true,
     maxTurns: run.maxTurns,
+    ...(run.effort === undefined ? {} : { effort: run.effort }),
     // The run is the record; the SDK's transcript would be a second copy of
     // every fetched page under a directory nothing reads.
     persistSession: false,

@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import type { z } from "zod";
 
+import type { PricedModel } from "@/lib/agents/pricing";
+
 import { echoInputSchema } from "../../../agents/echo/input.schema";
 import { echoOutputSchema } from "../../../agents/echo/output.schema";
 import { leadgenInputSchema } from "../../../agents/leadgen/input.schema";
@@ -13,7 +15,7 @@ import { orchestratorOutputSchema } from "../../../agents/orchestrator/output.sc
 import { outreachInputSchema } from "../../../agents/outreach/input.schema";
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
 import { researchInputSchema } from "../../../agents/research/input.schema";
-import { researchOutputSchema } from "../../../agents/research/output.schema";
+import { researchRawSchema } from "../../../agents/research/output.schema";
 
 /**
  * The signed agent definitions, as the code's input.
@@ -54,8 +56,22 @@ export type AgentBudget = {
   maxSeconds?: number;
 };
 
+/** The effort levels the model transport accepts (`ClaudeCodeSettings.effort`). */
+export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type Effort = (typeof EFFORTS)[number];
+
 export type AgentDefinition<IN = unknown, OUT = unknown> = {
   kind: AgentKind;
+  /**
+   * Which pinned model the agent runs on, and at what effort, or `null` for an
+   * agent that makes no model calls. Decided per agent by the product owner on
+   * 2026-09-09 (research Opus 5 at high — the pack is what every draft opens on;
+   * orchestrator and outreach Sonnet 5; echo Opus 5, the spike's model) and
+   * recorded here rather than in a handler constant, so the choice is in the
+   * record a run is checked against. The id must be in the price table.
+   */
+  model: PricedModel | null;
+  effort: Effort | null;
   /**
    * The system prompt, or `null` for an agent that makes no model calls.
    *
@@ -79,6 +95,8 @@ export type AgentDefinition<IN = unknown, OUT = unknown> = {
 type Spec = {
   input: z.ZodTypeAny;
   output: z.ZodTypeAny;
+  model: PricedModel | null;
+  effort: Effort | null;
   tools: readonly string[];
   budget: AgentBudget;
   /** False for an agent with no model calls: no `prompt.md` is read. */
@@ -94,10 +112,14 @@ const SPECS = {
     // §6: four model steps, two of them headroom.
     budget: { maxModelSteps: 4, maxSearches: 0, maxFetches: 0, maxSeconds: 120 },
     hasPrompt: true,
+    model: "claude-opus-5",
+    effort: "high",
   },
   research: {
     input: researchInputSchema,
-    output: researchOutputSchema,
+    // The raw rules: the runtime demotes stale items before the strict parse
+    // (`src/lib/research/validate.ts`). See the note above `refinePack`.
+    output: researchRawSchema,
     // §4, the read-only four. `priorKnowledge` is advisory, `facts` is local.
     tools: ["facts", "priorKnowledge", "search", "fetch"],
     // §6, the `standard` row — one sector national, or a channel motion. The
@@ -106,6 +128,8 @@ const SPECS = {
     // gets.
     budget: { maxModelSteps: 30, maxSearches: 40, maxFetches: 25, maxSeconds: 15 * 60 },
     hasPrompt: true,
+    model: "claude-opus-5",
+    effort: "high",
   },
   orchestrator: {
     input: orchestratorInputSchema,
@@ -117,6 +141,8 @@ const SPECS = {
     // than one loop. The cap is per call; three is the whole agent's ration.
     budget: { maxModelSteps: 3 },
     hasPrompt: true,
+    model: "claude-sonnet-5",
+    effort: "medium",
   },
   leadgen: {
     input: leadgenInputSchema,
@@ -127,6 +153,8 @@ const SPECS = {
     // §0: "Zero model calls."
     budget: { maxModelSteps: 0 },
     hasPrompt: false,
+    model: null,
+    effort: null,
   },
   outreach: {
     input: outreachInputSchema,
@@ -138,6 +166,8 @@ const SPECS = {
     // single draft job can reach. §4's ninety seconds is the lookup's budget.
     budget: { maxModelSteps: 3, maxSearches: 2, maxFetches: 2, maxSeconds: 90 },
     hasPrompt: true,
+    model: "claude-sonnet-5",
+    effort: "high",
   },
 } as const satisfies Record<AgentKind, Spec>;
 
@@ -195,6 +225,8 @@ export function loadDefinition<K extends AgentKind>(
     output: spec.output,
     tools: spec.tools,
     budget: spec.budget,
+    model: spec.model,
+    effort: spec.effort,
     definition: read("definition.md"),
     rubric: read("rubric.md"),
   };

@@ -133,6 +133,20 @@ export type FailureReason =
   /** Anything else: a provider error, a tool that threw, a bug. */
   | "error";
 
+/**
+ * The reason a tool or a timer ended the run early, carried on the controller's
+ * abort reason so the catch below can tell a cap from a lost lease.
+ */
+export class RunCapError extends Error {
+  constructor(
+    readonly field: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "RunCapError";
+  }
+}
+
 /** A run that ended without a validated answer. The run row is closed before this is thrown. */
 export class AgentRunFailedError extends Error {
   readonly reason: FailureReason;
@@ -267,6 +281,13 @@ export async function runAgent<IN, OUT>({
   let nextIndex = 0;
   const takeIndex = (): number => nextIndex++;
 
+  // The run's own controller, so a failure to record a step can stop the loop.
+  // Linked to the caller's signal rather than replacing it: losing the lease
+  // must still abort, and so must a failed write.
+  const controller = new AbortController();
+  const unlink = link(ctx.signal, controller);
+  let modelSteps = 0;
+
   const recorder = createToolRecorder({
     db: ctx.db,
     orgId: ctx.orgId,
@@ -274,15 +295,26 @@ export async function runAgent<IN, OUT>({
     runId: run.id,
     runKind: definition.kind,
     takeIndex,
+    // A tool that ends the run — research's budget cap — does it here, and the
+    // catch below reads the reason off the controller.
+    abortRun: (reason, message) => controller.abort(new RunCapError(reason, message)),
+    modelSteps: () => modelSteps,
   });
 
   const tools = ctx.tools?.(recorder) ?? {};
 
-  // The run's own controller, so a failure to record a step can stop the loop.
-  // Linked to the caller's signal rather than replacing it: losing the lease
-  // must still abort, and so must a failed write.
-  const controller = new AbortController();
-  const unlink = link(ctx.signal, controller);
+  // The wall-clock cap (§6 "minutes"): a timer on the same controller. Cleared
+  // in `finally`, so a run that ends early does not fire it into nothing.
+  const deadline =
+    definition.budget.maxSeconds === undefined
+      ? undefined
+      : setTimeout(
+          () =>
+            controller.abort(
+              new RunCapError("minutes", `stopped at the ${definition.budget.maxSeconds}-second cap with no answer`),
+            ),
+          definition.budget.maxSeconds * 1000,
+        );
 
   let costMicro = 0n;
   /** The first thing that went wrong inside a swallowed callback. */
@@ -307,6 +339,9 @@ export async function runAgent<IN, OUT>({
           },
           fail: noteCallbackFailure,
           signal: controller.signal,
+          noteModelStep: () => {
+            modelSteps += 1;
+          },
         })
       : null;
   const model =
@@ -314,6 +349,7 @@ export async function runAgent<IN, OUT>({
       ? handle.forRun({
           tools: sdk!.gateTools(tools),
           maxTurns: definition.budget.maxModelSteps,
+          ...(definition.effort === null ? {} : { effort: definition.effort }),
           observe: sdk!.observer,
         })
       : handle.model;
@@ -346,7 +382,8 @@ export async function runAgent<IN, OUT>({
             const usage = normaliseUsage(event.usage);
             const micro = costMicroDollars(usage, ctx.modelId);
             costMicro += micro;
-            await appendModelStep(ctx.db, {
+            modelSteps += 1;
+        await appendModelStep(ctx.db, {
               orgId: ctx.orgId,
               runId: run.id,
               index: takeIndex(),
@@ -375,6 +412,12 @@ export async function runAgent<IN, OUT>({
       // abort, so it is reported first.
       if (callbackError !== undefined) {
         throw await failRun(ctx, run, costMicro, "step-record", "a step could not be recorded", callbackError, scrub);
+      }
+      // A cap raised from inside the run — a tool's budget, the wall-clock
+      // timer — is an abort of this controller with a `RunCapError` reason, and
+      // it is a cap, not a lost lease. Read before the generic abort branch.
+      if (controller.signal.reason instanceof RunCapError && !aborted(ctx.signal)) {
+        throw await failRun(ctx, run, costMicro, "cap", controller.signal.reason.message, error, scrub);
       }
       if (aborted(ctx.signal) || controller.signal.aborted) {
         throw await failRun(ctx, run, costMicro, "aborted", "the run was aborted", error, scrub);
@@ -476,6 +519,7 @@ export async function runAgent<IN, OUT>({
       ...(sdk?.result === undefined ? {} : { sdk: sdk.result }),
     };
   } finally {
+    if (deadline !== undefined) clearTimeout(deadline);
     unlink();
   }
 }
@@ -581,6 +625,8 @@ function agentSdkLedger(args: {
   fail: (error: unknown) => void;
   /** The run's own signal: a parked tool is released with an error when it fires. */
   signal: AbortSignal;
+  /** Counts a recorded model step for the run's budget view. */
+  noteModelStep: () => void;
 }): {
   observer: AgentSdkObserver;
   /** The run's tools, each made to wait for the turn that asked for it. See the module comment. */
@@ -588,7 +634,7 @@ function agentSdkLedger(args: {
   readonly capped: boolean;
   readonly result: AgentSdkResult | undefined;
 } {
-  const { ctx, runId, takeIndex, addCost, fail, signal } = args;
+  const { ctx, runId, takeIndex, addCost, fail, signal, noteModelStep } = args;
   /** Tokens already written as turn steps, by canonical model id. */
   const recorded = new Map<string, Totals>();
   let capped = false;
@@ -668,6 +714,7 @@ function agentSdkLedger(args: {
         const micro = costMicroDollars(usage, ctx.modelId);
         addCost(micro);
         note(canonicalModelId(turn.model), usage);
+        noteModelStep();
         await appendModelStep(ctx.db, {
           orgId: ctx.orgId,
           runId,
@@ -722,7 +769,8 @@ function agentSdkLedger(args: {
           const micro = costMicroDollars(usage, id);
           addCost(micro);
           note(id, usage);
-          await appendModelStep(ctx.db, {
+          noteModelStep();
+        await appendModelStep(ctx.db, {
             orgId: ctx.orgId,
             runId,
             index: takeIndex(),
@@ -908,7 +956,10 @@ function probeRecorder(ctx: RunAgentContext, runKind: string): ToolRecorder {
     beginCall: refuse,
     endCall: refuse,
     failCall: refuse,
+    releaseCall: refuse,
     noteReplay: refuse,
+    abortRun: refuse,
+    modelSteps: 0,
   };
 }
 

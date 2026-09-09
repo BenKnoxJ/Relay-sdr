@@ -40,7 +40,10 @@ export type EventKind =
   /// "when did this token last rotate" has to be answerable.
   | "account.token_refreshed"
   /// A job did something outside the database that cannot be undone.
-  | "side_effect.recorded";
+  | "side_effect.recorded"
+  /// An org activated a version of a product facts file; `after` carries the
+  /// hash the pointer was pinned at and whether the file was still a draft.
+  | "facts.activated";
 
 /**
  * Who caused the change. `system` is the worker acting on its own — a poll, a

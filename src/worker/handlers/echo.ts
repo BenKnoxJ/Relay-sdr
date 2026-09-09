@@ -20,11 +20,9 @@ import type { Handler } from "@/worker/handlers/index";
  */
 
 /**
- * The model every agent run uses until a brief says otherwise.
- *
- * §24 pins two ids and this is the capable one. A constant rather than a knob:
- * the price table has two entries, the spike rubric names this one, and a model
- * chosen by configuration is a cost nobody reviewed.
+ * The model comes from the definition (`definitions.ts` SPECS: decided per
+ * agent on 2026-09-09), not from a constant here. Kept as an export for the
+ * spike script and the tests that name it.
  */
 export const AGENT_MODEL = "claude-opus-5" as const;
 
@@ -47,8 +45,8 @@ export const echo: Handler = async ({ db, job, signal }) => {
         db,
         orgId: job.orgId,
         jobId: job.id,
-        model: makeModel(AGENT_MODEL),
-        modelId: AGENT_MODEL,
+        model: makeModel(definition.model ?? AGENT_MODEL),
+        modelId: definition.model ?? AGENT_MODEL,
         signal,
         tools: (recorder) => echoTools(recorder),
         // The scrubber the runtime cannot reach for itself: `safeError` lives on

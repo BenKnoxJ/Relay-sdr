@@ -3,6 +3,8 @@ import type { Job, PrismaClient } from "@prisma/client";
 import { echo } from "@/worker/handlers/echo";
 import { noop } from "@/worker/handlers/noop";
 import { sleep } from "@/worker/handlers/sleep";
+import { stubDraft } from "@/worker/handlers/stubDraft";
+import { stubSend } from "@/worker/handlers/stubSend";
 
 /**
  * The registry: job kind → the function that does it.
@@ -15,6 +17,11 @@ import { sleep } from "@/worker/handlers/sleep";
  * arithmetic are proved before a real specialist runs. The specialists are Tasks
  * 7 and 12 and land as more entries in this object; nothing else about the loop
  * changes when they do, which is the point of the shape.
+ *
+ * `stub_draft` and `stub_send` are proof 3's pair, and they are two entries
+ * rather than one on purpose: the whole claim is that a run *ends* at drafts
+ * ready and a *different* run does the sending, so they cannot be two branches
+ * of one handler without proving something weaker than §24 asks for.
  */
 
 /** What every handler is given. The database is passed in, never imported: the
@@ -40,7 +47,13 @@ export type HandlerResult = unknown;
 
 export type Handler = (context: HandlerContext) => Promise<HandlerResult>;
 
-export const handlers: Record<string, Handler> = { noop, sleep, echo };
+export const handlers: Record<string, Handler> = {
+  noop,
+  sleep,
+  echo,
+  stub_draft: stubDraft,
+  stub_send: stubSend,
+};
 
 /**
  * The handler for a kind, or undefined. The loop REQUEUES an unknown kind

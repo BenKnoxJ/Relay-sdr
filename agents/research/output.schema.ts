@@ -252,4 +252,19 @@ export function authoredText(pack: z.infer<typeof packShape>): string[] {
 
 export type ResearchPack = z.infer<typeof researchOutputSchema>;
 
-export { urlSchema };
+/**
+ * The pack's parts, by name.
+ *
+ * Exported because the plan cards render them, and a component that declared
+ * its own shape of an archetype would be a second contract that drifts from
+ * this one silently. `src/components/ItemLine.tsx` and its siblings take these
+ * types and nothing else; `tests/bench/schemaIdentity.test.ts` holds them to it.
+ */
+export type Archetype = z.infer<typeof archetypeSchema>;
+export type Hook = z.infer<typeof hookSchema>;
+export type SeedFirm = z.infer<typeof firmSchema>;
+export type Recipe = z.infer<typeof recipeSchema>;
+export type PackUnknown = z.infer<typeof unknownSchema>;
+
+export { urlSchema, itemSchema, phraseSchema };
+export type { Item, Phrase, Confidence } from "../_shared/item.schema";

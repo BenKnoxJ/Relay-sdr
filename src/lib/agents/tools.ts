@@ -47,6 +47,22 @@ import { beginToolStep, failToolStep, finishToolStep } from "@/lib/repo/agentRun
  * are stored under the reserved key {@link FAILURE_KEY}, which a tool's own
  * output cannot collide with, and a replay that finds one rethrows.
  *
+ * ## A failure is permanent, including one that cost nothing
+ *
+ * **Known limitation, deliberate in Phase 1.** The stored failure is keyed the
+ * same way a success is, so a call that failed *before* it spent anything — a
+ * 429, a dropped socket, a DNS blip — is never retried within the job: the
+ * second attempt replays the stored failure instead of running. The cautious
+ * direction, because the wrapper cannot see inside a tool and a failure after a
+ * charge is the one that must never repeat.
+ *
+ * Making it narrower needs the tool to say which it was — an `execute` that
+ * distinguishes "spent, then failed" from "failed before spending", so only the
+ * first is permanent and the second clears its own claim. That is a change to
+ * the tool contract, not to this file, and Phase 1 ships no tool that spends: it
+ * belongs with the first one that does (Task 12's search and fetch), and is
+ * flagged there rather than guessed at here.
+ *
  * ## What the model sees on a replay
  *
  * The stored output, verbatim — **not** the stored output with a `replayed: true`
@@ -160,10 +176,10 @@ export function createToolRecorder(deps: ToolRecorderDeps): ToolRecorder {
       return { replayed: false, stepId: result.step.id };
     },
     async endCall(stepId, output) {
-      await finishToolStep(deps.db, { stepId, output: asJson(output) });
+      await finishToolStep(deps.db, { orgId: deps.orgId, stepId, output: asJson(output) });
     },
     async failCall(stepId, error) {
-      await failToolStep(deps.db, { stepId, failureKey: FAILURE_KEY, error });
+      await failToolStep(deps.db, { orgId: deps.orgId, stepId, failureKey: FAILURE_KEY, error });
     },
   };
 }

@@ -83,15 +83,30 @@ export const orchestratorOutputSchema = union.superRefine((value, ctx) => {
       message: "an answer is two sentences at most",
     });
   }
-  // §10 row 10: `assertPlainWords` on every model output. The name and the
-  // answer both land on a rep's screen verbatim.
-  try {
-    assertPlainWords(value);
-  } catch (error) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: error instanceof Error ? error.message : "the output uses words a rep would not",
-    });
+  // §10 row 10: `assertPlainWords` on what Relay wrote, by field name.
+  //
+  // The name and the answer are the two strings that land on a rep's screen in
+  // Relay's own voice, and they are the two this checks. The pre-fill draft is
+  // deliberately not swept: `who` is "the rep's own words, kept" (§2) and
+  // `product`, `channels` and `guessed` are lifted from the same sentence. The
+  // banned list is ordinary English and thirteen first names, so sweeping the
+  // whole output rejects a rep for typing "heads of ops who own the claims
+  // pipeline" or naming a product "Signal Analytics" — which is the misuse
+  // `src/lib/copy/plainWords.ts` documents against itself. Same shape as
+  // research's `authoredText` and outreach's `authoredProse`: a named list, and
+  // a new rendered string means a new line here.
+  const authored: [string, string][] =
+    value.step === "name" ? [["name", value.name]] : value.step === "answer" ? [["answer", value.answer]] : [];
+  for (const [field, text] of authored) {
+    try {
+      assertPlainWords(text);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message: error instanceof Error ? error.message : "the output uses words a rep would not",
+      });
+    }
   }
 });
 

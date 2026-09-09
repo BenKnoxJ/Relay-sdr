@@ -19,7 +19,9 @@ import { Prisma, type AgentRun, type AgentRunStep, type PrismaClient } from "@pr
  * them, and they are one per run rather than one per step.
  *
  * Nothing here is deleted and every row carries its `orgId`, so both of §25's
- * other rules hold unchanged.
+ * other rules hold unchanged. Every `where` in this file is scoped on `orgId`
+ * as well as on the id, so a caller that is handed a run id cannot reach across
+ * a tenant boundary with it; `appendModelStep` is the exception and says why.
  */
 
 export type StartRunInput = {
@@ -42,6 +44,17 @@ export async function startRun(db: PrismaClient, input: StartRunInput): Promise<
 }
 
 export type FinishRunInput = {
+  /**
+   * The tenant that owns the run.
+   *
+   * Part of the `where`, not just of the data. §25 rule 3 is that every read and
+   * every write is org-scoped, and an id on its own is a caller-supplied handle:
+   * today every run id in this file is minted by the same statement that closes
+   * it, and from Task 7 the router closes runs it was handed the id of. Scoping
+   * now means the id never becomes the only thing standing between one tenant
+   * and another's row. A mismatch updates nothing and Prisma raises P2025.
+   */
+  orgId: string;
   runId: string;
   status: "done" | "failed";
   /** The sum of the steps' cost, as a `Decimal(12,6)` string. */
@@ -52,7 +65,7 @@ export type FinishRunInput = {
 
 export async function finishRun(db: PrismaClient, input: FinishRunInput): Promise<AgentRun> {
   return db.agentRun.update({
-    where: { id: input.runId },
+    where: { id: input.runId, orgId: input.orgId },
     data: {
       status: input.status,
       costTotal: new Prisma.Decimal(input.costTotal),
@@ -85,6 +98,13 @@ export type ModelStepInput = {
  * and cost are only known once it has returned: there is no half-written state
  * worth a row. `startedAt` and `finishedAt` are both now, and the duration of
  * the call itself lives in `providerMeta.performance`.
+ *
+ * The only write here with no `where` to scope: a create carries its `orgId` in
+ * the row it writes, and the row is what a later read is filtered on. What a
+ * create cannot check is that `runId` belongs to `orgId` — that would cost a
+ * read per step to prove something the caller already knows, since `runAgent`
+ * mints both from one context. If a caller ever appends a step to a run id it
+ * did not open, this is where the check goes.
  */
 export async function appendModelStep(db: PrismaClient, input: ModelStepInput): Promise<AgentRunStep> {
   return db.agentRunStep.create({
@@ -190,6 +210,8 @@ function targetsToolKey(error: Prisma.PrismaClientKnownRequestError): boolean {
 }
 
 export type FinishToolStepInput = {
+  /** Scoped for the same reason `FinishRunInput.orgId` is. */
+  orgId: string;
   stepId: string;
   output: Prisma.InputJsonValue;
   /** Tools spend credits, not tokens; Phase 1 records zero and slice 1 fills it in. */
@@ -198,7 +220,7 @@ export type FinishToolStepInput = {
 
 export async function finishToolStep(db: PrismaClient, input: FinishToolStepInput): Promise<AgentRunStep> {
   return db.agentRunStep.update({
-    where: { id: input.stepId },
+    where: { id: input.stepId, orgId: input.orgId },
     data: {
       output: input.output,
       finishedAt: new Date(),
@@ -219,17 +241,23 @@ export async function finishToolStep(db: PrismaClient, input: FinishToolStepInpu
  */
 export async function failToolStep(
   db: PrismaClient,
-  input: { stepId: string; failureKey: string; error: string },
+  input: { orgId: string; stepId: string; failureKey: string; error: string },
 ): Promise<AgentRunStep> {
   return db.agentRunStep.update({
-    where: { id: input.stepId },
+    where: { id: input.stepId, orgId: input.orgId },
     data: { output: { [input.failureKey]: input.error }, finishedAt: new Date() },
   });
 }
 
-/** Every step of a run, in the order they happened. */
-export async function listSteps(db: PrismaClient, runId: string): Promise<AgentRunStep[]> {
-  return db.agentRunStep.findMany({ where: { runId }, orderBy: { index: "asc" } });
+/** Every step of a run, in the order they happened. Org-scoped, as every read is. */
+export async function listSteps(
+  db: PrismaClient,
+  where: { orgId: string; runId: string },
+): Promise<AgentRunStep[]> {
+  return db.agentRunStep.findMany({
+    where: { orgId: where.orgId, runId: where.runId },
+    orderBy: { index: "asc" },
+  });
 }
 
 function requireText(caller: string, fields: Record<string, string>): void {

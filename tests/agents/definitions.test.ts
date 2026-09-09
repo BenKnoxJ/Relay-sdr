@@ -106,6 +106,28 @@ describe("each definition's schemas, against its own fixtures", () => {
     const definition = loadDefinition("orchestrator");
     expect(definition.output.safeParse(fixture("orchestrator", "output.answer.good.json")).success).toBe(true);
   });
+
+  it("orchestrator keeps the rep's own sentence and checks only what Relay wrote", () => {
+    const definition = loadDefinition("orchestrator");
+    // The rep described their buyers in ordinary English. Every one of these
+    // words is on the banned list, and none of them is Relay's machinery on a
+    // screen — the pre-fill is the rep's sentence handed back to them.
+    const prefill = definition.output.safeParse({
+      step: "pre-fill",
+      product: "Signal Analytics",
+      who: "heads of ops who own the claims pipeline",
+      channels: ["email", "call"],
+      guessed: [],
+    });
+    expect(prefill.success).toBe(true);
+
+    // The two strings Relay writes are still checked.
+    expect(definition.output.safeParse({ step: "name", name: "Pipeline agent run" }).success).toBe(false);
+    const answer = definition.output.safeParse({ step: "answer", answer: "The orchestrator started a job." });
+    expect(answer.success).toBe(false);
+    if (answer.success) return;
+    expect(answer.error.issues.some((issue) => issue.path.join(".") === "answer")).toBe(true);
+  });
 });
 
 describe("research: confidence is derived, never asserted", () => {
@@ -251,6 +273,41 @@ describe("outreach: the gates that need the touch", () => {
     if (!result.success) {
       expect(result.error.issues.some((issue) => /only live facts/.test(issue.message))).toBe(true);
     }
+  });
+
+  it("sweeps plain words over the prose and not over the ids", () => {
+    const draft = JSON.parse(JSON.stringify(fixture("outreach", "output.good.json"))) as {
+      body: string;
+      claims: string[];
+      opener: { ref: string };
+    };
+    // Ids are dashed and dotted slugs, and both separators are word boundaries,
+    // so a fact id naming a perfectly ordinary thing collides with the banned
+    // list. Before the sweep was scoped by field name, these two lines were
+    // enough to fail a draft with nothing wrong with it — permanently, because
+    // the id is what the facts file calls it.
+    draft.claims = ["i360.pipeline-value"];
+    draft.opener.ref = "look-westbury-signal";
+    expect(outreachOutputSchema.safeParse(draft).success).toBe(true);
+
+    // The same word in the body is the thing the rule is actually about.
+    const leaked = { ...draft, body: `Our pipeline read every call. ${draft.body}` };
+    const result = outreachOutputSchema.safeParse(leaked);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const issue = result.error.issues.find((candidate) => /machine word/.test(candidate.message));
+    expect(issue).toBeDefined();
+    // And it names the field a rep would have to fix, not `$`.
+    expect(issue?.path).toEqual(["body"]);
+  });
+
+  it("keeps the em-dash rule on the prose, where the prose is", () => {
+    const draft = JSON.parse(JSON.stringify(fixture("outreach", "output.good.json"))) as { body: string };
+    const dashed = { ...draft, body: `We read every call — all of them. ${draft.body}` };
+    const result = outreachOutputSchema.safeParse(dashed);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((issue) => /banned dash/.test(issue.message))).toBe(true);
   });
 
   it("measures a follow-up against the person's own earlier message", () => {

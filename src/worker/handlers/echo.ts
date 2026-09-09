@@ -83,6 +83,23 @@ export const echo: Handler = async ({ db, job, signal }) => {
           // things another attempt can get past, and the run row already says
           // what happened to this one.
           throw error;
+        case "close":
+          // Retryable, and the one retry that is not free: the answer was
+          // produced and validated, and only the write that closed the run
+          // failed — so the next attempt opens a new run and pays for every
+          // model call again. Retried anyway, because the answer never reached
+          // this handler and a terminal job would strand real work over a
+          // transient write. Named as its own case rather than grouped, so the
+          // cost is a decision somebody made and not a default.
+          throw error;
+        default: {
+          // Exhaustive. A new `FailureReason` added to the runtime fails the
+          // typecheck here rather than falling through to the retryable path,
+          // which is how `close` reached this switch unhandled in the first
+          // place — an unclassified failure quietly costing a second run.
+          const unhandled: never = error.reason;
+          throw new TerminalError(`echo: unhandled failure reason ${String(unhandled)}`, { cause: error });
+        }
       }
     }
     throw error;

@@ -66,6 +66,17 @@ export type FailureReason =
   | "schema"
   /** A step could not be recorded. The run is stopped rather than continued uncosted. */
   | "step-record"
+  /**
+   * The answer was good and the run row could not be closed as `done`.
+   *
+   * The work happened and the tokens were spent; only the closing write failed.
+   * A distinct reason rather than `error` because a handler reads these to
+   * decide what to do, and this is the one failure where retrying the *job*
+   * re-spends a run that had already produced its answer. Whether that is worth
+   * paying is the handler's call — `src/worker/handlers/echo.ts` pays it, and
+   * says why — but it cannot be made at all if the reason is `error`.
+   */
+  | "close"
   /** Anything else: a provider error, a tool that threw, a bug. */
   | "error";
 
@@ -329,15 +340,27 @@ export async function runAgent<IN, OUT>({
       );
     }
 
-    const closed = await finishRun(ctx.db, {
-      runId: run.id,
-      status: "done",
-      costTotal: formatMicroDollars(costMicro),
-    });
+    // The success close is guarded for the same reason every failure exit runs
+    // through `failRun`: this file's rule is that a run row is never left
+    // `running`, and an unguarded `finishRun` here is the one path that could
+    // leave one. A throw at the commit moment would otherwise strand the row
+    // and lose a cost that was really spent, so it is routed through the same
+    // close-and-report path as any other failure and then rethrown.
+    let closed: AgentRun;
+    try {
+      closed = await finishRun(ctx.db, {
+        orgId: ctx.orgId,
+        runId: run.id,
+        status: "done",
+        costTotal: formatMicroDollars(costMicro),
+      });
+    } catch (error) {
+      throw await failRun(ctx, run, costMicro, "close", "the run could not be closed", error, scrub);
+    }
     return {
       object: validated.data,
       run: closed,
-      steps: await listSteps(ctx.db, run.id),
+      steps: await listSteps(ctx.db, { orgId: ctx.orgId, runId: run.id }),
       replayedToolCalls: recorder.replayed,
     };
   } finally {
@@ -366,6 +389,7 @@ async function failRun(
   const error = `${reason}: ${summary}${detail === "" ? "" : ` (${detail})`}`;
   try {
     await finishRun(ctx.db, {
+      orgId: ctx.orgId,
       runId: run.id,
       status: "failed",
       costTotal: formatMicroDollars(costMicro),

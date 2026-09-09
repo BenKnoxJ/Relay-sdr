@@ -75,23 +75,76 @@ export const outreachOutputSchema = z
     // Checked on the union rather than on `messageDraftSchema`: zod 3's
     // `discriminatedUnion` takes plain objects, and a refined member is not one.
     if (draft.kind === "message") checkMessageShape(draft, ctx);
-    // §6 rule 5: no em dashes. `assertPlainDashes` is the repository's own rule
-    // and catches the spaced en dash too.
-    try {
-      assertPlainDashes(draft);
-    } catch (error) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: error instanceof Error ? error.message : "banned dash" });
-    }
-    // §12 rubric row 12: plain words on the body, the reasons and the talking points.
-    try {
-      assertPlainWords(draft);
-    } catch (error) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: error instanceof Error ? error.message : "the draft uses words a rep would not",
-      });
+    // §6 rule 5 (no em dashes) and §12 rubric row 12 (plain words), on the
+    // prose and only the prose. See `authoredProse`.
+    for (const [field, text] of authoredProse(draft)) {
+      // §6 rule 5: no em dashes. `assertPlainDashes` is the repository's own rule
+      // and catches the spaced en dash too.
+      try {
+        assertPlainDashes(text);
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: field.split("."),
+          message: error instanceof Error ? error.message : "banned dash",
+        });
+      }
+      // §12 rubric row 12: plain words on the body, the reasons and the talking points.
+      try {
+        assertPlainWords(text);
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: field.split("."),
+          message: error instanceof Error ? error.message : "the draft uses words a rep would not",
+        });
+      }
     }
   });
+
+/**
+ * The strings on a draft that a rep actually reads, by name.
+ *
+ * Named rather than walked, and that is the whole point. `assertPlainWords`
+ * reaches every string on a value it is handed, and a draft's strings are not
+ * all prose: `claims` is a list of fact ids and `opener.ref` is a lookup id.
+ * Ids are separated by dashes and dots, both of which are word boundaries, so a
+ * perfectly ordinary id — `fact-pipeline-value`, `pain-signal-1` — matches the
+ * banned list and fails a draft that has nothing wrong with it. The enum
+ * literals survive today only because `_` is *not* a word boundary
+ * (`numberSource: "find_a_number"`, `opener.kind: "person_fact"`), which is an
+ * accident and not a rule: rename one enum member with a dash in it and the
+ * schema starts rejecting valid drafts again.
+ *
+ * So the sweep is a list of fields, and adding a rendered string to the schema
+ * means adding it here. That is the same rule research and lead gen already
+ * keep with `authoredText`, and the reason
+ * `src/lib/copy/plainWords.ts` says to check "the copy it chose" rather than a
+ * whole object: the list is ordinary English and thirteen first names, and it is
+ * only safe pointed at prose.
+ *
+ * The paths are dotted so a finding names the field a rep would have to fix.
+ */
+function authoredProse(
+  // The union's two members rather than `OutreachOutput`, which is inferred from
+  // the schema this is called inside: naming it here would make the schema's
+  // type depend on its own inference.
+  draft: z.infer<typeof messageDraftSchema> | z.infer<typeof callDraftSchema>,
+): [string, string][] {
+  if (draft.kind === "message") {
+    const out: [string, string][] = [
+      ["body", draft.body],
+      ["ask", draft.ask],
+    ];
+    if (draft.subject !== undefined) out.unshift(["subject", draft.subject]);
+    return out;
+  }
+  return [
+    ["talkingPoint.openingLine", draft.talkingPoint.openingLine],
+    ["talkingPoint.oneQuestion", draft.talkingPoint.oneQuestion],
+    ["talkingPoint.listenFor", draft.talkingPoint.listenFor],
+  ];
+}
 
 /** The §5 and §6 rules a message draft satisfies on its own, with no touch in hand. */
 function checkMessageShape(draft: z.infer<typeof messageDraftSchema>, ctx: z.RefinementCtx): void {

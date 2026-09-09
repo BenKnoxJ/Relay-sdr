@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "callcentrehelper quality assurance team leader \"not enough time\" coaching calls backlog",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "I Already Coach. Why isn't my Team Improving? - Call Centre Helper",
+        "url": "https://www.callcentrehelper.com/i-already-coach-why-isnt-my-team-improving-21409.htm",
+        "snippet": "Time is often a reason (excuse) for not coaching. Yet, in most case studies, the most significant drains on time for a leader or coach are the"
+      },
+      {
+        "title": "AI quality assurance for call centres: Score every call automatically",
+        "url": "https://aircall.io/en-gb/blog/ai-quality-assurance-call-centre",
+        "snippet": "Because there are not enough hours. AI quality assurance does not change the QA process. QA covers fewer than 5% of calls: AI QA scores every"
+      },
+      {
+        "title": "15 Habits of Successful Contact Centre Team Leaders",
+        "url": "https://acxpa.com.au/habits-of-successful-contact-centre-team-leaders",
+        "snippet": "Yet 44% say too much of their time goes on meetings — an activity they rank 10th. And 37% say they don't get enough time on leadership. This is not a"
+      },
+      {
+        "title": "Call Center Coaching Best Practices - Scorebuddy",
+        "url": "https://www.scorebuddycx.com/blog/call-center-coaching-tips-improve-performance",
+        "snippet": "Both agents and coaches will need to learn the ropes.\n\nIf you’re adding a module to your existing QA platform, it should be seamless, and self-directed learning might be sufficient. If both the QA and coaching is new, you’ll need to dedicate more time to training.\n\n### Leverage (The Right) Technology\n\nIn addition to your integrated coaching tool, you can leverage elements of your existing tech stack to support the process. [...] By keeping all coaching tools and data within your existing QA infrastructure, you can develop standardized coaching workflows. This eliminates inconsistent ad hoc sessions and streamlines the training journey for both agents and supervisors.\n\nWith research finding that it takes managers five times as long to prepare a coaching session as it does to deliver it, automating and scaling the process within your existing QA can enable significant savings on time and resources. [...] Like all contact center functions, you want to be able to track the impact of your coaching over time and, if necessary, make adjustments to improve the outcomes. Merging quality assurance and coaching simplifies this process considerably."
+      },
+      {
+        "title": "Webinar Replay: 7 Ways to Improve Quality in the Contact Centre",
+        "url": "https://www.youtube.com/watch?v=jC0Wkn_-iek",
+        "snippet": "This content isn't available. Call Centre Helper -"
+      },
+      {
+        "title": "Rethinking QA Scores and Coaching Approaches - LinkedIn",
+        "url": "https://www.linkedin.com/posts/call-centre-helper_push-your-qa-programme-beyond-just-looking-activity-7465008961222615040-fomE",
+        "snippet": "High QA scores don't always mean great CX, and if coaching feels more like handing out speeding tickets, it may be time to rethink your"
+      },
+      {
+        "title": "59 Call Centre Quality Assurance Tips",
+        "url": "https://www.callcentrehelper.com/59-tips-to-improve-quality-monitoring-performance-management-32544.htm",
+        "snippet": "Call monitoring will not be effective unless you fully understand the reason for monitoring and what you are trying to measure or discover."
+      },
+      {
+        "title": "Call Centre Helper - Webinar Replay: How to Properly Assess Agent ...",
+        "url": "https://www.youtube.com/watch?v=WiCMYy_vEHo",
+        "snippet": "This content isn't available. Call Centre Helper - Webinar Replay: How"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:25:25.356Z"
+}

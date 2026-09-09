@@ -99,6 +99,11 @@ export function StartForm({
    * re-reading the sentence is a navigation back to this page with the new
    * sentence on it, which is what the Edit button does. It also keeps the
    * fixtures module, and the research contract it parses, off the browser.
+   *
+   * The rep's Calls default (Settings §23.1f) is already in here: the page
+   * reads it once, on the server, and hands it to the pre-fill. The chip is a
+   * default and not a lock, so the rep's tap on it wins for this campaign and
+   * the profile is left as it was.
    */
   prefilled: BriefDraft;
   products: Product[];

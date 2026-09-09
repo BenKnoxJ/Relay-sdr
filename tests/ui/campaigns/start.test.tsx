@@ -1,9 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StartForm } from "@/components/campaigns/StartForm";
 import { startCopy } from "@/lib/copy/campaigns";
-import { HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, startFromSentence } from "@/lib/fixtures/campaigns";
+import {
+  HOW_LONG,
+  HOW_MANY,
+  PRODUCTS,
+  REGIONS,
+  startFromSentence,
+  type StartDefaults,
+} from "@/lib/fixtures/campaigns";
+import { getProfile, resetProfile, saveProfile } from "@/lib/fixtures/repProfile";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -11,12 +19,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 const SENTENCE =
   "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users";
 
-function start(props: { sentence?: string; connected?: boolean } = {}) {
+function start(props: { sentence?: string; connected?: boolean; defaults?: StartDefaults } = {}) {
   const sentence = props.sentence ?? SENTENCE;
   return render(
     <StartForm
       sentence={sentence}
-      prefilled={startFromSentence(sentence)}
+      prefilled={startFromSentence(sentence, props.defaults)}
       products={PRODUCTS}
       regions={REGIONS}
       howMany={HOW_MANY}
@@ -199,5 +207,90 @@ describe("Editing the sentence", () => {
     expect(push).toHaveBeenCalledWith(
       `/campaigns/new?said=${encodeURIComponent("vets in Scotland, 30 people over 4 weeks")}`,
     );
+  });
+});
+
+/**
+ * The rep's Calls default (§23.1d Channels ↔ §23.1f card 4). Settings owns
+ * the toggle; Start reads it once, on the server, as the default for the
+ * Calls chip. A default and not a lock: the sentence wins when it mentions
+ * calls, and the chip on the form wins over both for that one campaign.
+ */
+describe("The rep's Calls default", () => {
+  afterEach(() => {
+    resetProfile();
+  });
+
+  const callsChip = () => screen.getAllByTestId("channel-chip")[2];
+  const channelsFrame = () => callsChip()?.parentElement;
+
+  it("lands with Calls ticked when the default is on", () => {
+    start({ defaults: { callByDefault: true } });
+
+    expect(callsChip()?.textContent).toBe(startCopy.channelCalls);
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("lands with Calls unticked when the default is off, in the same words", () => {
+    start({ defaults: { callByDefault: false } });
+
+    expect(callsChip()?.textContent).toBe(startCopy.channelCalls);
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
+    // Still Relay's guess, drawn dashed: the sentence said nothing about calls.
+    expect(channelsFrame()?.className).toContain("border-dashed");
+    // Email is still always on, and the chip count is unchanged.
+    expect(screen.getAllByTestId("channel-chip")).toHaveLength(3);
+    expect(screen.getAllByTestId("channel-chip")[0]?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("is on when nothing was said about it, as §23.1d names the default", () => {
+    expect(startFromSentence(SENTENCE).channels).toContain("calls");
+    expect(startFromSentence(SENTENCE, {}).channels).toContain("calls");
+  });
+
+  it("lets the sentence win over the toggle, both ways", () => {
+    const quiet = startFromSentence("care home groups in the South West, email only, no cold calls", {
+      callByDefault: true,
+    });
+    expect(quiet.channels).toEqual(["email"]);
+
+    const loud = startFromSentence("ops directors at UK logistics firms, call them on day 3", {
+      callByDefault: false,
+    });
+    expect(loud.channels).toEqual(["email", "calls"]);
+
+    // A sentence that names LinkedIn and not calls has not spoken about calls.
+    const linkedin = startFromSentence("finance directors on LinkedIn", { callByDefault: false });
+    expect(linkedin.channels).toEqual(["email", "linkedin"]);
+  });
+
+  it("takes the rep's choice on the form for this campaign, and leaves the profile alone", () => {
+    saveProfile({ callByDefault: false });
+    start({ defaults: { callByDefault: getProfile().callByDefault } });
+    push.mockClear();
+
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
+    const chip = callsChip();
+    if (chip !== undefined) fireEvent.click(chip);
+
+    // The form carries the rep's value: ticked, and no longer a guess.
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
+    expect(channelsFrame()?.className).not.toContain("border-dashed");
+
+    fireEvent.click(screen.getByRole("button", { name: startCopy.start }));
+    expect(push).toHaveBeenCalledWith(`/campaigns/${startFromSentence(SENTENCE).landsOn}?started=1`);
+
+    // The profile is the default, not a lock, and Start never writes it.
+    expect(getProfile().callByDefault).toBe(false);
+  });
+
+  it("can be turned off on the form when the default is on, the same way", () => {
+    start({ defaults: { callByDefault: true } });
+
+    const chip = callsChip();
+    if (chip !== undefined) fireEvent.click(chip);
+
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
+    expect(getProfile().callByDefault).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import {
   DraftNotFoundError,
   SEND_RECORDED,
   approveStubDraft,
+  draftReadyKey,
   recordDraftReady,
   recordStubSend,
   stubSendKey,
@@ -282,6 +283,22 @@ describe("the approval hand-off", () => {
     expect(await prisma.job.count({ where: { kind: "stub_send" } })).toBe(0);
   }, 120_000);
 
+  /**
+   * The refusal branch, through the router that formats it. The cross-tenant
+   * case above proves the repo function refuses; this proves what a rep is
+   * told when it does, which is a different thing and lives in a different
+   * file. It is also the only case that runs `assertPlainWords` over
+   * `approvalsCopy.notFound`.
+   */
+  it("answers a draft id that names nothing this rep can see with the one line", async () => {
+    await signIn();
+    const caller = appRouter.createCaller(contextFor(repSession));
+
+    await expect(
+      caller.approvals.approveStub({ draftEventId: "evt_nothing_here" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND", message: approvalsCopy.notFound });
+  });
+
   it("writes one Event and one job when two approvals race", async () => {
     const actor = await signIn();
 
@@ -359,6 +376,69 @@ describe("the records either side of an approval", () => {
     expect(await prisma.event.count({ where: { kind: DRAFT_READY } })).toBe(1);
     // The first run is what the surviving Event points at, not the retry's.
     expect(second.after).toMatchObject({ runId: "run_one" });
+
+    // One guard row, written with the Event. It is what the racing case below
+    // leans on; here it just has to not be written twice by the sequential one.
+    const guards = await prisma.sideEffect.findMany({ where: { orgId: actor.orgId } });
+    expect(guards.map((guard) => guard.key)).toEqual([draftReadyKey(job.id)]);
+    expect(guards[0]?.jobId).toBe(job.id);
+  });
+
+  /**
+   * The lost-lease case, which the read in front of the write cannot close: a
+   * worker that lost its lease "may still be alive, and it will still try to
+   * write" (`queue.ts`), and the queue's fence protects the job row rather than
+   * this Event. So a zombie attempt and the attempt that replaced it can both
+   * read nothing and both try to write, and without a constraint the rep ends
+   * up with two approvable drafts and two send keys.
+   *
+   * Issued together rather than in sequence for that reason: the sequential
+   * case above returns from the read and never reaches the index at all.
+   */
+  it("@proof writes one draft and one guard row when two attempts of a job race", async () => {
+    const actor = await signIn();
+    const { job } = await enqueue(prisma, {
+      orgId: actor.orgId,
+      ownerUserId: actor.userId,
+      kind: "stub_draft",
+      idempotencyKey: "campaignless:stub_draft:zombie",
+      input: { text: "hello" },
+    });
+
+    const [zombie, replacement] = await Promise.all([
+      recordDraftReady(prisma, {
+        orgId: actor.orgId,
+        jobId: job.id,
+        runId: "run_zombie",
+        text: "HELLO",
+      }),
+      recordDraftReady(prisma, {
+        orgId: actor.orgId,
+        jobId: job.id,
+        runId: "run_replacement",
+        text: "HELLO",
+      }),
+    ]);
+
+    // Both calls answer, and both answer with the same Event: the loser's
+    // transaction rolled back on the unique key and it read the winner's row.
+    expect(zombie.id).toBe(replacement.id);
+    expect(await prisma.event.count({ where: { kind: DRAFT_READY } })).toBe(1);
+    expect(
+      (await prisma.sideEffect.findMany({ where: { orgId: actor.orgId } })).map(
+        (guard) => guard.key,
+      ),
+    ).toEqual([draftReadyKey(job.id)]);
+
+    // And the consequence that made it worth closing: one draft is one send
+    // key, so approving cannot enqueue a second send.
+    const approved = await approveStubDraft(prisma, {
+      orgId: actor.orgId,
+      userId: actor.userId,
+      draftEventId: zombie.id,
+    });
+    expect(approved.job.idempotencyKey).toBe(stubSendKey(zombie.id));
+    expect(await prisma.job.count({ where: { kind: "stub_send" } })).toBe(1);
   });
 
   it("records one send per job, and hands back the row it wrote", async () => {

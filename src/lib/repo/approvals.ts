@@ -2,6 +2,7 @@ import type { Event, Job, PrismaClient } from "@prisma/client";
 
 import { enqueue } from "@/lib/jobs/queue";
 import { mutate } from "@/lib/repo/mutate";
+import { isUniqueViolation } from "@/lib/repo/sideEffects";
 
 /**
  * The approval hand-off: how a run that stopped at drafts ready becomes a run
@@ -54,6 +55,26 @@ export function stubSendKey(draftEventId: string): string {
   return `campaignless:${STUB_SEND}:${draftEventId}`;
 }
 
+/**
+ * The `SideEffect` key that makes "one `draft.ready` per job" a constraint.
+ *
+ * `(org_id, key)` is unique (Task 5), and it is the only per-org uniqueness
+ * surface this task can reach without a migration: the job id lives inside the
+ * Event's `after`, and `events` has no index on it. So the row is written in
+ * the same transaction as the Event and the index decides which of two racing
+ * attempts is allowed to have written one.
+ *
+ * `stubSend.ts` says it writes no `SideEffect` row on purpose, and that is not
+ * in tension with this: the objection there is that the table is what a real
+ * send's retry consults to decide whether to send, so a `stub_send:*` key would
+ * suppress the send Task 14 adds. Nothing consults a `draft.ready:*` key except
+ * the unique index itself, and what it claims (this job's draft has been
+ * recorded) is true.
+ */
+export function draftReadyKey(jobId: string): string {
+  return `${DRAFT_READY}:${jobId}`;
+}
+
 /** A draft id that names nothing this org can see. Both cases, deliberately. */
 export class DraftNotFoundError extends Error {
   constructor(draftEventId: string) {
@@ -90,19 +111,22 @@ export type RecordDraftReadyInput = {
  * two `draft.ready` Events for one piece of work, and a rep would be shown the
  * same draft twice.
  *
- * **The read-first check is not a lock, and it does not close the case a lost
- * lease opens.** `queue.ts` is explicit that a worker which lost its lease "may
- * still be alive, and it will still try to write", and the queue's fence
- * protects the *job* row rather than this Event — so a zombie attempt and the
- * attempt that replaced it can both read nothing here and both write. That
- * ends in two approvable drafts with two send keys, and eventually two sends.
+ * **The guard is a unique index, not the read.** The read in front of it is
+ * only there so the ordinary retry does not have to travel as a thrown
+ * constraint violation; it cannot be what makes this safe, because two attempts
+ * can both read nothing. `queue.ts` is explicit that a worker which lost its
+ * lease "may still be alive, and it will still try to write", and the queue's
+ * fence protects the *job* row rather than this Event, so a zombie attempt and
+ * the attempt that replaced it really can arrive here together. What stops them
+ * both writing is `side_effects (org_id, key)`: the Event and a row keyed
+ * `draftReadyKey(jobId)` are written in one transaction, so the loser's insert
+ * violates the index and takes its Event down with it. Exactly one
+ * `draft.ready` survives, so exactly one send key can ever be derived.
  *
- * It is left as a read rather than made sound because the sound version is a
- * unique index, and there is no column to put one on: the job id lives inside
- * `after`, and this task adds no migration. Task 14 replaces the Event with a
- * Draft row, which is where the constraint belongs and where `sideEffects.ts`
- * already shows the shape ("It is not the check that makes this safe... the
- * unique index is"). Named in the pull request rather than left implied.
+ * Task 14 replaces the Event with a Draft row and the constraint moves onto it,
+ * which is where it belongs. Until then this is the same shape `sideEffects.ts`
+ * uses and for the same stated reason: "It is not the check that makes this
+ * safe... the unique index is."
  */
 export async function recordDraftReady(
   db: PrismaClient,
@@ -115,23 +139,38 @@ export async function recordDraftReady(
   const existing = await findDraftReadyForJob(db, input.orgId, input.jobId);
   if (existing !== null) return existing;
 
-  // `apply` does nothing, and that is the honest shape rather than a gap: the
-  // Event *is* the state change here, so there is no row beside it to commit.
-  // It still goes through `mutate` — the lint in `eslint.config.mjs` closes
-  // every other route to an Event, and one written around `mutate` would be an
-  // Event nothing could roll back.
-  await mutate(db, {
-    orgId: input.orgId,
-    actor: { kind: "system" },
-    kind: DRAFT_READY,
-    after: { jobId: input.jobId, runId: input.runId, text: input.text },
-    apply: () => Promise.resolve(null),
-  });
+  // `apply` writes the guard row, and `mutate` is what puts it in the same
+  // transaction as the Event — which is the whole mechanism, and also the
+  // reason this goes through `mutate` rather than around it (the lint in
+  // `eslint.config.mjs` closes every other route to an Event, and one written
+  // outside a transaction would be an Event nothing could roll back).
+  try {
+    await mutate(db, {
+      orgId: input.orgId,
+      actor: { kind: "system" },
+      kind: DRAFT_READY,
+      after: { jobId: input.jobId, runId: input.runId, text: input.text },
+      apply: (tx) =>
+        tx.sideEffect.create({
+          data: { orgId: input.orgId, key: draftReadyKey(input.jobId), jobId: input.jobId },
+        }),
+    });
+  } catch (error) {
+    // The other attempt got there between the read above and this insert. Its
+    // Event is the answer, and it is already committed by the time this error
+    // is raised: Postgres blocks the second inserter on the duplicate key until
+    // the first transaction ends, and only calls it a violation if that ended
+    // in a commit. So the read below cannot miss it.
+    if (!isUniqueViolation(error)) throw error;
+  }
 
+  // Read back rather than returned from the transaction, because on the losing
+  // path the Event that exists is the *winner's* and this call never held it.
   const written = await findDraftReadyForJob(db, input.orgId, input.jobId);
-  // Unreachable: the transaction above committed the row this reads. Checked
-  // rather than asserted, so a future edit to the `after` shape fails here and
-  // not in a caller holding a null it did not expect.
+  // Unreachable: whichever transaction committed, it committed an Event this
+  // query matches. Checked rather than asserted, so a future edit to the
+  // `after` shape fails here and not in a caller holding a null it did not
+  // expect.
   if (written === null) throw new Error("recordDraftReady: the Event was not written");
   return written;
 }
@@ -265,10 +304,18 @@ export async function recordStubSend(
   if (input.jobId.trim() === "") throw new Error("recordStubSend: jobId is required");
   if (input.digest.trim() === "") throw new Error("recordStubSend: digest is required");
 
-  // The same per-job guard `recordDraftReady` keeps, and for the same reason: a
-  // send job that is retried after this Event was written but before the job
-  // could be completed would otherwise leave two `send.recorded` rows for one
-  // send. Carries the same caveat, too — see `recordDraftReady`.
+  // The per-job guard `recordDraftReady` keeps, for the same reason: a send job
+  // retried after this Event was written but before the job could be completed
+  // would otherwise leave two `send.recorded` rows for one send.
+  //
+  // A read and not an index, which is the weaker half of the pair, and
+  // deliberately: the index version wants a `send.recorded:<jobId>` row in
+  // `side_effects`, and that is the one key `stubSend.ts` argues must not exist
+  // yet, because it is what a real send's retry will consult to decide whether
+  // to send. Writing one now would suppress Task 14's first real send. The
+  // exposure is two `send.recorded` Events for one send under a lost lease,
+  // which is a duplicated record rather than a duplicated send, and Task 14
+  // closes it with the send it belongs to.
   const existing = await findEventForJob(db, input.orgId, SEND_RECORDED, input.jobId);
   if (existing !== null) return existing;
 
@@ -302,10 +349,11 @@ export async function recordStubSend(
  * `after->>'jobId'`, which is a migration, and Task 14's Draft row makes it a
  * plain foreign key instead. Named in the pull request.
  *
- * `findFirst` and not `findUnique`, because there is no unique index to lean
- * on: `recordDraftReady` keeps "one per job" by reading before it writes under
- * the queue's lease, not by a constraint. Ordered, so that if that ever stops
- * holding, the answer is the first one written rather than an arbitrary row.
+ * `findFirst` and not `findUnique`, because the constraint that keeps
+ * `draft.ready` to one per job lives on `side_effects` and not on this table:
+ * there is nothing here for `findUnique` to take. Ordered, so that if that ever
+ * stops holding — `send.recorded` has only the read — the answer is the first
+ * one written rather than an arbitrary row.
  */
 async function findEventForJob(
   db: PrismaClient,

@@ -37,6 +37,11 @@ export const approvalsRouter = createTRPCRouter({
           // does not exist, and deliberately the same answer for both: telling
           // the two apart is how an id becomes an oracle for what other orgs
           // hold. The message is the generic one for the same reason.
+          //
+          // Swept like the success line below, and not exempted for being an
+          // error: a refusal is the one line a rep reads when something has
+          // already gone wrong, so it is the worst place for machine words.
+          assertPlainWords(approvalsCopy.notFound);
           throw new TRPCError({ code: "NOT_FOUND", message: approvalsCopy.notFound });
         }
         throw error;

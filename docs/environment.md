@@ -42,7 +42,19 @@ CLERK_SECRET_KEY=""
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
 
 # --- model ----------------------------------------------------------------
+# Relay's agents bill to the Claude subscription, not to an API key (decision,
+# 2026-09-08). This is the token `claude setup-token` prints, and it is the
+# credential the worker reaches for first. Worker only: the app makes no model
+# calls in Phase 1, so it never belongs in a Vercel environment.
+CLAUDE_CODE_OAUTH_TOKEN=""
+# The fallback, used only when no subscription token is set. Never both at once:
+# the provider sends one credential and refuses if given two.
 ANTHROPIC_API_KEY=""
+# A scripted model, as JSON. LOCAL AND TEST ONLY — refused unless NODE_ENV is
+# explicitly "development" or "test", with no carve-out for a build. It exists so
+# the agent runtime can be proved through the real worker process with no
+# credential; see src/lib/agents/stubModel.ts.
+RELAY_AGENT_STUB_MODEL=""
 
 # --- Zoho CRM -------------------------------------------------------------
 RELAY_ZOHO_CLIENT_ID=""
@@ -85,6 +97,23 @@ FIRECRAWL_API_KEY=""
   `src/lib/env.ts` is the one place that decides the bypass applies, and it
   refuses the build carve-out as well, so a build cannot sign anybody in even
   though it can start.
+- **The model credential is the Claude subscription token, and only one
+  credential is ever sent.** `CLAUDE_CODE_OAUTH_TOKEN` reaches the Messages API
+  as `Authorization: Bearer` with the beta header `oauth-2025-04-20`, never as
+  `x-api-key` — which is why `src/lib/agents/provider.ts` uses the provider's
+  `authToken` option rather than `apiKey`. With both variables set the token wins
+  and the key is never read; the provider itself throws if handed both. The token
+  is tied to a person's subscription, so it lives in the worker's own env file
+  and the local shell, and nowhere near Vercel. **The live path is not yet
+  verified**: no successful call has been made on a subscription token through
+  the SDK transport. `scripts/spike/cost-check.ts` is the probe, and if the API
+  refuses it, that is a decision for Benny-san and not a fallback to work around.
+- **`RELAY_AGENT_STUB_MODEL` is refused outside development and test, with no
+  build carve-out.** It scripts the model so the agent runtime can be proved
+  through the real worker process without a credential. A stub model reaching
+  production would be worse than a sign-in bypass: every agent in the org would
+  answer from a fixture and every run would look healthy. `next build` makes no
+  model call, so unlike `DEV_USER_EMAIL` there is nothing to carve out.
 - **`DEV_USER_EMAIL` must be a work address, not a free mailbox provider.** The
   org a sign-in lands in is derived from the email domain, so `@gmail.com`,
   `@outlook.com` and the rest are refused for the bypass exactly as they are

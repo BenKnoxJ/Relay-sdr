@@ -1,17 +1,20 @@
 import type { Job, PrismaClient } from "@prisma/client";
 
+import { echo } from "@/worker/handlers/echo";
 import { noop } from "@/worker/handlers/noop";
 import { sleep } from "@/worker/handlers/sleep";
 
 /**
  * The registry: job kind → the function that does it.
  *
- * Two entries today, and neither of them is real work. `noop` is what proof 5
+ * Three entries today, and none of them is real work. `noop` is what proof 5
  * runs to show a worker can claim and finish a job on Docker Postgres alone,
- * and `sleep` is what proof 2 kills half-way through to show a retry does its
- * side effect once. The agent runtime is Task 6 and lands as more entries in
- * this object; nothing else about the loop changes when it does, which is the
- * point of the shape.
+ * `sleep` is what proof 2 kills half-way through to show a retry does its side
+ * effect once, and `echo` is proof 1's walking skeleton: the agent runtime end to
+ * end on a stub definition, so that the loop, the step records and the cost
+ * arithmetic are proved before a real specialist runs. The specialists are Tasks
+ * 7 and 12 and land as more entries in this object; nothing else about the loop
+ * changes when they do, which is the point of the shape.
  */
 
 /** What every handler is given. The database is passed in, never imported: the
@@ -37,7 +40,7 @@ export type HandlerResult = unknown;
 
 export type Handler = (context: HandlerContext) => Promise<HandlerResult>;
 
-export const handlers: Record<string, Handler> = { noop, sleep };
+export const handlers: Record<string, Handler> = { noop, sleep, echo };
 
 /**
  * The handler for a kind, or undefined. The loop REQUEUES an unknown kind

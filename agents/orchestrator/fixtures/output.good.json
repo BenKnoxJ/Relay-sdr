@@ -1,0 +1,10 @@
+{
+  "step": "pre-fill",
+  "who": "claims ops people at UK insurers",
+  "region": "GB",
+  "howMany": 20,
+  "weeks": 3,
+  "guessed": [
+    "region"
+  ]
+}

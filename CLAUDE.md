@@ -12,7 +12,7 @@ Blank-sheet successor to the parked Sales360 build. Service layers (Zoho CRM, Mi
 
 ## Status
 
-Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. On top of it: the data model and its first migration, Clerk sign-in with the two roles, the job queue with claim/lease/reap, the worker loop, the Graph mail and Zoho service layers, and the design tokens. Still to come — the agent runtime and the product screens: today there is a sign-in route and a placeholder home page and nothing else. Each Phase 1 task lands as one draft PR on `main`.
+Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. On top of it: the data model and its first migration, Clerk sign-in with the two roles, the job queue with claim/lease/reap, the worker loop, the Graph mail and Zoho service layers, and the design tokens. On top of that, the agent runtime: the AI SDK loop with every model call and every tool call recorded as a costed step, the four signed definitions in the repository as the shape the runtime loads, and an `echo` stub proving the loop end to end. Still to come — the product screens, and the first real specialist: today there is a sign-in route and a placeholder home page and nothing else. Each Phase 1 task lands as one draft PR on `main`.
 
 Runtime direction is settled (master doc §24): the AI SDK agent loop in a plain Node worker, durability in Postgres (`jobs` with claim, lease and reaper; `agent_runs`; `agent_run_steps`), approval as database state. **Not** the Claude Agent SDK, and **not** Vercel Workflow or Queues in Phase 1.
 
@@ -42,7 +42,20 @@ src/lib/                     framework-free code, shared by the app and the work
   db.ts                      the only `new PrismaClient()` in the repository
   copy/                      every on-screen string
   repo/mutate.ts             the single write path — the transaction and the Event
+src/lib/agents/              the agent runtime (Task 6)
+  definitions.ts             loads agents/<kind>/ by kind into a typed AgentDefinition
+  run.ts                     runAgent: the loop, one AgentRunStep per model and per tool call
+  tools.ts                   withReplay — a tool call keyed so a retry never re-spends
+  pricing.ts                 the pinned price table, hashed, and integer cost arithmetic
+  provider.ts                the one place a credential becomes a model handle
+  stubModel.ts               a scripted model for tests; refused outside development/test
+src/lib/repo/agentRuns.ts    the write path for agent_runs and agent_run_steps
+agents/<kind>/               one directory per signed definition: definition.md (verbatim),
+                             prompt.md, input.schema.ts, output.schema.ts, rubric.md, fixtures/
+agents/_shared/              Item, Phrase and the derived-confidence rule, shared by
+                             research and outreach
 src/worker/main.ts           the worker entry point — Postgres only, no Next, no Clerk
+src/worker/handlers/echo.ts  the agent runtime end to end on a stub definition (proof 1)
 prisma/schema.prisma         the Phase 1 data model (master doc §25); slice-1 entities follow
 prisma/migrations/           one migration per task, applied by `prisma migrate deploy`
 tests/                       vitest `node` project (Postgres available)
@@ -62,6 +75,12 @@ docker-compose.yml           local Postgres 16 on 127.0.0.1:5435
 
 **Sign-in is default-deny, and the tenant comes from the session.** `src/middleware.ts` protects everything except `/sign-in(.*)`, `/api/health` and `/api/trpc(.*)`; a page gets a redirect and an API caller gets a 401. tRPC is exempt at that layer because it is its own, better gate — `repProcedure` and `adminProcedure` refuse per procedure with a code and message a client can read, where a blanket 401 from the middleware arrives as a body the client cannot deserialise. With neither the Clerk keys nor the bypass configured the middleware refuses everything with a 503 rather than serving a door it cannot lock. `src/server/auth/session.ts` is the only file that talks to Clerk — `getSession()` returns `{clerkId, email, name}` and nothing downstream of it knows Clerk exists, which is what keeps the worker boundary (§18) intact and lets the whole suite run with no Clerk account. `src/server/auth/upsertUser.ts` places that session: the org id is derived from the email domain, so the `orgs` primary key is itself what stops two concurrent first sign-ins creating two orgs, and **the first user of an org is its admin** (§8 — somebody has to onboard the reps) while everyone after is a rep. The writes live in `src/lib/repo/users.ts`, because that is the only directory `mutate` can be called from without tripping the write ban. `repProcedure` and `adminProcedure` put `orgId`, `userId` and `role` on the tRPC context; **every router takes those from `ctx`, never from `input`**, and `eslint.config.mjs` refuses the shape that would do otherwise (`tests/lint/tenantId.test.ts` pins it). The `DEV_USER_EMAIL` bypass is decided in exactly one function, `devBypassEmail()` in `src/lib/env.ts`, read by both the middleware and the session; **no request header carries any part of the signed-in identity**, because a header is client-supplied and one naming the user to sign in as is a forgery away from an authentication bypass.
 
+**The signed agent definitions are the code's input, not something re-derived.** Each agent is a directory under `agents/`: the signed file verbatim as `definition.md`, the system prompt distilled from its method section, its input and output schemas as zod, its rubric, and fixtures. `src/lib/agents/definitions.ts` loads them by kind; `tests/agents/definitions.test.ts` parses every good fixture and rejects every seeded bad one, so a schema that drifts from its contract shows up as a fixture that stops parsing. Three consequences worth knowing. The markdown is read from disk at run time, so **a deploy that ships `dist/` must ship `agents/` beside `package.json`** — the loader walks up to the nearest manifest and looks for `agents/` there (Task 13). `leadgen` has **no prompt and a model-step budget of zero**, because it makes no model calls (`leadgen.v2.signed.md` §0), and `runAgent` refuses a null prompt so the loop cannot be pointed at it. And `runAgent` asserts that the tool set it is given is **exactly** the list the definition declares, in both directions: a tool implemented but not declared is a capability a signed document does not grant, and a tool declared but not implemented is a model call spent discovering that.
+
+**A tool call is keyed so a retry never re-spends, and the key is scoped to the job.** `src/lib/agents/tools.ts` hashes `(orgId, jobId, runKind, toolName, discriminator)` into `agent_run_steps.tool_key`, which is unique per org. A call whose key already has a step returns that step's stored result and does not run; a call whose key is new writes its input, runs, then writes its output, so a worker killed mid-call leaves a row saying what was attempted. Three properties are deliberate and each earned its place. The key excludes the **run** id, because a retry is a new run of the same job and a key that moved with the run would replay nothing. It includes the **job** id — a departure from the brief — because without it the key is a permanent org-wide cache of every search Relay has ever made, and research v2 §5 rule 1 requires a fresh URL found *this run*; the rubric row the key must satisfy (§8 row 9) is about a re-run after a kill, which is one job. And a **failed** call stores its error under a reserved `$toolError` key and a replay of it **rethrows** rather than returning the error envelope as a result, because a model handed `{error: …}` as a search result reasons over it as data.
+
+**`assertPlainWords` is applied to what an agent wrote, never to what it quoted.** Research v2 §3 says "`assertPlainWords` on every string", and taken literally that is the one use `src/lib/copy/plainWords.ts` documents as wrong: its banned list is ordinary English and thirteen first names, so a buyer quote mentioning a pipeline, a firm called Vector Capital and the Lusha facet names in `recipe` would all be refused for being true. Each output schema therefore exports an `authoredText` function naming the strings the agent itself composed, and checks those. Outreach is the exception and keeps the check on the whole body, because §12 row 12 is explicit about it and a false positive there costs one redraft, which §7 already budgets for.
+
 **The data model is `orgId` on every row.** `prisma/schema.prisma` holds the Phase 1 half of master doc §25 — Org, User, ConnectedAccount, OAuthState, Event, Job, AgentRun, AgentRunStep, ProductFactsVersion, SideEffect — with cuid ids, snake_case `@map` names and `created_at`/`updated_at` on every table. Two exceptions, both deliberate: `orgs` has no `org_id` because it *is* the org, and `events` has no `updated_at` because an Event that can be edited is not a record of anything. No relation uses `onDelete: Cascade`; every one states `Restrict`, because nothing is deleted. `tests/db/migrate.test.ts` rebuilds the schema from empty and reads `information_schema` back, so these are checked properties of the migration rather than claims about the Prisma file.
 
 ## Commands
@@ -77,6 +96,7 @@ docker-compose.yml           local Postgres 16 on 127.0.0.1:5435
 | Build | `npm run build` |
 | Test | `npm run test` |
 | Spike proofs only | `npm run proofs` |
+| Proof 1, live (needs a credential) | `npx tsx scripts/spike/cost-check.ts` |
 | Dependency audit | `npm run audit` (needs the registry) |
 | Worker, one pass | `npm run worker -- --once` |
 | Worker bundle | `npm run worker:build` → `dist/worker/main.js` |
@@ -87,13 +107,20 @@ Environment: every variable, with placeholders, is listed in `docs/environment.m
 
 **The `DEV_USER_EMAIL` sign-in bypass needs an explicit `development` or `test` environment; silence means production.** An unset or blank `NODE_ENV` resolves to `production` and the bypass is refused, because the one process that runs without a framework setting `NODE_ENV` for it is the worker, and a line missing from a unit file must not read as permission. `next build` is carved out on `NEXT_PHASE=phase-production-build` — a build serves no request. That carve-out is inferred from Next's documented behaviour, not yet confirmed against Vercel's serverless bundling: **Task 13 verifies it on a Vercel preview with a diagnostic log line** before real credentials sit behind the guard.
 
-### AI SDK — verified export names (`ai@7.0.93`, `@ai-sdk/anthropic@4.0.49`, install of 2026-09-07)
+### AI SDK — verified export and option names (`ai@7.0.93`, `@ai-sdk/anthropic@4.0.49`, install of 2026-09-07)
 
-Read off the installed package, not assumed. Re-check on upgrade.
+Read off the installed package and, where marked, confirmed by running it. Not assumed. Re-check on upgrade.
 
-- Multi-step / agent loop: `ToolLoopAgent`, `Experimental_Agent`; stop conditions via `stepCountIs`.
+- Multi-step / agent loop: `generateText` with `stopWhen: stepCountIs(n)`; `ToolLoopAgent` and `Experimental_Agent` also exist and are not used.
+- Structured output: the option is **`output`**, not `experimental_output`, and it takes `Output.object({ schema })`. With tools in play the answer arrives as the **final model call's text**, so it is an ordinary step and is counted as one — there is no extra call. Reading `result.output` when the loop produced none throws `NoOutputGeneratedError`; a malformed answer throws a `TypeValidationError` from **inside** `generateText`, often wrapped as the `cause` of a `NoObjectGeneratedError`.
+- Step callbacks: **`onStepFinish` is a deprecated alias for `onStepEnd`**, and `onStepEnd` fires *after* the step's tool calls have run. Use **`onLanguageModelCallEnd`** to record a model call — it fires immediately after the call and before any tool executes, and carries `usage`, `finishReason`, `responseId`, `modelId`, `providerMetadata` and `performance`. Verified empirically: three model calls and two tool calls come out in the order they happened.
+- **Callback exceptions are swallowed.** `ai` dispatches these callbacks inside `try { await … } catch {}`, so a throw is discarded and the loop carries on. Anything whose job is to record what a call cost must capture its own failure and abort the run; `src/lib/agents/run.ts` does.
+- **`abortSignal` is not checked before the first call.** `generateText` dispatches the request and lets the transport reject, so a run starting on an already-lost lease can still spend. Check the signal yourself first.
+- Usage shape (`LanguageModelUsage`): `inputTokens` (the **total**), `inputTokenDetails.{noCacheTokens,cacheReadTokens,cacheWriteTokens}`, `outputTokens` (the total, reasoning **included**), `outputTokenDetails.{textTokens,reasoningTokens}`, `totalTokens`, `raw`. `@ai-sdk/anthropic` builds `inputTokens.total` as `noCache + cacheRead + cacheWrite`, so pricing the total *and* the details double-charges cached tokens, and pricing reasoning on top of `outputTokens` double-charges reasoning. `src/lib/agents/pricing.ts` prices the details and the output total, and nothing else.
+- Provider credentials: `createAnthropic({ authToken })` sends `Authorization: Bearer` and does **not** set `x-api-key`; `createAnthropic({ apiKey })` sets `x-api-key`. Passing both throws. That is the whole of the one-credential rule.
+- Provider-level shapes (for a hand-written `LanguageModelV4`): `finishReason` is `{ unified, raw }` and **not** a bare string — a bare string reads as `undefined` at `.unified`, the loop sees no tool call, and a test silently "proves" a one-step run. Usage is nested: `{ inputTokens: {total,noCache,cacheRead,cacheWrite}, outputTokens: {total,text,reasoning}, totalTokens }`.
 - Test doubles (from `ai/test`): `MockLanguageModelV4`, `MockLanguageModelV3`, `simulateReadableStream`, `convertArrayToReadableStream`.
-- Both packages declare `zod: ^3.25.76 || ^4.1.8`; this repo is on zod 3.25.76.
+- Both packages declare `zod: ^3.25.76 || ^4.1.8`; this repo is on zod 3.25.76. **zod 3's `discriminatedUnion` takes plain `ZodObject`s**, so a member carrying a `superRefine` is rejected — cross-field rules go on the union.
 
 ## Workflow
 

@@ -1,0 +1,13 @@
+{
+  "kind": "message",
+  "subject": "Reading every claims call, not one in fifty",
+  "body": "Helen, you told the trade press in June that complaint handling was being rebuilt and that quality checking was the first thing you wanted fixed. Most claims teams I speak to are reading about one call in fifty and finding the habit weeks after it started. We read every recorded call instead, so the pattern shows up in the first week rather than the next quarter. Would it help to see a week of your own calls read back?",
+  "ask": "Would it help to see a week of your own calls read back?",
+  "opener": {
+    "ref": "look-westbury-rebuild",
+    "kind": "person_fact"
+  },
+  "claims": [
+    "i360.live-assist"
+  ]
+}

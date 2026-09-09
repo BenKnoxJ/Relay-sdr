@@ -50,6 +50,47 @@ beforeEach(async () => {
 });
 
 describe("dist/worker/main.js", () => {
+  it("finds the agents/ directory from inside the bundle", async () => {
+    // The one thing in the agent runtime that the bundle cannot carry. Every
+    // schema is TypeScript and gets bundled; `definition.md`, `prompt.md` and
+    // `rubric.md` are markdown read at run time, and `agentsDir()` finds them by
+    // walking up from the module to the nearest `package.json` and looking for
+    // `agents/` beside it. From `src/lib/agents` that is the repository root;
+    // from `dist/worker` it has to be the same answer, and a deploy that ships
+    // `dist/` without `agents/` is the failure this catches — at boot, in CI,
+    // rather than on the first real run.
+    const { job } = await enqueue(prisma, {
+      orgId: ORG_ID,
+      kind: "echo",
+      idempotencyKey: "bundle-echo",
+      input: { text: "hello" },
+    });
+
+    const worker = spawnBundledWorker(["--once"], {
+      NODE_ENV: "test",
+      RELAY_AGENT_STUB_MODEL: JSON.stringify({
+        calls: [
+          { tool: { name: "shout", args: { text: "hello" } }, usage: { in: 100, out: 10 } },
+          { text: JSON.stringify({ text: "HELLO" }), usage: { in: 120, out: 12 } },
+        ],
+      }),
+    });
+    const finished = await worker.done;
+
+    expect(finished.stderr).toBe("");
+    expect(finished.code).toBe(0);
+
+    const after = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
+    expect(after.status).toBe("done");
+
+    const run = await prisma.agentRun.findFirstOrThrow({ where: { jobId: job.id } });
+    expect(run.status).toBe("done");
+    expect(run.costTotal.greaterThan(0)).toBe(true);
+    // Three steps: two model calls and the tool between them. The prompt that
+    // produced them was read off disk by the bundle.
+    expect(await prisma.agentRunStep.count({ where: { runId: run.id } })).toBe(3);
+  });
+
   it("claims and completes a job under plain node, with no tsx loader", async () => {
     const { job } = await enqueue(prisma, {
       orgId: ORG_ID,

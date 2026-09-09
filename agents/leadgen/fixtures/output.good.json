@@ -1,0 +1,69 @@
+{
+  "phase": "pick",
+  "chosen": [
+    {
+      "id": "p1",
+      "lushaId": "l-1001",
+      "name": "Helen Marsh",
+      "title": "Claims Operations Director",
+      "company": "Northgate Claims Services",
+      "domain": "northgateclaims.co.uk",
+      "country": "GB",
+      "hasEmail": true,
+      "score": 7,
+      "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+      "rank": 1,
+      "companyKey": "northgateclaims.co.uk"
+    },
+    {
+      "id": "p2",
+      "lushaId": "l-1002",
+      "name": "Daniel Okafor",
+      "title": "Head of Claims",
+      "company": "Westbury Mutual",
+      "domain": "westburymutual.co.uk",
+      "country": "GB",
+      "hasEmail": true,
+      "score": 6,
+      "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+      "rank": 2,
+      "companyKey": "westburymutual.co.uk"
+    }
+  ],
+  "spare": [
+    {
+      "id": "p3",
+      "lushaId": "l-1003",
+      "name": "Priya Nandra",
+      "title": "Claims Quality Manager",
+      "company": "Calder Insurance Group",
+      "domain": "calderinsurance.co.uk",
+      "country": "GB",
+      "hasEmail": true,
+      "score": 4,
+      "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+      "rank": 3,
+      "companyKey": "calderinsurance.co.uk"
+    }
+  ],
+  "estimate": {
+    "pages": 2,
+    "reveals": 2,
+    "credits": 4,
+    "remainingAfter": 96
+  },
+  "found": {
+    "n": 2,
+    "ofM": 9
+  },
+  "holdsApplied": [
+    {
+      "reason": "customer",
+      "count": 3
+    },
+    {
+      "reason": "open_deal",
+      "count": 1
+    }
+  ]
+}

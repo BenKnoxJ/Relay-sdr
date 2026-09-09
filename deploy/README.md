@@ -23,12 +23,14 @@ The names, and nothing else — values are Benny-san's:
 | `NODE_ENV` | `production`. Also what makes `db:deploy` refuse a local database. |
 | `INTEGRATIONS` | `live` or `mock`. |
 | `TOKEN_ENC_KEY` | Required when `INTEGRATIONS=live`; provider tokens are stored encrypted. |
-| `ANTHROPIC_API_KEY` | Agent steps. |
+| `ANTHROPIC_API_KEY` | Agent steps, fallback only: the Messages API path when no subscription token is set. |
 | `TAVILY_API_KEY`, `FIRECRAWL_API_KEY` | Research tools. |
 | `RELAY_MS_TENANT_ID`, `RELAY_MS_CLIENT_ID`, `RELAY_MS_CLIENT_SECRET` | Microsoft Graph. |
 | `RELAY_ZOHO_CLIENT_ID`, `RELAY_ZOHO_CLIENT_SECRET`, `RELAY_ZOHO_REFRESH_TOKEN`, `ZOHO_CRM_BASE_URL` | Zoho CRM. |
 
-Optional, with defaults in `src/lib/env.ts`: `RELAY_WORKER_POLL_MS` (2000), `RELAY_WORKER_LEASE_MS` (120000), `RELAY_WORKER_DRAIN_MS` (540000).
+Optional, with defaults in `src/lib/env.ts`: `RELAY_WORKER_POLL_MS` (2000), `RELAY_WORKER_LEASE_MS` (120000), `RELAY_WORKER_DRAIN_MS` (540000), `RELAY_AGENT_HOME` (`~/.relay/agent-home`; the unit sets it).
+
+The model transport on the subscription token is the Claude Agent SDK, installed as a workspace package under `vendor/claude-code-bridge` with its own zod 4 (see the comment in `vendor/claude-code-bridge/index.js`). `npm ci` installs it beside the root; `worker:build` leaves it external, so `dist/worker/main.js` needs `node_modules/` and `vendor/` beside it exactly as `agents/` is needed. The SDK spawns its own bundled binary — nothing on `PATH` is required.
 
 A misconfigured worker does not start. It exits 1 having written one JSON object to stderr with `"event":"failed"` and the offending names — so `systemctl --user status relay-worker` and the journal say what is wrong, rather than a stack trace.
 

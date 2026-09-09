@@ -5,13 +5,13 @@
  * recorded step to the provider's own usage and every recorded cost to the pinned
  * price table. Exits non-zero on any mismatch, so it is a gate and not a report.
  *
- * It is also the script that answers decision **D2**. Relay's agents bill to the
- * Claude subscription (decision, 2026-09-08), and the token has to reach the API
- * through the AI SDK provider because §24 forbids `claude -p` in the worker. That
- * path has never been exercised: if Anthropic refuses a subscription token for a
- * product worker, this is where it says so, and the answer goes to Benny-san
- * rather than being worked around. There is no fallback to the Agent SDK here and
- * there must not be one.
+ * It answered decision **D2** on 2026-09-09: the Messages API refuses the
+ * subscription token (`reviews/2026-09-09-spike-runtime-live-D2.md`), and
+ * Benny-san's decision was to keep the subscription and change the transport.
+ * With a token set the run now goes over the Claude Agent SDK (Task 6c), and the
+ * table gains a second check: every model's recorded cost against the SDK's own
+ * `modelUsage[model].costUSD`, which is computed independently, at list price,
+ * by the subprocess. With an API key set it goes over the Messages API as before.
  *
  * ## Running it
  *
@@ -34,7 +34,7 @@ import { randomUUID } from "node:crypto";
 import { echoTools } from "../../agents/echo/tools";
 import { loadDefinition } from "@/lib/agents/definitions";
 import { cost, PRICE_TABLE_SHA256 } from "@/lib/agents/pricing";
-import { credentialKind, makeModel } from "@/lib/agents/provider";
+import { credentialKind, makeModel, transportFor } from "@/lib/agents/provider";
 import { runAgent } from "@/lib/agents/run";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -100,7 +100,7 @@ async function main(): Promise<number> {
       continue;
     }
     const meta = step.providerMeta as
-      | { usage?: Record<string, number>; rawUsage?: RawUsage | null }
+      | { usage?: Record<string, number>; rawUsage?: RawUsage | null; source?: string }
       | null;
     const usage = meta?.usage;
     if (usage === undefined) {
@@ -118,7 +118,12 @@ async function main(): Promise<number> {
     // the comparison proof 1 is actually asking for.
     const raw = meta?.rawUsage;
     if (raw === undefined || raw === null) {
-      tokenProblems.push("no raw provider usage stored; nothing to compare the row against");
+      if (meta?.source === undefined) {
+        tokenProblems.push("no raw provider usage stored; nothing to compare the row against");
+      }
+      // A reconciliation row has no wire block of its own: it is the difference
+      // between the SDK's per-model total and the turns recorded, and the
+      // table below is where it is checked.
     } else {
       const wire = fromWire(raw);
       if (step.tokensIn !== wire.tokensIn) tokenProblems.push(`tokensIn ${step.tokensIn} vs wire ${wire.tokensIn}`);
@@ -138,6 +143,9 @@ async function main(): Promise<number> {
       if (usage.tokensCacheWrite !== wire.tokensCacheWrite) {
         tokenProblems.push(`cacheWrite ${usage.tokensCacheWrite} vs wire ${wire.tokensCacheWrite}`);
       }
+      if (usage.tokensCacheWrite1h !== wire.tokensCacheWrite1h) {
+        tokenProblems.push(`cacheWrite1h ${usage.tokensCacheWrite1h} vs wire ${wire.tokensCacheWrite1h}`);
+      }
     }
 
     const expected = cost(
@@ -146,9 +154,12 @@ async function main(): Promise<number> {
         tokensInUncached: usage.tokensInUncached ?? 0,
         tokensCacheRead: usage.tokensCacheRead ?? 0,
         tokensCacheWrite: usage.tokensCacheWrite ?? 0,
+        tokensCacheWrite1h: usage.tokensCacheWrite1h ?? 0,
         tokensOut: usage.tokensOut ?? 0,
       },
-      MODEL,
+      // The step's own model: on the Agent SDK a run also records the
+      // subprocess's Haiku call under its own id.
+      step.name,
     );
     const delta = Math.abs(Number(step.cost.toString()) - Number(expected));
     if (delta > COST_TOLERANCE) tokenProblems.push(`cost ${step.cost.toString()} vs ${expected}`);
@@ -158,7 +169,7 @@ async function main(): Promise<number> {
 
     if (tokenProblems.length > 0) mismatches += 1;
     rows.push(
-      `| ${step.index} | model | ${step.tokensIn} | ${step.tokensOut} | ${step.tokensCached} | ${step.tokensReasoning} | ${step.cost.toString()} | ${expected} | ${tokenProblems.length === 0 ? "ok" : `**${tokenProblems.join("; ")}**`} |`,
+      `| ${step.index} | model: ${step.name}${meta?.source === undefined ? "" : " (reconciliation)"} | ${step.tokensIn} | ${step.tokensOut} | ${step.tokensCached} | ${step.tokensReasoning} | ${step.cost.toString()} | ${expected} | ${tokenProblems.length === 0 ? "ok" : `**${tokenProblems.join("; ")}**`} |`,
     );
   }
 
@@ -171,14 +182,39 @@ async function main(): Promise<number> {
   const runMicro = BigInt(result.run.costTotal.mul(1_000_000).toFixed(0));
   if (summedMicro !== runMicro) mismatches += 1;
 
+  // The second check, on the Agent SDK only: the SDK's own cost per model,
+  // computed by the subprocess at list price, against what this ledger recorded
+  // under that model. Two independent arithmetics over the same wire usage.
+  const sdkRows: string[] = [];
+  if (result.sdk !== undefined) {
+    const recordedByModel = new Map<string, bigint>();
+    for (const step of result.steps) {
+      if (step.kind !== "model") continue;
+      recordedByModel.set(step.name, (recordedByModel.get(step.name) ?? 0n) + BigInt(step.cost.mul(1_000_000).toFixed(0)));
+    }
+    for (const [key, entry] of Object.entries(result.sdk.modelUsage)) {
+      const id = (entry.canonicalModel ?? key).replace(/-\d{8}$/, "");
+      const recorded = Number(recordedByModel.get(id) ?? 0n) / 1_000_000;
+      const delta = Math.abs(recorded - entry.costUSD);
+      if (delta > COST_TOLERANCE) mismatches += 1;
+      sdkRows.push(
+        `| ${id} | ${entry.inputTokens} | ${entry.outputTokens} | ${entry.cacheReadInputTokens} | ${entry.cacheCreationInputTokens} | ${recorded.toFixed(6)} | ${entry.costUSD.toFixed(6)} | ${delta <= COST_TOLERANCE ? "ok" : "**DIFFERENT**"} |`,
+      );
+    }
+    const sdkTotal = result.sdk.totalCostUsd;
+    const runTotal = Number(runMicro) / 1_000_000;
+    if (Math.abs(sdkTotal - runTotal) > COST_TOLERANCE) mismatches += 1;
+    sdkRows.push("", `SDK total_cost_usd: ${sdkTotal.toFixed(6)} · run costTotal: ${runTotal.toFixed(6)} · turns: ${result.sdk.numTurns} · ${Math.abs(sdkTotal - runTotal) <= COST_TOLERANCE ? "equal" : "**DIFFERENT**"}`);
+  }
+
   console.log(
     [
       "# Relay runtime spike — proof 1, live",
       "",
       `- run at: ${new Date().toISOString()}`,
-      `- credential: ${credential}`,
+      `- credential: ${credential} · transport: ${transportFor(credential)} (run: ${result.transport})`,
       `- model: ${MODEL}`,
-      `- ai: ${await version("ai")} · @ai-sdk/anthropic: ${await version("@ai-sdk/anthropic")}`,
+      `- ai: ${await version("ai")} · @ai-sdk/anthropic: ${await version("@ai-sdk/anthropic")} · ai-sdk-provider-claude-code: ${await bridgeVersion()}`,
       `- price table sha256: ${PRICE_TABLE_SHA256}`,
       `- run: ${result.run.id} (${result.run.status}) · steps: ${result.steps.length} · replayed tool calls: ${result.replayedToolCalls}`,
       `- wall clock: ${Date.now() - started} ms`,
@@ -189,6 +225,16 @@ async function main(): Promise<number> {
       ...rows,
       "",
       `costTotal: ${result.run.costTotal.toString()} · steps summed: ${(Number(summedMicro) / 1_000_000).toFixed(6)} · ${summedMicro === runMicro ? "equal" : "**DIFFERENT**"}`,
+      ...(sdkRows.length === 0
+        ? []
+        : [
+            "",
+            "Agent SDK reconciliation (the SDK's `modelUsage`, priced by the subprocess, against the rows recorded under each model):",
+            "",
+            "| model | sdk in | sdk out | sdk cacheRead | sdk cacheWrite | recorded cost | sdk costUSD | verdict |",
+            "|---|---|---|---|---|---|---|---|",
+            ...sdkRows,
+          ]),
       "",
       mismatches === 0 ? "**PASS** — every row equals the response." : `**FAIL** — ${mismatches} mismatch(es) above.`,
     ].join("\n"),
@@ -209,6 +255,7 @@ type RawUsage = {
   output_tokens?: number;
   cache_read_input_tokens?: number | null;
   cache_creation_input_tokens?: number | null;
+  cache_creation?: { ephemeral_1h_input_tokens?: number | null } | null;
   output_tokens_details?: { thinking_tokens?: number | null } | null;
 };
 
@@ -217,6 +264,7 @@ function fromWire(raw: RawUsage): {
   tokensInUncached: number;
   tokensCacheRead: number;
   tokensCacheWrite: number;
+  tokensCacheWrite1h: number;
   tokensOut: number;
   tokensReasoning: number;
 } {
@@ -230,9 +278,18 @@ function fromWire(raw: RawUsage): {
     tokensInUncached: uncached,
     tokensCacheRead: cacheRead,
     tokensCacheWrite: cacheWrite,
+    tokensCacheWrite1h: raw.cache_creation?.ephemeral_1h_input_tokens ?? 0,
     tokensOut: raw.output_tokens ?? 0,
     tokensReasoning: raw.output_tokens_details?.thinking_tokens ?? 0,
   };
+}
+
+/** The bridge's version, read through the vendored package. */
+async function bridgeVersion(): Promise<string> {
+  const manifest = (await import("../../vendor/claude-code-bridge/node_modules/ai-sdk-provider-claude-code/package.json", {
+    with: { type: "json" },
+  })) as { default: { version: string } };
+  return manifest.default.version;
 }
 
 async function version(pkg: string): Promise<string> {

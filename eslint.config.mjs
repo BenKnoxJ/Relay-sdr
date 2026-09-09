@@ -296,7 +296,7 @@ const WRITE_PATH = ["src/lib/repo/**/*.{ts,tsx}", "src/lib/jobs/queue.ts"];
 
 const config = [
   {
-    ignores: [".next/**", "dist/**", "node_modules/**", "next-env.d.ts"],
+    ignores: [".next/**", "dist/**", "node_modules/**", "next-env.d.ts", "vendor/**"],
   },
 
   ...compat.extends("next/core-web-vitals", "next/typescript"),

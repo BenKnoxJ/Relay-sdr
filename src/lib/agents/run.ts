@@ -12,7 +12,16 @@ import {
 } from "ai";
 
 import type { AgentDefinition } from "@/lib/agents/definitions";
-import { costMicroDollars, formatMicroDollars, type PricedModel, type StepUsage } from "@/lib/agents/pricing";
+import {
+  asRunModel,
+  type AgentSdkModelUsage,
+  type AgentSdkObserver,
+  type AgentSdkResult,
+  type AnthropicUsage,
+  type ModelTransport,
+  type RunModel,
+} from "@/lib/agents/model";
+import { costMicroDollars, formatMicroDollars, isPricedModel, type PricedModel, type StepUsage } from "@/lib/agents/pricing";
 import { createToolRecorder, type ToolRecorder } from "@/lib/agents/tools";
 import { appendModelStep, finishRun, listSteps, startRun } from "@/lib/repo/agentRuns";
 
@@ -54,6 +63,29 @@ import { appendModelStep, finishRun, listSteps, startRun } from "@/lib/repo/agen
  * here captures its own failure and aborts the run's controller. The run ends
  * `failed`, with the first failure as the reason, and the API stops being
  * called.
+ *
+ * ## Two transports, one ledger
+ *
+ * On the Messages API the AI SDK owns the loop and the paragraph above is the
+ * whole story. On the Claude Agent SDK (the subscription transport, Task 6c)
+ * the loop runs inside the SDK's subprocess and the AI SDK sees **one** call
+ * for the whole run, with the usage summed. A row per model call therefore
+ * comes from the SDK's own message stream instead: `provider.agentSdkSettings`
+ * hands every assistant message and the closing result to an observer built
+ * here, and the observer appends one `model` step per assistant turn — the
+ * Messages API's own usage block, per message, priced from the pinned table —
+ * and skips the summed call. Tool steps need nothing: the MCP server the model
+ * calls runs the tools' own `execute`, in this process, through `withReplay`.
+ *
+ * The SDK's closing `modelUsage` is the reconciliation. It is the SDK's own
+ * per-model totals for the query, and it includes calls the message stream does
+ * not show — the subprocess makes a small Haiku call of its own on every run.
+ * Whatever a model's totals exceed the turns already recorded by is written as
+ * one more `model` step under that model's canonical id, so the run total is
+ * the whole run and not the visible part of it; a model the price table does
+ * not know fails the run (`step-record`), because a cost that cannot be
+ * computed must not be recorded as zero. The observer's failures abort the run
+ * the same way a swallowed callback's do.
  */
 
 /** Why a run ended without an answer. */
@@ -96,8 +128,15 @@ export type RunAgentContext = {
   db: PrismaClient;
   orgId: string;
   jobId: string;
-  /** The model handle, from `provider.makeModel`. */
-  model: LanguageModel;
+  /**
+   * The model handle, from `provider.makeModel`, or a bare model.
+   *
+   * A bare `LanguageModel` is the in-process shape (the scripted model the
+   * tests use, or the Messages API); a `RunModel` says which transport it is
+   * on, which decides where the ledger reads a model call from. See
+   * `src/lib/agents/model.ts`.
+   */
+  model: LanguageModel | RunModel;
   /** The pinned id the price table knows. Recorded on the run and on every model step. */
   modelId: PricedModel;
   /** Aborted when the lease is lost or the worker drains. */
@@ -133,6 +172,10 @@ export type RunAgentResult<OUT> = {
   steps: AgentRunStep[];
   /** How many tool calls were served from a stored step instead of run. */
   replayedToolCalls: number;
+  /** Which transport the run went over. */
+  transport: ModelTransport;
+  /** The Agent SDK's closing result, when that was the transport: its own totals, to reconcile against. */
+  sdk?: AgentSdkResult;
 };
 
 export type RunAgentOptions<IN, OUT> = {
@@ -229,16 +272,39 @@ export async function runAgent<IN, OUT>({
     controller.abort(error instanceof Error ? error : new Error(String(error)));
   };
 
+  const handle = asRunModel(ctx.model);
+  // On the Agent SDK the ledger reads the SDK's message stream; see the module
+  // comment. Built after the run row exists because its rows carry the run id.
+  const sdk =
+    handle.transport === "agent-sdk"
+      ? agentSdkLedger({
+          ctx,
+          runId: run.id,
+          takeIndex,
+          addCost: (micro) => {
+            costMicro += micro;
+          },
+          fail: noteCallbackFailure,
+        })
+      : null;
+  const model =
+    handle.transport === "agent-sdk"
+      ? handle.forRun({ tools, maxTurns: definition.budget.maxModelSteps, observe: sdk!.observer })
+      : handle.model;
+
   try {
     let generated: Awaited<ReturnType<typeof generateText>>;
     try {
       generated = await generateText({
-        model: ctx.model,
+        model,
         system: definition.prompt,
         // The input as the user turn. JSON rather than prose because the input
         // is a schema and the agent's prompt is written against that schema.
         prompt: JSON.stringify(parsedInput, null, 2),
-        tools,
+        // On the Agent SDK the tools are already on the model, as an MCP server
+        // (`provider.agentSdkSettings`); given here as well, the AI SDK would
+        // try to run a call the subprocess has already run.
+        ...(sdk === null ? { tools } : {}),
         stopWhen: stepCountIs(definition.budget.maxModelSteps),
         abortSignal: controller.signal,
         // `output`, not `experimental_output`: read off the installed types.
@@ -246,6 +312,10 @@ export async function runAgent<IN, OUT>({
         // call's text, so it is a step like any other and is counted like one.
         output: Output.object({ schema: definition.output }),
         onLanguageModelCallEnd: async (event) => {
+          // On the Agent SDK this fires once, for the whole run, with the usage
+          // summed over every turn — the rows were written per turn by the
+          // observer, and this would be the same tokens a second time.
+          if (sdk !== null) return;
           try {
             const usage = normaliseUsage(event.usage);
             const micro = costMicroDollars(usage, ctx.modelId);
@@ -283,6 +353,20 @@ export async function runAgent<IN, OUT>({
       if (aborted(ctx.signal) || controller.signal.aborted) {
         throw await failRun(ctx, run, costMicro, "aborted", "the run was aborted", error, scrub);
       }
+      // The SDK's cap. Its closing message said `error_max_turns` before the
+      // bridge threw, and the observer noted it; the throw itself is a generic
+      // API error whose message is not something to match on.
+      if (sdk?.capped === true) {
+        throw await failRun(
+          ctx,
+          run,
+          costMicro,
+          "cap",
+          `stopped at the ${definition.budget.maxModelSteps}-step cap with no answer`,
+          error,
+          scrub,
+        );
+      }
       // `Output.object` validates the final answer *inside* the loop, so a
       // malformed answer arrives here as a thrown validation error rather than
       // as a failed read below. Both paths are the same outcome — no answer in
@@ -306,7 +390,7 @@ export async function runAgent<IN, OUT>({
       // model kept calling tools until `stopWhen` stopped it — and it is told
       // apart from a malformed answer by the step count, not by the message.
       if (isMissingOutput(error)) {
-        const capped = generated.steps.length >= definition.budget.maxModelSteps;
+        const capped = sdk === null ? generated.steps.length >= definition.budget.maxModelSteps : sdk.capped;
         throw await failRun(
           ctx,
           run,
@@ -362,6 +446,8 @@ export async function runAgent<IN, OUT>({
       run: closed,
       steps: await listSteps(ctx.db, { orgId: ctx.orgId, runId: run.id }),
       replayedToolCalls: recorder.replayed,
+      transport: handle.transport,
+      ...(sdk?.result === undefined ? {} : { sdk: sdk.result }),
     };
   } finally {
     unlink();
@@ -415,14 +501,188 @@ async function failRun(
  */
 export function normaliseUsage(usage: LanguageModelUsage): StepUsage & { tokensReasoning: number } {
   const zero = (value: number | undefined): number => value ?? 0;
+  // The one-hour share of the cache writes is not in the SDK's shape; it is in
+  // the provider's raw block, which `@ai-sdk/anthropic` passes through as
+  // `raw`. Absent means none, which is the five-minute default.
+  const raw = usage.raw as AnthropicUsage | undefined;
   return {
     tokensIn: zero(usage.inputTokens),
     tokensInUncached: zero(usage.inputTokenDetails?.noCacheTokens),
     tokensCacheRead: zero(usage.inputTokenDetails?.cacheReadTokens),
     tokensCacheWrite: zero(usage.inputTokenDetails?.cacheWriteTokens),
+    tokensCacheWrite1h: zero(raw?.cache_creation?.ephemeral_1h_input_tokens),
     tokensOut: zero(usage.outputTokens),
     tokensReasoning: zero(usage.outputTokenDetails?.reasoningTokens),
   };
+}
+
+/**
+ * The Messages API's own usage block, as the Agent SDK relays it per assistant
+ * message, flattened the same way. `input_tokens` on the wire is the
+ * **non-cached** count, so the total is built from the three parts, exactly as
+ * `@ai-sdk/anthropic` builds it.
+ */
+export function usageFromAnthropic(usage: AnthropicUsage): StepUsage & { tokensReasoning: number } {
+  const input = usage.input_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  return {
+    tokensIn: input + cacheRead + cacheWrite,
+    tokensInUncached: input,
+    tokensCacheRead: cacheRead,
+    tokensCacheWrite: cacheWrite,
+    tokensCacheWrite1h: usage.cache_creation?.ephemeral_1h_input_tokens ?? 0,
+    tokensOut: usage.output_tokens ?? 0,
+    tokensReasoning: usage.output_tokens_details?.thinking_tokens ?? 0,
+  };
+}
+
+/** A model id as the price table spells it: the SDK keys some usage by a dated alias. */
+export function canonicalModelId(id: string): string {
+  return id.replace(/-\d{8}$/, "");
+}
+
+type Totals = { tokensInUncached: number; tokensCacheRead: number; tokensCacheWrite: number; tokensOut: number };
+
+/**
+ * The Agent SDK half of the ledger. See the module comment, "Two transports".
+ */
+function agentSdkLedger(args: {
+  ctx: RunAgentContext;
+  runId: string;
+  takeIndex: () => number;
+  addCost: (micro: bigint) => void;
+  fail: (error: unknown) => void;
+}): { observer: AgentSdkObserver; readonly capped: boolean; readonly result: AgentSdkResult | undefined } {
+  const { ctx, runId, takeIndex, addCost, fail } = args;
+  /** Tokens already written as turn steps, by canonical model id. */
+  const recorded = new Map<string, Totals>();
+  let capped = false;
+  let result: AgentSdkResult | undefined;
+
+  const note = (id: string, usage: StepUsage): void => {
+    const totals = recorded.get(id) ?? { tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensOut: 0 };
+    totals.tokensInUncached += usage.tokensInUncached;
+    totals.tokensCacheRead += usage.tokensCacheRead;
+    totals.tokensCacheWrite += usage.tokensCacheWrite;
+    totals.tokensOut += usage.tokensOut;
+    recorded.set(id, totals);
+  };
+
+  const observer: AgentSdkObserver = {
+    async onTurn(turn) {
+      try {
+        const usage = usageFromAnthropic(turn.usage);
+        // Priced under the pinned id, as on the other transport: the row says
+        // which price-table entry produced its cost, and a response naming a
+        // different model shows up as `responseModelId`.
+        const micro = costMicroDollars(usage, ctx.modelId);
+        addCost(micro);
+        note(canonicalModelId(turn.model), usage);
+        await appendModelStep(ctx.db, {
+          orgId: ctx.orgId,
+          runId,
+          index: takeIndex(),
+          name: ctx.modelId,
+          tokensIn: usage.tokensIn,
+          tokensOut: usage.tokensOut,
+          tokensCached: usage.tokensCacheRead,
+          tokensReasoning: usage.tokensReasoning,
+          cost: formatMicroDollars(micro),
+          providerMeta: JSON.parse(
+            JSON.stringify({
+              provider: "claude-code",
+              responseModelId: turn.model,
+              responseId: turn.messageId,
+              finishReason: turn.stopReason,
+              blocks: turn.blocks,
+              usage,
+              rawUsage: turn.usage,
+              // The SDK relays the message, not the transport's metadata: there
+              // is no per-call provider block on this path, and the row says so
+              // rather than leaving the key off.
+              providerMetadata: null,
+            }),
+          ) as Prisma.InputJsonValue,
+        });
+      } catch (error) {
+        fail(error);
+      }
+    },
+    async onResult(closing) {
+      try {
+        result = closing;
+        capped = closing.subtype === "error_max_turns";
+        for (const [key, entry] of Object.entries(closing.modelUsage)) {
+          const id = canonicalModelId(entry.canonicalModel ?? key);
+          const remainder = remainderOf(entry, recorded.get(id));
+          if (remainder === null) continue;
+          if (!isPricedModel(id)) {
+            throw new Error(`the Agent SDK reports usage on ${JSON.stringify(id)}, which the price table does not know`);
+          }
+          const usage: StepUsage = {
+            tokensIn: remainder.tokensInUncached + remainder.tokensCacheRead + remainder.tokensCacheWrite,
+            ...remainder,
+            // The SDK gives no TTL split for its own calls; every cache write it
+            // has been seen to make is a one-hour one, so the higher rate is the
+            // safe assumption and `sdkCostUsd` beside it is the check.
+            tokensCacheWrite1h: remainder.tokensCacheWrite,
+          };
+          const micro = costMicroDollars(usage, id);
+          addCost(micro);
+          note(id, usage);
+          await appendModelStep(ctx.db, {
+            orgId: ctx.orgId,
+            runId,
+            index: takeIndex(),
+            name: id,
+            tokensIn: usage.tokensIn,
+            tokensOut: usage.tokensOut,
+            tokensCached: usage.tokensCacheRead,
+            tokensReasoning: 0,
+            cost: formatMicroDollars(micro),
+            providerMeta: JSON.parse(
+              JSON.stringify({
+                provider: "claude-code",
+                source: "modelUsage remainder: calls the SDK made that its message stream did not show",
+                responseModelId: key,
+                usage,
+                // No wire block: this row is a difference between two totals.
+                // `sdkModelUsage` is what it was reconciled against.
+                rawUsage: null,
+                sdkModelUsage: entry,
+                providerMetadata: null,
+              }),
+            ) as Prisma.InputJsonValue,
+          });
+        }
+      } catch (error) {
+        fail(error);
+      }
+    },
+  };
+
+  return {
+    observer,
+    get capped() {
+      return capped;
+    },
+    get result() {
+      return result;
+    },
+  };
+}
+
+/** What the SDK's totals for one model exceed the recorded turns by, or null when nothing does. */
+function remainderOf(entry: AgentSdkModelUsage, recorded: Totals | undefined): Totals | null {
+  const seen = recorded ?? { tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensOut: 0 };
+  const remainder: Totals = {
+    tokensInUncached: Math.max(0, entry.inputTokens - seen.tokensInUncached),
+    tokensCacheRead: Math.max(0, entry.cacheReadInputTokens - seen.tokensCacheRead),
+    tokensCacheWrite: Math.max(0, entry.cacheCreationInputTokens - seen.tokensCacheWrite),
+    tokensOut: Math.max(0, entry.outputTokens - seen.tokensOut),
+  };
+  return Object.values(remainder).some((count) => count > 0) ? remainder : null;
 }
 
 /**

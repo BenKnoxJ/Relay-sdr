@@ -13,14 +13,28 @@ import { createHash } from "node:crypto";
  *
  * ## Source
  *
- * Per-million-token rates for `claude-opus-5` and `claude-sonnet-5` are the
- * Anthropic first-party API rates, read on **2026-09-09** from the bundled
- * `claude-api` skill's current-models table (cached 2026-06-24;
- * https://www.anthropic.com/pricing is the upstream). The cache multipliers are
- * from the same skill's `shared/prompt-caching.md` § Economics: a cache **read**
- * is 0.1x the base input rate, a cache **write** is 1.25x it for the
- * five-minute TTL (2x for the one-hour TTL, which Relay does not use — every
- * request this runtime makes takes the default).
+ * Per-million-token rates for `claude-opus-5`, `claude-sonnet-5` and
+ * `claude-haiku-4-5` are the Anthropic first-party API rates, read on
+ * **2026-09-09** from the bundled `claude-api` skill's current-models table
+ * (cached 2026-06-24; https://www.anthropic.com/pricing is the upstream). The
+ * cache multipliers are from the same skill's `shared/prompt-caching.md`
+ * § Economics: a cache **read** is 0.1x the base input rate, a cache **write**
+ * is 1.25x it for the five-minute TTL and 2x it for the one-hour TTL.
+ *
+ * Both write rates are here because both are used. The Messages API path takes
+ * the default five-minute TTL. The Claude Agent SDK path (the subscription
+ * transport, Task 6c) writes **one-hour** cache entries — observed on the wire
+ * 2026-09-09 as `cache_creation.ephemeral_1h_input_tokens` on every turn, and
+ * priced at 2x in the SDK's own cost figure — so a step records how many of its
+ * cache-write tokens were one-hour ones and prices those at the higher rate. A
+ * table with only the 1.25x rate under-charged every subscription run by 37.5%
+ * of its cache writes, which is most of a research run's input.
+ *
+ * Haiku is in the table because the Agent SDK's subprocess makes a small Haiku
+ * call of its own per run (observed: ~900 input tokens, ~15 output), reported
+ * under `modelUsage` and nowhere else. The ledger records it as a model step so
+ * the run total is the whole run; a table without it would have to drop the
+ * row or refuse the run.
  *
  * ## What is billed, and what is not billed twice
  *
@@ -54,6 +68,8 @@ export type ModelPrice = {
   cacheRead: bigint;
   /** Input tokens written to the cache. 1.25x input, five-minute TTL. */
   cacheWrite: bigint;
+  /** Input tokens written to the cache with the one-hour TTL. 2x input. */
+  cacheWrite1h: bigint;
 };
 
 /** `$/MTok` as written in the source, to micro-dollars per MTok. */
@@ -70,17 +86,19 @@ function ratesFor(inputDollars: number, outputDollars: number): ModelPrice {
     output: perMTok(outputDollars),
     cacheRead: perMTok(inputDollars * 0.1),
     cacheWrite: perMTok(inputDollars * 1.25),
+    cacheWrite1h: perMTok(inputDollars * 2),
   };
 }
 
 /**
- * The pinned table. Two models, because those are the two §24 names and an
- * unknown id is a throw rather than a guess — a run priced at zero is worse
- * than a run that refuses to start.
+ * The pinned table. The two §24 names, plus Haiku for the Agent SDK's own side
+ * call (see the module comment); an unknown id is a throw rather than a guess —
+ * a run priced at zero is worse than a run that refuses to start.
  */
 export const PRICES = Object.freeze({
   "claude-opus-5": ratesFor(5.0, 25.0),
   "claude-sonnet-5": ratesFor(2.0, 10.0),
+  "claude-haiku-4-5": ratesFor(1.0, 5.0),
   // `satisfies`, never an annotation. `Readonly<Record<string, ModelPrice>>`
   // widens the key type to `string`, which collapses `PricedModel` below to
   // `string` as well — and then `makeModel("gpt-5")` typechecks and the only
@@ -112,6 +130,7 @@ export const PRICE_TABLE_SHA256: string = createHash("sha256")
           price.output.toString(),
           price.cacheRead.toString(),
           price.cacheWrite.toString(),
+          price.cacheWrite1h.toString(),
         ]),
     ),
   )
@@ -133,8 +152,14 @@ export type StepUsage = {
   tokensInUncached: number;
   /** `usage.inputTokenDetails.cacheReadTokens`. */
   tokensCacheRead: number;
-  /** `usage.inputTokenDetails.cacheWriteTokens`. */
+  /** `usage.inputTokenDetails.cacheWriteTokens` — every cache write, both TTLs. */
   tokensCacheWrite: number;
+  /**
+   * How many of `tokensCacheWrite` were one-hour writes, from the provider's
+   * `cache_creation.ephemeral_1h_input_tokens`. Zero when the provider does not
+   * say, which is the five-minute default. Never more than `tokensCacheWrite`.
+   */
+  tokensCacheWrite1h: number;
   /** `usage.outputTokens` — the total, reasoning included. */
   tokensOut: number;
 };
@@ -167,10 +192,17 @@ export function costMicroDollars(usage: StepUsage, model: string): bigint {
       throw new Error(`pricing: ${field} must be a non-negative whole number of tokens, got ${value}`);
     }
   }
+  if (usage.tokensCacheWrite1h > usage.tokensCacheWrite) {
+    throw new Error(
+      `pricing: ${usage.tokensCacheWrite1h} one-hour cache-write tokens exceed the ${usage.tokensCacheWrite} cache-write tokens they are part of`,
+    );
+  }
+  const cacheWrite5m = usage.tokensCacheWrite - usage.tokensCacheWrite1h;
   const micro =
     BigInt(usage.tokensInUncached) * price.input +
     BigInt(usage.tokensCacheRead) * price.cacheRead +
-    BigInt(usage.tokensCacheWrite) * price.cacheWrite +
+    BigInt(cacheWrite5m) * price.cacheWrite +
+    BigInt(usage.tokensCacheWrite1h) * price.cacheWrite1h +
     BigInt(usage.tokensOut) * price.output;
   return divideRound(micro, MILLION);
 }

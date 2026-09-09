@@ -215,6 +215,13 @@ const schema = z
     /** The fallback credential, used only when no subscription token is set. */
     ANTHROPIC_API_KEY: optional(z.string()),
     /**
+     * The directory the Claude Agent SDK subprocess uses as its config home
+     * (`CLAUDE_CONFIG_DIR`). Worker-owned and otherwise empty, so the subprocess
+     * never reads the dispatcher's or another agent's settings, hooks or MCP
+     * servers. Default `~/.relay/agent-home`; created on first use. Worker only.
+     */
+    RELAY_AGENT_HOME: optional(z.string()),
+    /**
      * A scripted language model, as JSON. Local and test only.
      *
      * It exists for one reason: `tests/agents/echo.test.ts` proves the agent

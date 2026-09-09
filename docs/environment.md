@@ -43,13 +43,22 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
 
 # --- model ----------------------------------------------------------------
 # Relay's agents bill to the Claude subscription, not to an API key (decision,
-# 2026-09-08). This is the token `claude setup-token` prints, and it is the
-# credential the worker reaches for first. Worker only: the app makes no model
-# calls in Phase 1, so it never belongs in a Vercel environment.
+# 2026-09-08, evidence 2026-09-09). This is the token `claude setup-token`
+# prints, and it is the credential the worker reaches for first. It travels on
+# the Claude Agent SDK (the Messages API refuses it): the worker starts the
+# SDK's subprocess with this token, an isolated config dir (below), no built-in
+# tools and only Relay's own tools. Worker only: the app makes no model calls in
+# Phase 1, so it never belongs in a Vercel environment.
 CLAUDE_CODE_OAUTH_TOKEN=""
-# The fallback, used only when no subscription token is set. Never both at once:
-# the provider sends one credential and refuses if given two.
+# The fallback, used only when no subscription token is set, on the Messages
+# API through @ai-sdk/anthropic. Never both at once: the worker sends exactly
+# one credential, and the SDK subprocess is never handed the key.
 ANTHROPIC_API_KEY=""
+# Where the Agent SDK subprocess keeps its config (CLAUDE_CONFIG_DIR). Worker-
+# owned and otherwise empty, so the subprocess reads nobody else's settings,
+# hooks or MCP servers. Optional; default ~/.relay/agent-home, created on first
+# use. The worker unit sets it explicitly.
+RELAY_AGENT_HOME=""
 # A scripted model, as JSON. LOCAL AND TEST ONLY — refused unless NODE_ENV is
 # explicitly "development" or "test", with no carve-out for a build. It exists so
 # the agent runtime can be proved through the real worker process with no
@@ -105,16 +114,19 @@ FIRECRAWL_API_KEY=""
   refuses the build carve-out as well, so a build cannot sign anybody in even
   though it can start.
 - **The model credential is the Claude subscription token, and only one
-  credential is ever sent.** `CLAUDE_CODE_OAUTH_TOKEN` reaches the Messages API
-  as `Authorization: Bearer` with the beta header `oauth-2025-04-20`, never as
-  `x-api-key` — which is why `src/lib/agents/provider.ts` uses the provider's
-  `authToken` option rather than `apiKey`. With both variables set the token wins
-  and the key is never read; the provider itself throws if handed both. The token
-  is tied to a person's subscription, so it lives in the worker's own env file
-  and the local shell, and nowhere near Vercel. **The live path is not yet
-  verified**: no successful call has been made on a subscription token through
-  the SDK transport. `scripts/spike/cost-check.ts` is the probe, and if the API
-  refuses it, that is a decision for Benny-san and not a fallback to work around.
+  credential is ever sent.** `CLAUDE_CODE_OAUTH_TOKEN` travels on the Claude
+  Agent SDK: `src/lib/agents/provider.ts` starts the SDK's subprocess with the
+  token in its environment, `CLAUDE_CONFIG_DIR` set to `RELAY_AGENT_HOME`, no
+  filesystem settings, no built-in tools, and Relay's own tools as one
+  in-process MCP server. The Messages API refuses this token (verified
+  2026-09-09, three 429s), which is why it does not go through
+  `@ai-sdk/anthropic`. With both variables set the token wins, the key is never
+  read, and the subprocess is handed the token and explicitly not the key. The
+  token is tied to a person's subscription, so it lives in the worker's own env
+  file and the local shell, and nowhere near Vercel. **Verified live on
+  2026-09-09**: `scripts/spike/cost-check.ts` ran a full echo run over the SDK
+  and every recorded cost equalled the SDK's own figure per model and in total.
+  `ANTHROPIC_API_KEY` alone selects the Messages API path, `x-api-key`, unchanged.
 - **`RELAY_AGENT_STUB_MODEL` is refused outside development and test, with no
   build carve-out.** It scripts the model so the agent runtime can be proved
   through the real worker process without a credential. A stub model reaching

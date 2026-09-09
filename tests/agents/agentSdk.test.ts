@@ -202,6 +202,60 @@ describe("the Agent SDK ledger", () => {
     expect(result.steps[0]?.providerMeta).toMatchObject({ rawUsage: TURN_1, responseId: "msg_1", blocks: ["tool_use:mcp__relay__shout"] });
   });
 
+  it("writes one row per API turn when the SDK streams a turn as one message per content block", async () => {
+    // What the wire actually does (SDK d.ts on SDKAssistantMessage): thinking,
+    // text and tool_use blocks arrive as separate assistant messages sharing
+    // `message.id`, each with the turn's usage so far. Recorded per message,
+    // brief A live wrote 33 model rows for 8 turns and charged 3.8x the cost.
+    const jobId = await seedJob("echo", { text: "the quick brown fox" });
+    const definition = loadDefinition("echo");
+    const partial = { ...TURN_1, output_tokens: 1 };
+    const handle: RunModel = {
+      transport: "agent-sdk",
+      forRun({ tools, observe }) {
+        return new MockLanguageModelV4({
+          modelId: MODEL,
+          provider: "claude-code",
+          doGenerate: async (): Promise<LanguageModelV4GenerateResult> => {
+            const execute = tools.shout?.execute as
+              | ((input: { text: string }, options: { toolCallId: string; messages: never[] }) => Promise<unknown>)
+              | undefined;
+            if (execute === undefined) throw new Error("no shout tool");
+            await observe.onTurn({ messageId: "msg_1", model: MODEL, stopReason: null, blocks: ["thinking"], usage: partial });
+            await observe.onTurn({ messageId: "msg_1", model: MODEL, stopReason: null, blocks: ["text"], usage: partial });
+            await observe.onTurn({ messageId: "msg_1", model: MODEL, stopReason: null, blocks: ["tool_use:mcp__relay__shout"], usage: partial });
+            await execute({ text: "the quick brown fox" }, { toolCallId: "call-1", messages: [] });
+            await observe.onTurn({ messageId: "msg_2", model: MODEL, stopReason: "end_turn", blocks: ["text"], usage: TURN_2 });
+            await observe.onResult(RESULT);
+            return {
+              content: [{ type: "text", text: JSON.stringify({ text: "THE QUICK BROWN FOX" }) }],
+              finishReason: { unified: "stop", raw: "end_turn" },
+              usage: { inputTokens: { total: 1620, noCache: 4, cacheRead: 754, cacheWrite: 862 }, outputTokens: { total: 138, text: undefined, reasoning: undefined } },
+              providerMetadata: { "claude-code": { sessionId: "s" } },
+              warnings: [],
+            };
+          },
+        });
+      },
+    };
+    const result = await runAgent({
+      definition,
+      input: { text: "the quick brown fox" },
+      ctx: { db: prisma, orgId: ORG_ID, jobId, model: handle, modelId: MODEL, tools: (recorder) => echoTools(recorder) },
+    });
+    // Turn 1 once, the tool behind it, turn 2, then the reconciliation rows:
+    // the 23 output tokens the partial usage under-reported, and the Haiku call.
+    expect(result.steps.map((step) => [step.index, step.kind, step.name])).toEqual([
+      [0, "model", MODEL],
+      [1, "tool", "shout"],
+      [2, "model", MODEL],
+      [3, "model", MODEL],
+      [4, "model", "claude-haiku-4-5"],
+    ]);
+    expect(result.steps[3]?.tokensOut).toBe(23);
+    expect(result.run.costTotal.toString()).toBe("0.01346");
+  });
+
   it("keeps a tool step after the turn that asked for it, even if the tool call arrives first", async () => {
     // The inversion the gate exists for: the MCP control request is processed
     // before the assistant message that carries the tool_use block has been

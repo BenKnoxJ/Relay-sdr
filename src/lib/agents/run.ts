@@ -442,7 +442,16 @@ export async function runAgent<IN, OUT>({
       // the definition's schema — and both must report `schema`, or a handler
       // would retry a model that will produce the same shape again.
       if (isValidationFailure(error)) {
-        throw await failRun(ctx, run, costMicro, "schema", "the answer does not validate", error, scrub);
+        const issues = validationIssues(error);
+        throw await failRun(
+          ctx,
+          run,
+          costMicro,
+          "schema",
+          issues.length === 0 ? "the answer does not validate" : `the answer does not validate: ${issues.join("; ")}`,
+          error,
+          scrub,
+        );
       }
       throw await failRun(ctx, run, costMicro, "error", "the model loop failed", error, scrub);
     }
@@ -655,6 +664,17 @@ function agentSdkLedger(args: {
   // upstream awaited it, a hang.
   let toolUsesSeen = 0;
   let toolStarts = 0;
+  /**
+   * The API message the last row was written for. While a response streams,
+   * the SDK emits one assistant message per completed content block — a turn
+   * with thinking, text and four tool calls arrives as six messages sharing
+   * `message.id`, each carrying the turn's usage again. One API turn is one
+   * row: a message whose id matches the previous one only feeds the ordering
+   * gate. Its usage is not final either (the SDK says so); the closing
+   * `modelUsage` reconciliation tops the turn up to what was billed.
+   * Found live on the research agent, 2026-09-09: 33 rows for 8 turns.
+   */
+  let lastMessageId: string | null = null;
   let closed: Error | null = null;
   let waiters: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
   const releaseWaiters = (): void => {
@@ -699,8 +719,14 @@ function agentSdkLedger(args: {
       // loop can read the control request that follows. See the module comment.
       let index: number;
       try {
-        index = takeIndex();
         toolUsesSeen += turn.blocks.filter((block) => block.startsWith("tool_use:")).length;
+        if (turn.messageId !== "" && turn.messageId === lastMessageId) {
+          // Another block of the turn already written: gate only, no row.
+          releaseWaiters();
+          return;
+        }
+        lastMessageId = turn.messageId;
+        index = takeIndex();
         releaseWaiters();
       } catch (error) {
         fail(error);
@@ -908,6 +934,42 @@ function isValidationFailure(error: unknown): boolean {
     current = (current as { cause?: unknown }).cause;
   }
   return false;
+}
+
+/**
+ * The zod issues behind a schema failure, as `path: message` lines.
+ *
+ * Without these a failed research run says "response did not match schema" and
+ * nothing else, and the pack the model wrote is gone with the subprocess. The
+ * `ZodError` sits on the `TypeValidationError`'s `cause`, itself wrapped in a
+ * `NoObjectGeneratedError`; the walk is bounded like `isValidationFailure`.
+ */
+export function validationIssues(error: unknown): string[] {
+  let current = error;
+  for (let depth = 0; depth < 8 && current !== undefined && current !== null; depth += 1) {
+    const issues = (current as { issues?: unknown }).issues;
+    if (Array.isArray(issues)) {
+      return issues.map((issue) => {
+        const { path, message } = issue as { path?: unknown[]; message?: string };
+        return `${Array.isArray(path) && path.length > 0 ? path.join(".") : "$"}: ${message ?? "invalid"}`;
+      });
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return [];
+}
+
+/** The text the model answered with, when a schema failure still carries it. */
+export function rejectedAnswerText(error: unknown): string | null {
+  let current = error;
+  for (let depth = 0; depth < 8 && current !== undefined && current !== null; depth += 1) {
+    const text = (current as { text?: unknown }).text;
+    if (typeof text === "string" && text !== "") return text;
+    const value = (current as { value?: unknown }).value;
+    if (value !== undefined && value !== null && typeof value === "object") return JSON.stringify(value);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 /** True when the thrown value is the SDK saying there is no structured answer. */

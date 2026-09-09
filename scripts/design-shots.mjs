@@ -42,6 +42,7 @@ if (MOCK === undefined || MOCK === "") {
 }
 const SET = process.env.SET ?? "9b";
 const OUT = process.env.OUT ?? `docs/design/task-${SET}`;
+const ONLY = process.env.ONLY ?? "";
 const CHROME = process.env.CHROME ?? "chromium";
 const PORT = Number(process.env.CDP_PORT ?? 9333);
 
@@ -67,6 +68,9 @@ const TMP = path.join(process.env.TMPDIR ?? "/tmp", "relay-design-shots");
  */
 const MOCK_FRAMES_9B = {
   "mock-home-day-one": 1,
+  "mock-inbox-draft": 2,
+  "mock-inbox-reply": 3,
+  "mock-inbox-call": 4,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
   "mock-campaign-plan-ready": 7,
@@ -128,8 +132,20 @@ const STATES_9B = [
     [["Signed mock", "mock-home-day-one"], ["Built, light", "app-home-light"], ["Built, dark", "app-home-dark"]]],
   ["content-coming", "Content before its slice (signed mock section 6)",
     [["Signed mock", "mock-content-coming"], ["Built, light", "app-content-light"], ["Built, dark", "app-content-dark"]]],
-  ["inbox-empty", "Inbox, empty (signed mock section 2c)",
-    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
+  ["inbox-draft", "Inbox, a draft selected (signed mock section 2a)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-draft-light"], ["Built, dark", "app-inbox-draft-dark"]]],
+  ["inbox-draft-reject", "Inbox, the draft's four reject reasons open (signed mock section 2a draws them under the card)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-reject-light"], ["Built, dark", "app-inbox-reject-dark"]]],
+  ["inbox-needs-you", "Inbox, a draft that needs the rep (signed mock section 2a, the first row of Drafts)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-needs-you-light"], ["Built, dark", "app-inbox-needs-you-dark"]]],
+  ["inbox-reply", "Inbox, a reply selected (signed mock section 2b)",
+    [["Signed mock", "mock-inbox-reply"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
+  ["inbox-call", "Inbox, a call selected (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-call-light"], ["Built, dark", "app-inbox-call-dark"]]],
+  ["inbox-call-spoke", "Inbox, Spoke asking for one line (signed mock section 2c draws the box under the outcomes)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-spoke-light"], ["Built, dark", "app-inbox-spoke-dark"]]],
+  ["inbox-empty", "Inbox, empty, reached by working every row (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-empty-light"], ["Built, dark", "app-inbox-empty-dark"]]],
   ["campaigns-list", "Campaigns, the list (signed mock section 3a)",
     [["Signed mock", "mock-campaigns-list"], ["Built, light", "app-campaigns-light"], ["Built, dark", "app-campaigns-dark"]]],
   ["start", "Start, nothing said yet (signed mock section 3d)",
@@ -319,6 +335,65 @@ async function shootApp(origin, prefix, routes) {
 await shootApp(APP, "app", APP_PAGES);
 
 /**
+ * The Inbox's states (Task 9d, mock 2a, 2b, 2c and empty).
+ *
+ * Its own pass rather than routes, because every one of them is a live state
+ * of one page: which row is selected, whether the reasons are open, and — for
+ * empty — that every row has been worked. `/inbox` itself lands on the first
+ * row, a reply, which is 2b and is already shot above as `app-inbox-*`.
+ *
+ * The rows are found by their test ids and the buttons by their text, which
+ * is the copy file's; a renamed button fails here loudly rather than shooting
+ * the wrong state and calling it signed.
+ */
+const INBOX_STATES = {
+  draft: `rows()[4].click();`,
+  reject: `rows()[4].click(); await tick(); button("Reject…").click();`,
+  "needs-you": `rows()[3].click();`,
+  call: `rows()[2].click();`,
+  spoke: `rows()[2].click(); await tick(); button("Spoke").click();`,
+  empty: `
+    // Two labels, one outcome, three approves.
+    button("Warm").click(); await tick();
+    button("Warm").click(); await tick();
+    button("Voicemail").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+  `,
+};
+
+for (const [name, steps] of Object.entries(INBOX_STATES)) {
+  for (const theme of ["light", "dark"]) {
+    await cdp.send("Page.navigate", { url: `${APP}/inbox` });
+    await sleep(2000);
+    await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+    await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+    const { result } = await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: `(async () => {
+        const rows = () => [...document.querySelectorAll('[data-testid="queue-row"]')];
+        const button = (text) => {
+          const found = [...document.querySelectorAll("button")].find((el) => el.textContent.trim() === text);
+          if (!found) throw new Error("no button " + JSON.stringify(text) + " on the Inbox");
+          return found;
+        };
+        const tick = () => new Promise((resolve) => setTimeout(resolve, 150));
+        if (rows().length === 0) throw new Error("no rows on the Inbox: is the queue rendering?");
+        ${steps}
+        await tick();
+        // Focus stays where the click left it, and the ring is not the state.
+        document.activeElement?.blur();
+        return "";
+      })().catch((error) => error.message)`,
+    });
+    if (result.value !== "") throw new Error(`inbox-${name}: ${result.value}`);
+    await sleep(500);
+    await capture(`app-inbox-${name}-${theme}`);
+  }
+}
+
+/**
  * The plan with one card open (mock 3b-ii).
  *
  * Its own pass rather than a route, because "expanded" is a live state: the
@@ -382,6 +457,10 @@ if (!chosen.roles) {
 }
 
 // One comparison image per signed state, stacked so each pane is full width.
+// Filtered last rather than first: the app shots are cheap, and a filter
+// applied to the capture loops is one more place for a name to drift.
+const wanted = states.filter(([id]) => id.startsWith(ONLY));
+if (wanted.length === 0) throw new Error(`ONLY=${JSON.stringify(ONLY)} matches no state`);
 const inline = (name) => `data:image/png;base64,${readFileSync(path.join(TMP, `${name}.png`)).toString("base64")}`;
 const page = `<!doctype html><meta charset="utf-8"><style>
   body{margin:0;background:#fff;font:14px/1.5 system-ui,sans-serif;color:#272f4a}
@@ -392,7 +471,7 @@ const page = `<!doctype html><meta charset="utf-8"><style>
   figure{margin:0}
   figcaption{font-size:13px;margin:0 0 6px;font-weight:600}
   img{width:100%;display:block;border:1px solid #e6e8ef;border-radius:8px}
-</style>${states.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
+</style>${wanted.map(([id, title, panes]) => `<section id="${id}"><h2>${title}</h2>
 <p class="why">The signed mock first, then this branch. Any difference is a finding.</p>
 <div class="row">${panes.map(([caption, file]) => `<figure><figcaption>${caption}</figcaption><img src="${inline(file)}"></figure>`).join("")}</div></section>`).join("")}`;
 
@@ -407,7 +486,7 @@ await cdp.send("Emulation.setDeviceMetricsOverride", {
 await cdp.send("Page.navigate", { url: `file://${composed}` });
 await sleep(2500);
 
-for (const [id] of states) {
+for (const [id] of wanted) {
   const box = await boxOf(`document.getElementById(${JSON.stringify(id)})`);
   if (box === null) throw new Error(`the composed page has no section ${id}`);
   const { data } = await cdp.send("Page.captureScreenshot", {

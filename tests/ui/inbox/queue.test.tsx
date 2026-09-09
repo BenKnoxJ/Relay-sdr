@@ -178,6 +178,30 @@ describe("the queue", () => {
       expect(rows().map(nameOf)).not.toContain("Daniel Okoro");
     });
 
+    it("selects, never approves, on Enter from a row the rep tabbed to", () => {
+      render(<InboxPage />);
+
+      const daniel = rows()[4] as HTMLElement;
+      fireEvent.click(daniel);
+      expect(nameOf(selectedRow() as HTMLElement)).toBe("Daniel Okoro");
+
+      // Tab lands focus on Sofia's row without selecting it.
+      const sofia = rows()[5] as HTMLElement;
+      sofia.focus();
+      fireEvent.keyDown(sofia, { key: "Enter" });
+
+      expect(rows()).toHaveLength(6);
+      expect(rows().map(nameOf)).toContain("Daniel Okoro");
+      expect(nameOf(selectedRow() as HTMLElement)).toBe("Sofia Marsh");
+      expect(screen.getByRole("status").textContent).toBe("");
+
+      // Now that Sofia is the selected draft, Enter on her row approves her.
+      fireEvent.keyDown(rows()[5] as HTMLElement, { key: "Enter" });
+      expect(rows().map(nameOf)).not.toContain("Sofia Marsh");
+      expect(rows().map(nameOf)).toContain("Daniel Okoro");
+      expect(screen.getByRole("status").textContent).toContain(inboxCopy.approved);
+    });
+
     it("does nothing on Enter when the selected row is a reply or a call", () => {
       render(<InboxPage />);
 

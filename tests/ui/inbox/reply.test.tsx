@@ -90,6 +90,21 @@ describe("the reply card", () => {
     expect(decodeURIComponent(href ?? "")).toContain(`Re: ${tom.sent.subject}`);
   });
 
+  it("percent-encodes the mailto address as well as the subject", () => {
+    const tom = reply("Tom Ashworth");
+    const odd: ReplyItem = {
+      ...tom,
+      threadUrl: null,
+      person: { ...tom.person, email: "tom+ops @harland.example" },
+    };
+    render(<ReplyCard item={odd} onLabel={noop} />);
+
+    const href = screen
+      .getByRole("link", { name: new RegExp(inboxCopy.replyFromMailbox) })
+      .getAttribute("href");
+    expect(href).toMatch(/^mailto:tom%2Bops%20@harland\.example\?subject=/);
+  });
+
   it("each label takes the row out of the queue and says so", () => {
     for (const label of REPLY_LABELS) {
       resetQueue();

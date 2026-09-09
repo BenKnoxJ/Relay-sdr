@@ -62,7 +62,7 @@ export function QueueRow({
       <button
         type="button"
         data-testid="queue-row"
-        data-queue-row=""
+        data-queue-row={item.id}
         data-kind={item.kind}
         aria-current={selected ? "true" : undefined}
         onClick={() => onSelect(item.id)}

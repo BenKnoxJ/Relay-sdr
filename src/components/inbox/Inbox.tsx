@@ -42,8 +42,10 @@ import { ReplyCard } from "./ReplyCard";
  *     one below it, or the last if it was the last. That is the reading order
  *     and it is what "the next is selected" means.
  *   * Keyboard: J and K move, Enter approves, nothing else (§23.1b). Enter
- *     only approves a draft — a reply has no approve — and no key does anything
- *     while the rep is typing in a box, or J would land in the edited email.
+ *     only approves a draft — a reply has no approve — and only the selected
+ *     one: Enter on a queue row the rep tabbed to selects that row instead.
+ *     No key does anything while the rep is typing in a box, or J would land
+ *     in the edited email.
  *
  * The status line under the header is a live region that is always mounted,
  * so what just happened ("Wrong angle. Relay redrafts on another pain.") is
@@ -114,16 +116,22 @@ export function Inbox({ initial }: { initial?: Queue }) {
       } else if (event.key === "Enter") {
         // Enter approves a draft and nothing else. A reply or a call has no
         // approve. Enter on a focused button is that button's own click, so
-        // Approve, Edit and the rest are left to themselves; a queue row is
-        // the exception, because a rep who clicked a row and pressed Enter
-        // meant approve, not select-it-again.
-        if (selected?.kind !== "draft") return;
-        if (
-          event.target instanceof HTMLButtonElement &&
-          event.target.dataset.queueRow === undefined
-        ) {
-          return;
+        // Approve, Edit and the rest are left to themselves. A queue row is
+        // the exception, and it has two cases: the row the rep clicked is
+        // the selected one, and Enter there means approve, not
+        // select-it-again; a row the rep tabbed to is not, and Enter there
+        // means select it, which is the button's own click — never approve
+        // whatever is open behind it.
+        if (event.target instanceof HTMLButtonElement) {
+          const rowId = event.target.dataset.queueRow;
+          if (rowId === undefined) return;
+          if (selected === undefined || rowId !== selected.id) {
+            event.preventDefault();
+            setSelectedId(rowId);
+            return;
+          }
         }
+        if (selected?.kind !== "draft") return;
         event.preventDefault();
         onApprove(selected.id);
       }

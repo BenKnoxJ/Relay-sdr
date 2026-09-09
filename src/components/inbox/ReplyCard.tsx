@@ -29,7 +29,7 @@ export function ReplyCard({
 }) {
   const href =
     item.threadUrl ??
-    `mailto:${item.person.email ?? ""}?subject=${encodeURIComponent(`Re: ${item.sent.subject}`)}`;
+    `mailto:${mailtoAddress(item.person.email ?? "")}?subject=${encodeURIComponent(`Re: ${item.sent.subject}`)}`;
 
   return (
     <Card>
@@ -73,4 +73,17 @@ export function ReplyCard({
       </div>
     </Card>
   );
+}
+
+/**
+ * The address part of a `mailto:`, percent-encoded on both sides of the `@`
+ * (RFC 6068 §2) so a `?`, `&`, `%`, `+` or a space in a real address can
+ * neither start the query early nor be read back as something else. The `@`
+ * itself stays, because that is how a mail client, and a rep reading the
+ * status bar, expects an address to look.
+ */
+function mailtoAddress(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at === -1) return encodeURIComponent(email);
+  return `${encodeURIComponent(email.slice(0, at))}@${encodeURIComponent(email.slice(at + 1))}`;
 }

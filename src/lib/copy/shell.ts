@@ -4,5 +4,4 @@
  */
 export const shellCopy = {
   appName: "Relay",
-  placeholder: "Relay is being built. Nothing to do here yet.",
 } as const;

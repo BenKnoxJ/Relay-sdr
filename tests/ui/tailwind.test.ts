@@ -30,6 +30,7 @@ import {
   colorNames,
   fonts,
   layouts,
+  motion,
   radius,
   scale,
   shadows,
@@ -304,5 +305,33 @@ describe("cn", () => {
 
   it("does not confuse the gradient background with a background colour", () => {
     expect(cn("bg-wordmark", "bg-panel").split(" ").sort()).toEqual(["bg-panel", "bg-wordmark"]);
+  });
+});
+
+describe("motion", () => {
+  /**
+   * The one named duration and the one named curve. Written as classes rather
+   * than as `duration-[120ms]` for the same reason every other scale is named:
+   * an arbitrary value is a hand-typed number that no test can hold to the
+   * band.
+   */
+  it("projects the doctrine micro band and the Standard curve", () => {
+    expect(at(theme.transitionDuration, "micro")).toBe(`${motion.micro}ms`);
+    expect(at(theme.transitionTimingFunction, "standard")).toBe(motion.standard);
+  });
+
+  it("keeps the micro band inside the doctrine 100-150ms window", () => {
+    expect(motion.micro).toBeGreaterThanOrEqual(100);
+    expect(motion.micro).toBeLessThanOrEqual(150);
+  });
+
+  /**
+   * tailwind-merge does not recognise a non-numeric duration or a named ease,
+   * so without the declaration in `src/lib/utils.ts` both classes survive a
+   * conflict and the stylesheet order decides.
+   */
+  it("is declared to tailwind-merge, so an override overrides", () => {
+    expect(cn("duration-micro", "duration-300")).toBe("duration-300");
+    expect(cn("ease-standard", "ease-linear")).toBe("ease-linear");
   });
 });

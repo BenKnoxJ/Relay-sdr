@@ -1,0 +1,19 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "technologyreseller.uk 2026 dealer Midlands managed print IT telecoms customers announcement",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "News | XBM | Business Technology | Education | Managed Print Service",
+        "url": "https://www.xbmltd.com/category/xbm",
+        "snippet": "Comments\n\nYorkshire based XBM acquires Office Odyssey, expanding Managed Print base across UK & Europe. XBM Limited (1), one of the UK’s fastest growing sustainable office technology suppliers, announces the acquisition of Office Odyssey (2), a Midlands based reseller of Epson single function and multifunction printers and digital document solutions across the UK and mainland Europe. Following XBM’s rebranding in 2021, the business announced its plans to expand...\n\n Read More [...] Read More\n\n Ltd is set to cease trading on 31 May 2026, with operations winding down and customers transitioned to Kyocera Document Solutions (UK) Ltd. [vc\\_empty\\_space height=\"15px\"] This move marks the exit of the UTAX brand as a separate entity from the direct UK market, with...\n\n Read More\n\nRicoh awarded Platinum EcoVadis for 2nd consecutive year\n\n23 Apr\n\n## Ricoh awarded Platinum EcoVadis\n\nby Admin\n\nin All, Awards, Ricoh, Sustainability\n\nComments [...] XBM Limited provides compliant purchasing via NEPA3 Framework. XBM Limited is on the National Education Print Agreement (NEPA3) Framework, recommended by sustainable print technology manufacturer, Epson. XBM is Epson’s largest reseller, with over 7,000 devices under management across the UK, EU and North America. The agreement provides a compliant framework for XBM to provide print equipment and management solutions, originally to universities and further education institutions, but..."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:29:00.128Z"
+}

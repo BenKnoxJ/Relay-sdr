@@ -1,0 +1,19 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "managed print dealer Birmingham Leicester Nottingham 2026 announces partnership growth \"telecoms\" news office technology",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Acquired, Merged, or Rebranded: Navigating Vendor Shake-Ups in the Print Industry - WhatTheyThink",
+        "url": "https://whattheythink.com/articles/129533-acquired-merged-or-rebranded-navigating-vendor-shake-ups-print-industry",
+        "snippet": "The Waves Are Already Here: How Technology Management Is Changing in the Printing Industry\n\n## The Waves Are Already Here: How Technology Management Is Changing in the Printing Industry\n\nIT strategy is no longer a back-office function in a print shop. It is a production decision, a competitive lever, and increasingly, a question of strategic importance. Pat McGrew and Ryan McAbee explain. Read More\n\n### Recent Printing Industry News\n\n### Thursday, September 03, 2026 [...] Search News & Articles\n\nSign In Become a Member\n\nWhatTheyThink\n\nFEATURED 2026 Technology Outlook Installations and Placements In Memoriam\n\nPremium Commentary & Analysis\n\n### Acquired, Merged, or Rebranded: Navigating Vendor Shake-Ups in the Print Industry [...] Xitron Expands the K2 Workflow Family with New K2D-X for Digital Print Production and K2 3.0\n Roland DG Launches the TrueVis AG-640, Redefining Latex Quality, Versatility, and Productivity\n Direct One Continues National Growth with World-First Investment in Next-Generation Direct Mail Technology\n Allegra Marketing Print Mail Vaughan Receives International Award Recognition\n See the NEW Domino N410 Digital LED Inkjet Label Press at PRINTING United Expo 2026"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:28:14.767Z"
+}

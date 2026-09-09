@@ -153,12 +153,16 @@ export function packItems(pack: z.infer<typeof packShape>): Item[] {
 
 /** How many of the pack's citations sit on each domain. */
 export function domainCounts(pack: z.infer<typeof packShape>): Map<string, number> {
+  // A source is a page, not a citation. §3 caps "sources per domain across the
+  // pack": three FCA pages may each be cited by many items, a fourth FCA page
+  // may not be. Counting citations instead refused brief A live (2026-09-09)
+  // with "20 sources cite fca.org.uk" over three distinct pages.
+  const urls = new Set<string>();
+  for (const item of packItems(pack)) for (const url of item.evidence.urls) urls.add(url);
   const counts = new Map<string, number>();
-  for (const item of packItems(pack)) {
-    for (const url of new Set(item.evidence.urls)) {
-      const host = hostOf(url);
-      counts.set(host, (counts.get(host) ?? 0) + 1);
-    }
+  for (const url of urls) {
+    const host = hostOf(url);
+    counts.set(host, (counts.get(host) ?? 0) + 1);
   }
   return counts;
 }

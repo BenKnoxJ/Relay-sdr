@@ -20,7 +20,11 @@
  *   APP      the running app, signed in as an admin (default localhost:5200)
  *   REP_APP  a second instance signed in as a rep. Optional; when it is set,
  *            the nav-roles comparison is produced as well.
- *   OUT      where the comparisons go   (default docs/design/task-9b)
+ *   SET      which set of signed states to shoot: 9b or 9c (the shell, Home
+ *            and Campaigns, one set since Task 9c; the key picks OUT) or
+ *            6b (the bench, which renders the slice 1 screens from fixtures).
+ *            Default 9b.
+ *   OUT      where the comparisons go   (default docs/design/task-<SET>)
  *   CHROME   the browser binary         (default chromium)
  */
 import { spawn } from "node:child_process";
@@ -36,7 +40,8 @@ if (MOCK === undefined || MOCK === "") {
     "MOCK is required: the file:// URL of the signed shell mock. It is not in this repository.",
   );
 }
-const OUT = process.env.OUT ?? "docs/design/task-9c";
+const SET = process.env.SET ?? "9b";
+const OUT = process.env.OUT ?? `docs/design/task-${SET}`;
 const CHROME = process.env.CHROME ?? "chromium";
 const PORT = Number(process.env.CDP_PORT ?? 9333);
 
@@ -60,7 +65,7 @@ const TMP = path.join(process.env.TMPDIR ?? "/tmp", "relay-design-shots");
  *   7 3b · Campaign, plan ready  16  6  · Home in dark
  *   8 3b-ii · Plan expanded
  */
-const MOCK_FRAMES = {
+const MOCK_FRAMES_9B = {
   "mock-home-day-one": 1,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
@@ -74,7 +79,30 @@ const MOCK_FRAMES = {
   "mock-home-dark": 16,
 };
 
-const APP_PAGES = { home: "/", content: "/content", inbox: "/inbox", campaigns: "/campaigns", settings: "/settings" };
+/**
+ * The frames the bench stands in for.
+ *
+ * The bench renders slice 1's screens from checked-in output, so its comparison
+ * is against the slice 1 frames — the plan expanded, the draft selected, Your
+ * people after the reveal, and Start pre-filled. What is being compared is the
+ * component, not the page around it: the bench draws no nav and no step strip,
+ * and those absences are expected rather than findings.
+ */
+const MOCK_FRAMES_6B = {
+  "mock-draft-selected": 2,
+  "mock-plan-expanded": 8,
+  "mock-start": 11,
+  "mock-your-people": 13,
+};
+
+const APP_PAGES_9B = { home: "/", content: "/content", inbox: "/inbox", campaigns: "/campaigns", settings: "/settings" };
+
+const APP_PAGES_6B = {
+  plan: "/bench/research/insurance-direct",
+  draft: "/bench/outreach/first-email",
+  people: "/bench/leadgen/after-reveal",
+  start: "/bench/orchestrator/pre-fill",
+};
 
 /**
  * The Campaigns routes (Task 9c). The ids are the fixture adapter's own
@@ -95,7 +123,7 @@ const CAMPAIGN_PAGES = {
 };
 
 /** One row per signed state: what to show, in what order. */
-const STATES = [
+const STATES_9B = [
   ["home-day-one", "Home, day one (signed mock section 1b)",
     [["Signed mock", "mock-home-day-one"], ["Built, light", "app-home-light"], ["Built, dark", "app-home-dark"]]],
   ["content-coming", "Content before its slice (signed mock section 6)",
@@ -125,6 +153,33 @@ const STATES = [
   ["home-focus", "The brief box with focus in it (WCAG 2.4.7; the mock draws no focus state)",
     [["Built, light", "app-focus-light"], ["Built, dark", "app-focus-dark"]]],
 ];
+
+const STATES_6B = [
+  ["plan-cards", "The research pack in the plan cards (signed mock 3b-ii), from a checked-in pack",
+    [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-light"], ["Built, dark", "app-plan-dark"]]],
+  ["approve-card", "A draft on the Approve card (signed mock 2a), from a checked-in draft",
+    [["Signed mock", "mock-draft-selected"], ["Built, light", "app-draft-light"], ["Built, dark", "app-draft-dark"]]],
+  ["your-people", "Your people after the reveal (signed mock 3f), from a checked-in reveal",
+    [["Signed mock", "mock-your-people"], ["Built, light", "app-people-light"], ["Built, dark", "app-people-dark"]]],
+  ["start-prefill", "Start, pre-filled, with the guessed fields dashed (signed mock 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
+];
+
+const SETS = {
+  // Task 9c added the Campaigns frames and states to the shell set in place, so
+  // "9b" and "9c" are one set; the key only picks the output directory.
+  "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
+};
+
+const chosen = SETS[SET];
+if (chosen === undefined) {
+  throw new Error(`SET must be one of ${Object.keys(SETS).join(", ")}, not ${JSON.stringify(SET)}`);
+}
+const MOCK_FRAMES = chosen.frames;
+const APP_PAGES = chosen.pages;
+const STATES = chosen.states;
 
 /** Only producible with a second instance signed in as a rep. */
 const ROLE_STATE = ["nav-roles", "The nav: Admin for an admin, absent for a rep",
@@ -262,7 +317,6 @@ async function shootApp(origin, prefix, routes) {
 }
 
 await shootApp(APP, "app", APP_PAGES);
-await shootApp(APP, "app", CAMPAIGN_PAGES);
 
 /**
  * The plan with one card open (mock 3b-ii).
@@ -272,7 +326,7 @@ await shootApp(APP, "app", CAMPAIGN_PAGES);
  * The card opened is "Their pain, in their words", which is the one the signed
  * mock draws open.
  */
-for (const theme of ["light", "dark"]) {
+for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
   await cdp.send("Page.navigate", { url: `${APP}/campaigns/managed-print-partners-midlands` });
   await sleep(2000);
   await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
@@ -299,7 +353,7 @@ for (const theme of ["light", "dark"]) {
  * signed mock draws no focus state at all, so this comparison is the built page
  * against itself in the two themes — which is the whole of what 2.4.7 asks.
  */
-for (const theme of ["light", "dark"]) {
+for (const theme of chosen.focusPass ? ["light", "dark"] : []) {
   await cdp.send("Page.navigate", { url: `${APP}/` });
   await sleep(2000);
   await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
@@ -318,7 +372,9 @@ for (const theme of ["light", "dark"]) {
 // The rep's nav is the same page signed in as somebody without the admin item,
 // so it needs a second instance rather than a second route.
 const states = [...STATES];
-if (REP_APP !== undefined && REP_APP !== "") {
+if (!chosen.roles) {
+  // Nothing on the bench differs by role: it is one developer's own screen.
+} else if (REP_APP !== undefined && REP_APP !== "") {
   await shootApp(REP_APP, "rep", { home: "/" });
   states.push(ROLE_STATE);
 } else {

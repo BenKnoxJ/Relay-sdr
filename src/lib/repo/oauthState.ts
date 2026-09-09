@@ -80,8 +80,10 @@ export async function createState(
  * which keeps this task's promise of no data-model change. The two are the same
  * answer to the only question anyone asks of the row — "may this callback
  * proceed?" — and to the rep they are one sentence either way: the link is no
- * longer good, start again. It also means the reaper that clears expired states
- * clears spent ones with no extra rule.
+ * longer good, start again. It also means a reaper over `expiresAt` would clear
+ * spent states along with timed-out ones and need no extra rule. There is no
+ * such reaper yet — `src/lib/jobs/retention.ts` has no rule for `oauth_states`,
+ * so these rows accumulate. Its own small task, not this one.
  *
  * Takes a transaction client on purpose. The account it authorises has to be
  * written in the same transaction that spends it, or a failed upsert leaves the

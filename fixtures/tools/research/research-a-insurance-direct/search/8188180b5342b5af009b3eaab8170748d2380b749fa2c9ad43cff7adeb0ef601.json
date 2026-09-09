@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "House of Lords inquiry home travel insurance claims handling written evidence insurer",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "House of Lords to probe insurance market",
+        "url": "https://www.insurancetimes.co.uk/news/house-of-lords-to-probe-insurance-market/1458634.article",
+        "snippet": "The inquiry is focused on how the market for home and travel insurance is regulated and covers distribution, claims handling, as well as the enforcement of"
+      },
+      {
+        "title": "UK lawmakers investigate consumer insurance market",
+        "url": "https://www.compliancecorylated.com/news/uk-lawmakers-investigate-consumer-insurance-market",
+        "snippet": "The House of Lords Financial Services Regulation Committee has launched an inquiry examining how the home and travel insurance markets are regulated."
+      },
+      {
+        "title": "Written evidence - CIM0007",
+        "url": "https://committees.parliament.uk/writtenevidence/167647/html",
+        "snippet": "ii Home and travel insurance provide essential financial resilience for millions of consumers.When products are well understood and claims are handled well, insurance enables households and travellers to recover from events that would otherwise create serious financial hardship. The vast majority of policyholders do not complain, and the majority of claims are accepted. BIBA’s evidence is therefore not that the home and travel insurance markets are fundamentally failing, but that avoidable [...] 65 The FCA is actively supervising firms in the sector, both on a proactive basis through thematic assessments such as the one on home and travel claims, as well as a reactive basis which may be based on data or intelligence that it receives.T he FCA's access work for pre-existing medical conditions goes back to 2017,the signposting rules have run since 2020, it reviewed that regime in 2025 with reforms landing in 2026, and in December it responded to the Which?super-complaint by expanding work [...] 43 Online journeys may benefit from clearer pause points at the point where misunderstanding is most likely to lead to a declined claim. In travel insurance, this should include PEMCs, prescribed medication, age limits, alcohol-related exclusions, cancellation limitations and FCDO advice. In home insurance, it should include accidental damage, personal possessions away from the home, legal expenses, wear and tear, flat roofs, storm definitions,escape of water,escape of oil and flood.The aim"
+      },
+      {
+        "title": "House of Lords Committee Calls For Evidence & Comments on ...",
+        "url": "https://insurance-edge.net/2026/05/22/house-of-lords-committee-calls-for-evidence-comments-on-insurance",
+        "snippet": "The inquiry is focused on how the consumer market for home and travel insurance is regulated. This covers the regulation of insurance distribution"
+      },
+      {
+        "title": "House of Lords committee launches home and travel insurance ...",
+        "url": "https://www.insuranceage.co.uk/insight/7958401/house-of-lords-committee-launches-home-and-travel-insurance-regulation-inquiry",
+        "snippet": "House of Lords committee launches home and travel insurance regulation inquiry ... It will also look at insurance claims handling, as well as the enforcement"
+      },
+      {
+        "title": "Financial Services Regulation Committee launches consumer ...",
+        "url": "https://committees.parliament.uk/committee/697/financial-services-regulation-committee/news/213636/financial-services-regulation-committee-launches-consumer-insurance-regulation-inquiry",
+        "snippet": "The inquiry is focused on how the consumer market for home and travel insurance is regulated. This covers the regulation of insurance distribution"
+      },
+      {
+        "title": "Insurers defend claims record as Lords probe Consumer Duty",
+        "url": "https://www.insurancebusinessmag.com/uk/news/breaking-news/insurers-defend-claims-record-as-lords-probe-consumer-duty-583444.aspx",
+        "snippet": "Aviva, Admiral and NFU Mutual chiefs reveal claims acceptance rates and push back against standardised products and extra regulation."
+      },
+      {
+        "title": "Graeme Trudgill FCII, Cert Mgmt's Post - LinkedIn",
+        "url": "https://www.linkedin.com/posts/graeme-trudgill-fcii-cert-mgmt-69157360_giving-evidence-at-the-house-of-lords-inquiry-activity-7475873959884857345-96e-",
+        "snippet": "Our aim is straightforward: to ensure that home and travel insurance customers have positive claims outcomes and insurance that meets their needs."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:52:58.756Z"
+}

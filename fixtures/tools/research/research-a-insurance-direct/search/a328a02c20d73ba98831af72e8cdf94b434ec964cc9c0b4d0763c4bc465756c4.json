@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "UK insurer quality assurance leader quote \"we were only listening to\" OR \"we sampled\" calls Consumer Duty evidence",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Consumer Duty: meeting expectations in 2026 and beyond - Insurance Innovators",
+        "url": "https://insurance-innovators.com/webinars/consumer-duty-meeting-expectations-in-2026-and-beyond",
+        "snippet": "## Panellists include:\n\nBritt Harris\n\nMarkel\n\n### Britt Harris\n\nHead of Customer Outcomes\n\nMarkel\n\nVicki Metcalf\n\nMarkerstudy\n\n### Vicki Metcalf\n\nHead of Customer Oversight\n\nMarkerstudy\n\nLorraine Price\n\nDirect Line Group\n\n### Lorraine Price\n\nHead of Customer Outcomes Management (Home and Growth Products)\n\nDirect Line Group\n\nAlan Newman\n\nQuadient\n\n### Alan Newman\n\nHead of Insurance\n\nQuadient\n\nAlan Newman\n\n##### Alan Newman\n\nHead of Insurance, Quadient [...] Alan Newman is the Head of Insurance at Quadient, specialising in modernising customer communications for insurers providers. With extensive experience across CCM, CX, and digital transformation roles, he helps organisations overcome legacy constraints and adopt smarter, more efficient communication strategies that strengthen customer trust and operational performance.\n\n## About Quadient [...] ## Since its implementation in 2023, the FCA’s Consumer Duty continues to reshape the way insurers design, communicate and deliver their products and services. With the FCA planning to consult in the first half of 2026 on changes to the scope of Consumer Duty – including how it applies across distribution chains and addressing data gaps – insurers continue to grapple with the practical challenges of embedding its requirements into their operations."
+      },
+      {
+        "title": "FCA Consumer Duty Summary: Compliance for Quality Assurance Teams in Contact Centres - evaluagent",
+        "url": "https://www.evaluagent.com/knowledge-hub/fca-consumer-duty-compliance-quality-assurance-teams",
+        "snippet": "'Leaders have a key role to play here. We have a world-leading financial services industry which serves its customers, colleagues and shareholders well through competition, innovation and leveraging talent. We want to see boards and senior management further embed the interests of customers into their firms’ culture and purpose.'\n\n## Consumer Duty and Quality Assurance teams [...] As a quality assurance or compliance professional in the finance and insurance sectors, you are likely familiar with the Financial Conduct Authority (FCA) and its regulatory requirements. The FCA has recently introduced a new regulation, known as the FCA Consumer Duty, which aims to increase consumer protection and improve the standards of conduct for firms operating in the finance industry. [...] Sheldon Mills, Executive Director of Consumers and Competition at the FCA, said 'Putting good outcomes for customers at the heart of firms’ strategies and business objectives will build trust and modernise how we regulate financial services."
+      },
+      {
+        "title": "Consumer Duty Evidence: What the FCA Expects and What Fails ...",
+        "url": "https://aveni.ai/blog/consumer-duty-evidence",
+        "snippet": "→ For a full overview of evidencing Consumer Duty at scale, see our guide: Consumer Duty Compliance Guide for UK Financial Services\n\n## What the FCA’s Consumer Duty Evidence Standard Actually Requires\n\nThe Consumer Duty was introduced through a document called PS22/9, which is the FCA’s final policy statement setting out the rules in full. Within it, the FCA requires firms to hold adequate data and management information to monitor whether they are achieving good outcomes for their customers. [...] 95% had never been reviewed. The firm considered the sample representative. The FCA found the evidential basis inadequate. [...] The FCA expects firms to track customer outcomes continuously, so they can identify trends, spot deterioration early, and demonstrate that they are responding to what the data shows. Ongoing tracking, consistently applied, is what separates a functioning oversight framework from a compliance exercise.\n\n## Five Consumer Duty Evidence Approaches the FCA Challenges When Used Alone\n\nSample-based monitoring covering 2–10% of interactions"
+      },
+      {
+        "title": "Insurance multi-firm review of outcomes monitoring under the ...",
+        "url": "https://www.fca.org.uk/publications/multi-firm-reviews/insurance-multi-firm-review-outcomes-monitoring-under-consumer-duty",
+        "snippet": "The Consumer Duty rules require that customer outcomes are a central focus of firms’ risk control arrangements and internal audit function. We saw some firms integrate second-line scrutiny of how customer outcomes are monitored. Where this approach was taken, we saw good evidence of challenges being provided to the first-line owners of customer outcomes, including challenges on the type and granularity of data being used, its interpretation, and the thresholds applied, especially where [...] ## Summary\n\nUnder the Consumer Duty (the Duty) firms must regularly assess, test, understand and evidence the outcomes their customers are receiving. Without this, it will be impossible for firms to know that they are meeting the requirements set out in the Duty. [...] We consistently saw evidence that firms were reviewing existing communications to assess whether they met the requirements of the Duty. We saw some firms that had gone to considerable efforts to redesign their ‘communication review’ processes to assist with ensuring the consumer understanding outcome was delivered."
+      },
+      {
+        "title": "A&O Shearman | FinReg | UK FCA findings on approach to consumer understanding outcome under the consumer duty",
+        "url": "https://finreg.aoshearman.com/uk-fca-findings-on-approach-to-consumer-understanding-outcome-under-the-consumer-duty",
+        "snippet": "+ Using insight to identify where consumers struggle—by analysing insights from multiple sources, such as call listening, complaints, chat transcripts, website analytics and surveys. This evidence should be reviewed regularly and meaningful improvements should be prioritised. [...] RSS Feed\n\n # UK FCA findings on approach to consumer understanding outcome under the consumer duty\n\n  13 March 2026 [...] The FCA identified several areas where firms need to improve, including weak evidence of communication testing, inaccessible or overly complex communications, insufficient consideration of diverse customer needs, weak monitoring, and unclear accountability for who is responsible for decisions and how they are made.  \n     \n   The FCA highlights effective approaches to strengthen communications and meet expectations including:"
+      },
+      {
+        "title": "What can we learn from firms' approaches to consumer understanding under the FCA’s Consumer Duty?",
+        "url": "https://www.lewissilkin.com/en/insights/2026/04/15/what-can-we-learn-from-firms-approaches-to-consumer-understanding-under-the-fcas-consumer-duty",
+        "snippet": "Positive friction is about introducing deliberate, short pauses in the customer journey that help consumers slow down and avoid harmful snap decisions. Its purpose is not to obstruct the journey, but to encourage reflection where speed may lead to poor outcomes. This could be introducing real-time prompts into the customer journey to prevent common mistakes, such as warnings during payment journey to alert about potential scams, or messages that explain why certain information is needed. [...] Some firms continued to produce long, dense documents without summaries, visual hierarchy or navigational cues. Customers were expected to locate critical information without support, increasing the likelihood of misunderstanding. Firms committed to using jargon-free and intelligible language but had limited evidence to show this had been embedded in communications to customers.\n\n### Takeaways [...] Communicate clearly, simply and accessibly. The FCA points to plain language, clear structure, visual hierarchy and layered content as good communication design. Essential information should be upfront, with key risks and exclusions surfaced early rather than buried in the detail. Firms should also ensure that information is available in different formats to meet customer needs."
+      },
+      {
+        "title": "Consumer Duty and the Importance of Testing Consumer Understanding - Davies",
+        "url": "https://davies-group.com/consulting/blog/consumer-duty-and-the-importance-of-testing-consumer-understanding",
+        "snippet": "Insurers need to begin by making sure their internal comms infrastructure is in place. They should know what good customer communication should look like aligned with their requirements i.e.the best language, syntax, and diction to use, and what information is integral to a customer’s understanding of each and every product and service. This means taking into account all forms of customer communication. Not just email or telephone, but digital experiences, gamified features, virtual assistants [...] The way information is delivered can often be highly influenced by your employees, which is why customer facing staff training will be integral to the implementation of all parts of Consumer Duty. Your teams need to be able to gauge customer understanding through the utilisation of their own skills and knowledge and be able to answer questions accurately and confidently. Regular check and feedback via the Quality Assurance process will be key and the QA framework should be adapted to include [...] Consumer understanding is one of the four key outcomes required by the Financial Conduct Authority’s (FCA) 12th Principle – Consumer Duty. With the implementation of the new legislation taking place for all new and existing products that are open to sale on July 31st 2023, insurers will be required to demonstrate consumer understanding.\n\nBut what does this mean, and how can insurance organisations ensure that they are meeting the required standards?"
+      },
+      {
+        "title": "Inside FCA Podcast: What does the Consumer Duty ...",
+        "url": "https://www.youtube.com/watch?v=cn7mNV-92F8",
+        "snippet": "FCA policy expert Sean Cafferky talks to Ozge Ibrahim about the principles behind the consumer support outcome and how firms should review"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:05:52.116Z"
+}

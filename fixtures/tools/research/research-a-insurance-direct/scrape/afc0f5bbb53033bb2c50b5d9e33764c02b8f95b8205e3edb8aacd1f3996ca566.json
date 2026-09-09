@@ -1,0 +1,11 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://www.linkedin.com/posts/1peterrobinson_briefing-fewer-fos-complaints-begins-with-activity-7498361559526662144-I9HS"
+  },
+  "response": {
+    "unreadable": true,
+    "reason": "firecrawl: HTTP 403"
+  },
+  "recordedAt": "2026-09-09T15:17:23.516Z"
+}

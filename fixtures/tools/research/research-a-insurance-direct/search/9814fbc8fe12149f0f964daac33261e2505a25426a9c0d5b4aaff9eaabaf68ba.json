@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "MGA delegated claims authority complaints Consumer Duty outcomes monitoring \"we\" head of claims quote",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:13:17.074Z"
+}

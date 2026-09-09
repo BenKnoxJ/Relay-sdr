@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "UK insurer speech analytics call quality AI already deployed contact centre 2026 rollout",
+    "region": "GB",
+    "recencyMonths": 15,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "AI Speech Analytics for Contact Centre Compliance | MaxContact",
+        "url": "https://www.maxcontact.com/articles/how-to-remain-compliant-with-ai-speech-analytics",
+        "snippet": "## The Regulatory Changes Contact Centres Need to Prepare for Now\n\nThe regulatory environment is changing fast:\n\n PECR fines have increased 35-fold under the Data (Use and Access) Act 2025, from £500,000 to £17.5 million or 4% of global turnover\n EU AI Act chatbot and AI transparency obligations apply from August 2026, with penalties reaching €35 million or 7% of global turnover for non-compliance\n UK AI Bill is expected, adding a further governance layer to AI deployment in contact centres [...] We put that question to the public directly. Our Voice of the UK Consumer 2026 report surveyed over 1,000 UK consumers on exactly this: where do you want AI, and where do you want a human? The answers are more specific, and more useful, than \"customers are moving online.\"\n\n‍\n\n## Consumers draw a hard line on where AI belongs [...] Compliance & Quality Assurance: AI-led speech analytics can automate compliance checks across all calls. Real-time analysis (alongside post-call analysis) also prompt agents to read the relevant scripts while the call is taking place. This leads to increased agent compliance and reduces the risk of fines associated with non-compliance."
+      },
+      {
+        "title": "How AI Is Transforming QA in 2026 and Beyond",
+        "url": "https://www.callcentrehelper.com/ai-transforming-qa-2026-beyond-268583.htm",
+        "snippet": "﻿ ﻿ ﻿\n\n2,971\n\nFiled under - Contact Centre Research, Analytics, Artificial Intelligence (AI), Derek Corcoran, Generative AI, Quality, Research, ScorebuddyCX, Speech Analytics\n\nScorebuddy CX Masterclass Purple box\n\nAs part of the latest Call Centre Helper research, we took a deep dive into the evolving role of Quality Assurance (QA) and how teams are adapting to rapid change. [...] To find out what else was uncovered in the report, download it for free now: What Contact Centres Are Doing Right Now\n\nAuthor: Xander Freeman\n\nPublished On: 10th Dec 2025 - Last modified: 22nd Jun 2026   \n Read more about - Contact Centre Research, Analytics, Artificial Intelligence (AI), Derek Corcoran, Generative AI, Quality, Research, ScorebuddyCX, Speech Analytics\n\nRegister for our webinar.\n\n### Recommended Articles\n\nstrategy board [...] Derek told us about one example from last Black Friday that illustrates this perfectly. A sudden spike in contacts appeared with no obvious cause. Using conversation analytics in semi-real time, the team identified that a specific delivery partner was missing SLAs, driving the surge.\n\nThe issue, that might otherwise have been invisible to the CX team, was resolved quickly, avoiding prolonged customer dissatisfaction and driving down the contacts."
+      },
+      {
+        "title": "Customer Insights & Speech Analytics Software for Contact Centres",
+        "url": "https://www.route101.com/contact-centre-software/customer-insights",
+        "snippet": "Footer 2025\n\nGlobal Footer Image 2026\n\n#### MEDIA ENQUIRIES:\n\nGET IN TOUCH:\n\nBristol (HQ): Route 101 Ltd., The Conifers, Filton Rd, Hambrook, Bristol, BS16 1QG\n\n+44 (0) 3330 110 400\n\nfooter-logo\n\nAll Rights Reserved / Route 101 Ltd. / Company Registration Number 08325675\n\nPrivacy Policy / Cookie Policy / Terms of Use /  Modern Slavery Statement [...] ### Global cruise line adopts AI-powered platform to expand digital service channels with Route 101\n\nLearn how Carnival UK modernised guest communications and advanced its AI roadmap with a future-ready contact centre platform.\n\nRead More\n\nBar and venue group achieves 97% answer rate and 50% more outbound calls with support from Route 101 logo\n\n### Bar and venue group achieves 97% answer rate and 50% more outbound calls with support from Route 101 [...] Read More\n\nOnline power tool retailer improves customer service efficiency by 70% with platform optimisation and AI logo\n\n### Online power tool retailer improves customer service efficiency by 70% with platform optimisation and AI\n\nFind out how one of UK's fastest growing online tool retailers deployed AI-powered customer service with Route 101.\n\nRead More\n\nRoute 101 supports Welsh broadband provider in creating a connected customer experience logo"
+      },
+      {
+        "title": "How Speech Analytics Improves Contact Center Operations",
+        "url": "https://qeval.ai/blog/speech-analytics-contact-center-operations",
+        "snippet": "Shawndra Tobias  ·  Jul 21, 2026\n\nScore every conversation\n\n## Move from keywords to context.\n\nBring your scorecards, your AI agents, your CCaaS. We will score a real call in 30 minutes and show you what keyword rules missed last week.\n\nSee a demo Back to the blog [...] Keep reading\n\n## Related posts.\n\nWho calibrates the machine? Making AI scoring transparent enough that frontline teams trust it blog\n\n### Who calibrates the machine? Making AI scoring transparent enough that frontline teams trust it\n\nAgents distrust scores with no explanation attached. See how contact centers make AI quality scoring transparent enough for…\n\nJim Iyoob  ·  Aug 10, 2026 How to reduce QA effort by 40% without cutting interaction coverage blog [...] The contact center industry has undergone significant transformations in recent years due to evolving customer behavior and expectations. Contact centers are constantly striving for improvement in their people, processes, and technology to meet these demands. Among various technologies, speech analytics has revolutionized the call center quality monitoring process in the best way possible."
+      },
+      {
+        "title": "Contact Centre AI | Vonage",
+        "url": "https://www.vonage.co.uk/contact-centers/features/ai",
+        "snippet": "Conversation Analyzer, our speech analytics tool, generates actionable insights at scale, based on what agents and customers discuss. Uses AI to generate"
+      },
+      {
+        "title": "AI for call centers: an operating and rollout guide | Sierra",
+        "url": "https://sierra.ai/uk/blog/ai-for-call-centers",
+        "snippet": "Call center AI usually centers on voice operations: natural-language routing, real-time assistance, autonomous voice agents, transcription, quality evaluation, and post-call work. Contact center automation is broader, extending across chat, SMS, messaging, email, and other service channels. This guide focuses on the voice-led operating decisions that must still coordinate with those adjacent channels. [...] This lifecycle map does not recommend automation at every stage. For each journey, decide which tasks should be automated, assisted, or human-led. Then define how that choice will work across routing, queues, systems, and fallback.\n\nThe rollout plan below focuses on autonomous or AI-routed voice journeys, where customer traffic and queue ownership change. Representative-assist, forecasting, and quality-analysis deployments require different cutover criteria. [...] # AI for call centers: an operating and rollout guide\n\nAI for call centers applies machine learning and AI agents to customer conversations and the workflows around them. It can route demand, assist representatives, resolve eligible requests, evaluate interactions, and reveal why customers contact the business."
+      },
+      {
+        "title": "NiCE report shows agentic AI transforming contact centres - IT Brief UK",
+        "url": "https://itbrief.co.uk/story/nice-report-shows-agentic-ai-transforming-contact-centres",
+        "snippet": "Agentic AI in live contact centres is slashing rollout times, lifting self-service above 80% and boosting customer satisfaction by up to"
+      },
+      {
+        "title": "AI Call Centre Agents & Automation: UK Guide",
+        "url": "https://www.aiworkforce.co.uk/blogs/ai-call-centre-agents-call-center-solutions",
+        "snippet": "Learn how AI call centre agents, agent assist and call-centre automation work, including integrations, costs, UK compliance and human"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:53:39.935Z"
+}

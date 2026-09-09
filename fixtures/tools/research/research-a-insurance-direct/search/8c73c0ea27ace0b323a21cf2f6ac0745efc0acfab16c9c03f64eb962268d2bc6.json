@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance broker MGA \"complaints\" FOS case fee 2026 increase cost of complaints firms",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:14:55.731Z"
+}

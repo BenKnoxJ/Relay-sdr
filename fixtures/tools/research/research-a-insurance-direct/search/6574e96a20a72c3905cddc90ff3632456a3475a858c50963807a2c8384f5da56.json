@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"complaints manager\" insurance job advert QA call reviews root cause",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Complaints and QA Manager - Cardiff - Admiral jobs",
+        "url": "https://www.admiraljobs.co.uk/job/complaints-and-qa-manager-in-cardiff-jid-2754",
+        "snippet": "You will be tasked with delivering enhancements to drive better outcomes in line with FCA rules and guidance, including embedding a robust Root Cause Analysis"
+      },
+      {
+        "title": "Complaints Manager Jobs (with Salaries) | Indeed United Kingdom",
+        "url": "https://uk.indeed.com/q-complaints-manager-jobs.html",
+        "snippet": "you'll lead our monthly complaints reviews, drive root cause analysis, and step up complaints handling... customer complaints and customer voice services."
+      },
+      {
+        "title": "Insurance Complaints Manager at Sky - Sky Talent Community",
+        "url": "https://sky.talent-community.com/projects/insurance-complaints-manager/41691",
+        "snippet": "Unfortunately, we are no longer accepting applications for this role. complaints investigation process, reporting and root cause analysis"
+      },
+      {
+        "title": "Complaints & Quality Assurance Manager - NHS Jobs",
+        "url": "https://beta.jobs.nhs.uk/candidate/jobadvert/A3348-26-0007",
+        "snippet": "The Complaint & QA Manager will provide a great complainant experience; contribute to the drive for improvement in quality of complaint"
+      },
+      {
+        "title": "Insurance Complaints Handler at Keystone - LinkedIn",
+        "url": "https://uk.linkedin.com/jobs/view/insurance-complaints-handler-at-keystone-4462173052",
+        "snippet": "Root Cause Analysis & Quality Identify trends and root causes across complaint volumes and feed these back to the relevant teams and management"
+      },
+      {
+        "title": "quality assurance complaints quality management - Glassdoor",
+        "url": "https://www.glassdoor.co.uk/Job/quality-assurance-complaints-quality-management-jobs-SRCH_KO0,47.htm",
+        "snippet": "Get the right Quality assurance complaints quality management job with company ratings and salaries. 1322 open jobs for Quality assurance complaints quality"
+      },
+      {
+        "title": "Senior Lead - Complaint Outcomes - Myworkdayjobs.com",
+        "url": "https://hastingsdirect.wd3.myworkdayjobs.com/en-US/linkedin/job/Senior-Lead---Complaint-Outcomes_60013900",
+        "snippet": "Root Cause and Continuous Improvement – leading complaint root cause analysis across operational teams and suppliers, identifying recurring"
+      },
+      {
+        "title": "Consumer support outcome: good practices and areas for improvement | FCA",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/consumer-support-outcome-good-practices-areas-improvement",
+        "snippet": "Smaller firms\n\nWhere smaller firms cannot access similar tools, they may consider proportionate methods to monitor whether customers are receiving the support they need. This could include periodic call listening or file reviews using a simple checklist, for example, checking whether customer needs were identified, appropriate support was provided, and issues were resolved without repeat contact. [...] Firms that monitor a range of customer support metrics were able to gain richer insight into the overall outcomes that consumers receive. Where risks of poor outcomes were identified, some firms demonstrated appropriate actions taken to address the root cause, for instance, by updating customer support processes, or adjusting their operations.\n\n## Overall findings – areas of improvement\n\n### Aligning support processes to the target market [...] Some smaller firms carry out a simple annual review to check whether customers are getting the support they need. One firm used information it already collects (such as file checks, client feedback, complaints records and registers) to assess how well its support arrangements are working. The firm records any issues it identifies, sets out actions where improvements are needed, and summarises the key points for review and signoff by senior management. The firm said this approach helps it"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:02:21.991Z"
+}

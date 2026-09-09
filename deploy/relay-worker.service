@@ -1,0 +1,58 @@
+# Relay worker — systemd USER unit (master doc §18).
+#
+# The worker is the half of Relay that Vercel cannot host: a long-lived Node
+# process that claims jobs and runs agents, talking to the app only through
+# Postgres. It runs here, on the VPS, against Neon.
+#
+# Install and upgrade steps live in deploy/README.md. Credentials live in the
+# environment file below (chmod 600) and never in this repository.
+#
+# ExecStart runs the tsup bundle under plain node, deliberately. `npm run
+# worker` is `node --import tsx src/worker/main.ts`, and the `tsx` CLI wrapper
+# runs the script in a *child* process — a SIGTERM from systemd would land on
+# the wrapper and the worker would be SIGKILLed at the stop timeout with a job
+# still leased. Exec'ing the bundle makes the process systemd signals the same
+# process that drains.
+
+[Unit]
+Description=Relay worker — claims jobs and runs agent steps against Neon
+Documentation=file:%h/projects/relay/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+OnFailure=notify-failure@%N.service
+# Without these, OnFailure= is decoration. `Restart=on-failure` with
+# RestartSec=15 never trips this host's default start limit (5 starts in 10s),
+# so a permanently broken worker would restart every fifteen seconds for ever,
+# never enter the failed state, and never alert anyone. Five failures inside
+# five minutes is a worker that is not coming back on its own.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node %h/projects/relay/dist/worker/main.js
+WorkingDirectory=%h/projects/relay
+# How long a draining worker lets the in-flight handler run after SIGTERM.
+# Must stay below TimeoutStopSec: the worker's own deadline gives the job back
+# with `release` (no attempt charged); systemd's deadline is a SIGKILL, which
+# leaves the job on a lease for the reaper. The first is the good ending.
+#
+# A default, not a ceiling: systemd.exec(5) says settings from EnvironmentFile=
+# override Environment= — unconditionally, whatever order they appear in here —
+# so the environment file wins if it names this variable. Nothing enforces the
+# relationship with TimeoutStopSec at runtime, so an override above 600s buys
+# a SIGKILL instead of a clean release. Raise TimeoutStopSec with it.
+Environment=RELAY_WORKER_DRAIN_MS=540000
+EnvironmentFile=%h/.secrets/relay-worker.env
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGTERM
+TimeoutStopSec=600
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=relay-worker
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

@@ -24,7 +24,7 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:deploy": "bash scripts/db-deploy.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {

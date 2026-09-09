@@ -1,4 +1,4 @@
-import { packItems, type ResearchPack } from "../../../agents/research/output.schema";
+import { domainCounts, packItems, type ResearchPack } from "../../../agents/research/output.schema";
 import type { AgentBudget } from "@/lib/agents/definitions";
 import { monthsOld } from "../../../agents/_shared/item.schema";
 
@@ -15,8 +15,8 @@ export type RubricRow = { check: number; name: string; verdict: "pass" | "fail" 
 
 export type RubricInput = {
   pack: ResearchPack;
-  /** Search queries the run made, in order; check 7 reads them. */
-  searchQueries?: string[];
+  /** The searches the run made, in order, with the wave each was marked as; check 7 reads them. */
+  searches?: Array<{ query: string; purpose?: string }>;
   /** The run's actuals and its budget; check 11. */
   actuals?: { searches: number; fetches: number; seconds: number; modelSteps: number; costUsd: number };
   budget?: AgentBudget;
@@ -27,8 +27,8 @@ export type RubricInput = {
   now?: Date;
 };
 
-/** Words a query uses when it is looking for the other side. */
-const CONTRADICTION_MARKERS = /\b(contrar|contradict|critic|against|overstated|myth|not |no |isn't|doesn't|does not|fails|problems? with|downsides?|risks? of|backlash|disput)/i;
+/** Words a query uses when it is looking for the other side — the fallback when a search carries no `purpose`. */
+const CONTRADICTION_MARKERS = /\b(contrar|contradict|critic|against|overstated|myth|not |no |isn't|doesn't|does not|fails|problems? with|downsides?|risks? of|backlash|disput|falling|fell|declin|improving|instead of|already|alternative)/i;
 
 export function scoreRubric(input: RubricInput): RubricRow[] {
   const { pack } = input;
@@ -72,17 +72,17 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
   rows.push({ check: 5, name: "Recency", verdict: stale.length === 0 ? "pass" : "fail", detail: stale.length === 0 ? "no strong signal older than twelve months" : `${stale.length} strong signals older than twelve months` });
 
   // 6 — domain spread
-  const counts = new Map<string, number>();
-  for (const item of items) for (const url of new Set(item.evidence.urls)) counts.set(host(url), (counts.get(host(url)) ?? 0) + 1);
+  // Pages per domain, as §3 counts them (the schema's own function).
+  const counts = domainCounts(pack);
   const over = [...counts.entries()].filter(([, n]) => n > 3);
   const narrow = items.filter((i) => (i.confidence === "strong" || i.confidence === "moderate") && new Set(i.evidence.urls.map(host)).size < 2 && !i.evidence.primary);
   rows.push({ check: 6, name: "Domain spread", verdict: over.length === 0 && narrow.length === 0 ? "pass" : "fail", detail: over.length > 0 ? `${over.map(([h, n]) => `${h}×${n}`).join(", ")} over the cap` : narrow.length > 0 ? `${narrow.length} moderate+ items on one domain` : `${counts.size} domains` });
 
   // 7 — contradictions
-  if (input.searchQueries === undefined) {
+  if (input.searches === undefined) {
     rows.push({ check: 7, name: "Contradictions", verdict: "n/a", detail: "no step record supplied" });
   } else {
-    const contra = input.searchQueries.filter((q) => CONTRADICTION_MARKERS.test(q)).length;
+    const contra = input.searches.filter((s) => (s.purpose === undefined ? CONTRADICTION_MARKERS.test(s.query) : s.purpose === "contradiction")).length;
     const needed = pack.archetypes.length;
     rows.push({ check: 7, name: "Contradictions", verdict: contra >= needed && needed > 0 ? "pass" : pack.insufficient !== undefined ? "n/a" : "fail", detail: `${contra} contradiction queries for ${needed} archetypes; ${pack.contradictions.length} recorded` });
   }

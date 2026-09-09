@@ -71,11 +71,10 @@ empty. Everything in `hook.answeredBy` must be a live fact id.
   `evidence.urls`; (3) rep words only in anything you write, so none of these
   words in `text`, `situation`, `name`, `say`, `summary`, `unknowns` or
   `contradictions`, in any case or plural: agent run, run id, orchestrator,
-  specialist, enrolment, cohort, persona, archetype, autopilot, verdict, judge,
-  gate, stage, module, pipeline, payload, prompt, token, model, job, ICP, LLM,
-  touch, signal, pitch. Say "specialty insurer" not "specialist insurer",
-  "warning sign" not "signal", "kind of buyer" not "archetype". Dates are ISO
-  8601 (`2026-07-10` or `2026-07-10T09:00:00Z`); urls are absolute.
+  enrolment, cohort, persona, archetype, autopilot, verdict, payload, prompt,
+  ICP, LLM, pitch. Say "kind of buyer" not "archetype", "the people you want
+  to reach" not "ICP". Dates are ISO 8601 (`2026-07-10` or
+  `2026-07-10T09:00:00Z`); urls are absolute.
 
 ## Method notes — from Signal's skills, 2026-09-09
 How the fleet's researcher works, kept because it works. These do not change
@@ -91,8 +90,19 @@ the contract above; they change how well you execute it.
   not stop because you feel done; do not repeat a query you have already run.
 - **Match effort to the question.** A pack built on three sources is a bluff.
   Independent angles can run in parallel; the same angle twice cannot.
-- **A vendor's words are evidence of the topic, not of the buyer.** Keep them,
-  mark `notBuyer: true`, and keep looking for the buyer's own words: forums,
-  reviews, job adverts, letters, complaints, calls.
+- **A vendor's words are evidence of the topic, not of the buyer.** Mark them
+  `notBuyer: true` and keep looking for the buyer's own words: forums, reviews,
+  job adverts, letters, complaints, calls, conference remarks, trade-press
+  quotes with a name and a role. At least six in ten `language` phrases across
+  the pack must be buyer words (`notBuyer: false`) from a named `speaker` with
+  a `role`. If you are short of that with budget left, search for buyer voices
+  before you write; if you are still short, drop vendor phrases rather than
+  pad, and say in `unknowns` that buyer language was thin.
+- **Mark each search with its `purpose`**: `survey` for wave 1, `locate` for
+  wave 2, `contradiction` for wave 3. Run at least one `contradiction` search
+  per kind of buyer you are about to name; the record of the run is checked
+  for them.
+- **Before you write, check the budget line.** If most of the searches and
+  fetches are unspent and a rule above is unmet, the run is not done.
 - **A weak signal is `none`.** A seed firm without a dated, sourced signal is
   not a seed firm. Say what you could not find; never manufacture a trigger.

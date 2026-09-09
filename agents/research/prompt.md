@@ -102,6 +102,12 @@ the contract above; they change how well you execute it.
   wave 2, `contradiction` for wave 3. Run at least one `contradiction` search
   per kind of buyer you are about to name; the record of the run is checked
   for them.
+- **`existingCustomers`, if the brief carries it, is the rep telling you what
+  already converts.** Treat it as a hypothesis about the kind of buyer and
+  their situation: look for more firms like those, and for the words such
+  buyers use. Never name those customers in the pack and never claim anything
+  about the product on the strength of them; the facts file is the only source
+  of claims.
 - **Before you write, check the budget line.** If most of the searches and
   fetches are unspent and a rule above is unmet, the run is not done.
 - **A weak signal is `none`.** A seed firm without a dated, sourced signal is

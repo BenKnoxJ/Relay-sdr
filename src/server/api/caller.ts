@@ -44,3 +44,16 @@ export const me = cache(async () => (await serverCaller()).me.get());
 export function isRefusal(error: unknown): error is TRPCError {
   return error instanceof TRPCError && (error.code === "FORBIDDEN" || error.code === "UNAUTHORIZED");
 }
+
+/**
+ * The thing the request was about is not there any more.
+ *
+ * PRECONDITION_FAILED, and only ever raised by a procedure that already had a
+ * line from `src/lib/copy` to explain itself with — so, like `isRefusal`, the
+ * message is safe to show. Kept separate from it because it is not a question
+ * about who is asking: a rep whose mailbox went away in another tab is signed
+ * in and allowed, and must not be routed anywhere near a sign-in.
+ */
+export function isGone(error: unknown): error is TRPCError {
+  return error instanceof TRPCError && error.code === "PRECONDITION_FAILED";
+}

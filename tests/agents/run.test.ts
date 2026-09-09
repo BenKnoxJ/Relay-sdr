@@ -106,6 +106,7 @@ describe("runAgent", () => {
                 tokensInUncached: scripted.usage.in,
                 tokensCacheRead: cacheRead,
                 tokensCacheWrite: 0,
+                tokensCacheWrite1h: 0,
                 tokensOut: scripted.usage.out,
               },
               MODEL,
@@ -158,11 +159,11 @@ describe("runAgent", () => {
 
     // A million cached reads cost the same as a hundred thousand fresh ones.
     expect(
-      cost({ tokensIn: 1_000_000, tokensInUncached: 0, tokensCacheRead: 1_000_000, tokensCacheWrite: 0, tokensOut: 0 }, MODEL),
+      cost({ tokensIn: 1_000_000, tokensInUncached: 0, tokensCacheRead: 1_000_000, tokensCacheWrite: 0, tokensCacheWrite1h: 0, tokensOut: 0 }, MODEL),
     ).toBe(formatMicroDollars(500_000n));
     // Reasoning is inside the output total and is not billed a second time.
     expect(
-      cost({ tokensIn: 0, tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensOut: 1_000 }, MODEL),
+      cost({ tokensIn: 0, tokensInUncached: 0, tokensCacheRead: 0, tokensCacheWrite: 0, tokensCacheWrite1h: 0, tokensOut: 1_000 }, MODEL),
     ).toBe(formatMicroDollars(25_000n));
   });
 

@@ -1,0 +1,19 @@
+{
+  "name": "@relay/claude-code-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "ai-sdk-provider-claude-code": "4.3.1",
+    "zod": "4.1.12"
+  },
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "description": "Relay: the Claude Agent SDK bridge with its own zod 4, nested so the root stays on zod 3"
+}

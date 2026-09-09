@@ -4,16 +4,15 @@ import { describe, expect, it } from "vitest";
 import CampaignsPage from "@/app/(app)/campaigns/page";
 import ContentPage from "@/app/(app)/content/page";
 import InboxPage from "@/app/(app)/inbox/page";
-import SettingsPage from "@/app/(app)/settings/page";
 import { contentCopy } from "@/lib/copy/content";
 import { emptyCopy } from "@/lib/copy/empty";
-import { settingsCopy } from "@/lib/copy/settings";
 
 /**
- * The four areas that have nothing behind them yet. Every one of them is in
+ * The three areas that have nothing behind them yet. Every one of them is in
  * the nav from day one and opens to a state that says what is coming
  * (master doc §23.0 and §22.7) — so every one of them is checked here, not
- * only Content.
+ * only Content. Settings left this file when Task 10b made its first card
+ * real; it is covered in `settings.test.tsx`.
  */
 describe("Content before its slice", () => {
   it("says what it will do and when", () => {
@@ -51,25 +50,5 @@ describe("Campaigns before the first campaign", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(emptyCopy.campaigns.title);
     expect(screen.getByText(emptyCopy.campaigns.heading)).toBeDefined();
     expect(screen.getByText(emptyCopy.campaigns.body)).toBeDefined();
-  });
-});
-
-describe("Settings before the connect step", () => {
-  it("shows the four signed cards, each saying it is coming", () => {
-    render(<SettingsPage />);
-
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(settingsCopy.title);
-
-    const headings = screen
-      .getAllByRole("heading", { level: 2 })
-      .map((heading) => heading.textContent);
-
-    expect(headings).toEqual([
-      settingsCopy.mailbox,
-      settingsCopy.linkedin,
-      settingsCopy.voice,
-      settingsCopy.calls,
-    ]);
-    expect(screen.getAllByText(settingsCopy.coming)).toHaveLength(4);
   });
 });

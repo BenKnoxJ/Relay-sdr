@@ -98,3 +98,67 @@ export async function exchangeCode(
     scopes: (json.scope ?? "").split(/\s+/).filter((s) => s.length > 0),
   };
 }
+
+/**
+ * The token set `INTEGRATIONS=mock` hands back instead of calling Microsoft.
+ *
+ * Fixed values, so a test can assert the blob in the database decrypts to
+ * exactly this, and obviously fake ones, so a mock token that escaped into a
+ * live path fails at Microsoft rather than looking plausible in a log.
+ */
+export const MOCK_EXCHANGE_TOKENS = {
+  accessToken: "mock-graph-access",
+  refreshToken: "mock-graph-refresh",
+  scopes: [...BASE_SCOPES, SEND_SCOPE],
+} as const;
+
+/** How long a mock access credential claims to last. */
+const MOCK_TTL_MS = 3600 * 1000;
+
+/**
+ * Exchange a code, against Microsoft or against the mock, per `INTEGRATIONS`.
+ *
+ * The selector lives beside the live call rather than in the callback route,
+ * for the reason `createGraphMailService` does: which of the two runs is a
+ * property of the environment, and a route that branched on it would be a
+ * second place the answer is decided.
+ */
+export async function exchangeGraphCode(
+  env: AuthEnv & { INTEGRATIONS: "mock" | "live" },
+  input: { code: string; redirectUri: string },
+  deps: ExchangeDeps = {},
+): Promise<ExchangedTokens> {
+  if (env.INTEGRATIONS === "mock") {
+    const now = deps.now ?? (() => new Date());
+    return {
+      accessToken: MOCK_EXCHANGE_TOKENS.accessToken,
+      refreshToken: MOCK_EXCHANGE_TOKENS.refreshToken,
+      expiresAt: new Date(now().getTime() + MOCK_TTL_MS).toISOString(),
+      scopes: [...MOCK_EXCHANGE_TOKENS.scopes],
+    };
+  }
+  return exchangeCode(env, input, deps);
+}
+
+/**
+ * Where "Connect" sends the rep: Microsoft's consent screen, or — under
+ * `INTEGRATIONS=mock` — straight back to Relay's own callback with a code the
+ * mock exchange accepts.
+ *
+ * The mock branch is what makes the whole connect walkable on a laptop with no
+ * Microsoft app registration, which is the state Relay is in until D1 lands. It
+ * cannot fire in a live deployment: `INTEGRATIONS` is validated at boot and
+ * `live` is the only other value.
+ */
+export function authorizeGraphUrl(
+  env: AuthEnv & { INTEGRATIONS: "mock" | "live" },
+  input: AuthorizeInput,
+): string {
+  if (env.INTEGRATIONS === "mock") {
+    const url = new URL(input.redirectUri);
+    url.searchParams.set("code", "mock-authorization-code");
+    url.searchParams.set("state", input.state);
+    return url.toString();
+  }
+  return authorizeUrl(env, input);
+}

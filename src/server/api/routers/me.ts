@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 
 import { authCopy } from "@/lib/copy/auth";
+import { getMailbox, isConnected } from "@/lib/repo/connections";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
 /**
@@ -11,10 +12,11 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
  * the avatar's initials, and the two flags decide what Home shows on day one
  * (§23.1a).
  *
- * `hasCampaign` and `connections` are constants today and are here anyway: the
- * first campaign arrives with slice 1 and the mailbox connection with Task
- * 10b. Typing them now means the shell reads one shape before and after, and
- * neither change reaches a component.
+ * `hasCampaign` is a constant today and is here anyway: the first campaign
+ * arrives with slice 1. Typing it now means the shell reads one shape before
+ * and after, and the change reaches no component. `connections.mailbox` became
+ * real in Task 10b; Zoho is org-level and admin-owned, so it stays false until
+ * slice 3 gives an admin somewhere to connect it.
  */
 export const meRouter = createTRPCRouter({
   get: repProcedure.query(async ({ ctx }) => {
@@ -24,6 +26,8 @@ export const meRouter = createTRPCRouter({
       where: { id: ctx.userId },
       select: { email: true, name: true, role: true, org: { select: { name: true } } },
     });
+
+    const mailbox = await getMailbox(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId });
 
     if (user === null) {
       // `repProcedure` resolved this id from the database moments ago, so the
@@ -39,8 +43,14 @@ export const meRouter = createTRPCRouter({
       orgName: user.org.name,
       /** No Campaign entity until slice 1. Until then nobody has one. */
       hasCampaign: false,
-      /** ConnectedAccount is wired up in Task 10b; until then nothing is connected. */
-      connections: { mailbox: false, zoho: false },
+      /**
+       * A revoked mailbox reads as no mailbox: Home's connect prompt is asking
+       * "can Relay send for you yet", and the answer for a disconnected account
+       * is no. `expiring` and `paused` are connected — the prompt would be
+       * telling the rep to do the wrong thing, and Settings says what is
+       * actually wrong.
+       */
+      connections: { mailbox: isConnected(mailbox), zoho: false },
     };
   }),
 });

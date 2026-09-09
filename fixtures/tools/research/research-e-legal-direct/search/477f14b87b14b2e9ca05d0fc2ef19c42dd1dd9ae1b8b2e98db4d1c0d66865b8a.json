@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "Legal Futures law firm complaints handling \"we\" said head of client care solicitor firm interview 2026",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T16:06:25.198Z"
+}

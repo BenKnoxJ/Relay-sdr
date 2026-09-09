@@ -1,6 +1,7 @@
 import type { Job, PrismaClient } from "@prisma/client";
 
 import { echo } from "@/worker/handlers/echo";
+import { research } from "@/worker/handlers/research";
 import { noop } from "@/worker/handlers/noop";
 import { sleep } from "@/worker/handlers/sleep";
 
@@ -40,7 +41,7 @@ export type HandlerResult = unknown;
 
 export type Handler = (context: HandlerContext) => Promise<HandlerResult>;
 
-export const handlers: Record<string, Handler> = { noop, sleep, echo };
+export const handlers: Record<string, Handler> = { noop, sleep, echo, research };
 
 /**
  * The handler for a kind, or undefined. The loop REQUEUES an unknown kind

@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "solicitors firm appoints \"head of client experience\" OR launches client care team 2026 press release UK",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T16:07:46.580Z"
+}

@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm \"client services\" contact centre team leader coaching quality calls solicitors 3CX",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Contact Center Solution for Omnichannel Support - 3CX",
+        "url": "https://www.3cx.com/contact-center",
+        "snippet": "It incorporates live chat, WhatsApp, SMS and Facebook messaging, letting customers reach you through their preferred channels. With features like skill-based routing, queue strategies, and call-back options, no call is missed, and customer satisfaction remains high. Real-time monitoring and training tools, like Listen In, Whisper, and Barge In, allow for continuous quality control, ensuring high service standards every time.\n\n### Manage and control yourself [...] 3CX’s call center solution provides dynamic call queues, detailed reporting, live wallboards, and CRM integration to streamline interactions. Beyond calls, 3CX elevates your call center into a complete contact center. [...] Customers expect quick answers and seamless interactions. With 3CX, your agents know exactly who’s calling and can easily access past interactions, cutting down on the need for transfers and repeated explanations. This builds stronger customer relationships, leading to higher sales, positive reviews, and lasting loyalty."
+      },
+      {
+        "title": "Customer Experience Training for Law Firms | Get in touch",
+        "url": "https://thinkwow.co.uk/customer-experience-consultancy/training/law-firms",
+        "snippet": "Empower your legal team with our comprehensive CX training program. Learn how to improve client satisfaction, and drive business growth."
+      },
+      {
+        "title": "client services coordinator - Leading Minds",
+        "url": "https://www.leadingmindsglobal.com/clientservicescoordinator",
+        "snippet": "Lawyers Solicitor. We are currently recruiting for a Client Services Coordinator. Details 30-40 hours per week Freelance role 100% remote working Competitive"
+      },
+      {
+        "title": "Modernising UK Law Firms with Contact Centre & CX Technologies",
+        "url": "https://marlincomms.co.uk/blog/uk-law-firms-contact-centre-cx",
+        "snippet": "Explore how contact centre and CX technologies are transforming the UK legal sector for enhanced client experiences and efficiency. contact us on 0800 032 8274"
+      },
+      {
+        "title": "Setting Up a Legal CX Function in Law Firms | John King posted on ...",
+        "url": "https://www.linkedin.com/posts/johnrdking_how-to-set-up-a-legal-cx-function-step-activity-7470370008804597761-jzTV",
+        "snippet": "Step #1 – Grow eight arms Step #2 – Develop a thick skin Step #3 – Learn to spin LOTS of plates Contact Centres, Client Service Desks – whatever"
+      },
+      {
+        "title": "Call Centre Law Firm Job in London (with Salaries) - Indeed",
+        "url": "https://uk.indeed.com/q-call-centre-law-firm-l-london-jobs.html",
+        "snippet": "Call centre: 2 years (required). Answer incoming and make outgoing customer calls to customers to convert them into clients. In this role the successful"
+      },
+      {
+        "title": "Legal Telephone Answering Services - Lemon Contact Centre",
+        "url": "https://www.lemoncontactcentre.co.uk/sectors-business-answering-service/legal-call-answering",
+        "snippet": "A leading outsourced call centre for the legal sector, with over 20 years of experience working with leading law firms, including the Magic Circle."
+      },
+      {
+        "title": "Phone System For Law Firms & Legal Practices - PBX Hosting",
+        "url": "https://www.pbxhosting.co.uk/industry/phone-system-for-law-firms",
+        "snippet": "Experience a fully managed, UK-hosted 3CX phone system built for the legal sector, with features like call recording and call logging for billable hours."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:06:30.296Z"
+}

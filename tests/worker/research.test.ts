@@ -161,6 +161,38 @@ describe("the research job", () => {
     expect(await prisma.event.count({ where: { kind: RESEARCH_COMPLETED } })).toBe(0);
   });
 
+  it("replays every stored tool call after a kill mid-run: no key runs twice, and the budget resumes (rubric check 9)", async () => {
+    const job = await jobRow({ brief: BRIEF });
+    const pack = citablePack();
+    const fetches = fetchAll(pack);
+    const budget = { maxModelSteps: 80, maxSearches: 20, maxFetches: 60, maxSeconds: 480 };
+    // Attempt 1 dies after its fourth tool call: the script runs out where a
+    // worker would have been killed, and the model loop fails.
+    const killed = [call("facts", {}), call("search", QUERY), ...fetches.slice(0, 2)];
+    const whole = [call("facts", {}), call("search", QUERY), ...fetches, answer(pack)];
+    const d = deps([killed, whole], { budget });
+    await expect(researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })).rejects.toThrow();
+    const firstRun = await prisma.agentRun.findFirstOrThrow({ where: { jobId: job.id } });
+    const stored = await prisma.agentRunStep.findMany({ where: { runId: firstRun.id, kind: "tool" }, orderBy: { index: "asc" } });
+    expect(stored.map((step) => step.name)).toEqual(["facts", "search", "fetch", "fetch"]);
+    expect(stored.every((step) => step.toolKey !== null)).toBe(true);
+
+    // The retry. Every call the first attempt stored is answered from its row.
+    const result = (await researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
+    const runs = await prisma.agentRun.findMany({ where: { jobId: job.id }, orderBy: { createdAt: "asc" } });
+    expect(runs).toHaveLength(2);
+    const secondSteps = await prisma.agentRunStep.findMany({ where: { runId: runs[1]!.id, kind: "tool" }, orderBy: { index: "asc" } });
+    // Only the calls the first attempt never reached get a row of their own.
+    expect(secondSteps.map((step) => step.name)).toEqual(fetches.slice(2).map(() => "fetch"));
+    const allKeys = [...stored, ...secondSteps].map((step) => step.toolKey);
+    expect(new Set(allKeys).size).toBe(allKeys.length);
+    // The budget resumed: the second attempt's spend is the calls it made, not
+    // a fresh count of everything it asked for.
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: result.eventId } });
+    const after = event.after as { report: { actuals: { searches: number; fetches: number } } };
+    expect(after.report.actuals).toMatchObject({ searches: 0, fetches: fetches.length - 2 });
+  });
+
   it("names a page the cascade could not read as an unreadable unknown, and keeps the model's own", () => {
     const pack = citablePack();
     const out = withUnreadableUnknowns(pack, new Set([DEAD_URL, PAGE_URL]), [PAGE_URL]);

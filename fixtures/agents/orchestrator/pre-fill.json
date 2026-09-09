@@ -1,0 +1,53 @@
+{
+  "kind": "orchestrator",
+  "name": "pre-fill",
+  "source": "sample",
+  "recordedAt": "2026-09-09T00:00:00.000Z",
+  "live": false,
+  "input": {
+    "step": "pre-fill",
+    "sentence": "twenty claims ops people at UK insurers over the next three weeks",
+    "products": [
+      "Insights360",
+      "C360"
+    ],
+    "allowed": {
+      "motions": [
+        "direct",
+        "channel"
+      ],
+      "regions": [
+        "GB",
+        "IE"
+      ],
+      "howMany": [
+        10,
+        20,
+        30,
+        50
+      ],
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    },
+    "defaults": {
+      "weeks": 4
+    }
+  },
+  "output": {
+    "step": "pre-fill",
+    "who": "claims ops people at UK insurers",
+    "region": "GB",
+    "howMany": 20,
+    "weeks": 3,
+    "guessed": [
+      "region"
+    ]
+  },
+  "run": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}

@@ -20,9 +20,12 @@
  *   APP      the running app, signed in as an admin (default localhost:5200)
  *   REP_APP  a second instance signed in as a rep. Optional; when it is set,
  *            the nav-roles comparison is produced as well.
- *   OUT      where the comparisons go   (default docs/design/task-9e)
- *   ONLY     a state id prefix; only the matching comparisons are produced
- *            (default: all of them)
+ *   SET      which set of signed states to shoot: 9b or 9c (the shell, Home
+ *            and Campaigns, one set since Task 9c; the key picks OUT) or
+ *            6b (the bench, which renders the slice 1 screens from fixtures)
+ *            or 9e (Settings in full: the page and its live states).
+ *            Default 9b.
+ *   OUT      where the comparisons go   (default docs/design/task-<SET>)
  *   CHROME   the browser binary         (default chromium)
  */
 import { spawn } from "node:child_process";
@@ -38,7 +41,8 @@ if (MOCK === undefined || MOCK === "") {
     "MOCK is required: the file:// URL of the signed shell mock. It is not in this repository.",
   );
 }
-const OUT = process.env.OUT ?? "docs/design/task-9e";
+const SET = process.env.SET ?? "9b";
+const OUT = process.env.OUT ?? `docs/design/task-${SET}`;
 const ONLY = process.env.ONLY ?? "";
 const CHROME = process.env.CHROME ?? "chromium";
 const PORT = Number(process.env.CDP_PORT ?? 9333);
@@ -63,27 +67,128 @@ const TMP = path.join(process.env.TMPDIR ?? "/tmp", "relay-design-shots");
  *   7 3b · Campaign, plan ready  16  6  · Home in dark
  *   8 3b-ii · Plan expanded
  */
-const MOCK_FRAMES = {
+const MOCK_FRAMES_9B = {
   "mock-home-day-one": 1,
+  "mock-inbox-draft": 2,
+  "mock-inbox-reply": 3,
+  "mock-inbox-call": 4,
   "mock-inbox-empty": 5,
   "mock-campaigns-list": 6,
+  "mock-campaign-plan-ready": 7,
+  "mock-plan-expanded": 8,
+  "mock-campaign-running": 9,
+  "mock-campaign-stopped": 10,
+  "mock-start": 11,
   "mock-settings": 14,
   "mock-content-coming": 15,
   "mock-home-dark": 16,
 };
 
-const APP_PAGES = { home: "/", content: "/content", inbox: "/inbox", campaigns: "/campaigns", settings: "/settings" };
+/**
+ * The frames the bench stands in for.
+ *
+ * The bench renders slice 1's screens from checked-in output, so its comparison
+ * is against the slice 1 frames — the plan expanded, the draft selected, Your
+ * people after the reveal, and Start pre-filled. What is being compared is the
+ * component, not the page around it: the bench draws no nav and no step strip,
+ * and those absences are expected rather than findings.
+ */
+const MOCK_FRAMES_6B = {
+  "mock-draft-selected": 2,
+  "mock-plan-expanded": 8,
+  "mock-start": 11,
+  "mock-your-people": 13,
+};
+
+const APP_PAGES_9B = { home: "/", content: "/content", inbox: "/inbox", campaigns: "/campaigns", settings: "/settings" };
+
+const APP_PAGES_6B = {
+  plan: "/bench/research/insurance-direct",
+  draft: "/bench/outreach/first-email",
+  people: "/bench/leadgen/after-reveal",
+  start: "/bench/orchestrator/pre-fill",
+};
+
+/**
+ * The Campaigns routes (Task 9c). The ids are the fixture adapter's own
+ * (`src/lib/fixtures/campaigns.ts`), so a renamed fixture fails here loudly
+ * rather than shooting a 404 and calling it a state.
+ */
+const CAMPAIGN_PAGES = {
+  start: "/campaigns/new",
+  "start-prefilled":
+    "/campaigns/new?said=" +
+    encodeURIComponent(
+      "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users",
+    ),
+  "campaign-researching": "/campaigns/midlands-fleet-operators",
+  "campaign-plan-ready": "/campaigns/managed-print-partners-midlands",
+  "campaign-running": "/campaigns/uk-logistics-ops",
+  "campaign-stopped": "/campaigns/vets-scotland",
+};
 
 /** One row per signed state: what to show, in what order. */
-const STATES = [
+const STATES_9B = [
   ["home-day-one", "Home, day one (signed mock section 1b)",
     [["Signed mock", "mock-home-day-one"], ["Built, light", "app-home-light"], ["Built, dark", "app-home-dark"]]],
   ["content-coming", "Content before its slice (signed mock section 6)",
     [["Signed mock", "mock-content-coming"], ["Built, light", "app-content-light"], ["Built, dark", "app-content-dark"]]],
-  ["inbox-empty", "Inbox, empty (signed mock section 2c)",
-    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
-  ["campaigns-empty", "Campaigns, none yet (signed mock section 3a shows the populated list)",
+  ["inbox-draft", "Inbox, a draft selected (signed mock section 2a)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-draft-light"], ["Built, dark", "app-inbox-draft-dark"]]],
+  ["inbox-draft-reject", "Inbox, the draft's four reject reasons open (signed mock section 2a draws them under the card)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-reject-light"], ["Built, dark", "app-inbox-reject-dark"]]],
+  ["inbox-needs-you", "Inbox, a draft that needs the rep (signed mock section 2a, the first row of Drafts)",
+    [["Signed mock", "mock-inbox-draft"], ["Built, light", "app-inbox-needs-you-light"], ["Built, dark", "app-inbox-needs-you-dark"]]],
+  ["inbox-reply", "Inbox, a reply selected (signed mock section 2b)",
+    [["Signed mock", "mock-inbox-reply"], ["Built, light", "app-inbox-light"], ["Built, dark", "app-inbox-dark"]]],
+  ["inbox-call", "Inbox, a call selected (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-call-light"], ["Built, dark", "app-inbox-call-dark"]]],
+  ["inbox-call-spoke", "Inbox, Spoke asking for one line (signed mock section 2c draws the box under the outcomes)",
+    [["Signed mock", "mock-inbox-call"], ["Built, light", "app-inbox-spoke-light"], ["Built, dark", "app-inbox-spoke-dark"]]],
+  ["inbox-empty", "Inbox, empty, reached by working every row (signed mock section 2c)",
+    [["Signed mock", "mock-inbox-empty"], ["Built, light", "app-inbox-empty-light"], ["Built, dark", "app-inbox-empty-dark"]]],
+  ["campaigns-list", "Campaigns, the list (signed mock section 3a)",
     [["Signed mock", "mock-campaigns-list"], ["Built, light", "app-campaigns-light"], ["Built, dark", "app-campaigns-dark"]]],
+  ["start", "Start, nothing said yet (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
+  ["start-prefilled", "Start, pre-filled from the sentence (signed mock section 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-prefilled-light"], ["Built, dark", "app-start-prefilled-dark"]]],
+  ["campaign-researching", "Campaign page, Researching (§23.1c; the mock draws the state row in 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-researching-light"], ["Built, dark", "app-campaign-researching-dark"]]],
+  ["campaign-plan-ready", "Campaign page, Plan ready (signed mock section 3b)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-plan-ready-light"], ["Built, dark", "app-campaign-plan-ready-dark"]]],
+  ["plan-expanded", "The plan, one card expanded, and the unknowns card (signed mock 3b-ii)",
+    [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-expanded-light"], ["Built, dark", "app-plan-expanded-dark"]]],
+  ["campaign-running", "Campaign page, Running (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-running"], ["Built, light", "app-campaign-running-light"], ["Built, dark", "app-campaign-running-dark"]]],
+  ["campaign-stopped", "Campaign page, the research stop (signed mock section 3c)",
+    [["Signed mock", "mock-campaign-stopped"], ["Built, light", "app-campaign-stopped-light"], ["Built, dark", "app-campaign-stopped-dark"]]],
+  ["settings", "Settings (signed mock section 5; the cards fill in with Task 10b)",
+    [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
+  ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
+    [["Signed mock", "mock-home-dark"], ["Built, dark", "app-home-dark"], ["Built, light", "app-home-light"]]],
+  ["home-focus", "The brief box with focus in it (WCAG 2.4.7; the mock draws no focus state)",
+    [["Built, light", "app-focus-light"], ["Built, dark", "app-focus-dark"]]],
+];
+
+const STATES_6B = [
+  ["plan-cards", "The research pack in the plan cards (signed mock 3b-ii), from a checked-in pack",
+    [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-light"], ["Built, dark", "app-plan-dark"]]],
+  ["approve-card", "A draft on the Approve card (signed mock 2a), from a checked-in draft",
+    [["Signed mock", "mock-draft-selected"], ["Built, light", "app-draft-light"], ["Built, dark", "app-draft-dark"]]],
+  ["your-people", "Your people after the reveal (signed mock 3f), from a checked-in reveal",
+    [["Signed mock", "mock-your-people"], ["Built, light", "app-people-light"], ["Built, dark", "app-people-dark"]]],
+  ["start-prefill", "Start, pre-filled, with the guessed fields dashed (signed mock 3d)",
+    [["Signed mock", "mock-start"], ["Built, light", "app-start-light"], ["Built, dark", "app-start-dark"]]],
+];
+
+/**
+ * Task 9e's set: Settings in full. The page as it lands against the mock's
+ * section 5, then three live states of it. Its own set rather than more rows
+ * on the shell's, because the four cards need a taller viewport than the
+ * shell's pages, and a one-page task should not re-shoot the shell.
+ */
+const STATES_9E = [
   ["settings", "Settings, the four cards as the page lands (signed mock section 5)",
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
   ["settings-voice-open", "Settings, Your voice unfolded with the Add box open (signed mock section 5 draws the list folded)",
@@ -92,11 +197,24 @@ const STATES = [
     [["Built, light", "app-settings-refused-light"], ["Built, dark", "app-settings-refused-dark"]]],
   ["settings-focus", "Settings, the Calls switch with focus on it (WCAG 2.4.7; the mock draws no focus state)",
     [["Built, light", "app-settings-focus-light"], ["Built, dark", "app-settings-focus-dark"]]],
-  ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
-    [["Signed mock", "mock-home-dark"], ["Built, dark", "app-home-dark"], ["Built, light", "app-home-light"]]],
-  ["home-focus", "The brief box with focus in it (WCAG 2.4.7; the mock draws no focus state)",
-    [["Built, light", "app-focus-light"], ["Built, dark", "app-focus-dark"]]],
 ];
+
+const SETS = {
+  // Task 9c added the Campaigns frames and states to the shell set in place, so
+  // "9b" and "9c" are one set; the key only picks the output directory.
+  "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
+  "9e": { frames: MOCK_FRAMES_9B, pages: { settings: "/settings" }, states: STATES_9E, focusPass: false, roles: false, settings: true },
+};
+
+const chosen = SETS[SET];
+if (chosen === undefined) {
+  throw new Error(`SET must be one of ${Object.keys(SETS).join(", ")}, not ${JSON.stringify(SET)}`);
+}
+const MOCK_FRAMES = chosen.frames;
+const APP_PAGES = chosen.pages;
+const STATES = chosen.states;
 
 /** Only producible with a second instance signed in as a rep. */
 const ROLE_STATE = ["nav-roles", "The nav: Admin for an admin, absent for a rep",
@@ -236,18 +354,106 @@ async function shootApp(origin, prefix, routes) {
 await shootApp(APP, "app", APP_PAGES);
 
 /**
+ * The Inbox's states (Task 9d, mock 2a, 2b, 2c and empty).
+ *
+ * Its own pass rather than routes, because every one of them is a live state
+ * of one page: which row is selected, whether the reasons are open, and — for
+ * empty — that every row has been worked. `/inbox` itself lands on the first
+ * row, a reply, which is 2b and is already shot above as `app-inbox-*`.
+ *
+ * The rows are found by their test ids and the buttons by their text, which
+ * is the copy file's; a renamed button fails here loudly rather than shooting
+ * the wrong state and calling it signed.
+ */
+const INBOX_STATES = {
+  draft: `rows()[4].click();`,
+  reject: `rows()[4].click(); await tick(); button("Reject…").click();`,
+  "needs-you": `rows()[3].click();`,
+  call: `rows()[2].click();`,
+  spoke: `rows()[2].click(); await tick(); button("Spoke").click();`,
+  empty: `
+    // Two labels, one outcome, three approves.
+    button("Warm").click(); await tick();
+    button("Warm").click(); await tick();
+    button("Voicemail").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+    button("Approve").click(); await tick();
+  `,
+};
+
+// Only for a set that has the Inbox on it: 6b and 9e shoot other pages.
+for (const [name, steps] of APP_PAGES.inbox === undefined ? [] : Object.entries(INBOX_STATES)) {
+  for (const theme of ["light", "dark"]) {
+    await cdp.send("Page.navigate", { url: `${APP}/inbox` });
+    await sleep(2000);
+    await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+    await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+    const { result } = await cdp.send("Runtime.evaluate", {
+      awaitPromise: true,
+      expression: `(async () => {
+        const rows = () => [...document.querySelectorAll('[data-testid="queue-row"]')];
+        const button = (text) => {
+          const found = [...document.querySelectorAll("button")].find((el) => el.textContent.trim() === text);
+          if (!found) throw new Error("no button " + JSON.stringify(text) + " on the Inbox");
+          return found;
+        };
+        const tick = () => new Promise((resolve) => setTimeout(resolve, 150));
+        if (rows().length === 0) throw new Error("no rows on the Inbox: is the queue rendering?");
+        ${steps}
+        await tick();
+        // Focus stays where the click left it, and the ring is not the state.
+        document.activeElement?.blur();
+        return "";
+      })().catch((error) => error.message)`,
+    });
+    if (result.value !== "") throw new Error(`inbox-${name}: ${result.value}`);
+    await sleep(500);
+    await capture(`app-inbox-${name}-${theme}`);
+  }
+}
+
+/**
+ * The plan with one card open (mock 3b-ii).
+ *
+ * Its own pass rather than a route, because "expanded" is a live state: the
+ * card is a disclosure the rep opens, and there is no url that lands on it.
+ * The card opened is "Their pain, in their words", which is the one the signed
+ * mock draws open.
+ */
+for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
+  await cdp.send("Page.navigate", { url: `${APP}/campaigns/managed-print-partners-midlands` });
+  await sleep(2000);
+  await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
+  await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);
+  const { result } = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-testid="plan-card"]')];
+    const card = cards[2];
+    if (!card) return "no third plan card on the campaign page";
+    const toggle = card.querySelector("button");
+    if (!toggle) return "the plan card has no disclosure to open";
+    toggle.click();
+    return "";
+  })()`);
+  if (result.value !== "") throw new Error(`plan-expanded: ${result.value}`);
+  await sleep(500);
+  await capture(`app-plan-expanded-${theme}`);
+}
+
+/**
  * Settings' states (Task 9e, mock section 5).
  *
  * Its own pass, and a taller viewport, because the four cards run past 760px
  * and a comparison that cuts the page at the Mailbox card shows nothing of
- * the three cards this task built. The default pass above already shot
+ * the three cards this task built. The route pass above already shot
  * `app-settings-*` at the shell height; these overwrite it.
  *
- * The fields are driven the way React sees them: the native value setter and
- * an `input` event, then focus and blur, so a controlled field saves on blur
- * exactly as it does under a rep's hands. Buttons are found by their text,
- * which is the copy file's; a renamed button fails here loudly rather than
- * shooting the wrong state and calling it signed.
+ * The fields are driven the way React sees them: the native value setter, an
+ * `input` event and then a `focusout`, sent by hand because a headless page
+ * has no window focus and `blur()` may fire nothing; so a controlled field
+ * saves on blur exactly as it does under a rep's hands. Buttons are found by
+ * their text, which is the copy file's; a renamed button fails here loudly
+ * rather than shooting the wrong state and calling it signed.
  */
 const SETTINGS_STATES = {
   "": ``,
@@ -263,8 +469,8 @@ const SETTINGS_STATES = {
     if (document.activeElement !== sw) throw new Error("the switch did not take focus");`,
 };
 
-await viewport(1280, 1560);
-for (const [name, steps] of Object.entries(SETTINGS_STATES)) {
+if (chosen.settings) await viewport(1280, 1560);
+for (const [name, steps] of chosen.settings ? Object.entries(SETTINGS_STATES) : []) {
   for (const theme of ["light", "dark"]) {
     await cdp.send("Page.navigate", { url: `${APP}/settings` });
     await sleep(2000);
@@ -289,8 +495,6 @@ for (const [name, steps] of Object.entries(SETTINGS_STATES)) {
           const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
           Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
           el.dispatchEvent(new Event("input", { bubbles: true }));
-          // A headless page has no window focus, so focus() and blur() may
-          // fire nothing; the focusout React listens for is sent by hand.
           el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
         };
         ${steps}
@@ -303,7 +507,7 @@ for (const [name, steps] of Object.entries(SETTINGS_STATES)) {
     await capture(`app-settings-${name === "" ? "" : `${name}-`}${theme}`);
   }
 }
-await viewport(1280, 760);
+if (chosen.settings) await viewport(1280, 760);
 
 /**
  * Home with focus in the brief box, in both themes.
@@ -313,7 +517,7 @@ await viewport(1280, 760);
  * signed mock draws no focus state at all, so this comparison is the built page
  * against itself in the two themes — which is the whole of what 2.4.7 asks.
  */
-for (const theme of ["light", "dark"]) {
+for (const theme of chosen.focusPass ? ["light", "dark"] : []) {
   await cdp.send("Page.navigate", { url: `${APP}/` });
   await sleep(2000);
   await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
@@ -332,7 +536,9 @@ for (const theme of ["light", "dark"]) {
 // The rep's nav is the same page signed in as somebody without the admin item,
 // so it needs a second instance rather than a second route.
 const states = [...STATES];
-if (REP_APP !== undefined && REP_APP !== "") {
+if (!chosen.roles) {
+  // Nothing on the bench differs by role: it is one developer's own screen.
+} else if (REP_APP !== undefined && REP_APP !== "") {
   await shootApp(REP_APP, "rep", { home: "/" });
   states.push(ROLE_STATE);
 } else {

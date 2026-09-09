@@ -4,9 +4,7 @@ import path from "node:path";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import CampaignsPage from "@/app/(app)/campaigns/page";
 import ContentPage from "@/app/(app)/content/page";
-import InboxPage from "@/app/(app)/inbox/page";
 import { HomeDayOne } from "@/components/HomeDayOne";
 import { Nav } from "@/components/Nav";
 
@@ -24,10 +22,15 @@ const PAGES = {
     />
   ),
   content: () => <ContentPage />,
-  inbox: () => <InboxPage />,
-  campaigns: () => <CampaignsPage />,
-  // Settings is not here: as of Task 9e it is a page of live fields with
-  // state of its own, and its states are snapshotted in
+  // Inbox is not here any more: Task 9d gave it a queue and three cards, and
+  // its four signed states are snapshotted in `tests/ui/inbox/snapshots.test.tsx`.
+  // Two copies of the same snapshot is two files to update and one to forget.
+  // Campaigns is not here any more: Task 9c gave it a list, Start and a page in
+  // four states, and all six are snapshotted in `tests/ui/campaigns/
+  // snapshots.test.tsx`. Two copies of the same snapshot is two files to update
+  // and one of them to forget.
+  // Settings is not here any more either: Task 9e made it a page of live
+  // fields with state of its own, and its states are snapshotted in
   // `tests/ui/settings/snapshots.test.tsx`.
   "nav-rep": () => <Nav role="rep" initials="BK" hasCampaign={false} />,
   "nav-admin": () => <Nav role="admin" initials="BK" hasCampaign />,

@@ -1,0 +1,140 @@
+{
+  "kind": "leadgen",
+  "name": "before-reveal",
+  "source": "sample",
+  "recordedAt": "2026-09-09T00:00:00.000Z",
+  "live": false,
+  "input": {
+    "recipe": {
+      "titles": [
+        "Claims Operations Director",
+        "Head of Claims"
+      ],
+      "excludeTitles": [
+        "Claims Handler"
+      ],
+      "sizeBand": {
+        "min": 50,
+        "max": 500
+      },
+      "countries": [
+        "GB"
+      ],
+      "industries": [
+        "Insurance"
+      ],
+      "triggers": [
+        "new claims leadership"
+      ]
+    },
+    "howMany": 20,
+    "seedFirms": [
+      {
+        "name": "Northgate Claims Services",
+        "domain": "northgateclaims.co.uk"
+      }
+    ],
+    "holds": {
+      "customerDomains": [
+        "alreadyours.co.uk"
+      ],
+      "openDealDomains": [],
+      "dncEmails": [],
+      "dncDomains": [],
+      "optedOutEmails": [],
+      "revealedLushaIds": [],
+      "suppressedLushaIds": []
+    },
+    "caps": {
+      "orgCreditsRemaining": 100,
+      "perCompanyMax": 3,
+      "maxPages": 3
+    }
+  },
+  "output": {
+    "phase": "pick",
+    "chosen": [
+      {
+        "id": "p1",
+        "lushaId": "l-1001",
+        "name": "Helen Marsh",
+        "title": "Claims Operations Director",
+        "company": "Northgate Claims Services",
+        "domain": "northgateclaims.co.uk",
+        "country": "GB",
+        "hasEmail": true,
+        "score": 7,
+        "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+        "rank": 1,
+        "companyKey": "northgateclaims.co.uk"
+      },
+      {
+        "id": "p2",
+        "lushaId": "l-1002",
+        "name": "Daniel Okafor",
+        "title": "Head of Claims",
+        "company": "Westbury Mutual",
+        "domain": "westburymutual.co.uk",
+        "country": "GB",
+        "hasEmail": true,
+        "score": 6,
+        "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+        "rank": 2,
+        "companyKey": "westburymutual.co.uk"
+      },
+      {
+        "id": "p3",
+        "lushaId": "l-1003",
+        "name": "Hannah Lee",
+        "title": "Customer Service Manager",
+        "company": "Marlow Freight",
+        "domain": "marlowfreight.co.uk",
+        "country": "GB",
+        "city": "Reading",
+        "hasEmail": true,
+        "score": 6,
+        "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+        "rank": 3,
+        "companyKey": "marlowfreight.co.uk"
+      }
+    ],
+    "spare": [
+      {
+        "id": "p5",
+        "lushaId": "l-1005",
+        "name": "Rachel Muir",
+        "title": "Operations Director",
+        "company": "Pennine Parcels",
+        "domain": "pennineparcels.co.uk",
+        "country": "GB",
+        "city": "Sheffield",
+        "hasEmail": true,
+        "score": 6,
+        "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+        "rank": 4,
+        "companyKey": "pennineparcels.co.uk"
+      }
+    ],
+    "estimate": {
+      "pages": 1,
+      "reveals": 3,
+      "credits": 4,
+      "remainingAfter": 96
+    },
+    "found": {
+      "n": 5,
+      "ofM": 12
+    },
+    "holdsApplied": [
+      {
+        "reason": "below_b",
+        "count": 1
+      }
+    ]
+  },
+  "run": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}

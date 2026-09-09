@@ -82,15 +82,14 @@ a renamed button fails loudly rather than shooting the wrong state.
 # one shell: the app on the dev database, on a free port
 DEV_USER_EMAIL=ben@relay.test npm run dev -- --port 5210
 
-# another: the capture, Settings states only
+# another: the capture, the 9e set only
 MOCK=file:///path/to/2026-09-07-shell-mock-signed.html \
 APP=http://localhost:5210 \
-OUT=docs/design/task-9e \
-ONLY=settings \
+SET=9e \
 CHROME=/path/to/chrome-or-chromium \
 node scripts/design-shots.mjs
 ```
 
-`MOCK` is required: the signed mock lives outside this repository. `ONLY`
-filters the states by id prefix; without it every state the script knows is
-produced, which is what a shell task wants and this one does not.
+`MOCK` is required: the signed mock lives outside this repository. `SET=9e`
+picks this set of states and `docs/design/task-9e` as the output; `ONLY`
+narrows further by state id prefix when one image is being redone.

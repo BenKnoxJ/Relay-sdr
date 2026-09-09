@@ -1,0 +1,47 @@
+{
+  "recipe": {
+    "titles": [
+      "Claims Operations Director",
+      "Head of Claims"
+    ],
+    "excludeTitles": [
+      "Claims Handler"
+    ],
+    "sizeBand": {
+      "min": 50,
+      "max": 500
+    },
+    "countries": [
+      "GB"
+    ],
+    "industries": [
+      "Insurance"
+    ],
+    "triggers": [
+      "new claims leadership"
+    ]
+  },
+  "howMany": 20,
+  "seedFirms": [
+    {
+      "name": "Northgate Claims Services",
+      "domain": "northgateclaims.co.uk"
+    }
+  ],
+  "holds": {
+    "customerDomains": [
+      "alreadyours.co.uk"
+    ],
+    "openDealDomains": [],
+    "dncEmails": [],
+    "dncDomains": [],
+    "optedOutEmails": [],
+    "revealedLushaIds": [],
+    "suppressedLushaIds": []
+  },
+  "caps": {
+    "orgCreditsRemaining": 100,
+    "perCompanyMax": 3,
+    "maxPages": 3
+  }
+}

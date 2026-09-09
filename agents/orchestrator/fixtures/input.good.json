@@ -1,0 +1,31 @@
+{
+  "step": "pre-fill",
+  "sentence": "twenty claims ops people at UK insurers over the next three weeks",
+  "products": [
+    "Insights360",
+    "C360"
+  ],
+  "allowed": {
+    "motions": [
+      "direct",
+      "channel"
+    ],
+    "regions": [
+      "GB",
+      "IE"
+    ],
+    "howMany": [
+      10,
+      20,
+      30,
+      50
+    ],
+    "channels": [
+      "email",
+      "linkedin"
+    ]
+  },
+  "defaults": {
+    "weeks": 4
+  }
+}

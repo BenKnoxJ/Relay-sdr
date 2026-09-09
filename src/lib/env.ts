@@ -200,7 +200,34 @@ const schema = z
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optional(z.string()),
 
     // --- model ------------------------------------------------------------
+    /**
+     * The Claude **subscription** token, from `claude setup-token`. Relay's
+     * agents bill to the subscription rather than to an API key (decision,
+     * 2026-09-08), so this is the preferred credential and the one
+     * `src/lib/agents/provider.ts` reaches for first. It reaches the Messages
+     * API as `Authorization: Bearer`, never as `x-api-key`.
+     *
+     * Worker-only. The app makes no model calls in Phase 1, so this never
+     * belongs in a Vercel environment — it lives in the worker's own env file
+     * and in the shell that runs the spike script.
+     */
+    CLAUDE_CODE_OAUTH_TOKEN: optional(z.string()),
+    /** The fallback credential, used only when no subscription token is set. */
     ANTHROPIC_API_KEY: optional(z.string()),
+    /**
+     * A scripted language model, as JSON. Local and test only.
+     *
+     * It exists for one reason: `tests/agents/echo.test.ts` proves the agent
+     * runtime through the **real worker process**, and a spawned process has no
+     * seam but its environment. See `src/lib/agents/stubModel.ts`.
+     *
+     * Guarded exactly as `DEV_USER_EMAIL` is guarded, in the same allowlist
+     * below, and for a worse failure: a bypass signs one person in, while a stub
+     * model makes every agent in the org answer from a fixture and every run
+     * look healthy. Silence is production, and production refuses to boot with
+     * this set.
+     */
+    RELAY_AGENT_STUB_MODEL: optional(z.string()),
 
     // --- Zoho CRM ---------------------------------------------------------
     RELAY_ZOHO_CLIENT_ID: optional(z.string()),
@@ -251,6 +278,19 @@ const schema = z
         path: ["DEV_USER_EMAIL"],
         message:
           "DEV_USER_EMAIL is a local-only bypass: it is accepted only when NODE_ENV is " +
+          `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
+      });
+    }
+
+    // The stub model rides the same allowlist, and the build is not carved out
+    // for it: `next build` never makes a model call, so a build that needs a
+    // scripted model is a build doing something it should not.
+    if (!bypassEnvironment && value.RELAY_AGENT_STUB_MODEL !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RELAY_AGENT_STUB_MODEL"],
+        message:
+          "RELAY_AGENT_STUB_MODEL is a local-only scripted model: it is accepted only when NODE_ENV is " +
           `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
       });
     }

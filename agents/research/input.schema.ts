@@ -49,6 +49,13 @@ export const researchBriefSchema = z
     howMany: z.number().int().positive().max(500),
     weeks: z.number().int().positive().max(52),
     channels: z.array(z.string().min(1).max(60)).min(1).max(8),
+    /**
+     * The one question campaign start asks beyond the signed seven: "Do you
+     * already have customers like this? Who, and what did they buy it for?"
+     * Optional, the rep's words, a hypothesis for the research and never a
+     * claim. Amendment note on §2, product owner 2026-09-09; definition untouched.
+     */
+    existingCustomers: z.string().min(1).max(1000).optional(),
   })
   .strict();
 

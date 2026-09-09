@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { mailboxCopy } from "@/lib/copy/settings";
 import { ORG_DEFAULT_DAILY_CAP } from "@/lib/repo/connections";
-import { isRefusal, serverCaller } from "@/server/api/caller";
+import { isGone, isRefusal, serverCaller } from "@/server/api/caller";
 
 /**
  * What the Mailbox card's three controls submit to.
@@ -93,6 +93,12 @@ export async function saveDailyCap(_previous: string | null, form: FormData): Pr
     // focus. `isRefusal` separates that from a fault, whose own message must
     // never be shown to a rep as though it were copy.
     if (isRefusal(error)) return error.message;
+    // The mailbox went away between the page rendering and the field losing
+    // focus — a disconnect in another tab is the whole of it. The card this
+    // field sits on has already stopped existing; saying so is a better answer
+    // than Next's error screen, which is what rethrowing gets, because there is
+    // no error boundary under `(app)`.
+    if (isGone(error)) return error.message;
     throw error;
   }
 }

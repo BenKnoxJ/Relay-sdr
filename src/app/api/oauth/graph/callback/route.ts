@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
 import { getSession } from "@/server/auth/session";
 import { completeGraphConnect } from "@/server/auth/graphCallback";
 import { ensureUser } from "@/server/auth/upsertUser";
@@ -22,9 +23,22 @@ import { ensureUser } from "@/server/auth/upsertUser";
 // A code is exchanged per request, so this must never be prerendered or cached.
 export const dynamic = "force-dynamic";
 
-/** `?connected=mailbox` on success, `?connect=<reason>` on anything else. */
+/**
+ * `?connected=mailbox` on success, `?connect=<reason>` on anything else.
+ *
+ * Built from `APP_URL`, the same origin the `redirect_uri` is built from, and
+ * for the same reason: the rep arrives here from Microsoft, so the Host on the
+ * request is worth exactly as much as whatever proxy set it. Nothing
+ * attacker-controlled is reflected either way, but an origin taken off the
+ * request is one misconfigured hop from sending a signed-in rep somewhere that
+ * is not Relay.
+ *
+ * The request's own origin is the fallback, and only because `APP_URL` is
+ * optional — a laptop running `next dev` has not set one, and there is no
+ * other absolute URL to redirect to. A deployment serving real traffic sets it.
+ */
 function back(request: Request, query: string): NextResponse {
-  const url = new URL(`/settings?${query}`, request.url);
+  const url = new URL(`/settings?${query}`, env().APP_URL ?? request.url);
   return NextResponse.redirect(url);
 }
 

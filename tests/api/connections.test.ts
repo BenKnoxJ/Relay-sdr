@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { GET as graphCallbackRoute } from "@/app/api/oauth/graph/callback/route";
 import { mailboxCopy } from "@/lib/copy/settings";
 import { prisma } from "@/lib/db";
 import { resetEnv } from "@/lib/env";
@@ -390,6 +391,18 @@ describe("connections.setDailyCap", () => {
       mailboxCopy.none,
     );
   });
+
+  // Same sentence as never having connected one, and the same refusal: the
+  // card the rep is looking at after a disconnect has no cap field on it, so a
+  // request that sets one came from a stale page.
+  it("refuses a cap for a mailbox the rep just disconnected", async () => {
+    await connectFor(boss());
+    await caller(boss()).connections.disconnectGraph();
+
+    await expect(caller(boss()).connections.setDailyCap({ cap: 3 })).rejects.toThrow(
+      mailboxCopy.none,
+    );
+  });
 });
 
 describe("me.get", () => {
@@ -402,5 +415,34 @@ describe("me.get", () => {
 
     await caller(boss()).connections.disconnectGraph();
     expect((await caller(boss()).me.get()).connections.mailbox).toBe(false);
+  });
+});
+
+describe("the callback route's redirect", () => {
+  /** The route with nobody signed in: the cheapest path that still redirects. */
+  const hit = (url: string) => graphCallbackRoute(new Request(url));
+
+  // The rep lands here from Microsoft, so the Host on the request is only ever
+  // as trustworthy as whatever proxy sat in front of it. The origin they are
+  // sent on to is Relay's own, decided by configuration.
+  it("sends the rep to APP_URL's origin, whatever host the request claimed", async () => {
+    const response = await hit("https://attacker.example/api/oauth/graph/callback?state=x");
+
+    expect(response.headers.get("location")).toBe(`${APP_URL}/settings?connect=link`);
+  });
+
+  // The one case with no configured origin to use. `APP_URL` is optional, and
+  // a laptop running `next dev` has not set it.
+  it("falls back to the request's own origin only when APP_URL is unset", async () => {
+    delete process.env.APP_URL;
+    resetEnv();
+
+    try {
+      const response = await hit("http://localhost:3000/api/oauth/graph/callback");
+      expect(response.headers.get("location")).toBe("http://localhost:3000/settings?connect=link");
+    } finally {
+      process.env.APP_URL = APP_URL;
+      resetEnv();
+    }
   });
 });

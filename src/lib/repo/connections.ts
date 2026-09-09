@@ -54,6 +54,21 @@ export class ConnectStateInvalidError extends Error {
  */
 class NothingToUpdateError extends Error {}
 
+/**
+ * A row a mutator may still write to. Narrows, so the caller keeps the row.
+ *
+ * `revoked` is the one status that is not a phase a mailbox passes through: the
+ * rep destroyed the tokens on purpose and the row survives only as the record
+ * that they did. Three mutators below need that sentence and each used to spell
+ * it out, which is three chances to write the fourth one without it — so it is
+ * asked here instead. `markExpiring` is deliberately not a caller: its rule is
+ * stricter (`healthy` only), and widening it to this one would let a refusal
+ * from the token endpoint overwrite a status somebody chose.
+ */
+function isLive<T extends { status: string }>(row: T | null): row is T {
+  return row !== null && row.status !== "revoked";
+}
+
 /** A cap outside `1 … ORG_DEFAULT_DAILY_CAP`. */
 export class CapOutOfRangeError extends Error {
   readonly ceiling: number;
@@ -169,7 +184,7 @@ export async function disconnectMailbox(
   input: { orgId: string; userId: string },
 ): Promise<ConnectedAccount | null> {
   const existing = await getMailbox(db, input);
-  if (existing === null || existing.status === "revoked") return existing;
+  if (!isLive(existing)) return existing;
 
   return mutate(db, {
     orgId: input.orgId,
@@ -212,7 +227,12 @@ export async function setDailyCap(
   }
 
   const existing = await getMailbox(db, input);
-  if (existing === null) return null;
+  // Null for a revoked row as well as a missing one, and the same null on
+  // purpose: `getMailbox` has no status filter, so without this the cap and an
+  // `account.cap_changed` Event both land on a mailbox that no longer exists.
+  // The caller turns null into "no mailbox connected", which is what the card
+  // says after a disconnect either way.
+  if (!isLive(existing)) return null;
   if (existing.dailyCap === input.cap) return existing;
 
   return mutate(db, {
@@ -267,7 +287,7 @@ export async function updateTokens(
           where: { id: account.id, orgId: account.orgId },
           select: { status: true },
         });
-        if (row === null || row.status === "revoked") throw new NothingToUpdateError();
+        if (!isLive(row)) throw new NothingToUpdateError();
 
         return tx.connectedAccount.update({
           where: { id: account.id },

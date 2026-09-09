@@ -284,6 +284,20 @@ describe("setDailyCap", () => {
       await expect(setDailyCap(prisma, { ...seeded, cap })).rejects.toThrow(CapOutOfRangeError);
     }
   });
+
+  // A revoked row is not a mailbox with a setting on it, it is the record that
+  // one was disconnected. Answering `null` is the same answer the rep gets for
+  // never having connected at all, which is what the card shows either way.
+  it("refuses a mailbox the rep disconnected, and records nothing", async () => {
+    const seeded = await connected();
+    await disconnectMailbox(prisma, seeded);
+    const before = await eventKinds();
+
+    expect(await setDailyCap(prisma, { ...seeded, cap: 3 })).toBeNull();
+
+    expect(await eventKinds()).toEqual(before);
+    expect((await getMailbox(prisma, seeded))?.dailyCap).toBe(ORG_DEFAULT_DAILY_CAP);
+  });
 });
 
 describe("the refresh hooks", () => {

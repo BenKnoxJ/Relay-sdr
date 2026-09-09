@@ -25,8 +25,20 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 export type EventKind =
   | "org.created"
   | "user.upserted"
+  /// A rep began a connect: the OAuth state was minted. The absence of an
+  /// `account.connected` after one of these is what an abandoned consent
+  /// screen looks like.
+  | "account.connect_started"
   | "account.connected"
   | "account.disconnected"
+  /// The rep lowered their own daily cap, within the ceiling their admin set.
+  | "account.cap_changed"
+  /// The provider refused a refresh: the mailbox needs re-linking.
+  | "account.expiring"
+  /// A refresh rotated the stored tokens. Not a change the rep made, and not
+  /// one they see, but the blob it replaces is the only key to a mailbox and
+  /// "when did this token last rotate" has to be answerable.
+  | "account.token_refreshed"
   /// A job did something outside the database that cannot be undone.
   | "side_effect.recorded";
 

@@ -201,12 +201,20 @@ describe("research: confidence is derived, never asserted", () => {
     const parsed = researchOutputSchema.parse(pack);
     for (const [, count] of domainCounts(parsed)) expect(count).toBeLessThanOrEqual(3);
 
-    // Seed a fourth citation on one domain and the pack is refused.
-    const overCapped = JSON.parse(JSON.stringify(pack)) as typeof parsed;
-    for (const firm of overCapped.seedFirms) {
+    // A source is a page. Many items citing the same three pages of one domain
+    // is fine; a fourth page from that domain is refused.
+    const shared = JSON.parse(JSON.stringify(pack)) as typeof parsed;
+    for (const firm of shared.seedFirms) {
       firm.signal.evidence.urls = ["https://onedomain.test/a"];
       firm.signal.evidence.domains = ["onedomain.test"];
     }
+    expect(researchOutputSchema.safeParse(shared).success).toBe(true);
+    const overCapped = JSON.parse(JSON.stringify(pack)) as typeof parsed;
+    overCapped.seedFirms.forEach((firm, i) => {
+      firm.signal.evidence.urls = [`https://onedomain.test/page-${i}`];
+      firm.signal.evidence.domains = ["onedomain.test"];
+    });
+    expect(overCapped.seedFirms.length).toBeGreaterThanOrEqual(4);
     const result = researchOutputSchema.safeParse(overCapped);
     expect(result.success).toBe(false);
     if (!result.success) {

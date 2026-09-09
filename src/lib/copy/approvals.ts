@@ -16,6 +16,13 @@ export const approvalsCopy = {
    */
   alreadyApproved: "Already approved. Sending shortly.",
   /**
+   * Approved before, and the send that followed it ran out of attempts. Says
+   * what is true without naming the machinery that failed, and does not invite
+   * a click that `stubSendKey` guarantees will do nothing: the key is derived
+   * from the draft, so re-approving can only ever return the spent job.
+   */
+  sendFailed: "Approved earlier, but sending did not go through.",
+  /**
    * The draft is not one this rep can approve, whether because it does not
    * exist or because it belongs to another company. One line for both: a
    * message that told them apart would answer "does this id exist elsewhere?"

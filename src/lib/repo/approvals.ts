@@ -85,13 +85,24 @@ export type RecordDraftReadyInput = {
 /**
  * Record that a run reached drafts ready.
  *
- * Idempotent per job: a job that is retried after the run completed but before
- * the worker could complete the row would otherwise leave two `draft.ready`
- * Events for one piece of work, and a rep would be shown the same draft twice.
- * The read-first check is not a lock and does not pretend to be one — two
- * attempts of the same job never run at once, because the queue's lease is what
- * stops them, so the only concurrency this has to survive is the one the queue
- * already rules out.
+ * Idempotent per job for the ordinary retry: a job retried after the run
+ * completed but before the worker could complete the row would otherwise leave
+ * two `draft.ready` Events for one piece of work, and a rep would be shown the
+ * same draft twice.
+ *
+ * **The read-first check is not a lock, and it does not close the case a lost
+ * lease opens.** `queue.ts` is explicit that a worker which lost its lease "may
+ * still be alive, and it will still try to write", and the queue's fence
+ * protects the *job* row rather than this Event — so a zombie attempt and the
+ * attempt that replaced it can both read nothing here and both write. That
+ * ends in two approvable drafts with two send keys, and eventually two sends.
+ *
+ * It is left as a read rather than made sound because the sound version is a
+ * unique index, and there is no column to put one on: the job id lives inside
+ * `after`, and this task adds no migration. Task 14 replaces the Event with a
+ * Draft row, which is where the constraint belongs and where `sideEffects.ts`
+ * already shows the shape ("It is not the check that makes this safe... the
+ * unique index is"). Named in the pull request rather than left implied.
  */
 export async function recordDraftReady(
   db: PrismaClient,
@@ -254,6 +265,13 @@ export async function recordStubSend(
   if (input.jobId.trim() === "") throw new Error("recordStubSend: jobId is required");
   if (input.digest.trim() === "") throw new Error("recordStubSend: digest is required");
 
+  // The same per-job guard `recordDraftReady` keeps, and for the same reason: a
+  // send job that is retried after this Event was written but before the job
+  // could be completed would otherwise leave two `send.recorded` rows for one
+  // send. Carries the same caveat, too — see `recordDraftReady`.
+  const existing = await findEventForJob(db, input.orgId, SEND_RECORDED, input.jobId);
+  if (existing !== null) return existing;
+
   // A no-op `apply`, for the same reason `recordDraftReady` has one.
   await mutate(db, {
     orgId: input.orgId,
@@ -275,10 +293,14 @@ export async function recordStubSend(
 /**
  * The one Event of a kind whose `after.jobId` is this job, or null.
  *
- * A JSON path filter, so Postgres does the matching. Read every Event of the
- * kind and pick in JavaScript and the cost grows with the org's whole history
- * to answer a question about one job — which on the Inbox's read path is the
- * difference between a query and a table scan.
+ * A JSON path filter, so Postgres does the matching and the row never has to
+ * cross the wire to be rejected. It is **not** an indexed lookup: `events`
+ * indexes `(org_id, at)`, `(kind, at)`, `(campaign_id, at)` and
+ * `(person_id, at)` and nothing on `after`, so this narrows by kind and then
+ * scans. That is affordable at this task's size and would not be on the
+ * Inbox's read path — the index it wants is expression-based on
+ * `after->>'jobId'`, which is a migration, and Task 14's Draft row makes it a
+ * plain foreign key instead. Named in the pull request.
  *
  * `findFirst` and not `findUnique`, because there is no unique index to lean
  * on: `recordDraftReady` keeps "one per job" by reading before it writes under
@@ -293,7 +315,10 @@ async function findEventForJob(
 ): Promise<Event | null> {
   return db.event.findFirst({
     where: { orgId, kind, after: { path: ["jobId"], equals: jobId } },
-    orderBy: { at: "asc" },
+    // `id` breaks the tie: `at` is `timestamp(3)` from the column default, so
+    // two Events written in the same millisecond would otherwise make "the
+    // first one written" an arbitrary answer that can change between calls.
+    orderBy: [{ at: "asc" }, { id: "asc" }],
   });
 }
 

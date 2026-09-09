@@ -2,7 +2,7 @@ import { echoTools } from "../../../agents/echo/tools";
 import { loadDefinition } from "@/lib/agents/definitions";
 import { makeModel } from "@/lib/agents/provider";
 import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
-import { recordDraftReady } from "@/lib/repo/approvals";
+import { findDraftReadyForJob, recordDraftReady } from "@/lib/repo/approvals";
 import { AGENT_MODEL } from "@/worker/handlers/echo";
 import { TerminalError, safeError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
@@ -39,6 +39,13 @@ export const stubDraft: Handler = async ({ db, job, signal }) => {
       `stub_draft: bad input (${parsed.error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ")})`,
     );
   }
+
+  // Before the model call, not after it. `recordDraftReady` is idempotent per
+  // job, so a retry of a job that already drafted would otherwise pay for a
+  // whole `claude-opus-5` run and then throw the answer away — the most
+  // expensive possible way to reach the row that was already there.
+  const drafted = await findDraftReadyForJob(db, job.orgId, job.id);
+  if (drafted !== null) return { draftEventId: drafted.id };
 
   let text: string;
   let runId: string;

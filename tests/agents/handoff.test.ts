@@ -9,6 +9,8 @@ import {
   DraftNotFoundError,
   SEND_RECORDED,
   approveStubDraft,
+  recordDraftReady,
+  recordStubSend,
   stubSendKey,
 } from "@/lib/repo/approvals";
 import { appRouter } from "@/server/api/root";
@@ -319,6 +321,105 @@ describe("the approval hand-off", () => {
     expect(results.filter((result) => !result.alreadyApproved)).toHaveLength(1);
     expect(await prisma.event.count({ where: { kind: DRAFT_APPROVED } })).toBe(1);
     expect(await prisma.job.count({ where: { kind: "stub_send" } })).toBe(1);
+  }, 120_000);
+});
+
+describe("the records either side of an approval", () => {
+  /**
+   * Both record functions are written to survive their job being retried, which
+   * is the ordinary case: the work finished, the Event was written, and the
+   * `complete` that should have followed did not land. The next attempt runs
+   * the handler again from the top.
+   */
+  it("records one draft per job, however many times the job is attempted", async () => {
+    const actor = await signIn();
+    const { job } = await enqueue(prisma, {
+      orgId: actor.orgId,
+      kind: "stub_draft",
+      idempotencyKey: "campaignless:stub_draft:retried",
+      input: { text: "hello" },
+    });
+
+    const first = await recordDraftReady(prisma, {
+      orgId: actor.orgId,
+      jobId: job.id,
+      runId: "run_one",
+      text: "HELLO",
+    });
+    const second = await recordDraftReady(prisma, {
+      orgId: actor.orgId,
+      jobId: job.id,
+      // A retry opens a *new* run, so this differs — and must not produce a
+      // second draft for the rep to approve.
+      runId: "run_two",
+      text: "HELLO",
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(await prisma.event.count({ where: { kind: DRAFT_READY } })).toBe(1);
+    // The first run is what the surviving Event points at, not the retry's.
+    expect(second.after).toMatchObject({ runId: "run_one" });
+  });
+
+  it("records one send per job, and hands back the row it wrote", async () => {
+    const actor = await signIn();
+    const { job } = await enqueue(prisma, {
+      orgId: actor.orgId,
+      kind: "stub_send",
+      idempotencyKey: "campaignless:stub_send:retried",
+      input: { draftEventId: "evt_whatever" },
+    });
+
+    const first = await recordStubSend(prisma, {
+      orgId: actor.orgId,
+      jobId: job.id,
+      draftEventId: "evt_whatever",
+      digest: HELLO_SHA256,
+    });
+    const second = await recordStubSend(prisma, {
+      orgId: actor.orgId,
+      jobId: job.id,
+      draftEventId: "evt_whatever",
+      digest: HELLO_SHA256,
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(await prisma.event.count({ where: { kind: SEND_RECORDED } })).toBe(1);
+  });
+
+  it("tells a rep the truth when the send they approved ran out of attempts", async () => {
+    const actor = await signIn();
+    await enqueue(prisma, {
+      orgId: actor.orgId,
+      ownerUserId: actor.userId,
+      kind: "stub_draft",
+      idempotencyKey: "campaignless:stub_draft:spent",
+      input: { text: "hello" },
+    });
+    await runOneJob();
+
+    const draft = await prisma.event.findFirstOrThrow({
+      where: { orgId: actor.orgId, kind: DRAFT_READY },
+    });
+    const caller = appRouter.createCaller(contextFor(repSession));
+    await caller.approvals.approveStub({ draftEventId: draft.id });
+
+    // The send spends its attempts and gives up. Written directly because the
+    // point is the *answer* a repeat approve gives afterwards, not how the job
+    // got there.
+    await prisma.job.update({
+      where: {
+        orgId_idempotencyKey: { orgId: actor.orgId, idempotencyKey: stubSendKey(draft.id) },
+      },
+      data: { status: "failed", attempts: 3, error: "gave up" },
+    });
+
+    // "Sending shortly" here would be a lie, and no amount of clicking could
+    // make it true: the key is derived from the draft, so this job is the only
+    // job this draft will ever have.
+    const answer = await caller.approvals.approveStub({ draftEventId: draft.id });
+    expect(answer).toEqual({ line: approvalsCopy.sendFailed, alreadyApproved: true });
+    expect(await prisma.event.count({ where: { kind: DRAFT_APPROVED } })).toBe(1);
   }, 120_000);
 });
 

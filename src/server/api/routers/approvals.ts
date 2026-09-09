@@ -42,9 +42,18 @@ export const approvalsRouter = createTRPCRouter({
         throw error;
       }
 
-      const line = result.alreadyApproved
-        ? approvalsCopy.alreadyApproved
-        : approvalsCopy.approved;
+      // Three answers, not two. A repeat approve whose send job has spent its
+      // attempts is still `alreadyApproved`, but telling that rep "Sending
+      // shortly" would be a lie about their own work that no further clicking
+      // can correct — `stubSendKey` is derived from the draft, so the spent job
+      // is the only job this draft will ever have. Re-running a failed send is
+      // a new job with a new key and a decision someone makes on purpose
+      // (`queue.ts`, `enqueue`), which is Task 14's to add.
+      const line = !result.alreadyApproved
+        ? approvalsCopy.approved
+        : result.job.status === "failed"
+          ? approvalsCopy.sendFailed
+          : approvalsCopy.alreadyApproved;
 
       // The copy this router chose, and not the whole response. `plainWords`
       // says so itself: the check is for rep-facing strings, and sweeping a

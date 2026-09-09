@@ -4,7 +4,6 @@ import path from "node:path";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import CampaignsPage from "@/app/(app)/campaigns/page";
 import ContentPage from "@/app/(app)/content/page";
 import InboxPage from "@/app/(app)/inbox/page";
 import SettingsPage from "@/app/(app)/settings/page";
@@ -46,7 +45,10 @@ const PAGES = {
   ),
   content: () => <ContentPage />,
   inbox: () => <InboxPage />,
-  campaigns: () => <CampaignsPage />,
+  // Campaigns is not here any more: Task 9c gave it a list, Start and a page in
+  // four states, and all six are snapshotted in `tests/ui/campaigns/
+  // snapshots.test.tsx`. Two copies of the same snapshot is two files to update
+  // and one of them to forget.
   // Async, because it resolves the session and reads the mailbox. Awaited in
   // the loop below, which every other entry passes through unchanged.
   settings: () => SettingsPage({ searchParams: Promise.resolve({}) }),

@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurer job advert 2026 \"complaints handler\" OR \"quality assurance\" claims contact centre UK vacancy backlog",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:27:58.222Z"
+}

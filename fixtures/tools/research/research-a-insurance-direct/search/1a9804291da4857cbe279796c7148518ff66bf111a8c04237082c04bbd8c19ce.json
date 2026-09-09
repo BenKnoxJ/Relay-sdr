@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "postonline.co.uk complaints FOS insurers \"head of\" claims service interview quality checks",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Liew Chin Tong - The Financial Markets Ombudsman Service...",
+        "url": "https://www.facebook.com/liewchintong.my/posts/the-financial-markets-ombudsman-service-fmos-is-an-independent-dispute-resolutio/1563057178509714",
+        "snippet": "id='clip0_15251_63610'%3E%3Cpath fill='%23fff' d='M-.002 0h16v15.9992h-16z'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E) [...] stop-color='%2302ADFC'/%3E%3Cstop offset='.5' stop-color='%230866FF'/%3E%3Cstop offset='1' stop-color='%232B7EFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E) [...] 3.5776 0 7.9957 0c4.418 0 7.9996 3.5815 7.9996 7.9996Z' fill='url(%23paint2_radial_15251_63610)' fill-opacity='.8'/%3E%3Cpath d='M12.5278 8.1957c.4057.1104.6772.4854.623.9024-.3379 2.6001-2.5167 4.9012-5.1542 4.9012s-4.8163-2.3011-5.1542-4.9012c-.0542-.417.2173-.792.623-.9024.8708-.237 2.5215-.596 4.5312-.596 2.0098 0 3.6605.359 4.5312.596Z' fill='%234B280E'/%3E%3Cpath d='M11.5809 12.3764c-.9328.9843-2.1948 1.6228-3.5841 1.6228-1.3892 0-2.6512-.6383-3.5839-1.6225a1.5425 1.5425 0 0"
+      },
+      {
+        "title": "We are hiring Arena & Operations Workers! In this role ... - Facebook",
+        "url": "https://www.facebook.com/LondonCanada/posts/we-are-hiring-arena-operations-workers-in-this-role-you-are-responsible-for-oper/1476021754553410",
+        "snippet": "Provide excellent customer service to facility users, responding to inquiries and resolving issues professionally. Performs preoperational checks and minor"
+      },
+      {
+        "title": "News Central TV - French banking group BNP Paribas is...",
+        "url": "https://www.facebook.com/NewsCentralAfrica/posts/french-banking-group-bnp-paribas-is-selling-its-25-stake-in-ag-insurance-to-belg/1410566101083152",
+        "snippet": "BNP Paribas Sells AG Insurance Stake [...] ## News Central TV's Post\n\n### News Central TV Verified account [...] '/%3E%3Cpath d='M16.0001 7.9996c0 4.418-3.5815 7.9996-7.9995 7.9996S.001 12.4176.001 7.9996 3.5825 0 8.0006 0C12.4186 0 16 3.5815 16 7.9996Z' fill='url(%23paint1_radial_15251_63610)'/%3E%3Cpath d='M16.0001 7.9996c0 4.418-3.5815 7.9996-7.9995 7.9996S.001 12.4176.001 7.9996 3.5825 0 8.0006 0C12.4186 0 16 3.5815 16 7.9996Z' fill='url(%23paint2_radial_15251_63610)' fill-opacity='.5'/%3E%3Cpath d='M7.3014 3.8662a.6974.6974 0 0 1 .6974-.6977c.6742 0 1.2207.5465 1.2207 1.2206v1.7464a.101.101 0 0 0"
+      },
+      {
+        "title": "Never…I repeat, never allow any “trainer” “rescuer” “board & train ...",
+        "url": "https://www.facebook.com/groups/503276100394794/posts/2030701130985609",
+        "snippet": "Never…I repeat, never allow any “trainer” “rescuer” “board & train” “ volunteer” “shelter employee” or “government official” to discourage you for asking"
+      },
+      {
+        "title": "Here's what members of the public are saying about the new tint ...",
+        "url": "https://www.facebook.com/Bharrat.J/posts/watch-heres-what-members-of-the-public-are-saying-about-the-new-tint-regulations/1449821519848494",
+        "snippet": "... inspection services, we have lighter shades we keep in stock. We have ... insurance company to raise a driver's rate. Tinted windows can obstruct the"
+      },
+      {
+        "title": "BNP Paribas SA agreed to sell its 25% stake in AG Insurance to ...",
+        "url": "https://www.facebook.com/theedgesingapore/posts/bnp-paribas-sa-agreed-to-sell-its-25-stake-in-ag-insurance-to-belgian-firm-ageas/1311079957700145",
+        "snippet": "BNP Paribas SA agreed to sell its 25% stake in AG Insurance to Belgian firm Ageas but will invest €1.1 billion in Agneas in return."
+      },
+      {
+        "title": "[PDF] Notification - State Bank of India",
+        "url": "https://sbi.bank.in/documents/77530/57941334/13042026_Final_+ADV_CRPD_SCO_2026_27_04.pdf/54edf6e9-0b18-5b13-f950-ebf84f273dce?t=1776065118784",
+        "snippet": "1. Before applying, candidates are requested to ensure that they fulfil the eligibility criteria for the post(s), as on the date of eligibility."
+      },
+      {
+        "title": "National Job Portal",
+        "url": "https://njp.gov.pk/index.php",
+        "snippet": "Discover thousands of verified government job opportunities across Pakistan. Build your career with transparency, trust, and excellence. Start Job Search."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:14:51.942Z"
+}

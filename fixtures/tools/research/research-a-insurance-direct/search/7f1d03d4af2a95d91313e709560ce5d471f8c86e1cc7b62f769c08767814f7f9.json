@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "Ageas OR esure OR Hastings OR \"Right Choice\" claims director complaints customer outcomes quote 2026 insurance",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:14:11.885Z"
+}

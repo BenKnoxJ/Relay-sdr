@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "UK insurance claims handling delays complaints trade press",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Super-complaint launched against 'broken' insurance industry - BBC",
+        "url": "https://www.bbc.co.uk/news/articles/c87yey5neggo",
+        "snippet": "\"We uncovered issues when we recently reviewed insurers' home and travel claims handling. We'll be holding them and their senior managers accountable for the changes needed,\" he said.\n\nThey included issues over outsourcing and storm definitions.\n\nThe Association of British Insurers, which represents providers, said that its members worked hard to ensure customers knew the details of policies and handled claims as quickly and efficiently as possible. [...] The insurers' trade body said providers worked hard to help customers, handle claims efficiently, and had paid out many millions of pounds.\n\nRocio Concha, director of policy at Which?, said that serious failings in the travel and home insurance markets had been \"tolerated for too long\" by the insurance industry and the regulator, the Financial Conduct Authority (FCA). [...] The complaint is based on three areas of concern. The first is the way that claims are handled, with many being outsourced by insurers to specialists.\n\nThe second is the sales practices of insurers, which the consumer group argues are inappropriate and lead to widespread confusion over what is covered in a policy.\n\nFinally, it accuses the FCA, as the regulator, of failing to provide an appropriate degree of protection for consumers."
+      },
+      {
+        "title": "Claims news and analysis articles - Insurance Post",
+        "url": "https://www.postonline.co.uk/claims",
+        "snippet": "Trade Voice: Sue Brown, chair of the Motor Accident Solicitors Society, argues that six years of regulatory dithering over e-scooters has left injured people paying the price, and that further delay is becoming untenable.\n\nMatthew Smith, insurance strategy and transformation lead at KPMG UK\n\n Claims\n\n#### KPMG urges caution as AI reshapes insurance claims [...] Artificial intelligence can transform claims handling, but Matthew Smith, insurance strategy and transformation lead at KPMG UK, says insurers must balance technical innovation with human judgement, governance and ethical oversight.\n\nColm Holmes\n\n Claims\n\n#### Allianz’s Holmes on why trust in insurance must be earned [...] A 30% year-on-year rise in travel insurance complaints has been partly linked to disruption from the Middle East conflict. However, Millie Ridley, senior researcher at Fairer Finance, reveals customer satisfaction in the product continues to improve.\n\nDiary of an Insurer: Collegiate’s Amy Barnes\n\n Claims\n\n#### Diary of an Insurer: Collegiate’s Amy Barnes"
+      },
+      {
+        "title": "GI claims handling: what can insurers and intermediaries learn from ...",
+        "url": "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html",
+        "snippet": "After the FCA’s Home & Travel insurance review and its Which? Super Complaint’s response, more than ten insurers were asked to review their claims handling processes in Q1 2026. However, supervisory pressure on insurers’ claims handling does not show sign of abating, with the launch of the House of Lords Financial Services Regulation Committee’s inquiry into how home & travel insurance is regulated with a renewed focus on claims handling. [...] • For TPAs, automated data-quality checks and AI-assisted audit trails can facilitate customer-outcomes scrutiny and identify trends. For example, AI analysis and live alerts could flag rising complaint volumes, delayed settlements, inconsistent exclusions, or claims surges linked to a weather event to help TPAs respond flexibly. [...] Parametric insurance products offer an opportunity to reshape claims handling by using real-time data to trigger automatic payouts when predefined conditions are met (e.g., rainfall levels, flight delays or wind speed). To roll these products out safely in retail markets, firms need reliable and independent data sources, clear and objective triggers that are regularly reassessed, and strong product governance supported by granular MI to ensure target markets are appropriate. This should help"
+      },
+      {
+        "title": "Problems with an insurance claim - Citizens Advice",
+        "url": "https://www.citizensadvice.org.uk/consumer/insurance/problems-with-insurance-policies/problems-with-an-insurance-claim",
+        "snippet": "However, if you’re outside these time limits, you can still refer the complaint to the Ombudsman. They may still investigate your complaint, as long as the trader doesn’t object. If the trader objects because the time limits have passed, the Ombudsman will not investigate your complaint.\n\n There are different time limits for complaints about mortgage endowments. See www.financial-ombudsman.org.uk.\n\n## Next steps [...] six months of receiving a final response from the trader. This response has to mention that you have a six month time limit to go to the ombudsman\n six years of the event you are complaining about. If it’s more than six years from the event, you have three years from when you knew, or could reasonably have known, you had a reason to complain. [...] If your insurer is a member of Lloyds, you can make a complaint to the Policyholder and Market Assistance Department. If you are not satisfied with the outcome of this complaint, you can then complain to the Financial Ombudsman Service.\n\n## Using the Financial Ombudsman Service"
+      },
+      {
+        "title": "Complain about a claims company - GOV.UK",
+        "url": "https://www.gov.uk/complain-about-claims-company",
+        "snippet": "1. Ask the claims company for a copy of their complaints procedure or check their website.\n2. Contact the claims company with your complaint so they have a chance to put things right.\n3. Keep a record of your complaint, for example details about any communication between you and the claims company.\n4. Contact the Financial Ombudsman Service if your claims company does not resolve your complaint in 8 weeks.\n\n## Complaining about poor conduct [...] Complain to the Financial Ombudsman Service if you’re unhappy with the service you’ve received from a claims company, for example the results of your claim or the fees they’ve charged you. [...] View cookies\n\n# Complain about a claims company\n\nContact your claims company, the Financial Ombudsman Service, or the Financial Conduct Authority (FCA) to make a complaint.\n\nClaims management companies can help you make certain types of claims against financial services providers for a fee, such as claiming for mis-sold payment protection insurance (PPI). They can give you advice on what you can claim and help you with the legal process.\n\n## Complaining about poor service"
+      },
+      {
+        "title": "FCA publishes review of business interruption insurance claims ...",
+        "url": "https://www.fca.org.uk/news/press-releases/fca-publishes-review-business-interruption-insurance-claims-handling",
+        "snippet": "FCA has raised concerns over how firms handled claims from vulnerable customers, record-keeping of policy wordings, and identifying where"
+      },
+      {
+        "title": "Insurance Company Stalling Your Claim? What To Do Next",
+        "url": "https://www.ilauk.co.uk/what-to-do-if-your-insurance-company-is-stalling-in-the-uk",
+        "snippet": "If your insurer is delaying your claim, see what evidence to gather, how to chase progress and when independent claim advice may help."
+      },
+      {
+        "title": "Insurance - Financial Ombudsman Service",
+        "url": "https://www.financial-ombudsman.org.uk/consumers/complaints-can-help/insurance",
+        "snippet": "# Insurance\n\nIf you have a complaint about an insurance company or claim, we can help. Find out more about the types of insurance complaints we deal with, and what we can do to help put things right.\n\n## On this page\n\n1. How we handle complaints about insurance\n2. Complaints we see\n3. Bringing your complaint to us\n4. How long does it take?\n5. Further help and information\n6. Information for financial businesses\n\n## How we handle complaints about insurance [...] How we can help with your complaint about a declined insurance claim due to a pre-existing medical condition.\n\n### Travel insurance\n\nHow we can help with complaints about travel insurance.\n\n### Wedding insurance\n\nHow we can help if you have a complaint about wedding or special event insurance.\n\n## Bringing your complaint to us\n\nOur service is free and easy to use. [...] the policy wording\n any relevant laws and regulations\n industry codes of conduct and best practice\n any relevant evidence like medical reports, photos, application and claims forms\n\nOnce we’ve considered everything, we’ll set out our findings, explaining whether we think the business has treated you fairly or not. If we think the business has treated you unfairly, we’ll set out what we think needs to be done to put things right.\n\n## Complaints we see"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:24:33.772Z"
+}

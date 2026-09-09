@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurer claims contact centre quality assurance complaints backlog UK",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Complaints Handling, Claims Operations & DISP Support - tcc.group",
+        "url": "https://tcc.group/complaints-claims-handling",
+        "snippet": "From complaint backlogs, service-level pressures and quality assurance challenges to claims administration, root cause analysis and complaint"
+      },
+      {
+        "title": "Complain about a claims company - GOV.UK",
+        "url": "https://www.gov.uk/complain-about-claims-company",
+        "snippet": "1. Ask the claims company for a copy of their complaints procedure or check their website.\n2. Contact the claims company with your complaint so they have a chance to put things right.\n3. Keep a record of your complaint, for example details about any communication between you and the claims company.\n4. Contact the Financial Ombudsman Service if your claims company does not resolve your complaint in 8 weeks.\n\n## Complaining about poor conduct [...] View cookies\n\n# Complain about a claims company\n\nContact your claims company, the Financial Ombudsman Service, or the Financial Conduct Authority (FCA) to make a complaint.\n\nClaims management companies can help you make certain types of claims against financial services providers for a fee, such as claiming for mis-sold payment protection insurance (PPI). They can give you advice on what you can claim and help you with the legal process.\n\n## Complaining about poor service [...] Complain to the Financial Ombudsman Service if you’re unhappy with the service you’ve received from a claims company, for example the results of your claim or the fees they’ve charged you."
+      },
+      {
+        "title": "Problems with an insurance claim - Citizens Advice",
+        "url": "https://www.citizensadvice.org.uk/consumer/insurance/problems-with-insurance-policies/problems-with-an-insurance-claim",
+        "snippet": "## Next steps\n\n Check your policy documents to make sure there is a not a good reason why your insurer won't pay you\n Write to your insurer using their complaints process\n If you can't sort the problem out directly with your insurer, you may be able to complain to the Financial Ombudsman Service.\n\nContact the Citizens Advice consumer service if you need more help.\n\n## Other useful information\n\nMore information about the Financial Ombudsman Service\n\nTel: 0800 023 4567. [...] To find out about the Financial Ombudsman’s approach to dealing with disputes about insurance at www.financial-ombudsman.org.uk\n\nLloyds Policyholder and Market Assistance Department\n\nTel: 020 7327 5693\n\n## Help us improve our website\n\nTake 5 minutes to tell us if you found what you needed on our website. Your feedback will help us give millions of people the information they need.\n\nPage last reviewed on  20 February 2020 [...] If your insurer is a member of Lloyds, you can make a complaint to the Policyholder and Market Assistance Department. If you are not satisfied with the outcome of this complaint, you can then complain to the Financial Ombudsman Service.\n\n## Using the Financial Ombudsman Service"
+      },
+      {
+        "title": "Insurance CX | Secure Claims Automation Solutions - FourNet",
+        "url": "https://fournet.co.uk/sectors/insurance",
+        "snippet": "Connect legacy policy, claims and CRM systems create costly operational backlog. Consumer Duty, claims pressure, complaints and digital"
+      },
+      {
+        "title": "UK insurers 'failing to provide customer service' as premiums soar",
+        "url": "https://www.ft.com/content/463ccb24-ccec-4b73-acc3-ad081c50b38b?syn-25a6b1a6=1",
+        "snippet": "The consumer group has called for the FCA to improve its supervision of insurers' claims handling practices to prevent harm from arising."
+      },
+      {
+        "title": "Insurance - Financial Ombudsman Service",
+        "url": "https://www.financial-ombudsman.org.uk/consumers/complaints-can-help/insurance",
+        "snippet": "# Insurance\n\nIf you have a complaint about an insurance company or claim, we can help. Find out more about the types of insurance complaints we deal with, and what we can do to help put things right.\n\n## On this page\n\n1. How we handle complaints about insurance\n2. Complaints we see\n3. Bringing your complaint to us\n4. How long does it take?\n5. Further help and information\n6. Information for financial businesses\n\n## How we handle complaints about insurance [...] ## Information for financial businesses\n\nIf you’re a business looking for information to help you resolve complaints, you can find more detail about insurance complaints in the business section of our website. [...] Find out how we can help if you have a complaint about insurance pricing and renewal.\n\n### Legal expenses insurance\n\nFind out how we help resolve complaints about legal expenses insurance.\n\n### Medical insurance\n\nFind out how we can help with complaints about health-related insurance policies – including private medical insurance and dental insurance.\n\n### Misrepresentation and non-disclosure\n\nFind out how we can help with complaints about misrepresentation and non-disclosure."
+      },
+      {
+        "title": "Claims delays behind most insurance complaints, research shows",
+        "url": "https://www.insurancetimes.co.uk/news/claims-delays-behind-most-insurance-complaints-research-shows/1459426.article",
+        "snippet": "Of those reporting a poor claims experience, 39% said an unnecessary delay to the process was the main issue, while 29% cited delays in settling"
+      },
+      {
+        "title": "Insurance multi-firm review of outcomes monitoring under the ...",
+        "url": "https://www.fca.org.uk/publications/multi-firm-reviews/insurance-multi-firm-review-outcomes-monitoring-under-consumer-duty",
+        "snippet": "See our dedicated section to help you stay up-to-date with financial services in the UK.\n\n#### Your rights\n\n#### Complaints\n\n#### Scams\n\n#### Report a firm\n\nWoman looking down at her tablet\n\nFCA Warning List\n\nFind our most up-to-date warnings of firms and individuals running scams or operating without authorisation.\n\n### Sign up to receive daily alerts on the warnings we issue\n\nReceive new and updated warnings in a daily email.\n\n#### News\n\n#### Media centre\n\n#### Events [...] We saw a firm extensively map all key customer journeys and monitor various service data across them, including timeliness of each engagement and end-to-end transactions. The firm complemented this data with QA findings, customer feedback and complaints, and identified points where service improvements could be made to enhance the customer support offered. The firm also assessed elements of the customer journey for different types of customers to identify specific barriers, in particular for [...] Some firms were able to demonstrate clear thinking about the categories of data they required, such as: service level agreement (SLA) compliance, product performance data, second- and third-line reviews, customer feedback, internal quality assurance, complaints analysis, process completion, product governance findings, employee surveys and deep dive analysis. Firms that had demonstrated such thinking were able to provide more meaningful and comprehensive insights on customer outcomes."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:52:30.184Z"
+}

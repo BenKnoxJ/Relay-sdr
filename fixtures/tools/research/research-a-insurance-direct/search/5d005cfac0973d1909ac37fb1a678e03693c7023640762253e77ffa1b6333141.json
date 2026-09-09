@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "linkedin post \"complaints\" insurance \"quality assurance\" listening to calls \"root cause\" manual spreadsheet 2026",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "17 Call Center Quality Assurance Best Practices for 2026",
+        "url": "https://www.invoca.com/blog/call-center-quality-assurance-best-practices",
+        "snippet": "Group calls into categories and score them using criteria that match the type of interaction. Focusing on high-impact calls gives you faster improvements and clearer insights into your biggest opportunities.\n\n### 9. Conduct Root Cause Analysis on Repeated Issues\n\nWhen a problem shows up often, look deeper than the surface. Root Cause Analysis (RCA) helps you find the true source of recurring issues. [...] The 80/20 rule suggests that 80% of quality issues usually come from 20% of the main causes. This helps teams focus their improvement efforts where they will have the biggest impact.\n\n### What is the complete quality assurance process in a call center?\n\nThe QA process includes setting standards, monitoring interactions, scoring performance, giving feedback, and making improvements. These steps help teams maintain consistent and high-quality service. [...] Companies that provide strong customer experiences earn 4–8% more revenue than competitors. Listening closely to your customers helps your team raise service quality and business results.\n\n### 7. Select the Right Sample Size for Call Reviews\n\nReviewing too many calls wastes time, but reviewing too few hides important trends. Choose a sample size that gives a clear picture of performance without overwhelming your QA team."
+      },
+      {
+        "title": "Call Center QA: Complete Guide [2026] | Gistly",
+        "url": "https://www.gistly.ai/blog/call-center-quality-assurance-the-2026-guide",
+        "snippet": "Healthcare contact centers in India serve US payers and Indian providers under HIPAA, HITECH, and DPDP. See how AI call auditing covers 100% of patient cal\n\nGistly conversation intelligence platform logo\n\nGistly\n\nSubscribe to newsletter\n\nThank you! Your submission has been received!\n\nOops! Something went wrong while submitting the form.\n\nLinkedIn\n\nHomeBlogGlossary\n\nContactPrivacy PolicyTerms & Conditions\n\nUse cases\n\nSalesSupportCollections\n\nFeatures [...] The distinction between QA as a concept and QA as it's actually practiced in most call centers is significant. The concept implies comprehensive oversight. The reality in most operations is a QA analyst listening to 5-10 calls per agent per month and filling out a spreadsheet. That's not quality assurance. It's quality sampling.\n\n## Why Quality Assurance Matters More Than Ever\n\nThree forces are making call center QA a board-level priority.\n\n### Client Retention Depends on Provable Quality [...] | Category | What It Covers | Typical Weight |\n --- \n| Compliance | Required disclosures, consent language, PII handling, prohibited statements | 30-40% (regulated industries) |\n| Communication | Greeting, active listening, clarity, professional tone, proper closing | 20-30% |\n| Competence | Product/process knowledge, first-call resolution, accurate information | 20-25% |\n| Customer focus | Empathy, personalization, effort to resolve, appropriate escalation | 15-25% |"
+      },
+      {
+        "title": "Best VoC Tools for Insurance (2026): 9 Platforms Reviewed",
+        "url": "https://www.zonkafeedback.com/blog/voc-tools-for-insurance",
+        "snippet": "SentiSum is an AI-native text analysis platform that processes unstructured feedback from support tickets, complaint logs, chat transcripts, and open-ended survey responses. For insurance teams, it is most valuable for identifying root causes within large volumes of claims complaints and service tickets without manual tagging or categorization.\n\nKey insurance capabilities: [...] Automated root cause detection across customer complaints and insurance complaint categories including claims delays, coverage disputes, pricing objections, and agent communication issues\n Real-time spike alerts when complaint volume in a specific category increases beyond normal thresholds\n Unified view of unstructured feedback from support platforms, survey tools, and review sites\n Theme-level trend analysis that shows how complaint patterns shift over time and across policyholder segments [...] | Qualtrics XM | Large carriers with structured VoC research programs | Complex survey logic, Text iQ analysis | Custom | 4.3/5 |\n| SentiSum | Teams with high complaint and ticket volumes | Root cause detection from unstructured text | From $3,000/month | 4.8/5 |\n| CustomerGauge | Commercial lines brokers and MGA teams | Account-level NPS, revenue attribution | Custom | 4.6/5 |"
+      },
+      {
+        "title": "Contact Center Quality Assurance: The Complete Guide for 2026 | Zoom",
+        "url": "https://www.zoom.com/en/blog/contact-center-quality-assurance",
+        "snippet": "Manual QA relies on sampling — reviewing a small percentage of interactions and extrapolating.\n\nIndicators — identified under the Call Outs section — are customizable keywords or phrases that are highlighted within a conversation's analysis. Indicators can be used to capture critical moments of a conversation or track mentions of a specific competitor, feature, product, or phrase. Accounts can use indicators to identify specific elements of conversation that are worth reviewing or tracking. [...] In a contact center context, QA is the ongoing program — scorecards, evaluations, coaching cycles, and trend analysis. QC might refer to a compliance audit, a specific interaction review triggered by a customer complaint, or a post-hoc check on a particular agent's recent calls. Strong contact center operations use both: QA to continuously raise the baseline, and QC to investigate specific failures and prevent recurrence.\n\n### Q4: How do you measure quality assurance in a call center? [...] Share this post\n\nFacebook Facebook   Twitter Twitter   LinkedIn LinkedIn   Email Email\n\nChandler Galt headshot\n\nChandler Galt\n\nSenior Product Marketing Manager, Zoom Contact Center"
+      },
+      {
+        "title": "Complaints and root cause analysis: good practice and ...",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
+        "snippet": "10 July 2026: We've updated our examples of good and poor practice with extra insight on how smaller firms can meet our requirements.\n\n## Share\n\n## Complaints and root cause analysis: good practice and areas for improvement\n\nResources\n\nRead the findings of our review into firms’ approaches to complaints and root cause analysis.\n\n10 July 2026: We've updated our examples of good and poor practice with extra insight on how smaller firms can meet our requirements.\n\n## 1. Summary [...] For example, one firm developed an enhanced complaints MI dashboard which linked data, including complaint volumes, complaint outcomes, FOS complaints, quality assurance and complaints from customers with characteristics of vulnerability outcomes, back to the Consumer Duty outcomes. This allowed the firm to carry out deeper analysis of complaints’ root causes related to products and develop heatmaps to highlight priority areas of focus.\n\nGood practice [...] Smaller firms might consider using checks to test whether issues are being missed. For example, they could listen to a sample of customer calls, review a small number of completed customer journeys, or ask customer-facing staff to discuss recent examples where customers appeared confused, dissatisfied, vulnerable or at risk of harm."
+      },
+      {
+        "title": "Call Center Quality Assurance Checklist: Enterprise QA Framework",
+        "url": "https://www.omind.ai/blog/qms/call-center-quality-assurance-checklist",
+        "snippet": ", Performance (listening/knowledge), Outcome (FCR/ownership), and Operational (documentation).\n • Manual sampling (typically 2-3%) creates blind spots, evaluator bias, and false confidence, leaving 97%+ of interactions unreviewed and risks undetected.\n • Shift QA focus from agent scoring to root-cause analysis to identify process bottlenecks, policy issues, and knowledge gaps affecting entire teams. [...] | High Internal Compliance & Scores   High Adherence: Agents follow assigned schedule and call scripts rigidly.  Script Compliance: Mandatory disclosures and standard opening phrases are spoken.  Checked Boxes: High manual scorecard ratings based on superficial checklist items. | Declining CX Metrics & High Churn   Unresolved Escalations: Root causes remain unaddressed despite polite script adherence.  Repeat Contacts: First Contact Resolution (FCR) drops due to lack of real problem solving. [...] When evaluating interactions, quality teams must transition from personal performance audits to systemic root-cause analysis:"
+      },
+      {
+        "title": "Quality Assurance Best Practices - LinkedIn",
+        "url": "https://www.linkedin.com/top-content/supply-chain-management/importance-of-quality-assurance/quality-assurance-best-practices",
+        "snippet": "Quality assurance best practices are about building quality into every part of your process, not just catching mistakes at the end."
+      },
+      {
+        "title": "Transforming Customer Experience Through a Complaints ...",
+        "url": "https://www.linkedin.com/pulse/transforming-customer-experience-through-complaints-witharanage-dgo0f",
+        "snippet": "In the insurance industry, complaints are not just expressions of dissatisfaction — they are valuable data points."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:39:20.349Z"
+}

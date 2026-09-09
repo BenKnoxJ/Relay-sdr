@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "Policy Expert OR Markerstudy OR \"1st Central\" OR Staysure claims service complaints investment contact centre 2026",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:27:55.362Z"
+}

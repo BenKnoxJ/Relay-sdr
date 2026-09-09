@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "House of Lords inquiry home travel insurance written evidence insurer claims handling complaints",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:02:54.210Z"
+}

@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "FCA complaints data insurance firms 2026",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:02:10.292Z"
+}

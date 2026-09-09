@@ -1,0 +1,1021 @@
+{
+  "kind": "research",
+  "name": "research-a-insurance-direct",
+  "source": "run",
+  "recordedAt": "2026-09-09T15:32:49.091Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v1.json (the brief's inline facts are ignored)",
+  "breadth": "standard",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "claims ops people at mid-sized UK insurers who are drowning in complaints",
+      "region": "GB",
+      "howMany": 20,
+      "weeks": 3,
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    },
+    "breadth": "standard"
+  },
+  "output": {
+    "hook": {
+      "id": "hook-every-call-you-ingest",
+      "text": "Your board sees a sample; the regulator asks about the rest. Insights360 takes recordings from the phone system you already have, and after each call ends it transcribes and scores every call it ingests against your own quality rules, tags your own complaint reasons and flags your own risk types, with results in the app within a couple of hours.",
+      "whyNow": {
+        "id": "why-now-claims-scrutiny",
+        "text": "Claims handling is under sustained scrutiny: more than ten insurers were asked to review their claims handling in the first quarter of 2026, the House of Lords opened an inquiry into home and travel insurance regulation in May 2026, and complaints made to firms about insurance rose 10.1% in the second half of 2025, with travel up 19.4%.",
+        "evidence": {
+          "urls": [
+            "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html",
+            "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data",
+            "https://www.insurancebusinessmag.com/uk/news/auto-motor/motor-cover-drives-complaints-rise-despite-broader-fos-improvement-581035.aspx"
+          ],
+          "domains": [
+            "www.deloitte.com",
+            "www.itij.com",
+            "www.insurancebusinessmag.com"
+          ],
+          "primary": false
+        },
+        "accessedAt": "2026-09-09",
+        "confidence": "strong",
+        "publishedAt": "2026-07-07"
+      },
+      "answeredBy": [
+        "i360.product.post-call-call-analytics",
+        "i360.product.every-ingested-call-analysed",
+        "i360.feature.auto-qa-scoring-against-tenant-rules",
+        "i360.feature.risk-flagging-configurable-types",
+        "i360.feature.call-reason-and-category-configurable",
+        "i360.integration.3cx-automated-feed"
+      ]
+    },
+    "recipe": {
+      "titles": [
+        "Head of Claims",
+        "Claims Director",
+        "Chief Claims Officer",
+        "Head of Claims Operations",
+        "Claims Operations Manager",
+        "Head of Complaints",
+        "Complaints Manager",
+        "Head of Customer Relations",
+        "Customer Relations Manager",
+        "Claims Quality Assurance Manager",
+        "Quality and Compliance Manager",
+        "Head of Customer Experience",
+        "Contact Centre Manager",
+        "Head of Customer Operations",
+        "Conduct Risk Manager",
+        "Customer Outcomes Manager",
+        "Head of Claims Governance"
+      ],
+      "sizeBand": {
+        "max": 3000,
+        "min": 100
+      },
+      "triggers": [
+        "Asked to review claims handling after the regulator's home and travel work",
+        "Own published complaints page names admin or customer service as the main cause",
+        "Own published uphold rate above half",
+        "Travel or motor complaint numbers rising year on year",
+        "Named in or responding to the House of Lords insurance inquiry",
+        "Board report on customer outcomes due or just published",
+        "Hiring complaints handlers or claims quality assurance staff",
+        "New claims or customer leader appointed in the last year",
+        "Claims restructure or merger of claims teams",
+        "Runs its own claims contact centre rather than outsourcing it"
+      ],
+      "countries": [
+        "GB"
+      ],
+      "industries": [
+        "General insurance",
+        "Home insurance",
+        "Travel insurance",
+        "Pet insurance",
+        "Motor insurance",
+        "Specialist personal lines insurance",
+        "Managing general agents",
+        "Insurance claims handling"
+      ]
+    },
+    "summary": [
+      "Mid-sized UK insurers are being told to prove, not assert, that claims and complaint calls are handled the same way every time. The regulator's home and travel claims review found poor claims data, vulnerable customers not flagged on claims systems, and only 32% of storm claims paid; more than ten insurers were asked to review claims handling in early 2026.",
+      "The buyer's own words are about data, not sympathy: Admiral's UK chief says even a roof-tile phone call is captured as a claim; NFU Mutual's chief says its Consumer Duty work was mostly pulling data it already had into one place; Allianz UK's chief claims officer calls claims knowledge and insight a strategic asset.",
+      "Careful: the market is not uniformly drowning. Ombudsman complaints overall fell about 30% last year and claims satisfaction hit its highest level since 2019. Complaint pressure is concentrated in travel (up 19.4% in H2 2025) and in firms whose own complaints pages show service and admin as the main cause."
+    ],
+    "unknowns": [
+      {
+        "id": "no-named-qa-manager-voice",
+        "kind": "not-found",
+        "text": "No named claims or quality manager at a mid-sized UK insurer could be found saying in public how many calls they listen to or how long it takes. The buyer words we do have come from insurer chief executives and claims chiefs, not from the people doing the listening.",
+        "queriesTried": [
+          "contact centre manager insurance \"listening to calls\" QA time consuming struggle forum",
+          "insurance claims director quote \"listen to calls\" OR \"call listening\" complaints coaching handlers Insurance Post 2026",
+          "callcentrehelper insurance contact centre quality manager \"we\" calls coaching case study",
+          "\"head of claims\" OR \"complaints manager\" UK insurer interview complaint volumes root cause \"we\""
+        ]
+      },
+      {
+        "id": "no-uk-insurer-speech-analytics-example",
+        "kind": "not-found",
+        "text": "We could not find a UK insurer publicly describing that it already scores every call rather than a sample, so we cannot say whether this is already common in the market or still rare.",
+        "queriesTried": [
+          "UK insurer already using speech analytics every call quality monitoring deployment case study contact centre",
+          "contact centre QA sample 2% of calls not enough compliance"
+        ]
+      },
+      {
+        "id": "no-phone-system-match",
+        "kind": "not-found",
+        "text": "We could not confirm which UK insurers run 3CX, OAK ClarifyGo or RingCentral, so no seed firm here is known to have a phone system the product already pulls recordings from. Confirm this on the first call before promising an automated feed.",
+        "queriesTried": [
+          "mid-sized UK insurer complaints handling improvement programme claims 2026 news Ageas esure Policy Expert Staysure",
+          "insurer job advert 2026 \"complaints handler\" OR \"quality assurance\" claims contact centre UK vacancy backlog"
+        ]
+      },
+      {
+        "id": "no-mid-market-complaints-pages",
+        "kind": "not-found",
+        "text": "Searches for the published complaints pages of smaller specialist insurers returned nothing usable, so the seed list leans on larger and better known names than the brief asked for.",
+        "queriesTried": [
+          "\"complaints data\" insurer website 2026 \"upheld\" Policy Expert OR \"1st Central\" OR Staysure OR \"Animal Friends\" OR Covea",
+          "\"complaints data\" published insurer UK \"complaints opened per 1,000 policies\" 2026 travel pet home insurer",
+          "Policy Expert OR Markerstudy OR \"1st Central\" OR Staysure claims service complaints investment contact centre 2026"
+        ]
+      },
+      {
+        "id": "no-cost-of-qa-benchmark",
+        "kind": "not-found",
+        "text": "No dated figure was found for what UK insurers spend on checking calls, or how many hours a reviewer spends per week, so avoid any savings claim in outreach.",
+        "queriesTried": [
+          "insurance contact centre quality assurance call monitoring UK",
+          "insurer claims operations complaints backlog quality assurance job description"
+        ]
+      },
+      {
+        "id": "recency-filtered-searches-empty",
+        "kind": "unreadable",
+        "text": "Several early searches limited to the last twelve months returned nothing at all; the same wording without the limit returned results. Treat any gap in recent coverage here as a search limit, not as evidence that nothing happened.",
+        "queriesTried": [
+          "UK insurers complaints claims handling FCA data 2026",
+          "Financial Ombudsman Service insurance complaints rise 2026"
+        ]
+      }
+    ],
+    "seedFirms": [
+      {
+        "id": "esure-insurance",
+        "name": "esure Insurance Limited",
+        "domain": "esure.com",
+        "region": "GB, Reigate",
+        "signal": {
+          "id": "sig-esure-complaints",
+          "text": "Its own published complaints statistics for 1 January to 30 June 2026 show 12,179 complaints opened, 2.76 per 1,000 policies, 67.3% upheld, and the main cause named as other general admin and customer service.",
+          "evidence": {
+            "urls": [
+              "https://www.esure.com/about/complaints-statistics"
+            ],
+            "domains": [
+              "www.esure.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-06-30"
+        }
+      },
+      {
+        "id": "ageas-retail",
+        "name": "Ageas Retail Limited",
+        "domain": "ageas.co.uk",
+        "region": "GB, Eastleigh",
+        "signal": {
+          "id": "sig-ageas-complaints",
+          "text": "Its own published complaints data for 1 January to 30 June 2026 shows 3,062 insurance complaints opened across 783,000 policies, 49.2% upheld, and claims management complaints whose main cause is customer service issues including call handling.",
+          "evidence": {
+            "urls": [
+              "https://www.ageas.co.uk/important-information/complaints-data-ageas-retail"
+            ],
+            "domains": [
+              "www.ageas.co.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-06-30"
+        }
+      },
+      {
+        "id": "admiral-group",
+        "name": "Admiral Group (Admiral Insurance (Gibraltar) Limited)",
+        "domain": "admiralgroup.co.uk",
+        "region": "GB, Cardiff",
+        "signal": {
+          "id": "sig-admiral-fos",
+          "text": "1,624 complaints about Admiral Insurance (Gibraltar) reached the ombudsman between January and June 2025, and its UK insurance chief executive gave evidence on claims and customer outcomes to the House of Lords committee in July 2026.",
+          "evidence": {
+            "urls": [
+              "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025",
+              "https://www.insurancetimes.co.uk/news/admiral-aviva-and-nfu-mutual-give-consumer-duty-evidence-to-house-of-lords-committee/1459187.article"
+            ],
+            "domains": [
+              "www.financial-ombudsman.org.uk",
+              "www.insurancetimes.co.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "moderate",
+          "publishedAt": "2025-10-29"
+        }
+      },
+      {
+        "id": "accredited-insurance-europe",
+        "name": "Accredited Insurance (Europe) Limited",
+        "domain": "accredited-inseurope.com",
+        "region": "GB, London",
+        "signal": {
+          "id": "sig-accredited-fos",
+          "text": "376 general insurance complaints about the firm reached the ombudsman between January and June 2025, in data published on 29 October 2025.",
+          "evidence": {
+            "urls": [
+              "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025"
+            ],
+            "domains": [
+              "www.financial-ombudsman.org.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2025-10-29"
+        }
+      },
+      {
+        "id": "aa-underwriting",
+        "name": "AA Underwriting Insurance Company Limited",
+        "domain": "theaa.com",
+        "region": "GB, Basingstoke",
+        "signal": {
+          "id": "sig-aa-fos",
+          "text": "140 general insurance complaints about the firm reached the ombudsman between January and June 2025, in data published on 29 October 2025.",
+          "evidence": {
+            "urls": [
+              "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025"
+            ],
+            "domains": [
+              "www.financial-ombudsman.org.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2025-10-29"
+        }
+      },
+      {
+        "id": "hastings-direct",
+        "name": "Hastings Direct",
+        "domain": "hastingsdirect.com",
+        "region": "GB, Bexhill-on-Sea",
+        "signal": {
+          "id": "sig-hastings-trust",
+          "text": "In the Spring 2026 Trust in Insurance Index of 10,000 customers, Hastings Direct scored 49.74% and continued to trail the group of major car insurers.",
+          "evidence": {
+            "urls": [
+              "https://www.fairerfinance.com/insights/press-releases/trust-in-insurance-on-the-rise-but-insurers-still-have-a-long-way-to-go"
+            ],
+            "domains": [
+              "www.fairerfinance.com"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-04-28"
+        }
+      },
+      {
+        "id": "allianz-uk-claims",
+        "name": "Allianz UK",
+        "domain": "allianz.co.uk",
+        "region": "GB, Guildford",
+        "signal": {
+          "id": "sig-allianz-claims-restructure",
+          "text": "Its chief claims officer restructured over 2,000 claims roles, completed in October 2025, and told the trade press in September 2026 that claims knowledge, data and insight are now treated as a strategic asset.",
+          "evidence": {
+            "urls": [
+              "https://www.insurancetimes.co.uk/analysis/matt-cox-turning-claims-into-a-strategic-asset-at-allianz-uk-requires-a-mindset-shift/1459499.article"
+            ],
+            "domains": [
+              "www.insurancetimes.co.uk"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-09-03"
+        }
+      }
+    ],
+    "archetypes": [
+      {
+        "id": "home-travel-claims-ops",
+        "name": "Home and travel claims teams under the regulator's claims review",
+        "pains": [
+          {
+            "id": "poor-claims-data",
+            "role": "UK financial regulator, home and travel claims handling review",
+            "text": "The regulator found some firms produced poor quality claims data, lacked comprehensive information, and did not use it to identify or assess what customers were actually getting, including vulnerable ones.",
+            "quote": "Some firms produced poor quality MI, lacked comprehensive data and failed to use MI effectively to identify or assess customer outcomes, including for vulnerable customers.",
+            "speaker": "Financial Conduct Authority",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+                "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html"
+              ],
+              "domains": [
+                "www.fca.org.uk",
+                "www.deloitte.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong"
+          },
+          {
+            "id": "vulnerable-not-flagged",
+            "role": "UK financial regulator, home and travel claims handling review",
+            "text": "Some firms were failing to spot customers with vulnerable characteristics at all, and others spotted them but then did not flag them on the claims system, leaving those customers at risk of a poor outcome.",
+            "quote": "We found some were failing to identify customers with vulnerable characteristics. Others, while identifying them, were then too often not flagging them on their claims systems, leaving the customer at risk of poor outcomes.",
+            "speaker": "Financial Conduct Authority",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong"
+          },
+          {
+            "id": "storm-claims-declined",
+            "role": "Regulator and ombudsman, claims review and written evidence to the House of Lords",
+            "text": "Only 32% of storm damage claims made to the reviewed firms in 2024 ended in a payment, and declined claims are the single biggest reason people complain about buildings cover, at around 38% of those complaints.",
+            "speaker": "Financial Conduct Authority and the Financial Ombudsman Service",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+                "https://committees.parliament.uk/writtenevidence/168001/html",
+                "https://www.insurancebusinessmag.com/uk/news/auto-motor/motor-cover-drives-complaints-rise-despite-broader-fos-improvement-581035.aspx"
+              ],
+              "domains": [
+                "www.fca.org.uk",
+                "committees.parliament.uk",
+                "www.insurancebusinessmag.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong",
+            "publishedAt": "2026-07-02"
+          },
+          {
+            "id": "handling-not-just-decision",
+            "role": "Ombudsman, written evidence CIM0040 to the House of Lords committee",
+            "text": "The ombudsman's own read is that complaints come not only from whether a claim was paid, but from how it was handled, how clearly the terms were explained and how the firm talked to the customer along the way.",
+            "quote": "complaints arise not only from whether a claim is accepted or declined, but also from how clearly policy terms are understood, how claims are handled, and how firms communicate with customers throughout the claims journey",
+            "speaker": "The Financial Ombudsman Service",
+            "evidence": {
+              "urls": [
+                "https://committees.parliament.uk/writtenevidence/168001/html"
+              ],
+              "domains": [
+                "committees.parliament.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong"
+          },
+          {
+            "id": "outsourced-claims-data-late",
+            "role": "Deloitte UK regulatory advisers writing on general insurance claims handling",
+            "text": "Where claims work is placed with an outside handler, the reporting insurers rely on can be 30 to 60 days out of date, which makes it hard to spot harm early or show control of the process.",
+            "speaker": "Kareline Daguer, Guillaume Legrand and Junn Wei Tan",
+            "evidence": {
+              "urls": [
+                "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html"
+              ],
+              "domains": [
+                "www.deloitte.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-07-07"
+          }
+        ],
+        "language": [
+          {
+            "id": "lang-hargreaves-roof-tiles",
+            "say": "Every wear-and-tear call counts as a claim contact. What are those calls telling you, and where is that written down?",
+            "role": "Chief executive of UK insurance, Admiral Group, giving evidence to the House of Lords committee",
+            "text": "Even a call about roof tiles that is not covered still gets counted as a claim contact, and what customers said on that call could be used to set expectations at the point of sale.",
+            "quote": "If a customer is calling us about some tiles that have come off their roof, even if there hasn't been a storm, and we explain that that's wear and tear and it's not covered, then we would still capture that.",
+            "speaker": "Alistair Hargreaves",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/news/admiral-aviva-and-nfu-mutual-give-consumer-duty-evidence-to-house-of-lords-committee/1459187.article"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk"
+              ],
+              "primary": false
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-07-22"
+          },
+          {
+            "id": "lang-cox-claims-insight",
+            "say": "If claims insight is a strategic asset, how much of it is still sitting unread in call recordings?",
+            "role": "Chief claims officer, Allianz UK",
+            "text": "Claims leaders now talk about the knowledge, data and insight generated inside claims as something the rest of the business depends on, not an end-of-process function.",
+            "quote": "The knowledge and the data and the insights that we generate in claims allow us to develop the products, work out a distribution strategy, price them and underwrite them safely, all the way through to reserving and capital management at the end.",
+            "speaker": "Matt Cox",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/analysis/matt-cox-turning-claims-into-a-strategic-asset-at-allianz-uk-requires-a-mindset-shift/1459499.article"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk"
+              ],
+              "primary": false
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-03"
+          },
+          {
+            "id": "lang-esure-main-cause",
+            "say": "Your own complaints page says service and admin, not the decision, is the main cause. That lives in the calls.",
+            "role": "UK personal lines insurer, its own published complaints statistics for 1 January to 30 June 2026",
+            "text": "An insurer's own published complaints page names the main cause of complaints as general admin and customer service, not the claim decision.",
+            "quote": "Main cause of complaints opened: Other general admin/customer service",
+            "speaker": "esure Insurance Limited",
+            "evidence": {
+              "urls": [
+                "https://www.esure.com/about/complaints-statistics"
+              ],
+              "domains": [
+                "www.esure.com"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "speculative",
+            "publishedAt": "2026-06-30",
+            "inferredFrom": "provenance: no six-word span of the quote on the page"
+          },
+          {
+            "id": "lang-reynold-outsourced",
+            "say": "Oversight is the word the regulator keeps using. What can you show about the calls your own handlers took last week?",
+            "role": "Interim Director of Insurance, Financial Conduct Authority, quoted in the Insurance Post podcast",
+            "text": "The regulator's insurance director says weak oversight of outsourced claims leads to inadequate monitoring and claims not being handled the way the regulator wants to see.",
+            "quote": "weak oversight of outsourced claims […] can sometimes lead to inadequate monitoring of MI, and then claims not being handled in the way we would want to see them handled",
+            "speaker": "Graeme Reynold",
+            "evidence": {
+              "urls": [
+                "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html"
+              ],
+              "domains": [
+                "www.deloitte.com"
+              ],
+              "primary": false
+            },
+            "notBuyer": true,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-07-07"
+          }
+        ],
+        "situation": "A UK home or travel insurer of roughly 200 to 2,000 people that handles claims calls in its own contact centre, and is one of the firms asked in early 2026 to review how claims are handled after the regulator's home and travel work and the Which? super-complaint."
+      },
+      {
+        "id": "complaints-root-cause-team",
+        "name": "Complaints teams asked to prove root cause",
+        "pains": [
+          {
+            "id": "complaints-data-not-granular",
+            "role": "UK financial regulator, complaints and root cause analysis review",
+            "text": "The regulator's review of 40 firms found complaints data was often not detailed enough to show outcomes for different groups of customers, including those with characteristics of vulnerability, so issues go unspotted.",
+            "quote": "We saw examples where complaints metrics and data were not sufficiently granular to capture outcomes for different groups of customers, including consumers with characteristics of vulnerability.",
+            "speaker": "Financial Conduct Authority",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong",
+            "publishedAt": "2026-07-10"
+          },
+          {
+            "id": "no-measure-of-impact",
+            "role": "UK financial regulator, complaints and root cause analysis review",
+            "text": "Firms did not always measure whether the changes they made after complaints analysis worked, so some kept pursuing actions that were not doing much.",
+            "quote": "Firms did not always measure the impact of interventions they had made to ensure these were the right changes to make.",
+            "speaker": "Financial Conduct Authority",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong",
+            "publishedAt": "2026-07-10"
+          },
+          {
+            "id": "complaints-to-firms-rising",
+            "role": "News editor, ITIJ, reporting the regulator's half-yearly complaints data",
+            "text": "Complaints made directly to firms in insurance and pure protection rose 10.1% in the second half of 2025, from 717,523 to 790,329, so the load lands on the firm's own team long before the ombudsman sees it.",
+            "speaker": "Siân Yates",
+            "evidence": {
+              "urls": [
+                "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data"
+              ],
+              "domains": [
+                "www.itij.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-05-08"
+          },
+          {
+            "id": "half-take-weeks-and-uphold",
+            "role": "UK personal lines insurers, their own published complaints statistics for 1 January to 30 June 2026",
+            "text": "On insurers' own published pages, about half of complaints take more than three days and up to eight weeks to close, and uphold rates run from around a half to two thirds.",
+            "speaker": "esure Insurance Limited and Ageas Retail Limited",
+            "evidence": {
+              "urls": [
+                "https://www.esure.com/about/complaints-statistics",
+                "https://www.ageas.co.uk/important-information/complaints-data-ageas-retail"
+              ],
+              "domains": [
+                "www.esure.com",
+                "www.ageas.co.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "speculative",
+            "publishedAt": "2026-06-30",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (pages, eight, uphold)"
+          },
+          {
+            "id": "board-reporting-data-gap",
+            "text": "Around three quarters of firms in a 2026 study said they struggle to integrate data, source the right information and link datasets for board reporting, and are better at responding to customer misunderstanding than at spotting it in the first place.",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/news/insurance-firms-face-challenges-in-proving-good-customer-outcomes-under-consumer-duty/1459527.article",
+                "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk",
+                "www.deloitte.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "moderate",
+            "publishedAt": "2026-09-02"
+          }
+        ],
+        "language": [
+          {
+            "id": "lang-sandhu-signals",
+            "say": "If the same themes keep coming back, the answer is usually in what was said on the calls, not in the case notes.",
+            "role": "Insurance operations and complaints management leader, writing publicly on complaints and conduct rules",
+            "text": "Complaints people talk about the same themes coming back after a decade of dashboards and improvement plans, and about complaints being signals rather than noise.",
+            "quote": "Because complaints aren't just frustrations. They're signals. Signals that something still isn't connecting.",
+            "speaker": "Rav Sandhu",
+            "evidence": {
+              "urls": [
+                "https://www.linkedin.com/posts/rav-sandhu-a249297b_%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F%3F%3F%3F%3F-activity-7385587954892558336-GjPc"
+              ],
+              "domains": [
+                "www.linkedin.com"
+              ],
+              "primary": false
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak"
+          },
+          {
+            "id": "lang-turner-single-environment",
+            "say": "Most firms pulled together the data they already had. The calls are the part nobody pulled together.",
+            "role": "Group chief executive, NFU Mutual, giving evidence to the House of Lords committee",
+            "text": "Insurer chiefs describe their conduct work as mostly pulling together data they already held into one reporting place so they could show they were complying.",
+            "quote": "It was largely an effort of bringing together the data we already had into one single reporting environment to make sure that we could demonstrate that we were complying.",
+            "speaker": "Nick Turner",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/news/admiral-aviva-and-nfu-mutual-give-consumer-duty-evidence-to-house-of-lords-committee/1459187.article"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk"
+              ],
+              "primary": false
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-07-22"
+          },
+          {
+            "id": "lang-storah-visibility",
+            "say": "Plenty of firms feel good about their measures. Ask what share of calls those measures are actually built from.",
+            "role": "Chief executive of UK and Ireland general insurance, Aviva, giving evidence to the House of Lords committee",
+            "text": "A large insurer's UK chief says the work cost real money but board-level visibility of customer measures is now good and well embedded.",
+            "quote": "I can tell you that the visibility that's been achieved around customer metrics, at both the board level and all the way through the organisation, is really good.",
+            "notThis": "Do not open by telling this kind of buyer they have no visibility; they will say they already report it to the board.",
+            "speaker": "Jason Storah",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/news/admiral-aviva-and-nfu-mutual-give-consumer-duty-evidence-to-house-of-lords-committee/1459187.article"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk"
+              ],
+              "primary": false
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-07-22"
+          },
+          {
+            "id": "lang-harper-real-test",
+            "say": "Reporting is not the test. Finding the poor outcomes is, and those show up in what was said on the call.",
+            "role": "Executive director of strategy, advocacy and professional standards, Chartered Insurance Institute",
+            "text": "The professional body's line is that the real test is whether the evidence lets a firm find where customers are getting poor outcomes and then act on it.",
+            "quote": "The real test of Consumer Duty board reporting is whether firms can use the evidence to understand where customers are experiencing poor outcomes and take meaningful action to improve them.",
+            "speaker": "Adam Harper",
+            "evidence": {
+              "urls": [
+                "https://www.insurancetimes.co.uk/news/insurance-firms-face-challenges-in-proving-good-customer-outcomes-under-consumer-duty/1459527.article"
+              ],
+              "domains": [
+                "www.insurancetimes.co.uk"
+              ],
+              "primary": false
+            },
+            "notBuyer": true,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-02"
+          }
+        ],
+        "situation": "A mid-sized UK personal lines insurer of roughly 200 to 2,000 people whose complaints and customer relations team has to show the board and the regulator what is driving complaints, why the same themes keep returning, and whether last quarter's fix actually worked."
+      },
+      {
+        "id": "travel-specialist-claims",
+        "name": "Travel and specialist insurers where complaints are climbing fastest",
+        "pains": [
+          {
+            "id": "travel-complaints-rising",
+            "text": "Travel insurance complaints to firms rose 19.4% in the second half of 2025, from 27,813 to 33,199, the highest in recent reporting periods, and travel complaints reaching the ombudsman were still rising in early 2026.",
+            "evidence": {
+              "urls": [
+                "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data",
+                "https://www.insurancebusinessmag.com/uk/news/auto-motor/motor-cover-drives-complaints-rise-despite-broader-fos-improvement-581035.aspx"
+              ],
+              "domains": [
+                "www.itij.com",
+                "www.insurancebusinessmag.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "moderate",
+            "publishedAt": "2026-05-08"
+          },
+          {
+            "id": "travel-declined-claims",
+            "role": "Ombudsman, written evidence CIM0040 to the House of Lords committee",
+            "text": "Around 56% of travel complaints reaching the ombudsman are about a declined claim, and travel uphold rates are among the highest of any product.",
+            "quote": "This is particularly pronounced in travel insurance, where around 56% of complaints relate to a declined claim.",
+            "speaker": "The Financial Ombudsman Service",
+            "evidence": {
+              "urls": [
+                "https://committees.parliament.uk/writtenevidence/168001/html"
+              ],
+              "domains": [
+                "committees.parliament.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong"
+          },
+          {
+            "id": "decided-by-agents",
+            "role": "Ombudsman, written evidence CIM0040 to the House of Lords committee",
+            "text": "In some cases the claim outcome is decided by agents acting for the insurer rather than the insurer itself, which the ombudsman links to the higher uphold rate in travel.",
+            "quote": "in some cases, claim outcomes are determined by agents of the insurer, rather than the insurer itself",
+            "speaker": "The Financial Ombudsman Service",
+            "evidence": {
+              "urls": [
+                "https://committees.parliament.uk/writtenevidence/168001/html"
+              ],
+              "domains": [
+                "committees.parliament.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "strong"
+          },
+          {
+            "id": "acceptance-gap",
+            "text": "The consumer group's super-complaint put claim acceptance at 63% for buildings and 80% for travel against 99% for motor, and said the claims experience can be worse than the event that caused it.",
+            "evidence": {
+              "urls": [
+                "https://www.bbc.co.uk/news/articles/c87yey5neggo",
+                "https://www.insurancebusinessmag.com/uk/news/auto-motor/motor-cover-drives-complaints-rise-despite-broader-fos-improvement-581035.aspx"
+              ],
+              "domains": [
+                "www.bbc.co.uk",
+                "www.insurancebusinessmag.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "moderate",
+            "publishedAt": "2025-09-23"
+          }
+        ],
+        "language": [
+          {
+            "id": "lang-ageas-only-small-percentage",
+            "say": "Your claims complaints page names call handling as the main cause. That is a listening problem, not a policy problem.",
+            "role": "UK home, motor, van, travel and pet insurer, its own published complaints data",
+            "text": "Insurers publish their complaints numbers defensively, framing them as a very small share of policies while naming service and call handling as the main cause.",
+            "quote": "Only a very small percentage of our customers make a complaint. 1 January 2026 to 30 June 2026, a complaint arose in only 0.4% of just over 783,000 live insurance policies.",
+            "speaker": "Ageas Retail Limited",
+            "evidence": {
+              "urls": [
+                "https://www.ageas.co.uk/important-information/complaints-data-ageas-retail"
+              ],
+              "domains": [
+                "www.ageas.co.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-06-30"
+          },
+          {
+            "id": "lang-daley-not-done",
+            "say": "Averages are up, but it is the significant minority of calls that make the complaints. Those are findable.",
+            "role": "Managing director, Fairer Finance",
+            "text": "The consumer research group says trust and claims satisfaction are up, but that the problems raised in the super-complaint are not fixed and a significant minority still get poor outcomes.",
+            "quote": "But insurers should not take this as a sign that the work is done. The fundamental problems that Which? pointed to in its super-complaint last year have not yet been addressed – and a significant minority of consumers continue to get poor outcomes from their insurers.",
+            "speaker": "James Daley",
+            "evidence": {
+              "urls": [
+                "https://www.fairerfinance.com/insights/press-releases/trust-in-insurance-on-the-rise-but-insurers-still-have-a-long-way-to-go"
+              ],
+              "domains": [
+                "www.fairerfinance.com"
+              ],
+              "primary": false
+            },
+            "notBuyer": true,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-04-28"
+          }
+        ],
+        "situation": "A UK travel or specialist personal lines insurer or managing agent of roughly 50 to 1,000 people, with a small claims and complaints team, seasonal call peaks, and the fastest rising complaint numbers in the market."
+      }
+    ],
+    "contradictions": [
+      {
+        "a": {
+          "id": "contra-a-travel-up",
+          "text": "Travel insurance complaints to firms rose 19.4% in the second half of 2025 to 33,199, the highest in recent reporting periods, and the wider insurance category rose 10.1%.",
+          "evidence": {
+            "urls": [
+              "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data"
+            ],
+            "domains": [
+              "www.itij.com"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-05-08"
+        },
+        "b": {
+          "id": "contra-b-satisfaction-up",
+          "role": "Research and ratings group, Trust in Insurance Index",
+          "text": "A Spring 2026 survey of 10,000 customers found claims satisfaction at its highest since 2019, improving across car, home, pet and travel, with travel the biggest riser.",
+          "quote": "Claims satisfaction improved across all four major insurance sectors in the Spring 2026 Index, with the average score across car, home, pet and travel insurance now sitting at 60.03% – the highest since 2019.",
+          "speaker": "Fairer Finance",
+          "evidence": {
+            "urls": [
+              "https://www.fairerfinance.com/insights/press-releases/trust-in-insurance-on-the-rise-but-insurers-still-have-a-long-way-to-go"
+            ],
+            "domains": [
+              "www.fairerfinance.com"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-04-28"
+        },
+        "id": "contradiction-satisfaction-rising",
+        "text": "Complaint pressure is rising in travel, but satisfaction with claims is the best it has been since 2019, so do not open with a claim that the whole market is failing."
+      },
+      {
+        "a": {
+          "id": "contra-a-fos-down",
+          "text": "The ombudsman received 214,600 complaints in 2025/26, almost 30% fewer than the 305,700 the year before, and upheld 30% of what it resolved.",
+          "evidence": {
+            "urls": [
+              "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/annual-complaints-data-and-insight-2025-26"
+            ],
+            "domains": [
+              "www.financial-ombudsman.org.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "strong",
+          "publishedAt": "2026-05-21"
+        },
+        "b": {
+          "id": "contra-b-insurance-still-45k",
+          "text": "Insurance still accounted for around 45,400 of those complaints, with declined claims, delays and communication the recurring themes across home and travel.",
+          "evidence": {
+            "urls": [
+              "https://committees.parliament.uk/writtenevidence/168001/html",
+              "https://www.insurancebusinessmag.com/uk/news/auto-motor/motor-cover-drives-complaints-rise-despite-broader-fos-improvement-581035.aspx"
+            ],
+            "domains": [
+              "committees.parliament.uk",
+              "www.insurancebusinessmag.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "moderate",
+          "publishedAt": "2026-07-02"
+        },
+        "id": "contradiction-ombudsman-volumes-down",
+        "text": "Complaints reaching the ombudsman fell sharply last year and uphold rates fell across most insurance lines, so a complaints team may honestly say their numbers are going the right way."
+      },
+      {
+        "a": {
+          "id": "contra-a-poor-mi",
+          "text": "The regulator found some firms produced poor quality claims data and did not use it to assess customer outcomes, including for vulnerable customers.",
+          "evidence": {
+            "urls": [
+              "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements"
+            ],
+            "domains": [
+              "www.fca.org.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "strong"
+        },
+        "b": {
+          "id": "contra-b-execs-confident",
+          "text": "Insurer chief executives told the House of Lords committee that board-level visibility of customer measures is really good and that meeting the rules was a relatively modest effort of bringing existing data into one reporting place.",
+          "evidence": {
+            "urls": [
+              "https://www.insurancetimes.co.uk/news/admiral-aviva-and-nfu-mutual-give-consumer-duty-evidence-to-house-of-lords-committee/1459187.article"
+            ],
+            "domains": [
+              "www.insurancetimes.co.uk"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-07-22"
+        },
+        "id": "contradiction-firms-say-they-have-data",
+        "text": "The regulator says claims and complaints data is often too thin, while insurer chiefs say their customer measures are well embedded and their conduct work was mostly tidying data they already had. Expect that answer on the first call."
+      }
+    ]
+  },
+  "run": {
+    "steps": 66,
+    "modelSteps": 18,
+    "toolSteps": 48,
+    "attempts": 1,
+    "cost": "3.281982",
+    "durationMs": 517835,
+    "replayedToolCalls": 0,
+    "jobId": "41a3fe1d-df1f-45bb-bfb7-2d1f06e9ea0b",
+    "eventId": "cmtu9c7bp003tkwbqnsh43a05"
+  },
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "error": null,
+  "rejectedIssues": null,
+  "rubric": [
+    {
+      "check": 1,
+      "name": "Schema and derived confidence",
+      "verdict": "pass",
+      "detail": "38 items parsed under the strict schema"
+    },
+    {
+      "check": 2,
+      "name": "Coverage",
+      "verdict": "pass",
+      "detail": "3 archetypes, 7 firms, 6 unknowns"
+    },
+    {
+      "check": 4,
+      "name": "Buyer words",
+      "verdict": "pass",
+      "detail": "70% of 10 phrases are buyer words with a role"
+    },
+    {
+      "check": 5,
+      "name": "Recency",
+      "verdict": "pass",
+      "detail": "no strong signal older than twelve months"
+    },
+    {
+      "check": 6,
+      "name": "Domain spread",
+      "verdict": "pass",
+      "detail": "12 domains"
+    },
+    {
+      "check": 7,
+      "name": "Contradictions",
+      "verdict": "pass",
+      "detail": "4 contradiction queries for 3 archetypes; 3 recorded"
+    },
+    {
+      "check": 8,
+      "name": "Insufficient path",
+      "verdict": "n/a",
+      "detail": "not a thin brief"
+    },
+    {
+      "check": 10,
+      "name": "Widening",
+      "verdict": "n/a",
+      "detail": "not a re-run"
+    },
+    {
+      "check": 11,
+      "name": "Cost and time",
+      "verdict": "pass",
+      "detail": "30 searches, 16 fetches, 18 steps, 518s, $3.2820"
+    }
+  ]
+}

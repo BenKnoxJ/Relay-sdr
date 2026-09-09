@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "FCA review insurers claims handling delays poor outcomes multi-firm",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Findings of our multi-firm review of life insurers’ bereavement claim process | FCA",
+        "url": "https://www.fca.org.uk/publications/multi-firm-reviews/findings-our-multi-firm-review-life-insurers-bereavement-claim-process",
+        "snippet": "The impact on consumers from poor outcomes and harms arising from the bereavement claims process could include:\n\nFirms should act fairly and promptly when handling claims, in line with their obligations under PROD 4. In this context, we would expect firms to meet any reasonable customer expectations they may have created about how the process would be handled in the event of a claim. [...] We expect firms to be able to effectively monitor whether they are providing a poor or slow service, and to avoid causing foreseeable harm, under the Consumer Support outcome of the Duty. We also expect firms to set service measures that are clear and realistically reflect good customer outcomes across all their servicing teams. This includes those operated by OSPs and where firms have inherited SLAs from acquired books of business. Individual process level reporting can help detect pockets of [...] We expect firms to continue to challenge their claims practices, service standards and delivery to ensure that appropriate customer outcomes are achieved. Firms should collect and interrogate MI on SLA performance to enable them to detect when service delivery falls below their outcome measures. This will help them to act quickly to mitigate the risk of harm to customers. We consider that there is considerable room for improvement."
+      },
+      {
+        "title": "FCA's Multi-Firm Review on Insurance Claims: Are you ready for the ...",
+        "url": "https://www.greenkiteassociates.com/fcas-multi-firm-review-on-insurance-claims-are-you-ready-for-the-spotlight-on-your-delegated-claims-handling-arrangements",
+        "snippet": "The FCA will assess how efficiently claims are processed, and delays will be viewed as a sign of inadequate customer care."
+      },
+      {
+        "title": "FCA launches review of claims management practices",
+        "url": "https://www.regulationtomorrow.com/2026/05/fca-launches-review-of-claims-management-practices",
+        "snippet": "The review will look at the root causes of poor practices across the market, including aggressive marketing, misleading advertising, and unfair exit fees. This is in addition to other concerns such as consumers being signed up without their consent, or by multiple representatives, which may cause confusion or delay compensation.\n\nThe FCA will be working closely with the Solicitors Regulation Authority (SRA) and other regulatory partners to conduct its review, examining:\n\nNext steps [...] On 6 May 2026, the Financial Conduct Authority (FCA) issued a statement launching a review of the claims management market, following concerns that consumers are being failed by some claims management companies (CMCs) and law firms. [...] anti-money laundering, insurance, regulation and compliance retail and wholesale conduct and securities regulation."
+      },
+      {
+        "title": "Navigating the FCA's Latest Claims Insights: A Call to Action for ...",
+        "url": "https://www.square4.com/navigating-the-fcas-latest-claims-insights-a-call-to-action-for-insurers",
+        "snippet": "In this article, we examine the drivers of poor claims handling and what action firms should be taking to drive better customer outcomes."
+      },
+      {
+        "title": "Home and travel claims handling arrangements: good practice and ...",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+        "snippet": "Nearly all firms in our review had frameworks to support claim handling. However, we saw evidence in some firms that these weren’t always effective, leading to poor customer outcomes. [...] Although 20 of the 23 firms had implemented measures to support claims handling and customer outcomes, we did not see sufficient evidence that all 20 firms were doing this consistently and effectively. We found some were failing to identify customers with vulnerable characteristics. Others, while identifying them, were then too often not flagging them on their claims systems, leaving the customer at risk of poor outcomes. [...] Some firms lacked oversight and monitoring of cash settlements, failed to consider customer vulnerability, and promoted cash settlements without ensuring good customer outcomes.\n\n### 1.3. Next steps\n\nWe will work with firms, trade bodies and other stakeholders to improve claims handling arrangements and deliver improved outcomes for customers.\n\n### Individual feedback\n\nWe will provide individual feedback to all firms in our review."
+      },
+      {
+        "title": "FCA to review claims management practices - GovDelivery - Granicus",
+        "url": "https://content.govdelivery.com/accounts/UKFCA/bulletins/416044b",
+        "snippet": "The review will look at the root causes of poor practices across the market, like aggressive marketing, misleading advertising and unfair exit fees."
+      },
+      {
+        "title": "GI claims handling: what can insurers and intermediaries learn from ...",
+        "url": "https://www.deloitte.com/uk/en/blogs/ecrs/gi-claims-handling-what-can-insurers-and-intermediaries-learn-from-recent-fca-reviews.html",
+        "snippet": "After the FCA’s Home & Travel insurance review and its Which? Super Complaint’s response, more than ten insurers were asked to review their claims handling processes in Q1 2026. However, supervisory pressure on insurers’ claims handling does not show sign of abating, with the launch of the House of Lords Financial Services Regulation Committee’s inquiry into how home & travel insurance is regulated with a renewed focus on claims handling. [...] Looking ahead, the FCA’s data-led supervisory model will increase scrutiny over firms’ data management and quality with a focus on distribution models and claims outcomes. The upcoming GI value metrics review will require firms to gather and report new and/or different data points, potentially surfacing new market issues. As the FCA continues to incorporate AI in its supervisory toolkit, it will be able to analyse much larger volumes of granular data in a short timeframe. Insurers also need to [...] Regulatory scrutiny over claims handling in the GI sector has raised the bar for insurers. We identified three key priorities for firms to act on: more granular claims handling MI, stronger oversight of TPAs involved in the claims handling process, and a greater focus on customer understanding of the product in poor claims outcomes. Strong governance, a well-designed customer sales and claims journey, and good MI, enabled by technology will help firms to deliver to these three priorities."
+      },
+      {
+        "title": "Reducing the impact of insurance claims delays - Grant Thornton UK",
+        "url": "https://www.grantthornton.co.uk/insights/reducing-the-impact-of-insurance-claims-delays",
+        "snippet": "The FCA is looking closely at how quickly insurance firms respond to claims. Richard Gibbons explores the steps they're taking to tackle"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:02:19.783Z"
+}

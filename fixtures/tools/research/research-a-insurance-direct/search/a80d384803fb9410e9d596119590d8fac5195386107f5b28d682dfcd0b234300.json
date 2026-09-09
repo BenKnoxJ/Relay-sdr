@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance complaints quality assurance analyst vacancy 2026 UK insurer Consumer Duty call quality",
+    "region": "GB",
+    "recencyMonths": 6,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:03:42.153Z"
+}

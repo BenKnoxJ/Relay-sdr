@@ -417,6 +417,17 @@ export function getCampaign(id: string): Campaign | null {
 /** What Start pre-filled, and what it had to guess (§23.1d: dashed means guessed). */
 export type BriefDraft = BriefFields & { guessed: (keyof BriefFields)[]; landsOn: string };
 
+/** What Start knows about the rep before it reads the sentence. */
+export type StartDefaults = {
+  /**
+   * The Calls toggle from Settings (§23.1f, card 4: "include a day-3 call in
+   * new campaigns by default"). The default for the Calls chip when the
+   * sentence says nothing about calls; the sentence wins when it does, and
+   * the chip on Start wins over both for that one campaign.
+   */
+  callByDefault?: boolean;
+};
+
 /**
  * Start's pre-fill, as a keyword mapping.
  *
@@ -425,8 +436,12 @@ export type BriefDraft = BriefFields & { guessed: (keyof BriefFields)[]; landsOn
  * call, so the mapping is mechanical and the honesty rule is kept the other
  * way round: a field the sentence does not support is left at its default and
  * named in `guessed`, which is what draws it dashed.
+ *
+ * The defaults are the rep's own (Settings §23.1f), read once by the caller
+ * and passed in, so this module stays a pure mapping of what it was given.
  */
-export function startFromSentence(sentence: string): BriefDraft {
+export function startFromSentence(sentence: string, defaults: StartDefaults = {}): BriefDraft {
+  const { callByDefault = true } = defaults;
   const text = sentence.toLowerCase();
   const guessed: (keyof BriefFields)[] = [];
 
@@ -458,8 +473,10 @@ export function startFromSentence(sentence: string): BriefDraft {
 
   const channels: BriefFields["channels"] = ["email"];
   if (saidLinkedin) channels.push("linkedin");
-  // Calls are on by default (§23.1d) and off only when the rep said so.
-  if (!saidNoCalls) channels.push("calls");
+  // Calls follow the rep's Settings default (§23.1f) unless the sentence said
+  // otherwise: "no cold calls" turns them off whatever the toggle, and "call
+  // them on day 3" turns them on whatever the toggle.
+  if (saidNoCalls ? false : saidCalls || callByDefault) channels.push("calls");
 
   return {
     // §23.1d: never invent a product. v1 has one, so it is the one.

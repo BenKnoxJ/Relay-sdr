@@ -43,7 +43,11 @@ export type EventKind =
   | "side_effect.recorded"
   /// An org activated a version of a product facts file; `after` carries the
   /// hash the pointer was pinned at and whether the file was still a draft.
-  | "facts.activated";
+  | "facts.activated"
+  /// A research job produced a validated pack; `after` carries the pack, the
+  /// provenance report and what the run ran under. Until Task 6d's table,
+  /// this Event *is* where the pack lives.
+  | "research.completed";
 
 /**
  * Who caused the change. `system` is the worker acting on its own — a poll, a

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { assertPlainWords } from "@/lib/copy/plainWords";
+import { assertPlainProse } from "@/lib/copy/plainWords";
 
 import {
   factIdSchema,
@@ -253,9 +253,10 @@ function refinePack(pack: z.infer<typeof packShape>, ctx: z.RefinementCtx, optio
     seen.add(id);
   }
 
-  // §3: `assertPlainWords`, on the strings the pack *writes* (see `authoredText`).
+  // §3: `assertPlainWords`, on the strings the pack *writes* (see `authoredText`),
+  // with the prose list: the copy list's English homonyms are allowed here.
   try {
-    assertPlainWords(authoredText(pack));
+    assertPlainProse(authoredText(pack));
   } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

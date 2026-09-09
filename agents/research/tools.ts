@@ -59,6 +59,12 @@ const searchArgs = z
     /** ISO-3166 alpha-2. */
     region: z.string().regex(/^[A-Z]{2}$/),
     recencyMonths: z.number().int().positive().max(120).optional(),
+    /**
+     * Which wave the search belongs to (§5). Not part of the replay key and
+     * not sent to the provider: it is the record's way of showing that a
+     * contradiction search ran, which rubric row 7 reads from the steps.
+     */
+    purpose: z.enum(["survey", "locate", "contradiction"]).optional(),
   })
   .strict();
 
@@ -132,7 +138,12 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     unspent: unspentFailure,
     execute: async (args) => {
       charge("searches");
-      const { hits } = await deps.search.search({ ...args, maxResults: 8 });
+      const { hits } = await deps.search.search({
+        query: args.query,
+        region: args.region,
+        ...(args.recencyMonths === undefined ? {} : { recencyMonths: args.recencyMonths }),
+        maxResults: 8,
+      });
       return { hits: hits.slice(0, 8) };
     },
   });

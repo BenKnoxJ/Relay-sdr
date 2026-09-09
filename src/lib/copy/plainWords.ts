@@ -108,6 +108,30 @@ export function assertPlainWords(value: unknown): void {
   }
 }
 
+/**
+ * The machine words that are machine words in prose too.
+ *
+ * `MACHINE_WORDS` is the list for copy: there, "judge", "gate", "stage",
+ * "signal", "touch", "job", "model", "token", "pipeline", "module" and
+ * "specialist" are Relay's own nouns leaking onto a screen. In a paragraph an
+ * agent writes about a market they are ordinary English — an operations lead
+ * *judges* a change, a firm hires from a *job* advert, an insurer is a
+ * *specialist* one — and refusing a research pack over them cost three live
+ * runs on 2026-09-09. Prose keeps the fleet's names, the runtime's nouns and
+ * the sales-machine vocabulary; the homonyms are allowed.
+ */
+export const PROSE_MACHINE_WORDS =
+  /\b(agent run|run id|orchestrator|enrolment|cohort|persona|archetype|autopilot|verdict|payload|prompt|icp|llm|pitch|prism|forge|critic|sentinel|scribe|neon|glitch|atlas|iris|vector|canvas)(s|es)?\b/i;
+
+/** `assertPlainWords` for paragraphs an agent composed, with the prose list. */
+export function assertPlainProse(value: unknown): void {
+  for (const [path, text] of readableStrings(value)) {
+    if (PROSE_MACHINE_WORDS.test(text)) {
+      throw new Error(`machine word in a rep-facing string at ${path}: ${text.slice(0, 400)}`);
+    }
+  }
+}
+
 /** Refuse an em dash, or an en dash standing in for punctuation. */
 export function assertPlainDashes(value: unknown): void {
   for (const [path, text] of readableStrings(value)) {

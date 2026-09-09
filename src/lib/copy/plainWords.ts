@@ -116,12 +116,13 @@ export function assertPlainWords(value: unknown): void {
  * "specialist" are Relay's own nouns leaking onto a screen. In a paragraph an
  * agent writes about a market they are ordinary English — an operations lead
  * *judges* a change, a firm hires from a *job* advert, an insurer is a
- * *specialist* one — and refusing a research pack over them cost three live
- * runs on 2026-09-09. Prose keeps the fleet's names, the runtime's nouns and
- * the sales-machine vocabulary; the homonyms are allowed.
+ * *specialist* one, an administrator *pitches* its service, a *critic* of the
+ * regulator is quoted — and refusing a research pack over them cost four live
+ * runs on 2026-09-09. The fleet's codenames are all ordinary English words too
+ * and mean nothing to a rep, so prose keeps only the runtime's own nouns.
  */
 export const PROSE_MACHINE_WORDS =
-  /\b(agent run|run id|orchestrator|enrolment|cohort|persona|archetype|autopilot|verdict|payload|prompt|icp|llm|pitch|prism|forge|critic|sentinel|scribe|neon|glitch|atlas|iris|vector|canvas)(s|es)?\b/i;
+  /\b(agent run|run id|orchestrator|enrolment|cohort|persona|archetype|autopilot|verdict|payload|prompt|icp|llm)(s|es)?\b/i;
 
 /** `assertPlainWords` for paragraphs an agent composed, with the prose list. */
 export function assertPlainProse(value: unknown): void {

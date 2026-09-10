@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "SRA warning notice use of AI legal services 2026",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "SRA cautions profession about safe and responsible use of AI in legal sector",
+        "url": "https://www.sra.org.uk/news/news/releases/responsible-use-ai",
+        "snippet": "News release\n# SRA cautions profession about safe and responsible use of AI in legal sector\n\n17 August 2026\n\nAmid growing day-to-day use in law firms, the Solicitors Regulation Authority (SRA) has published a warning notice to remind the legal profession of their professional obligations when using AI (artificial intelligence). [...] The SRA received 42 reports related to the potential misuse of AI between July 2025 and July 2026. There are a number of ongoing investigations relating to misuse of AI, including on issues relating to inaccurate legal citations, supervision and confidentiality. The SRA added further sections to its guidance on effective supervision relating to AI in June this year. [...] The SRA will continue to work with the profession and other stakeholders to promote safe and responsible use of AI. As part of its proposed business plan for 2026/27, the SRA plans to strengthen its Innovate work programme to provide clear, practical, and policy-led support for firms looking to innovate and adopt technology."
+      },
+      {
+        "title": "SRA | All topics | Solicitors Regulation Authority",
+        "url": "https://www.sra.org.uk/solicitors/guidance/topic/all-topics",
+        "snippet": "## All topics\n\n## Misuse of AI - Warning notice\n\n17 August 2026\n\nThe use of Artificial Intelligence (AI) in the provision of legal services by regulated firms and individuals.\n\n## Dealing with conflicts of interest, independence and confidentiality for in-house solicitors\n\n23 July 2026\n\nThe following case studies highlight the importance of the identification and disclosure of conflicts of interest, independence and confidentiality for in-house solicitors. [...] 19 June 2026\n\nThis Warning Notice reminds you of your legal obligations to make sure that you do not facilitate money laundering or terrorist financing and understand your obligations under the money laundering regulations.\n\n## Firm-wide risk assessments - Guidance\n\n19 June 2026\n\nUnderstand how firms subject to the money laundering regulations must comply with the requirement to have a firm wide risk assessment under regulation 18.\n\n## Complying with the UK Sanctions Regime - Guidance [...] 19 June 2026\n\nThis guidance is to help you understand your obligations and how to comply with them. We will have regard to it when exercising our regulatory functions\n\n## Money laundering and terrorist financing - Warning notice\n\n19 June 2026\n\nThis Warning Notice reminds you of the warning signs of suspicious transactions.\n\n## Client and matter risk assessments - Warning notice\n\n19 June 2026"
+      },
+      {
+        "title": "SRA publishes Warning Notice on misuse of AI in legal practice",
+        "url": "https://blog.fromcounsel.com/artificial-intelligence-sra-publishes-warning-notice-on-misuse-of-ai",
+        "snippet": "On 17 August 2026, the Solicitors Regulation Authority published Warning Notice: Misuse of AI. The Warning Notice sets out guidance for solicitors and law firms"
+      },
+      {
+        "title": "SRA sounds alarm on AI misuse | The Law Society",
+        "url": "https://www.lawsociety.org.uk/contact-or-visit-us/press-office/press-releases/sra-sounds-alarm-on-ai-misuse",
+        "snippet": "Log in\n\nSign up\n\nFind a Solicitor\n\nLegal Jobs\n\nLog in Sign up\n\nNew\n\nPress release\n\n# SRA sounds alarm on AI misuse\n\n17 Aug 2026\n\n1 minute read\n\n## News\n\nIn the wake of the increased use of technology in the legal profession, the Solicitors Regulation Authority (SRA) has today (17 August 2026) published a warning notice on the misuse of AI, advising how solicitors can responsibly use new technology in their practice. [...] The warning notice outlines the need for solicitors to check the information put before the courts, supervise the work undertaken for clients, and remain accountable for everything produced using AI.\n\nAs AI develops fast, the legal profession will continue to need timely and clear guidance on how to respond to emerging technologies.\n\nLaw Society of England and Wales vice president, Brett Dixon, said: [...] “The Law Society recognises that AI should be used to support and enhance legal practice, not to replace the essential role of solicitors in providing trusted advice to clients.\n\n\"We welcome the SRA’s warning notice and the clarity the guidance provides around how the use of AI interacts with the provision of legal services by solicitors, particularly in relation to the courts and the protection of client confidentiality."
+      },
+      {
+        "title": "The SRA's New AI Warning Notice: What Every Law Firm Needs to ...",
+        "url": "https://complianceoffice.co.uk/the-sras-new-ai-warning-notice-what-every-law-firm-needs-to-know",
+        "snippet": "On 17 August 2026, the SRA published a warning notice on the misuse of AI in legal services (https://www.sra.org.uk/solicitors/guidance/misuse-"
+      },
+      {
+        "title": "Misuse of AI - Warning notice",
+        "url": "https://www.sra.org.uk/solicitors/guidance/misuse-ai",
+        "snippet": "##### Fees\n\n   Fee policy 2026/27\n   Fee calculator 2026/27\n   Fee policy 2025/26\n   Fee calculator 2025/26\n   Ways to pay for your practising certificate\n   Compensation fund contribution level principles\n\n##### Get a mySRA account\n\n##### mySRA FAQs\n\n   Log in to mySRA\n   Search the Solicitors Register\n   Contact us\n\n1.   Home\n2.   For law professionals\n3.   Guidance\n4.    Misuse of AI - Warning notice \n\nWarning notice\n\n# Misuse of AI\n\nPublished: 17 August 2026\n\nPrint this pageSave as PDF [...] This warning notice is relevant to all firms and individuals we regulate. It relates to the use of Artificial Intelligence (AI) in the provision of legal services by regulated firms and individuals. While it is directed at those we regulate, it is also likely to be relevant to other authorised persons practising within SRA-regulated firms.\n\n## What is AI and what is gen AI? [...] This Warning Notice focuses on the risks and issues relating to AI that have come to our attention. We recognise that many firms and legal professionals are already taking a considered, risk-based approach to the use of AI.\n\nAs the use of AI continues to evolve, we will continue to engage with the profession, monitor developments and share information to help those we regulate understand how their existing professional obligations apply when using AI."
+      },
+      {
+        "title": "SRA issues warning notice to legal profession on misuse of AI ...",
+        "url": "https://uk.practicallaw.thomsonreuters.com/w-050-9087?transitionType=Default&contextData=%28sc.Default%29",
+        "snippet": "The notice focuses on two particular concerns: AI hallucinations in court documents or legal work, and risks to client confidentiality when using AI systems."
+      },
+      {
+        "title": "Compliance tips for solicitors regarding the use of AI and technology",
+        "url": "https://www.sra.org.uk/solicitors/resources/innovate/compliance-tips-for-solicitors",
+        "snippet": "##### Fees\n\n   Fee policy 2025/26\n   Fee calculator 2025/26\n   Ways to pay for your practising certificate\n   Compensation fund contribution level principles\n\n##### Get a mySRA account\n\n##### mySRA FAQs\n\n   Log in to mySRA\n   Search the Solicitors Register\n   Contact us\n\n1.   Home\n2.   For law professionals\n3.   Resources\n4.    Compliance tips for solicitors regarding the use of AI and technology \n\n# Compliance tips for solicitors regarding the use of AI and technology\n\nUpdated 9 February 2026 [...] The practising address that you provide for your firm’s authorisation from the SRA must relate to a genuine and physical location from which your firm provides services which consist of or include regulated legal activities.\n\nThis remains the same for firms which provide legal services entirely through digital, non-physical channels – your practising address must be an address where your firm’s regulated legal activities take place e.g. the home address of a senior director. [...] ### Your privacy choices\n\nWe use cookies to collect information about how you use SRA websites. We use this information to make them work as well as possible and improve our services. These cookies are optional.Privacy Policy.\n\nAccept all Customize settings Reject all \n\nImage 1: icon.png)\n\nMenu\n\n   Home\n\nClose submenu (News)News\n\nClose submenu (About us )About us\n\nClose submenu (For law professionals)For law professionals\n\nClose submenu (For the public)For the public"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-10T09:52:27.455Z"
+}

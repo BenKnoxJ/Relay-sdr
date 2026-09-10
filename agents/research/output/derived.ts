@@ -18,8 +18,8 @@ import { recipeSchema } from "./modules";
 export const planArchetypeSchema = z
   .object({
     id: idSchema,
-    name: z.string().min(1).max(120),
-    situation: z.string().min(1).max(1000),
+    name: z.string().min(1).max(500),
+    situation: z.string().min(1).max(8000),
     pains: z.array(itemSchema).min(1).max(12),
     language: z.array(phraseSchema).max(20),
   })
@@ -29,7 +29,7 @@ export const planArchetypeSchema = z
 export const hookSchema = z
   .object({
     id: idSchema,
-    text: z.string().min(1).max(1000),
+    text: z.string().min(1).max(8000),
     whyNow: itemSchema,
     answeredBy: z.array(factIdSchema).max(8),
   })
@@ -38,7 +38,7 @@ export const hookSchema = z
 export const planFirmSchema = z
   .object({
     id: idSchema,
-    name: z.string().min(1).max(200),
+    name: z.string().min(1).max(500),
     domain: z.string().min(1).max(253).optional(),
     region: z.string().min(1).max(80),
     signal: itemSchema,
@@ -48,20 +48,20 @@ export const planFirmSchema = z
 export const planUnknownSchema = z
   .object({
     id: idSchema,
-    text: z.string().min(1).max(600),
+    text: z.string().min(1).max(8000),
     kind: z.enum(["not-found", "confirmed-absent", "unreadable", "conflicting", "out-of-budget"]),
     queriesTried: z.array(z.string().min(1).max(300)),
   })
   .strict();
 
 export const planContradictionSchema = z
-  .object({ id: idSchema, text: z.string().min(1).max(600), a: itemSchema.optional(), b: itemSchema.optional() })
+  .object({ id: idSchema, text: z.string().min(1).max(8000), a: itemSchema.optional(), b: itemSchema.optional() })
   .strict();
 
 /** What the campaign page's cards render (§23.1c): the v2 pack shape, as a view. */
 export const planCardsSchema = z
   .object({
-    summary: z.array(z.string().min(1).max(400)).min(1).max(5),
+    summary: z.array(z.string().min(1).max(8000)).min(1).max(5),
     archetypes: z.array(planArchetypeSchema),
     hook: hookSchema.optional(),
     seedFirms: z.array(planFirmSchema),

@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm size bands employees SRA",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "SRA | Diversity in law firms' workforce | Solicitors Regulation Authority",
+        "url": "https://www.sra.org.uk/sra/research-publications/diversity-law-firms-workforce",
+        "snippet": "for full-equity partners, the largest group was 45–54 (37%), followed by 55–64 (26%) and then 35–44 (22%)\n   for salaried partners, the largest group was 35–44 (40%), followed by 45–54 (33%) and then 55-64 (17%)\n   for solicitors, the largest age group was 25–34 (45%) followed by 35–44 (28%) and then 45–54 (14%).\n\n### By firm size [...] ### Other staff\n\nFor other staff working in law firms, the largest age group was 25–34 (29%) and this was true for all firm sizes and across all areas of law. The smallest age group was 65+ (3%), and this was also true for all firm sizes and across all areas of law.\n\n### Welsh firms compared with English firms [...] ### By firm size\n\nThere were some differences in age groups by firm size, with a higher proportion of older lawyers in smaller firms. Looking at the 25-34 and 55-64 age groups by firm size:"
+      },
+      {
+        "title": "Law firm fines should be a minimum of £5k, says SRA - Legal Futures",
+        "url": "https://www.legalfutures.co.uk/latest-news/law-firm-fines-should-be-a-minimum-of-5k-says-sra",
+        "snippet": "The consultation has proposed two new bands, the first ranging from 6% to 10% of a firm's annual domestic turnover and 113% to 145% of an"
+      },
+      {
+        "title": "Salary Transparency for Legal Hires | Sartori & Partners",
+        "url": "https://sartoriglobal.com/insights/salary/pay-transparency-in-law-firms-possible-or-unrealistic",
+        "snippet": "SRA diversity collection for summer 2025 is a firm-side census — 8,876 firms, more than 225,000 people — and is useful here only as the feeder the in-house hire is drawn from. Corporate-law firms in that return were 47 percent women lawyers, with 48 percent of lawyers aged 25–34. A London general counsel hiring a corporate or disputes counsel is bidding against that younger lockstep. The company posting still tends to look like the HSBC page: qualification, PQE, regulatory overlay, no salary. [...] 250\n:   employees, one legal entityUK gender-pay-gap filing threshold; LLP members sit outside the calculation\n:   GOV.UK, Who needs to report (fetched 2026)\n\n8,928\n:   SRA-regulated firms, 31 October 2025most sit below the 250-employee gender-pay-gap threshold\n:   SRA Costs statement, 16 July 2026\n\n£189k\n:   published London NQ headline, US disputes housedated headline, not total compensation and not a general-counsel salary\n:   The Lawyer, 5 June 2026 [...] 39. Government commits to introducing mandatory ethnicity and disability pay gap reporting (25 March 2026) gov.uk ↗\n40. Diversity in law firms' workforce (SRA, summer 2025 collection) sra.org.uk ↗"
+      },
+      {
+        "title": "Breakdown of solicitor firms - Solicitors Regulation Authority",
+        "url": "https://www.sra.org.uk/sra/research-publications/regulated-community-statistics/data/solicitor_firms",
+        "snippet": "| May 2025 | 1,430 (16%) | 996 (10.8%) | 5,211 (57%) | 1,451 (16%) | 29 (0%) | 9,127 |\n| April 2025 | 1,436 (16%) | 999 (11%) | 5,210 (57%) | 1,451 (16%) | 29 (0%) | 9,125 |\n| March 2025 | 1,453 (16%) | 1,011 (11%) | 5,213 (57%) | 1,455 (16%) | 29 (0%) | 9,161 |\n| February 2025 | 1,456 (16%) | 1,010 (11%) | 5,217 (57%) | 1,453 (16%) | 29 (0%) | 9,165 |\n| January 2025 | 1,464 (16%) | 1,012 (11%) | 5,212 (57%) | 1,452 (16%) | 29 (0%) | 9,169 | [...] | February 2018 | 2,433 (23%) | 1,763 (17%) | 4,626 (44%) | 1,551 (15%) | 38 (0%) | 10,411 |\n| January 2018 | 2,451 (24%) | 1,769 (17%) | 4,600 (44%) | 1,557 (15%) | 38 (0%) | 10,415 |\n| December 2017 | 2,462 (24%) | 1,777 (17%) | 4,580 (44%) | 1,551 (15%) | 38 (0%) | 10,408 |\n| November 2017 | 2,476 (24%) | 1,785 (17%) | 4,562 (44%) | 1,553 (15%) | 38 (0%) | 10,414 |\n| October 2017 | 2,489 (24%) | 1,799 (17%) | 4,537 (44%) | 1,557 (15%) | 38 (0%) | 10,420 | [...] | March 2021 | 1,986 (20%) | 1,431 (14%) | 5,052 (50%) | 1,509 (15%) | 33 (0%) | 10,011 |\n| February 2021 | 2,006 (20%) | 1,444 (14%) | 5,049 (50%) | 1,509 (15%) | 34 (0%) | 10,042 |\n| January 2021 | 2,021 (20%) | 1,450 (14%) | 5,042 (50%) | 1,514 (15%) | 34 (0%) | 10,061 |\n| December 2020 | 2,027 (20%) | 1,455 (14%) | 5,021 (50%) | 1,518 (15%) | 35 (0%) | 10,056 |\n| November 2020 | 2,036 (20%) | 1,460 (14%) | 5,021 (50%) | 1,521 (15%) | 35 (0%) | 10,073 |"
+      },
+      {
+        "title": "Do the SRA Codes of Conduct apply to law firm employees?",
+        "url": "https://www.lexisnexis.co.uk/legal/guidance/do-the-sra-codes-of-conduct-2019-apply-to-law-firm-employees",
+        "snippet": "The firm's COLP and COFA are required to ensure compliance by the firm and its managers, employees or interest holders with the SRA's regulatory arrangements"
+      },
+      {
+        "title": "The Solicitors Regulation Authority (SRA) - DPH Legal Solicitors",
+        "url": "https://dphlegal.com/the-solicitors-regulation-authority-sra",
+        "snippet": "Focused Expertise  \n Specialising in niche practice areas\n\nCost Effective  \n Market friendly call rate\n\n## Who are the Solicitors Regulation Authority?\n\nThe Solicitors Regulation Authority or SRA is one of the many regulatory bodies within the legal profession.\n\nThe SRA will regulate solicitors and law firms in England and Wales as well as non-lawyers who are employees or managers of the firms that are regulated. [...] The Solicitors Regulation Authority is in charge of creating a Code of Conduct and Principles for the legal professionals that they regulate.\n\nThe regulated professionals will need to follow this code and the principles in order to provide a legal service to the general public.\n\nThe approach to regulations taken by the SRA is outcomes-focused and risk-based which ensures that firms and individuals operate with integrity and in the best interests of their clients. [...] The SRA is also able to refer the conduct of the firm or professional to the Solicitors Disciplinary Tribunal for further action or revoke the recognition of the firm. The most serious action that the SRA can take is to close a law firm with immediate effect which is generally called an intervention."
+      },
+      {
+        "title": "Alternative business structures | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/business-management/alternative-business-structures",
+        "snippet": "Log in\n\nSign up\n\nFind a Solicitor\n\nLegal Jobs\n\nLog in Sign up\n\nYou will need to log in to My LS to continue reading\n\nPractice note\n\n# Alternative business structures\n\nThe Legal Services Act 2007 (LSA 2007) allows non-lawyers to own and manage law firms. This practice note provides details on Solicitors Regulation Authority (SRA) regulated alternative business structures (ABSs) and how to apply to become one.\n\n21 Oct 2025\n\n15 minutes read [...] Practice notes are not legal advice, and do not necessarily provide a defence to complaints of misconduct or poor service. While we have taken care to ensure that they are accurate, up to date and useful, we will not accept any legal liability in relation to them.\n\nFor queries or comments on this practice note, contact our Practice Advice Service.\n\nSRA Principles\n\nThere are seven mandatory principles in the SRA Standards and Regulations which apply to all aspects of practice. [...] ##\n\nMust – a requirement in legislation or a requirement of a principle, rule, regulation or other mandatory provision in the SRA Standards and Regulations. You must comply, unless there are specific exemptions or defences provided for in relevant legislation or regulations.\n\nShould – outside of a regulatory context, good practice, in our view, for most situations. In the case of the SRA Standards and Regulations, a non-mandatory provision, such as may be set out in notes or guidance."
+      },
+      {
+        "title": "UK enterprise count and turnover (£'000S) of legal services (69.1) - Office for National Statistics",
+        "url": "https://www.ons.gov.uk/businessindustryandtrade/business/activitysizeandlocation/adhocs/2529ukenterprisecountandturnover000soflegalservices691",
+        "snippet": "[Data and analysis from Census 2021](/census)\n\n# UK enterprise count and turnover (£'000S) of legal services (69.1)\n\nRelease date:   \n17 December 2024\n\nReference number:   \n2529\n\n## Summary of request\n\nThe count and turnover (£'000s) of VAT and/or PAYE based enterprises by turnover size bands in the UK for UK SIC Sub-classes in group 69.1 - Legal services for 2023 and 2024.\n\n### Contact\n\nFor more information on this request, please email IDBRDAS@ons.gov.uk.\n\n## Download associated with request [...] ## Download associated with request\n\n## You might also be interested in:\n\n## Footer links\n\n### Help\n\n### About ONS\n\n### Connect with us\n\nOGL\n\nAll content is available under the Open Government Licence v3.0, except where otherwise stated [...] ### Cookies on ons.gov.uk\n\nCookies are small files stored on your device when you visit a website. We use some essential cookies to make this website work.\n\nWe would like to set additional cookies to remember your settings and understand how you use the site. This helps us to improve our services.\n\nYou have accepted all additional cookies.\nYou have rejected all additional cookies.\nYou can change your cookie preferences at any time.\nHide\n\nOffice for National Statistics logo - Homepage"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-10T09:50:13.086Z"
+}

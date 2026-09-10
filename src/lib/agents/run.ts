@@ -349,22 +349,32 @@ export async function runAgent<IN, OUT>({
           signal: controller.signal,
           noteModelStep: () => {
             modelSteps += 1;
+            // The step rail, enforced here as well as by the SDK's `maxTurns`:
+            // the bridge accepts at most `SDK_MAX_TURNS`, so a definition with
+            // a higher rail (research v3: 200) is capped by this count instead.
+            if (modelSteps > definition.budget.maxModelSteps) {
+              controller.abort(new RunCapError("modelSteps", `stopped at the ${definition.budget.maxModelSteps}-step cap with no answer`));
+            }
           },
         })
       : null;
-  const model =
-    handle.transport === "agent-sdk"
-      ? handle.forRun({
-          tools: sdk!.gateTools(tools),
-          maxTurns: definition.budget.maxModelSteps,
-          ...(definition.effort === null ? {} : { effort: definition.effort }),
-          observe: sdk!.observer,
-        })
-      : handle.model;
-
   try {
     let generated: Awaited<ReturnType<typeof generateText>>;
     try {
+      // Built inside the guarded block: the bridge validates its settings
+      // here, and a refusal must close the run and clear the wall-clock timer
+      // like any other failure. Outside it, a refused setting left the row
+      // `running` and a 90-minute timer holding the process open (brief E,
+      // 2026-09-10).
+      const model =
+        handle.transport === "agent-sdk"
+          ? handle.forRun({
+              tools: sdk!.gateTools(tools),
+              maxTurns: definition.budget.maxModelSteps,
+              ...(definition.effort === null ? {} : { effort: definition.effort }),
+              observe: sdk!.observer,
+            })
+          : handle.model;
       generated = await generateText({
         model,
         system: definition.prompt,

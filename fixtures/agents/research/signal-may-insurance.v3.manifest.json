@@ -1,0 +1,686 @@
+{
+  "source": "Signal May 2026 UK insurance pack (v2, schema-conformant)",
+  "convertedAt": "2026-09-10T08:52:09Z",
+  "presentModules": [
+    "m00",
+    "execSummary",
+    "m01",
+    "m02",
+    "m03",
+    "m04",
+    "m05",
+    "m06",
+    "m07",
+    "m08",
+    "m09",
+    "m18",
+    "m19"
+  ],
+  "missingModules": [
+    {
+      "module": "repSummary",
+      "why": "not in the May pack (no five-line rep summary)"
+    },
+    {
+      "module": "m10",
+      "why": "not in the May pack as a module: its 'Where Insurance Buyers Discover QA Tools' list (kept in m02.discoveryChannels) gives 7 entries and none carries a URL in that list; the floor is 5 entries with URLs"
+    },
+    {
+      "module": "m11",
+      "why": "not in the May pack (no objections section)"
+    },
+    {
+      "module": "m12",
+      "why": "not in the May pack (no contact rules section)"
+    },
+    {
+      "module": "m13",
+      "why": "not in the May pack (no dated-events section)"
+    },
+    {
+      "module": "m14",
+      "why": "not in the May pack (no changes-since-last-pack section (v1 is named only as a head start))"
+    },
+    {
+      "module": "m15",
+      "why": "not in the May pack (no proof section; the pack predates the facts file)"
+    },
+    {
+      "module": "m16",
+      "why": "not in the May pack (no campaign candidates section)"
+    },
+    {
+      "module": "m17",
+      "why": "not in the May pack (no contradictions section)"
+    }
+  ],
+  "confidenceLowered": {
+    "count": 54,
+    "total": 94,
+    "itemsTotal": 167,
+    "untaggedItemsAtCeiling": 73,
+    "byModule": {
+      "m01": 9,
+      "m02": 13,
+      "m04": 4,
+      "m05": 11,
+      "m07": 13,
+      "m08": 1,
+      "m06": 1,
+      "m09": 1,
+      "m18": 1
+    },
+    "byChange": {
+      "moderate->weak": 4,
+      "strong->weak": 17,
+      "strong->moderate": 3,
+      "strong->speculative": 18,
+      "moderate->speculative": 12
+    },
+    "examples": [
+      {
+        "module": "m01",
+        "id": "uk-broker-firm-count",
+        "packTag": "moderate",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m01",
+        "id": "mga-sector-size",
+        "packTag": "strong",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m01",
+        "id": "motor-gwp-2024",
+        "packTag": "strong",
+        "derived": "moderate",
+        "why": "two URLs across two domains, no primary source"
+      },
+      {
+        "module": "m01",
+        "id": "trigger-consumer-duty-board-report",
+        "packTag": "strong",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m01",
+        "id": "trigger-enterprise-qa-renewal",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m02",
+        "id": "evaluagent-1st-central-case-study",
+        "packTag": "strong",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m02",
+        "id": "calabrio-pricing-quote-only",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m02",
+        "id": "ccaas-bundled-qa-adjacent",
+        "packTag": "strong",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m04",
+        "id": "dual-uk-signal",
+        "packTag": "strong",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m04",
+        "id": "iprism-underwriting-signal",
+        "packTag": "moderate",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m04",
+        "id": "zego-signal",
+        "packTag": "strong",
+        "derived": "moderate",
+        "why": "two URLs across two domains, no primary source"
+      },
+      {
+        "module": "m05",
+        "id": "enforcement-adjacent-broker-pain-audit-trail-fca-enquiries",
+        "packTag": "strong",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m05",
+        "id": "pe-acquired-broker-pain-qa-capability-in-integration-timeline",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m05",
+        "id": "governance-pressured-mga-pain-capacity-provider-audit",
+        "packTag": "strong",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m07",
+        "id": "capability-consumer-duty-outcomes-evidence-at-100-call-covera",
+        "packTag": "strong",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m07",
+        "id": "capability-vulnerable-customer-signal-identification",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m08",
+        "id": "icp-eu-secondary-urgency",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m06",
+        "id": "m06-governance-pressured-mga-iprism-ceo-duplicated-compliance",
+        "packTag": "moderate",
+        "derived": "weak",
+        "why": "one URL (or several on one domain)"
+      },
+      {
+        "module": "m09",
+        "id": "eu-idd-enforcement-intensity",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      },
+      {
+        "module": "m18",
+        "id": "unknown-eu-enforcement-intensity-claim",
+        "packTag": "moderate",
+        "derived": "speculative",
+        "why": "no source URL for this line in the May pack"
+      }
+    ]
+  },
+  "exemptions": [
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.0.recipe",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.0.hardFiltersEchoed",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.0.triggerTaxonomy",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.1.recipe",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.1.hardFiltersEchoed",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.1.triggerTaxonomy",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.2.recipe",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.2.hardFiltersEchoed",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.2.triggerTaxonomy",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.3.recipe",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.3.hardFiltersEchoed",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "perArchetype.3.triggerTaxonomy",
+      "message": "Required",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m04-shape",
+      "module": "m04",
+      "path": "modules.m04",
+      "message": "m04 does not cover archetype \"mid-size-personal-lines\"",
+      "reason": "The May pack's Module 4 is the pre-2026-05-26 named-list shape: per archetype it gives named firms with an urgency signal, a seat estimate and a source line, plus one shared list-building sources section; it has no lead gen recipe, no per-archetype hard-filter echo and no HOT/WARM trigger taxonomy, and no section at all for archetype 5."
+    },
+    {
+      "rule": "m06-buyer-words",
+      "module": "m06",
+      "path": "modules.m06",
+      "message": "3% of phrases are buyer words with a role; the floor is 60%",
+      "reason": "The May pack's verbatim phrases are regulator (FCA), adviser (Ridley & Co, CMS Law) and vendor (Aveni, Voyc, Max Contact) commentary; the only named buyer with a role is the Iprism Underwriting CEO (quoted in Module 4)."
+    }
+  ],
+  "ruleConflicts": [
+    {
+      "module": "m02",
+      "path": "doNothing",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 2 names no do-nothing option. Its adjacent-solutions list and the 'we already have call recording' objection are the nearest content, and neither is framed as doing nothing."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.0.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.0.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.1.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.1.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.2.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.2.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.3.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.3.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.4.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.0.angles.4.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.0.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.0.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.1.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.1.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.2.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.2.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.3.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.3.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.4.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.1.angles.4.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.0.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.0.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.1.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.1.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.2.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.2.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.3.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.3.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.4.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.2.angles.4.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.0.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.0.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.1.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.1.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.2.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.2.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.3.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.3.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.4.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.3.angles.4.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.0.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.0.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.1.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.1.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.2.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.2.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.3.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.3.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.4.confidence",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+    },
+    {
+      "module": "m09",
+      "path": "perArchetype.4.angles.4.channelFit",
+      "message": "Required",
+      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+    },
+    {
+      "module": "m18",
+      "path": "unknowns.2.queriesTried",
+      "message": "a not-found unknown names the queries tried",
+      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+    },
+    {
+      "module": "m18",
+      "path": "unknowns.3.queriesTried",
+      "message": "a not-found unknown names the queries tried",
+      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+    },
+    {
+      "module": "m18",
+      "path": "unknowns.4.queriesTried",
+      "message": "a not-found unknown names the queries tried",
+      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+    },
+    {
+      "module": "m18",
+      "path": "unknowns.5.queriesTried",
+      "message": "a not-found unknown names the queries tried",
+      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+    },
+    {
+      "module": "m18",
+      "path": "unknowns.6.queriesTried",
+      "message": "a not-found unknown names the queries tried",
+      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+    },
+    {
+      "module": "m19",
+      "path": "factsVersion",
+      "message": "Required",
+      "whatTheMayPackSays": "The May pack predates the signed facts file. It cites six product knowledge articles and no facts version."
+    }
+  ],
+  "notes": [
+    "The fixture is a PackShape: 13 modules present, all status complete; 9 missing and listed, so partial is true.",
+    "The fixture as written does not parse under researchRawSchema: modules m02, m04, m09 and m19 fail their union (zod reports 'Invalid input'), and m18 reports its five queriesTried issues, for exactly the issues listed under exemptions (m04) and ruleConflicts. zod runs the pack-level rules only once every module parses, so they were evaluated on a probe copy with placeholders at those paths only (m04 recipe/hardFiltersEchoed/triggerTaxonomy, m09 angle confidence/channelFit, m02 doNothing, m18 queriesTried, m19 factsVersion). The probe's module parses were clean, and it surfaced only the two pack-level exemptions listed. The per-module domain cap never fired: fca.org.uk, register.fca.org.uk, financial-ombudsman.org.uk and bankofengland.co.uk pages are flagged primary; no other domain exceeds three pages in any module.",
+    "Confidence was derived, not asserted: 167 items, 94 carrying a confidence tag in the May pack, 54 of those lowered to the ceiling their URLs support. The 73 untagged items (seed-firm signals, verbatim phrases and the like, whose schema field requires a confidence the May pack did not give) take the derived ceiling.",
+    "Primary sources: FCA, FCA register, FOS and Bank of England pages. Vendor pages count only for that vendor's own price (EvaluAgent and Scorebuddy pricing pages). The SFO case page, ABI, MGAA reports/newsletters and law-firm analyses are not flagged primary.",
+    "Citations the pack gives by name only were matched to the Sources table URL of the same title. The pack gives some citations as a bare host or host+path (e.g. 'onecallinsurance.co.uk', 'prestigeunderwriting.co.uk/claims', 'marshberry.com/eu/blog/') and vendor URLs as bare hosts; these were written as https:// URLs with no path added: https://calabrio.com, https://cfc.com/regulatory-information, https://claimsmag.co.uk, https://evaluagent.com, https://geounderwriting.com, https://insuranceage.co.uk, https://insurtechinsights.com, https://jensteninsurance.co.uk, https://manypets.com, https://marshmallow.com, https://mgaa.co.uk/members/kgm, https://mordorintelligence.com, https://myurbanjungle.com, https://onecallinsurance.co.uk, https://oversai.com, https://prestigeunderwriting.co.uk/claims, https://solidroad.com, https://zego.com, https://marshberry.com/eu/blog/.",
+    "Claims whose only basis is the product knowledge set, FCA PS22/9, SYSC 9 or another source cited without a URL are speculative, with inferredFrom naming the pack's own basis. All 13 m07 capability rows fall here.",
+    "execSummary has no tagged lines of its own. Its five claims are Executive Summary sentences that restate lines the pack tags elsewhere (Module 1 trigger 2, Module 2 pricing, Module 5 Archetype 1 pains 1 and 5); each takes that tag, capped by its ceiling.",
+    "Bodies are the pack's sections verbatim, headings included, with two mechanical substitutions for repository hygiene: fleet agent names replaced by role placeholders ([campaign agent], [content agent], [outreach agent], [orchestrator]), and the six internal knowledge-article file paths in Sources replaced by [knowledge set: <article>]. The same substitutions apply in structured text. 'Neon Postgres' (Module 6) is the database product and is kept.",
+    "m00 is built from the pack's brief (Objective, Sector-specific instructions and Constraints sections, as the body). The brief states geography (UK primary, EU secondary) and the sub-segments to cover. It states no size cap, no excluded sub-sectors and no excluded firms as hard filters: the v1 ICP cut (large composites OUT) is framed as a hypothesis to validate and is recorded under hypotheses. m08.hardFiltersEchoed is a verbatim copy.",
+    "m06 has no section of its own in the pack. Its body is Module 8's per-archetype 'Verbatim phrases from primary sources' blocks plus the Module 5 lines carrying FCA quotes and the Module 4 Iprism entry, all verbatim. Its phrases are those quotes. notBuyer is true for regulator, adviser and vendor voices, and false only for the Iprism CEO (speaker and role given) and for the CII member-survey finding about what firms reported (no role, so it does not count toward the ratio). For the Ridley 'infrastructure' quote, whose first sentence runs past 300 characters, say takes its closing sentence; four other say fields keep their leading whole sentences.",
+    "m03 role 'part' (signs / champions / runs) follows the pack's own words for each role: budget holder or signs → signs; advocate or audit initiator → champions; day-to-day user or runs the team → runs.",
+    "m03 dealEconomics: the May pack's prices are not live pricing facts in Relay, so factIds is empty, confidence is speculative, and each note says so.",
+    "m07 maps a pain to a Module 6 row only where the row's pain and archetype numbers match the Module 5 pain. The six Module 5 pains Module 6 does not map (speed, price proportionality, enterprise economics, FOS rate, integration timeline) go in unmatched as 'Module 6 maps no shipped capability to this pain'. The eight GAPS rows are in unmatched under gap-* ids with their roadmap status.",
+    "m09 doDont carries only pairs the pack itself states (brand voice sentence; the telephony-connector phrasing instruction; the Archetype 4 CCaaS phrasing). The DO lists and regulatory phrases are in vocabulary, and the DON'T word list is in brandConstraints.",
+    "Pack inconsistencies kept as written: the Executive Summary says 28 named targets (16 brokers, 7 MGAs, 5 InsurTechs) and Module 4 lists 27 (15 brokers, 7 MGAs, 5 InsurTechs). DUAL's '20 controls still open as of June 2025' cites a December 2024 newsletter, so publishedAt is the source's date, 2024-12.",
+    "Stale check (researchOutputSchema, informational, time-relative): run today, five m04 seed-firm signals (UIBL, RS Insurance Brokers, Prestige, Marshmallow, ManyPets) are older than twelve months and still above weak. Ingest demotes them with demoteStale; the raw schema, which the fixture is proved against, does not check this.",
+    "Unknown #4 names the product owner ('[the product owner]') verbatim from the pack. That is a person, not an agent codename or a path."
+  ]
+}

@@ -145,6 +145,7 @@ export function agentSdkSettings({ configDir, token, run }: AgentSdkSettingsInpu
     persistSession: false,
     logger: false,
     onSdkMessage: async (message) => {
+      await run.observe.onRaw?.(message);
       if (message.type === "assistant") {
         const turn: AgentSdkTurn = {
           messageId: message.message.id,

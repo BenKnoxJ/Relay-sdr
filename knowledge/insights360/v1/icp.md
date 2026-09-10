@@ -1,7 +1,7 @@
 ---
 title: Insights360 — Ideal Customer Profile
 topic: insights360
-author: signal
+author: research team
 last_verified: 2026-05-18
 status: live (baseline) — sector-specific archetypes populated per campaign
 ---
@@ -162,7 +162,7 @@ this file.
 - Compatible telephony list: live site, cross-referenced with
   `integrations.md`
 - Prior sector archetype shapes: `(internal path)`
-  and `signal-insights360-legal-targeting-2026-05-15.md` (the research team's UK
-  legal pack)
+  and the research team's UK legal targeting pack
+  (2026-05-15)
 
-Per-campaign sources land in each campaign's the research team pack.
+Per-campaign sources land in each campaign's research pack.

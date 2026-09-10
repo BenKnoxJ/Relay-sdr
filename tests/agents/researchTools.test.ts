@@ -5,40 +5,47 @@ import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { researchTools, RESEARCH_TOOL_NAMES, type ResearchToolDeps } from "../../agents/research/tools";
-import { loadDefinition } from "@/lib/agents/definitions";
+import { loadDefinition, type AgentBudget } from "@/lib/agents/definitions";
 import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
 import { toolKey } from "@/lib/agents/tools";
 import { prisma } from "@/lib/db";
 import { loadFacts } from "@/lib/facts/load";
+import { loadKnowledge } from "@/lib/knowledge/load";
+import { moduleWritesFromSteps } from "@/lib/research/assemble";
 import { createResearchBudget } from "@/lib/research/budget";
 import { createCorpus } from "@/lib/research/corpus";
 import { createFirecrawlService, createTavilyService, fetchDiscriminator, searchDiscriminator, writeRecording } from "@/lib/services";
 
 import { emptyAll, resetDatabase } from "../db/harness";
 import { ORG_ID, scriptedModel, seedJob, seedOrg, type ScriptedCall } from "./harness";
+import { goodPack, moduleContent } from "./researchPack";
 
 /**
- * The four research tools on the real runtime, with the scripted model driving
- * them and the mock providers replaying a temporary recording directory.
- * Everything §4 says a tool does is exercised here: the keys, the cascade,
- * unreadable pages as unknowns, the injection scan, the corpus, the budget
+ * The six research tools (v3 §4) on the real runtime, with the scripted model
+ * driving them and the mock providers replaying a temporary recording
+ * directory: the keys, the cascade, the injection scan, the corpus, the rails
  * charged once per live call and never on a replay, the seventy-percent note,
- * and the cap ending the run.
+ * a rail ending the run, and `writeModule` accepting, refusing, and storing a
+ * module `insufficient` on its second refusal.
  */
 
 const MODEL = "claude-opus-5" as const;
 const ENV = { TAVILY_API_KEY: "tvly", FIRECRAWL_API_KEY: "fc" };
 const dir = mkdtempSync(path.join(tmpdir(), "relay-research-tools-"));
 const facts = loadFacts("insights360", 1);
+const LIVE_ID = facts.facts.facts.find((fact) => fact.status === "live")!.id;
+const knowledge = loadKnowledge("insights360", 1);
 const input = loadDefinition("research").input.parse({
   brief: { product: "Insights360", motion: "direct", who: "claims ops people at mid-sized UK insurers", region: "GB", howMany: 20, weeks: 3, channels: ["email"] },
-  facts: facts.facts,
-  breadth: "narrow",
+  factsVersion: 1,
+  knowledgeVersion: 1,
+  priorPackIds: [],
 });
 
 const PAGE_URL = "https://claims.example/backlog";
 const HARD_URL = "https://hard.example/page";
 const DEAD_URL = "https://dead.example/gone";
+const RAILS: AgentBudget = { maxModelSteps: 40, maxSearches: 20, maxFetches: 12, maxSeconds: 480 };
 
 beforeAll(async () => {
   await resetDatabase();
@@ -71,11 +78,13 @@ function deps(over: Partial<ResearchToolDeps> = {}): TestDeps {
   return {
     facts: facts.facts,
     factsDraft: facts.draft,
-    budget: createResearchBudget({ limits: { maxModelSteps: 20, maxSearches: 20, maxFetches: 12, maxSeconds: 480 } }),
+    knowledge,
+    priorPacks: [],
+    budget: createResearchBudget({ limits: RAILS }),
     corpus: createCorpus(),
     search: createTavilyService(ENV, { mode: "mock", fixturesDir: dir }),
     fetch: createFirecrawlService(ENV, { mode: "mock", fixturesDir: dir }),
-    priorKnowledgeDir: path.join(process.cwd(), "fixtures", "prior-knowledge"),
+    priorWrites: [],
     log: (line) => {
       log.push(line);
     },
@@ -84,111 +93,147 @@ function deps(over: Partial<ResearchToolDeps> = {}): TestDeps {
   };
 }
 
-import goodPack from "../../agents/research/fixtures/output.good.json";
-const answer: ScriptedCall = { text: JSON.stringify(goodPack), usage: { in: 10, out: 5 } };
-
+const done: ScriptedCall = { text: JSON.stringify({ modulesWritten: [] }), usage: { in: 10, out: 5 } };
 const call = (name: string, args: unknown): ScriptedCall => ({ tool: { name, args }, usage: { in: 10, out: 5 } });
+const pack = goodPack({ liveFactId: LIVE_ID });
+
+async function run(script: ScriptedCall[], d: TestDeps, jobId?: string) {
+  const job = jobId ?? (await seedJob("research", input));
+  const definition = { ...loadDefinition("research"), budget: RAILS };
+  return {
+    jobId: job,
+    result: await runAgent({ definition, input, ctx: { db: prisma, orgId: ORG_ID, jobId: job, model: scriptedModel(script).model, modelId: MODEL, tools: (recorder) => researchTools(recorder, d) } }).catch(
+      (error: unknown) => error,
+    ),
+  };
+}
 
 describe("the research tools", () => {
-  it("are exactly the four the definition declares", () => {
-    const d = deps();
-    const set = researchTools({ orgId: ORG_ID, jobId: "j", runId: "r", runKind: "research", replayed: 0, takeIndex: () => 0, key: () => "", beginCall: async () => ({ replayed: false, stepId: "s" }), endCall: async () => {}, failCall: async () => {}, releaseCall: async () => {}, noteReplay: () => {}, abortRun: () => {}, modelSteps: 0 }, d);
+  it("are exactly the six the definition declares", () => {
+    const set = researchTools(
+      { orgId: ORG_ID, jobId: "j", runId: "r", runKind: "research", replayed: 0, takeIndex: () => 0, key: () => "", beginCall: async () => ({ replayed: false, stepId: "s" }), endCall: async () => {}, failCall: async () => {}, releaseCall: async () => {}, noteReplay: () => {}, abortRun: () => {}, modelSteps: 0, spendUsd: 0 },
+      deps(),
+    );
     expect(Object.keys(set).sort()).toEqual([...RESEARCH_TOOL_NAMES].sort());
     expect(loadDefinition("research").tools).toEqual(RESEARCH_TOOL_NAMES);
   });
 
-  it("runs facts, prior knowledge, search and the fetch cascade, scrubs, fills the corpus and keys every call", async () => {
-    const jobId = await seedJob("research", input);
+  it("runs facts, the knowledge set, prior packs, search and the fetch cascade, scrubs, fills the corpus and keys every call", async () => {
     const d = deps();
-    const script: ScriptedCall[] = [
-      call("facts", {}),
-      call("priorKnowledge", { product: "Insights360" }),
-      call("search", { query: "claims backlog UK insurers", region: "GB" }),
-      call("fetch", { url: PAGE_URL }),
-      call("fetch", { url: HARD_URL }),
-      call("fetch", { url: DEAD_URL }),
-      answer,
-    ];
-    await runAgent({
-      definition: loadDefinition("research"),
-      input,
-      ctx: { db: prisma, orgId: ORG_ID, jobId, model: scriptedModel(script).model, modelId: MODEL, tools: (recorder) => researchTools(recorder, d) },
-    });
+    const { jobId } = await run(
+      [
+        call("facts", {}),
+        call("knowledge", { article: "roadmap" }),
+        call("priorPacks", {}),
+        call("search", { query: "claims backlog UK insurers", region: "GB", purpose: "survey" }),
+        call("fetch", { url: PAGE_URL }),
+        call("fetch", { url: HARD_URL }),
+        call("fetch", { url: DEAD_URL }),
+        done,
+      ],
+      d,
+    );
     const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool" }, orderBy: { index: "asc" } });
-    expect(steps.map((step) => step.name)).toEqual(["facts", "priorKnowledge", "search", "fetch", "fetch", "fetch"]);
+    expect(steps.map((step) => step.name)).toEqual(["facts", "knowledge", "priorPacks", "search", "fetch", "fetch", "fetch"]);
+    expect(steps[3]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "search", searchDiscriminator({ query: "claims backlog UK insurers", region: "GB" })));
+    expect(steps[4]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "fetch", fetchDiscriminator(PAGE_URL)));
 
-    // Keys: the definition's discriminators, scoped to the job.
-    expect(steps[2]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "search", searchDiscriminator({ query: "claims backlog UK insurers", region: "GB" })));
-    expect(steps[3]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "fetch", fetchDiscriminator(PAGE_URL)));
-
-    // Facts: the draft named, the claim as text, no source path.
     expect(steps[0]?.output).toMatchObject({ product: "insights360", version: 1, draft: true });
     expect(JSON.stringify(steps[0]?.output)).not.toContain("/home/");
-    // Prior knowledge: the three allowlisted articles, advisory.
-    expect(steps[1]?.output).toMatchObject({ advisory: true, articles: [{ name: "overview" }, { name: "icp" }, { name: "competitors" }] });
-    // Search: eight at most, the snippet in the corpus.
-    expect((steps[2]?.output as { hits: unknown[] }).hits).toHaveLength(2);
+    // The knowledge set: one article, versioned, the roadmap's shipped column in it.
+    expect(steps[1]?.output).toMatchObject({ article: "roadmap", version: 1 });
+    expect((steps[1]?.output as { text: string }).text).toMatch(/shipped/i);
+    expect(steps[2]?.output).toEqual({ advisory: true, packs: [] });
     expect(d.corpus.has(PAGE_URL)).toBe(true);
-    // Fetch: the injection line gone from the stored text, the page in the corpus.
-    const page = steps[3]?.output as { markdown: string; strippedLines: number };
+    const page = steps[4]?.output as { markdown: string; strippedLines: number };
     expect(page.markdown).not.toContain("PWNED");
-    expect(page.markdown).toContain("backlog doubled");
     expect(page.strippedLines).toBe(1);
-    expect(d.corpus.textFor(PAGE_URL)).toContain("backlog doubled");
-    // The cascade: Firecrawl empty, Tavily extract answered.
-    expect(steps[4]?.output).toMatchObject({ markdown: "Extracted by the second tier.", strippedLines: 0 });
-    // Nothing anywhere: unreadable, and in the corpus's unreadable set.
-    expect(steps[5]?.output).toMatchObject({ unreadable: true, url: DEAD_URL });
+    expect(steps[5]?.output).toMatchObject({ markdown: "Extracted by the second tier.", strippedLines: 0 });
+    expect(steps[6]?.output).toMatchObject({ unreadable: true, url: DEAD_URL });
     expect(d.corpus.unreadable.has(DEAD_URL)).toBe(true);
-    // The budget saw one search and three fetches.
-    expect(d.budget.actuals()).toMatchObject({ searches: 1, fetches: 3 });
+    expect(d.budget.actuals()).toMatchObject({ searches: 1, fetches: 3, fetchedChars: page.markdown.length + "Extracted by the second tier.".length });
   });
 
-  it("refuses search and fetch before facts, without recording a call", async () => {
-    const jobId = await seedJob("research", input);
+  it("refuses the knowledge set, search and fetch before facts, without recording a call", async () => {
     const d = deps();
-    await runAgent({
-      definition: loadDefinition("research"),
-      input,
-      ctx: { db: prisma, orgId: ORG_ID, jobId, model: scriptedModel([call("search", { query: "x", region: "GB" }), call("facts", {}), answer]).model, modelId: MODEL, tools: (recorder) => researchTools(recorder, d) },
-    });
+    await run([call("knowledge", { article: "icp" }), call("search", { query: "x", region: "GB" }), call("facts", {}), done], d);
     const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool" }, orderBy: { index: "asc" } });
     expect(steps.map((step) => step.name)).toEqual(["facts"]);
     expect(d.budget.actuals().searches).toBe(0);
   });
 
   it("charges nothing on a replay, and still fills the corpus", async () => {
-    const jobId = await seedJob("research", input);
-    const script = [call("facts", {}), call("search", { query: "claims backlog UK insurers", region: "GB" }), call("fetch", { url: PAGE_URL }), answer];
+    const script = [call("facts", {}), call("search", { query: "claims backlog UK insurers", region: "GB" }), call("fetch", { url: PAGE_URL }), done];
     const first = deps();
-    await runAgent({ definition: loadDefinition("research"), input, ctx: { db: prisma, orgId: ORG_ID, jobId, model: scriptedModel([...script]).model, modelId: MODEL, tools: (r) => researchTools(r, first) } });
+    const { jobId } = await run([...script], first);
     expect(first.budget.actuals()).toMatchObject({ searches: 1, fetches: 1 });
-
     const second = deps();
-    const result = await runAgent({ definition: loadDefinition("research"), input, ctx: { db: prisma, orgId: ORG_ID, jobId, model: scriptedModel([...script]).model, modelId: MODEL, tools: (r) => researchTools(r, second) } });
-    expect(result.replayedToolCalls).toBe(3);
-    expect(second.budget.actuals()).toMatchObject({ searches: 0, fetches: 0 });
-    expect(second.corpus.has(PAGE_URL)).toBe(true);
+    const { result } = await run([...script], second, jobId);
+    expect((result as { replayedToolCalls: number }).replayedToolCalls).toBe(3);
+    expect(second.budget.actuals()).toMatchObject({ searches: 0, fetches: 0, fetchedChars: 0 });
     expect(second.corpus.textFor(PAGE_URL)).toContain("backlog doubled");
-    expect((second.search as unknown as { calls: unknown[] }).calls).toHaveLength(0);
   });
 
-  it("puts the seventy-percent note on the next result, once, and ends the run at the cap", async () => {
-    const jobId = await seedJob("research", input);
+  it("puts the seventy-percent note on the next result, once, and ends the run at a rail", async () => {
     const d = deps({ budget: createResearchBudget({ limits: { maxModelSteps: 40, maxFetches: 3, maxSeconds: 480 } }) });
-    const script = [call("facts", {}), call("fetch", { url: PAGE_URL }), call("fetch", { url: HARD_URL }), call("fetch", { url: DEAD_URL }), call("fetch", { url: "https://fourth.example/" }), answer];
-    const { model } = scriptedModel(script);
-    const failure = await runAgent({ definition: loadDefinition("research"), input, ctx: { db: prisma, orgId: ORG_ID, jobId, model, modelId: MODEL, tools: (r) => researchTools(r, d) } }).catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(AgentRunFailedError);
-    expect((failure as AgentRunFailedError).reason).toBe("cap");
-    expect((failure as AgentRunFailedError).message).toMatch(/cap:fetches: the fetches cap \(3\)/);
-    // The third fetch crossed 70% of three; its result carried the note. The
-    // fourth was refused before spending, its row released.
+    const { result } = await run([call("facts", {}), call("fetch", { url: PAGE_URL }), call("fetch", { url: HARD_URL }), call("fetch", { url: DEAD_URL }), call("fetch", { url: "https://fourth.example/" }), done], d);
+    expect(result).toBeInstanceOf(AgentRunFailedError);
+    expect((result as AgentRunFailedError).reason).toBe("cap");
+    expect((result as AgentRunFailedError).message).toMatch(/cap:fetches: the fetches cap \(3\) was reached; the modules already written are kept/);
     const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "fetch" }, orderBy: { index: "asc" } });
     expect(steps).toHaveLength(4);
     expect(steps[3]?.toolKey).toBeNull();
-    expect(steps[3]?.output).toMatchObject({ $toolError: expect.stringMatching(/^released: /) });
     expect(d.logged.filter((line) => line.event === "research.budget.checkpoint")).toHaveLength(1);
-    expect(d.budget.actuals().fetches).toBe(3);
+  });
+
+  it("stops the next fetch once the fetched-text rail is used", async () => {
+    const d = deps({ budget: createResearchBudget({ limits: { ...RAILS, maxFetchedChars: 20 } }) });
+    const { result } = await run([call("facts", {}), call("fetch", { url: PAGE_URL }), call("fetch", { url: HARD_URL }), done], d);
+    expect((result as AgentRunFailedError).reason).toBe("cap");
+    expect((result as AgentRunFailedError).message).toMatch(/cap:fetchedChars/);
+    expect(d.budget.actuals().fetches).toBe(1);
+  });
+
+  it("stops a spending call once the spend rail is used, reading the run's own ledger", async () => {
+    const d = deps({ budget: createResearchBudget({ limits: { ...RAILS, maxSpendUsd: 0.000_001 } }) });
+    const { result } = await run([call("facts", {}), call("search", { query: "claims backlog UK insurers", region: "GB" }), done], d);
+    expect((result as AgentRunFailedError).reason).toBe("cap");
+    expect((result as AgentRunFailedError).message).toMatch(/cap:spend/);
+    expect(d.budget.actuals().searches).toBe(0);
+  });
+
+  it("writeModule accepts a valid module and stores it on its step", async () => {
+    const d = deps();
+    await run([call("facts", {}), call("writeModule", { module: "m00", content: moduleContent(pack, "m00") }), done], d);
+    const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" } });
+    const writes = moduleWritesFromSteps(steps);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.output).toMatchObject({ accepted: true, module: "m00", stored: { status: "complete", spine: expect.any(String) } });
+  });
+
+  it("writeModule refuses with issues, stores the module insufficient on a second distinct refusal, and replays an identical write", async () => {
+    const d = deps();
+    const thin = (n: number) => ({ ...moduleContent(pack, "m03"), body: `thin ${n}`, archetypes: (moduleContent(pack, "m03").archetypes as unknown[]).slice(0, 2) });
+    const { result } = await run(
+      [call("facts", {}), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), call("writeModule", { module: "m03", content: thin(2) }), done],
+      d,
+    );
+    expect((result as { replayedToolCalls: number }).replayedToolCalls).toBe(1);
+    const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } });
+    const writes = moduleWritesFromSteps(steps);
+    expect(writes).toHaveLength(2);
+    expect(writes[0]?.output).toMatchObject({ accepted: false, issues: [expect.stringMatching(/archetypes/)] });
+    expect(writes[0]?.output).not.toHaveProperty("insufficient");
+    expect(writes[1]?.output).toMatchObject({ accepted: false, insufficient: { status: "insufficient", body: "thin 2" } });
+  });
+
+  it("keeps a complete module an earlier run wrote: two later refusals do not store it insufficient", async () => {
+    const d = deps();
+    const { jobId } = await run([call("facts", {}), call("writeModule", { module: "m03", content: moduleContent(pack, "m03") }), done], d);
+    const earlier = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" } }));
+    const thin = (n: number) => ({ ...moduleContent(pack, "m03"), body: `thin ${n}`, archetypes: [] });
+    await run([call("facts", {}), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), done], deps({ priorWrites: earlier }), jobId);
+    const all = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: [{ createdAt: "asc" }, { index: "asc" }] }));
+    expect(all.filter((w) => !w.output.accepted && w.output.insufficient !== undefined)).toHaveLength(0);
   });
 });

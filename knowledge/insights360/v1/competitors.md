@@ -1,7 +1,7 @@
 ---
 title: Insights360 — Competitor Landscape
 topic: insights360
-author: signal
+author: research team
 last_verified: 2026-05-18
 status: current
 ---

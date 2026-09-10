@@ -67,6 +67,8 @@ export type AgentSdkResult = {
 export type AgentSdkObserver = {
   onTurn(turn: AgentSdkTurn): Promise<void>;
   onResult(result: AgentSdkResult): Promise<void>;
+  /** Every raw SDK message, before the ledger reads it. The research bench's `--record-stream` keeps them; nothing else sets it. */
+  onRaw?(message: unknown): Promise<void> | void;
 };
 
 export type AgentSdkRunOptions = {

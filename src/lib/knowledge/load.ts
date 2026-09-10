@@ -97,7 +97,9 @@ export function loadKnowledge(product: string, version: number): LoadedKnowledge
  * What a scrubbed article must not contain: the fleet's codenames as names,
  * this VPS's paths, and the owner's name. Case-sensitive on the codenames so
  * that ordinary English ("a buying signal", "critical", the Neon database)
- * stays; `tests/knowledge/scrub.test.ts` runs it over every shipped article.
+ * stays; the lower-case spellings a copy leaves behind are named on their own:
+ * an `author:` line and a handoff filename (`signal-<topic>.md`).
+ * `tests/knowledge/load.test.ts` runs it over every shipped file.
  */
 export const KNOWLEDGE_SCRUB =
-  /\b(Signal|Canvas|Prism|Pitch|Forge|Critic|Sentinel|Scribe|Glitch|Vector)\b|~\/(vault|wiki|agents|projects)|(?<![\w.:/-])\/home\/[a-z_][a-z0-9_-]*\/|\bBenny\b/;
+  /\b(Signal|Canvas|Prism|Pitch|Forge|Critic|Sentinel|Scribe|Glitch|Vector)\b|\bauthor:\s*(signal|canvas|prism|pitch|forge|vector)\b|\b(signal|canvas|prism|pitch|forge|vector)-[a-z0-9-]+\.md\b|~\/(vault|wiki|agents|projects)|(?<![\w.:/-])\/home\/[a-z_][a-z0-9_-]*\/|\bBenny\b/;

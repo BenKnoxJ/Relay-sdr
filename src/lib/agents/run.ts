@@ -196,6 +196,12 @@ export type RunAgentContext = {
    * handler passes `safeError` and gets the useful version.
    */
   scrub?: (error: unknown) => string;
+  /**
+   * Every raw Agent SDK message, as the bridge reads it. For the research
+   * bench's `--record-stream` only, so a rule change can be replayed against a
+   * real run for free; a job never sets it. Not called on the Messages API.
+   */
+  onSdkMessage?: (message: unknown) => void | Promise<void>;
 };
 
 export type RunAgentResult<OUT> = {
@@ -299,6 +305,8 @@ export async function runAgent<IN, OUT>({
     // catch below reads the reason off the controller.
     abortRun: (reason, message) => controller.abort(new RunCapError(reason, message)),
     modelSteps: () => modelSteps,
+    // Read through a closure: `costMicro` is declared below and grows as the ledger records.
+    spendUsd: () => Number(costMicro) / 1_000_000,
   });
 
   const tools = ctx.tools?.(recorder) ?? {};
@@ -713,6 +721,7 @@ function agentSdkLedger(args: {
   };
 
   const observer: AgentSdkObserver = {
+    ...(ctx.onSdkMessage === undefined ? {} : { onRaw: ctx.onSdkMessage }),
     async onTurn(turn) {
       // Everything up to the write is synchronous on purpose: the bridge calls
       // this as it reads the message, and the index has to be taken before the
@@ -1022,6 +1031,7 @@ function probeRecorder(ctx: RunAgentContext, runKind: string): ToolRecorder {
     noteReplay: refuse,
     abortRun: refuse,
     modelSteps: 0,
+    spendUsd: 0,
   };
 }
 

@@ -271,13 +271,6 @@ const schema = z
      * and replayed offline. Anything else, including unset, is off.
      */
     RELAY_TOOL_RECORD: optional(z.string()),
-    /**
-     * The directory `priorKnowledge()` reads its three allowlisted articles
-     * from (`overview.md`, `icp.md`, `competitors.md` under `<product>/`).
-     * Default `fixtures/prior-knowledge` in the repository; on the VPS the
-     * worker points it at the wiki.
-     */
-    RELAY_PRIOR_KNOWLEDGE_DIR: optional(z.string()),
   })
   .superRefine((value, ctx) => {
     // `DEV_USER_EMAIL` signs every request in as one rep with no credential.

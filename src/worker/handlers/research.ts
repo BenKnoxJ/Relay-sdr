@@ -2,9 +2,9 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { researchBriefSchema, priorRunSchema, BREADTHS, type ResearchInput } from "../../../agents/research/input.schema";
-import type { ResearchPack } from "../../../agents/research/output.schema";
-import { researchTools } from "../../../agents/research/tools";
+import { researchBriefSchema, priorRunSchema, type ResearchInput } from "../../../agents/research/input.schema";
+import { completeModule, MODULE_IDS, type ModuleId, type PackShape, type ResearchRunOutput } from "../../../agents/research/output.schema";
+import { researchTools, type PriorPack } from "../../../agents/research/tools";
 import { agentsDir, loadDefinition, type AgentBudget } from "@/lib/agents/definitions";
 import type { LanguageModel } from "ai";
 
@@ -14,36 +14,42 @@ import { makeModel } from "@/lib/agents/provider";
 import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
-import { deriveBreadth, budgetFor } from "@/lib/research/breadth";
+import { loadKnowledge } from "@/lib/knowledge/load";
+import { assemblePack, corpusFromSteps, markInsufficient, moduleWritesFromSteps, storedOf } from "@/lib/research/assemble";
 import { createResearchBudget } from "@/lib/research/budget";
 import { createCorpus } from "@/lib/research/corpus";
 import { checkProvenance, type ProvenanceReport } from "@/lib/research/provenance";
-import { validatePack } from "@/lib/research/validate";
+import { describeIssues, validatePack, type PackIssue } from "@/lib/research/validate";
 import { ensureFactsVersion } from "@/lib/repo/productFacts";
-import { findResearchCompletedForJob, recordResearchCompleted } from "@/lib/repo/research";
+import { findResearchCompletedForJob, findResearchPacks, listJobToolSteps, recordResearchCompleted } from "@/lib/repo/research";
 import { createFirecrawlService, createTavilyService, type ResearchServiceMode } from "@/lib/services";
 import { TerminalError, safeError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
 
 /**
- * The `research` job: the signed definition, end to end, on the real worker.
+ * The `research` job: the signed definition (v3), end to end, on the real worker.
  *
  * In order — and each step is the definition's, not this file's:
  *
- *   1. the job's input is the brief (and, on a re-run, `priorRun`); the facts
- *      come from the repository's facts file, whose version this org pins
- *      (`ensureFactsVersion`, refused on a hash mismatch), and the breadth is
- *      derived from the brief unless the job names one (§2, §6);
- *   2. the run: the four tools through `withReplay`, the budget charged per
- *      live call, the corpus filled, the model capped at the breadth's model
- *      steps and the run at its minutes (§4, §5, §6);
- *   3. the runtime's own edits: an `unreadable` unknown for every URL the
- *      cascade could not read that the model did not already list (§4);
- *   4. the provenance check against the corpus; over twenty percent failures
- *      is one automatic re-run on the same job with the failures named, every
- *      earlier call replayed (§7);
- *   5. ingest — `demoteStale`, the strict schema, live facts only (§3) — and
- *      the completion Event with the pack, one per job across retries.
+ *   1. the job's input is the brief, the prior packs it may read and, on a
+ *      re-run, `priorRun`; the facts come from the repository's facts file,
+ *      whose version this org pins (`ensureFactsVersion`, refused on a hash
+ *      mismatch), and the knowledge set from `knowledge/` (§2, §4);
+ *   2. the corpus is rebuilt from every search and fetch the job's earlier
+ *      runs stored, so a retry reads what the first run read (§7);
+ *   3. the run: six tools through `withReplay`, the rails charged per live
+ *      call, each module written and validated as it goes (§4, §5, §6). A
+ *      rail reached ends the run and is **not** a failure: the modules
+ *      already accepted are the pack, marked `partial` (§6);
+ *   4. assembly from the `writeModule` steps across every run of the job; the
+ *      runtime's own unknowns for pages it could not read (§4);
+ *   5. provenance per module, and ingest; the modules that fail either, or
+ *      were never written, are re-asked **alone** in one more attempt whose
+ *      input names them — every earlier call replays (§7). A module that
+ *      still fails ingest is stored `insufficient` with its issues; a module
+ *      that still fails provenance stays demoted. A refused module never loses
+ *      the run;
+ *   6. the completion Event with the pack, one per job across retries.
  *
  * The handler returns the Event id and nothing else, so `Job.responseDigest`
  * is the same on every attempt that reached the same pack.
@@ -51,13 +57,15 @@ import type { Handler } from "@/worker/handlers/index";
 
 const FACTS_PRODUCT = "insights360";
 const FACTS_VERSION = 1;
-const PROVENANCE_RERUNS = 1;
+const KNOWLEDGE_VERSION = 1;
+const REASKS = 1;
 
 export const researchJobInputSchema = z
   .object({
     brief: researchBriefSchema,
     priorRun: priorRunSchema.optional(),
-    breadth: z.enum(BREADTHS).optional(),
+    /** This org's earlier packs for the product, by completion Event id (§2 `priorPackIds`). */
+    priorPackIds: z.array(z.string().min(1).max(80)).max(20).optional(),
   })
   .strict();
 export type ResearchJobInput = z.infer<typeof researchJobInputSchema>;
@@ -66,24 +74,26 @@ export type ResearchJobInput = z.infer<typeof researchJobInputSchema>;
 export type ResearchHandlerDeps = {
   mode: ResearchServiceMode;
   fixturesDir: string;
-  priorKnowledgeDir: string;
   now?: () => number;
   /** The model per attempt. Defaults to `makeModel`; the tests hand in a scripted one. */
   makeModel?: (id: PricedModel) => RunModel | LanguageModel;
-  /** A budget in place of the breadth's. For the tests and the bench only; a job never sets one. */
+  /** Rails in place of the definition's. For the tests and the bench only; a job never sets them. */
   budget?: AgentBudget;
+  /** Bench only (`--modules`): write the steering note and these modules, nothing else. */
+  onlyModules?: ModuleId[];
+  /** Bench only (`--record-stream`): every raw Agent SDK message of every attempt. */
+  onSdkMessage?: (message: unknown) => void | Promise<void>;
 };
 
 export function defaultResearchDeps(): ResearchHandlerDeps {
   const e = env();
   const root = path.dirname(agentsDir());
   const mode: ResearchServiceMode = e.INTEGRATIONS === "live" ? (e.RELAY_TOOL_RECORD === "1" ? "record" : "live") : "mock";
-  return {
-    mode,
-    fixturesDir: e.RELAY_TOOL_FIXTURES ?? path.join(root, "fixtures", "tools", "research"),
-    priorKnowledgeDir: e.RELAY_PRIOR_KNOWLEDGE_DIR ?? path.join(root, "fixtures", "prior-knowledge"),
-  };
+  return { mode, fixturesDir: e.RELAY_TOOL_FIXTURES ?? path.join(root, "fixtures", "tools", "research") };
 }
+
+/** How one attempt ended: with the model's closing manifest, at a rail, or with no closing answer. */
+type Ending = "answer" | "rail" | "no-answer";
 
 export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps()): Handler {
   return async ({ db, job, signal }) => {
@@ -93,6 +103,8 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
         `research: bad input (${parsed.error.issues.map((issue) => `${issue.path.join(".") || "input"}: ${issue.message}`).join("; ")})`,
       );
     }
+    const { brief } = parsed.data;
+    const priorPackIds = parsed.data.priorPackIds ?? [];
 
     // Already done on an earlier attempt: the Event is the answer.
     const done = await findResearchCompletedForJob(db, { orgId: job.orgId, jobId: job.id });
@@ -100,10 +112,16 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
 
     const facts = loadFacts(FACTS_PRODUCT, FACTS_VERSION);
     await ensureFactsVersion(db, { orgId: job.orgId, product: facts.file.product, version: facts.file.version, hash: facts.hash, draft: facts.draft });
+    const knowledge = loadKnowledge(FACTS_PRODUCT, KNOWLEDGE_VERSION);
 
-    const breadth = parsed.data.breadth ?? deriveBreadth(parsed.data);
+    const priorEvents = await findResearchPacks(db, { orgId: job.orgId, ids: priorPackIds });
+    if (priorEvents.length !== new Set(priorPackIds).size) {
+      throw new TerminalError("research: bad input (priorPackIds names a pack this org does not have)");
+    }
+    const priorPacks = priorEvents.map((event) => toPriorPack(event.id, event.at, event.after));
+
     const base = loadDefinition("research");
-    const definition = { ...base, budget: deps.budget ?? budgetFor(breadth) };
+    const definition = { ...base, budget: deps.budget ?? base.budget };
     const model = definition.model;
     if (model === null) throw new TerminalError("research: the definition names no model");
 
@@ -111,26 +129,35 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
     const search = createTavilyService(e, { mode: deps.mode, fixturesDir: deps.fixturesDir });
     const fetch = createFirecrawlService(e, { mode: deps.mode, fixturesDir: deps.fixturesDir });
     const corpus = createCorpus();
+    corpusFromSteps(corpus, await listJobToolSteps(db, { orgId: job.orgId, jobId: job.id }));
     const log = (line: Record<string, unknown>): void => {
       console.log(JSON.stringify({ at: new Date().toISOString(), component: "research", jobId: job.id, ...line }));
     };
 
     const baseInput: ResearchInput = {
-      brief: parsed.data.brief,
-      facts: facts.facts,
-      breadth,
+      brief,
+      factsVersion: facts.file.version,
+      knowledgeVersion: knowledge.manifest.version,
+      priorPackIds,
       ...(parsed.data.priorRun === undefined ? {} : { priorRun: parsed.data.priorRun }),
+      ...(deps.onlyModules === undefined ? {} : { onlyModules: deps.onlyModules }),
     };
+    const validateContext = { facts: facts.facts, channels: brief.channels, priorPackIds };
 
     let input: ResearchInput = baseInput;
-    const reports: ProvenanceReport[] = [];
-    let checked: { pack: ResearchPack; report: ProvenanceReport } | undefined;
+    const provenance: ProvenanceReport[] = [];
+    const endings: Array<{ ending: Ending; message?: string }> = [];
+    const actuals = { searches: 0, fetches: 0, fetchedChars: 0, seconds: 0 };
+    const reasked: ModuleId[][] = [];
     let runId = "";
-    let actuals = { searches: 0, fetches: 0, seconds: 0 };
+    let pack: PackShape | undefined;
+    let issues: PackIssue[] = [];
 
-    for (let attempt = 0; attempt <= PROVENANCE_RERUNS; attempt += 1) {
+    for (let attempt = 0; attempt <= REASKS; attempt += 1) {
       const budget = createResearchBudget({ limits: definition.budget, ...(deps.now === undefined ? {} : { now: deps.now }) });
-      let raw: ResearchPack;
+      const priorWrites = moduleWritesFromSteps(await listJobToolSteps(db, { orgId: job.orgId, jobId: job.id }));
+      let runOutput: ResearchRunOutput | undefined;
+      let ending: Ending;
       try {
         const result = await runAgent({
           definition,
@@ -143,39 +170,102 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
             modelId: model,
             signal,
             tools: (recorder) =>
-              researchTools(recorder, { facts: facts.facts, factsDraft: facts.draft, budget, corpus, search, fetch, priorKnowledgeDir: deps.priorKnowledgeDir, log }),
+              researchTools(recorder, {
+                facts: facts.facts,
+                factsDraft: facts.draft,
+                knowledge,
+                priorPacks,
+                budget,
+                corpus,
+                search,
+                fetch,
+                priorWrites,
+                log,
+                ...(deps.onlyModules === undefined ? {} : { onlyModules: deps.onlyModules }),
+              }),
             scrub: safeError,
+            ...(deps.onSdkMessage === undefined ? {} : { onSdkMessage: deps.onSdkMessage }),
           },
         });
-        raw = result.object;
+        runOutput = result.object;
         runId = result.run.id;
-        actuals = budget.actuals();
+        ending = "answer";
+        endings.push({ ending });
       } catch (error) {
-        throw classify(error);
+        if (!(error instanceof AgentRunFailedError) || (error.reason !== "cap" && error.reason !== "schema")) throw classify(error);
+        // §6: a rail ends the run and keeps what was written. A missing or
+        // malformed closing manifest loses nothing either: the modules are the
+        // stored writes, not the closing answer.
+        ending = error.reason === "cap" ? "rail" : "no-answer";
+        runId = error.runId || runId;
+        endings.push({ ending, message: error.message });
+        log({ event: "research.run.ended", ending, message: error.message });
       }
+      const used = budget.actuals();
+      actuals.searches += used.searches;
+      actuals.fetches += used.fetches;
+      actuals.fetchedChars += used.fetchedChars;
+      actuals.seconds += used.seconds;
 
-      // §4: every URL the cascade could not read is an unknown, whether or not
-      // the model said so.
-      const pack = withUnreadableUnknowns(raw, corpus.unreadable, raw.unknowns.map((unknown) => unknown.queriesTried).flat());
-
-      // §7: the mechanical check, before ingest.
-      checked = checkProvenance(pack, corpus);
-      reports.push(checked.report);
-      if (!checked.report.rejected) break;
-      if (attempt === PROVENANCE_RERUNS) {
+      const writes = moduleWritesFromSteps(await listJobToolSteps(db, { orgId: job.orgId, jobId: job.id }));
+      if (!writes.some((write) => storedOf(write) !== undefined)) {
         throw new TerminalError(
-          `research: bad_output — ${checked.report.failed.length} of ${checked.report.total} items could not be found in the pages this run read, twice`,
+          ending === "rail"
+            ? `research: took_too_long — a rail was reached before any module was written (${endings.at(-1)?.message ?? ""})`
+            : `research: bad_output — the run ended without writing a module`,
         );
       }
-      log({ event: "research.provenance.rerun", failed: checked.report.failed.length, total: checked.report.total });
-      input = { ...baseInput, provenanceRerun: { failures: checked.report.failed.map((f) => ({ id: f.id, text: f.text.slice(0, 1000), reason: f.reason.slice(0, 300) })) } };
-    }
-    if (checked === undefined) throw new TerminalError("research: no attempt produced a pack");
 
-    // §3: ingest.
-    const validated = validatePack(checked.pack, { facts: facts.facts });
+      const assembled = withUnreadableUnknowns(assemblePack(writes, runOutput?.insufficient === undefined ? {} : { insufficient: runOutput.insufficient }), corpus.unreadable);
+      const checked = checkProvenance(assembled, corpus);
+      provenance.push(checked.report);
+      pack = checked.pack;
+      const validated = validatePack(pack, validateContext);
+      issues = validated.ok ? [] : validated.issues;
+
+      // What to re-ask (§7): modules over the provenance threshold, modules the
+      // ingest refused, and modules never written — unless the agent stopped
+      // under the insufficient rule, or a rail ended the run.
+      const again = new Set<ModuleId>();
+      for (const checkedModule of checked.report.modules) if (checkedModule.rejected) again.add(checkedModule.module);
+      for (const issue of issues) if (issue.module !== undefined) again.add(issue.module);
+      // A bench run restricted to some modules re-asks only those.
+      if (runOutput?.insufficient === undefined) for (const id of pack.missingModules) if (deps.onlyModules === undefined || deps.onlyModules.includes(id)) again.add(id);
+
+      if (again.size === 0 || ending === "rail" || attempt === REASKS) break;
+      const modules = MODULE_IDS.filter((id) => again.has(id));
+      reasked.push(modules);
+      log({ event: "research.reask", modules });
+      input = {
+        ...baseInput,
+        provenanceRerun: {
+          modules,
+          failures: [
+            ...checked.report.failed.filter((f) => f.module !== "insufficient" && again.has(f.module)).map((f) => ({ module: f.module, id: f.id, text: f.text.slice(0, 1000), reason: f.reason.slice(0, 300) })),
+            ...issues.filter((i) => i.module !== undefined).map((i) => ({ module: i.module!, id: "ingest", text: i.message.slice(0, 1000), reason: "refused at ingest" })),
+            ...pack.missingModules.filter((id) => again.has(id)).map((id) => ({ module: id, id: "missing", text: `${id} was not written`, reason: "the module was not written" })),
+          ].slice(0, 200),
+        },
+      };
+    }
+    if (pack === undefined) throw new TerminalError("research: no attempt produced a pack");
+
+    // §7: a module still refused at ingest after its re-ask is stored
+    // `insufficient` with its issues, and the pack completes.
+    const insufficientModules: ModuleId[] = [];
+    let validated = validatePack(pack, validateContext);
+    for (let round = 0; !validated.ok && round < 3; round += 1) {
+      const byModule = new Map<ModuleId, string[]>();
+      for (const issue of validated.issues) if (issue.module !== undefined) byModule.set(issue.module, [...(byModule.get(issue.module) ?? []), issue.message]);
+      if (byModule.size === 0) break;
+      for (const [id, messages] of byModule) {
+        pack = markInsufficient(pack, id, messages);
+        insufficientModules.push(id);
+      }
+      validated = validatePack(pack, validateContext);
+    }
     if (!validated.ok) {
-      throw new TerminalError(`research: bad_output — the pack does not validate at ingest: ${validated.issues.slice(0, 5).join("; ")}`);
+      throw new TerminalError(`research: bad_output — the pack does not validate at ingest: ${describeIssues(validated.issues).slice(0, 5).join("; ")}`);
     }
 
     const { event } = await recordResearchCompleted(db, {
@@ -183,28 +273,45 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
       jobId: job.id,
       runId,
       pack: JSON.parse(JSON.stringify(validated.pack)),
-      report: JSON.parse(JSON.stringify({ provenance: reports, demoted: validated.demoted, actuals, budget: definition.budget, attempts: reports.length })),
+      report: JSON.parse(
+        JSON.stringify({ provenance, demoted: validated.demoted, actuals, rails: definition.budget, attempts: endings.length, endings, reasked, insufficientModules, firstIngestIssues: describeIssues(issues) }),
+      ),
       facts: { product: facts.file.product, version: facts.file.version, hash: facts.hash, draft: facts.draft },
-      breadth,
+      knowledge: { product: knowledge.manifest.product, version: knowledge.manifest.version, hash: knowledge.hash },
+      partial: validated.pack.partial,
+      missingModules: [...validated.pack.missingModules],
     });
     return { eventId: event.id };
   };
 }
 
-/** The runtime's own unknowns (§4): one per unreadable URL the model did not already account for. */
-export function withUnreadableUnknowns(pack: ResearchPack, unreadable: ReadonlySet<string>, alreadyTried: string[]): ResearchPack {
-  const tried = new Set(alreadyTried.map((q) => q.trim().toLowerCase()));
+/** A completion Event as the agent reads it (§4 `priorPacks`): module bodies only. */
+export function toPriorPack(id: string, at: Date, after: unknown): PriorPack {
+  const modules: PriorPack["modules"] = [];
+  const pack = (after as { pack?: { modules?: Record<string, { body?: unknown } | undefined> } } | null)?.pack;
+  for (const moduleId of MODULE_IDS) {
+    const body = pack?.modules?.[moduleId]?.body;
+    if (typeof body === "string") modules.push({ module: moduleId, title: moduleId, body });
+  }
+  return { id, at: at.toISOString(), modules };
+}
+
+/** The runtime's own unknowns (§4): one per unreadable URL the pack does not already account for, in m18. */
+export function withUnreadableUnknowns(pack: PackShape, unreadable: ReadonlySet<string>): PackShape {
+  const m18 = completeModule(pack, "m18");
+  if (m18 === undefined) return pack;
+  const tried = new Set(m18.unknowns.flatMap((unknown) => unknown.queriesTried).map((q) => q.trim().toLowerCase()));
   const extra = [...unreadable]
     .filter((url) => !tried.has(url.toLowerCase()))
     .map((url) => ({
       id: `unreadable-${shortHash(url)}`,
       text: `A page that looked relevant could not be read: ${url}`,
       kind: "unreadable" as const,
+      whyItMatters: "What it says is not in this pack; a claim that needed it is weaker or missing.",
       queriesTried: [url],
     }));
   if (extra.length === 0) return pack;
-  // Parsed through the raw rules again so the added unknowns are the schema's, not this file's.
-  return { ...pack, unknowns: [...pack.unknowns, ...extra] };
+  return { ...pack, modules: { ...pack.modules, m18: { ...m18, unknowns: [...m18.unknowns, ...extra] } } };
 }
 
 function shortHash(value: string): string {
@@ -213,13 +320,11 @@ function shortHash(value: string): string {
   return hash.toString(16).padStart(8, "0");
 }
 
-/** The failure reasons, classified the way `echo` classifies them, with research's own words. */
+/** The failure reasons a pack cannot come back from, classified the way `echo` classifies them. */
 function classify(error: unknown): Error {
   if (!(error instanceof AgentRunFailedError)) return error instanceof Error ? error : new Error(String(error));
   switch (error.reason) {
     case "cap":
-      // took_too_long, in the orchestrator's vocabulary: the same brief hits
-      // the same cap again. A widened or narrowed brief is a new job.
       return new TerminalError(`research: took_too_long — ${error.message}`, { cause: error });
     case "schema":
       return new TerminalError(`research: bad_output — ${error.message}`, { cause: error });

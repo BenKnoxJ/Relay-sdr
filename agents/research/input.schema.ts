@@ -99,6 +99,14 @@ export const researchInputSchema = z
     priorPackIds: z.array(z.string().min(1).max(80)).max(20),
     priorRun: priorRunSchema.optional(),
     provenanceRerun: provenanceRerunSchema.optional(),
+    /**
+     * Bench only (plan step 5, `research-bench --modules`): the run writes the
+     * steering note and these modules and nothing else, so one module can be
+     * tried live for cents. Set by the runtime from the bench's deps; a job
+     * never sets it. A runtime field beside `provenanceRerun`, pending an
+     * amendment note on §2.
+     */
+    onlyModules: z.array(z.string().min(1).max(20)).min(1).max(22).optional(),
   })
   .strict();
 

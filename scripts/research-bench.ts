@@ -1,9 +1,11 @@
 /**
- * Run the research agent on one brief, offline or live, and write the bench
- * fixture the `/bench` page and the rubric test read.
+ * Run the research agent (v3) on one brief, offline or live, and write the
+ * bench fixture the rubric test and the renderer read.
  *
  *   npx tsx scripts/research-bench.ts fixtures/briefs/research-a-insurance-direct.md \
- *       [--name research-a-insurance-direct] [--tools mock|live|record] [--breadth narrow|standard|wide]
+ *       [--name research-a-insurance-direct] [--tools mock|live|record] \
+ *       [--expect-insufficient] [--prior-from <fixture name>] [--prior-packs <eventId,...>] \
+ *       [--modules m01,m02] [--record-stream]
  *
  * The model is always live (there is no recorded model script for research —
  * the point of the bench is to see what the model does). The tools are mock by
@@ -13,50 +15,81 @@
  * API key), `DATABASE_URL` pointing at a local database, and for `record` or
  * `live` the Tavily and Firecrawl keys.
  *
- * The facts come from the repository's facts file, not from the brief: the
- * brief's inline facts (a 6b convenience) are ignored, and the fixture says so.
- * Stands in for `npm run agent -- research` until PR #14 merges; it writes the
- * same fixture shape.
+ * `--modules` (the steering note plus the named modules only, so one module
+ * can be tried live for cents) and `--record-stream` (keep the SDK's message
+ * stream under `~/.relay/agents/research/runs/<jobId>/stream.jsonl`) are
+ * parsed and validated here, and **refused** until the handler and runtime
+ * seams they need exist: a run that looks restricted or recorded and is not
+ * would spend a full pack's money, or lose the stream it was run to keep.
+ *
+ * The facts come from the repository's facts file and the knowledge set from
+ * `knowledge/`, not from the brief: the brief's inline facts (a 6b
+ * convenience) are ignored, and the fixture says so.
  */
 
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 import { agentsDir, loadDefinition } from "@/lib/agents/definitions";
 import { rejectedAnswerText, validationIssues } from "@/lib/agents/run";
 import { prisma } from "@/lib/db";
-import { env } from "@/lib/env";
 import { enqueue } from "@/lib/jobs/queue";
 import { mutate } from "@/lib/repo/mutate";
-import { deriveBreadth, budgetFor } from "@/lib/research/breadth";
-import { scoreRubric } from "@/lib/research/rubric";
+import { scoreRubric, type RubricReport } from "@/lib/research/rubric";
 import { researchHandler, researchJobInputSchema, type ResearchHandlerDeps } from "@/worker/handlers/research";
-import type { ResearchPack } from "../agents/research/output.schema";
+import { MODULE_IDS, isModuleId, type ModuleId, type PackShape } from "../agents/research/output.schema";
 
-type Args = { brief: string; name: string; tools: ResearchHandlerDeps["mode"]; breadth?: "narrow" | "standard" | "wide"; expectInsufficient: boolean; priorFrom?: string };
+type Args = {
+  brief: string;
+  name: string;
+  tools: ResearchHandlerDeps["mode"];
+  expectInsufficient: boolean;
+  priorFrom?: string;
+  priorPacks: string[];
+  modules?: ModuleId[];
+  recordStream: boolean;
+};
+
+const USAGE =
+  "usage: research-bench.ts <brief.md> [--name n] [--tools mock|live|record] [--expect-insufficient] [--prior-from <fixture name>] [--prior-packs <eventId,...>] [--modules m01,m02] [--record-stream]";
 
 function parseArgs(argv: string[]): Args {
   const [brief, ...rest] = argv;
-  if (brief === undefined) throw new Error("usage: research-bench.ts <brief.md> [--name n] [--tools mock|live|record] [--breadth b] [--expect-insufficient] [--prior-from <fixture name>]");
-  const args: Args = { brief, name: path.basename(brief, ".md"), tools: "mock", expectInsufficient: false };
+  if (brief === undefined) throw new Error(USAGE);
+  const args: Args = { brief, name: path.basename(brief, ".md"), tools: "mock", expectInsufficient: false, priorPacks: [], recordStream: false };
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
-    const value = rest[i + 1];
     if (flag === "--expect-insufficient") {
       args.expectInsufficient = true;
       continue;
     }
-    if (value === undefined) throw new Error(`${flag} needs a value`);
+    if (flag === "--record-stream") {
+      args.recordStream = true;
+      continue;
+    }
+    const value = rest[i + 1];
+    if (value === undefined) throw new Error(`${flag} needs a value\n${USAGE}`);
     if (flag === "--name") args.name = value;
     else if (flag === "--tools" && (value === "mock" || value === "live" || value === "record")) args.tools = value;
-    else if (flag === "--breadth" && (value === "narrow" || value === "standard" || value === "wide")) args.breadth = value;
     else if (flag === "--prior-from") args.priorFrom = value;
-    else throw new Error(`unknown argument ${flag} ${value}`);
+    else if (flag === "--prior-packs") args.priorPacks = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    else if (flag === "--modules") args.modules = parseModules(value);
+    else throw new Error(`unknown argument ${flag} ${value}\n${USAGE}`);
     i += 1;
   }
   return args;
+}
+
+/** The steering note always runs first (§5 step 1); the named modules follow in the definition's order. */
+function parseModules(value: string): ModuleId[] {
+  const named = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  const unknown = named.filter((id) => !isModuleId(id));
+  if (unknown.length > 0) throw new Error(`--modules: ${unknown.join(", ")} ${unknown.length === 1 ? "is not a module" : "are not modules"}; modules are ${MODULE_IDS.join(", ")}`);
+  if (named.length === 0) throw new Error("--modules needs at least one module");
+  const wanted = new Set<string>(["m00", ...named]);
+  return MODULE_IDS.filter((id) => wanted.has(id));
 }
 
 function inputFromBrief(markdown: string): unknown {
@@ -65,23 +98,35 @@ function inputFromBrief(markdown: string): unknown {
   return JSON.parse(match[1]!);
 }
 
+type Fixture = { output?: PackShape | null };
+
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
+
   const root = path.dirname(agentsDir());
   const raw = inputFromBrief(readFileSync(args.brief, "utf8")) as Record<string, unknown>;
   const jobInput = researchJobInputSchema.parse({
     brief: raw.brief,
     ...(raw.priorRun === undefined ? {} : { priorRun: raw.priorRun }),
-    ...(args.breadth === undefined ? (raw.breadth === undefined ? {} : { breadth: raw.breadth }) : { breadth: args.breadth }),
+    ...(args.priorPacks.length === 0 ? {} : { priorPackIds: args.priorPacks }),
   });
-  const breadth = jobInput.breadth ?? deriveBreadth(jobInput);
   const fixturesDir = path.join(root, "fixtures", "tools", "research", args.name);
-  const e = env();
+  // `--record-stream`: every raw SDK message, one JSON line each, under the job's run directory.
+  let streamFile: string | null = null;
   const deps: ResearchHandlerDeps = {
     mode: args.tools,
     fixturesDir,
-    priorKnowledgeDir: e.RELAY_PRIOR_KNOWLEDGE_DIR ?? path.join(root, "fixtures", "prior-knowledge"),
+    ...(args.modules === undefined ? {} : { onlyModules: args.modules }),
+    ...(args.recordStream
+      ? {
+          onSdkMessage: (message: unknown) => {
+            if (streamFile === null) return;
+            appendFileSync(streamFile, `${JSON.stringify(message)}\n`);
+          },
+        }
+      : {}),
   };
+  const budget = loadDefinition("research").budget;
 
   // One bench org, a job of its own kind so no worker claims it.
   const orgId = "org_bench";
@@ -89,8 +134,15 @@ async function main(): Promise<number> {
     await mutate(prisma, { orgId, actor: { kind: "system" }, kind: "org.created", apply: (tx) => tx.org.create({ data: { id: orgId, name: "bench" } }) });
   }
   const { job } = await enqueue(prisma, { orgId, kind: "research_bench", idempotencyKey: `bench:research:${args.name}:${randomUUID()}`, input: JSON.parse(JSON.stringify(jobInput)) });
+  if (args.recordStream) {
+    const runDir = path.join(homedir(), ".relay", "agents", "research", "runs", job.id);
+    mkdirSync(runDir, { recursive: true });
+    streamFile = path.join(runDir, "stream.jsonl");
+    console.log(`recording the SDK stream to ${streamFile}`);
+  }
   const started = Date.now();
-  let output: ResearchPack | null = null;
+  let output: PackShape | null = null;
+  let report: (RubricReport & { actuals?: { searches: number; fetches: number; fetchedChars?: number; seconds: number } }) | undefined;
   let error: string | null = null;
   let eventId: string | null = null;
   let rejected: { issues: string[]; text: string | null } | null = null;
@@ -98,11 +150,13 @@ async function main(): Promise<number> {
     const result = (await researchHandler(deps)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
     eventId = result.eventId;
     const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
-    output = (event.after as { pack: ResearchPack }).pack;
+    const after = event.after as { pack: PackShape; report?: typeof report };
+    output = after.pack;
+    report = after.report;
   } catch (thrown) {
     error = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown);
-    // A pack the schema refused is the most useful thing a failed run can leave
-    // behind; the subprocess that wrote it is gone by now.
+    // A closing answer the schema refused is the most useful thing a failed
+    // run can leave behind; the subprocess that wrote it is gone by now.
     rejected = { issues: validationIssues(thrown), text: rejectedAnswerText(thrown) };
     if (rejected.text !== null) {
       const dir = path.join(homedir(), ".relay", "agents", "research", "runs");
@@ -123,13 +177,15 @@ async function main(): Promise<number> {
       const input = s.input as { query?: string; purpose?: string } | null;
       return { query: input?.query ?? "", ...(input?.purpose === undefined ? {} : { purpose: input.purpose }) };
     });
-  const event = eventId === null ? null : await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
-  const report = (event?.after as { report?: { actuals?: { searches: number; fetches: number; seconds: number } } } | undefined)?.report;
+  const modelSteps = steps.filter((s) => s.kind === "model").length;
+  const moduleWrites = steps.filter((s) => s.kind === "tool" && s.name === "writeModule").length;
 
   let priorSeedFirms: string[] | undefined;
   if (args.priorFrom !== undefined) {
-    const prior = JSON.parse(readFileSync(path.join(root, "fixtures", "agents", "research", `${args.priorFrom}.json`), "utf8")) as { output: ResearchPack | null };
-    priorSeedFirms = prior.output?.seedFirms.map((f) => f.name) ?? [];
+    const prior = JSON.parse(readFileSync(path.join(root, "fixtures", "agents", "research", `${args.priorFrom}.json`), "utf8")) as Fixture;
+    const m04 = (prior.output?.modules as { m04?: { perArchetype?: Array<{ seedFirms: Array<{ name: string }> }> } } | undefined)?.m04;
+    if (prior.output != null && prior.output.modules === undefined) throw new Error(`--prior-from ${args.priorFrom} was recorded under research v2; re-record it first`);
+    priorSeedFirms = (m04?.perArchetype ?? []).flatMap((t) => t.seedFirms.map((f) => f.name));
   }
   const rubric =
     output === null
@@ -137,26 +193,26 @@ async function main(): Promise<number> {
       : scoreRubric({
           pack: output,
           searches,
-          actuals: { ...(report?.actuals ?? { searches: 0, fetches: 0, seconds: Math.round(durationMs / 1000) }), modelSteps: steps.filter((s) => s.kind === "model").length, costUsd: cost },
-          budget: budgetFor(breadth),
+          actuals: { ...(report?.actuals ?? { searches: 0, fetches: 0, fetchedChars: 0, seconds: Math.round(durationMs / 1000) }), modelSteps, costUsd: cost },
+          budget,
           expectInsufficient: args.expectInsufficient,
+          ...(report === undefined ? {} : { report }),
           ...(priorSeedFirms === undefined ? {} : { priorSeedFirms }),
         });
 
-  const validation = output === null ? { ok: false, errors: [error ?? "no output"] } : { ok: loadDefinition("research").output.safeParse(output).success, errors: [] as string[] };
   const fixture = {
     kind: "research",
+    contract: "v3",
     name: args.name,
     source: "run",
     recordedAt: new Date().toISOString(),
     live: true,
     tools: args.tools,
-    factsNote: "facts from facts/insights360.v1.json (the brief's inline facts are ignored)",
-    breadth,
+    factsNote: "facts from facts/insights360.v1.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
     input: jobInput,
     output,
-    run: { steps: steps.length, modelSteps: steps.filter((s) => s.kind === "model").length, toolSteps: steps.filter((s) => s.kind === "tool").length, attempts: runs.length, cost: cost.toFixed(6), durationMs, replayedToolCalls: 0, jobId: job.id, eventId },
-    validation,
+    report: report ?? null,
+    run: { steps: steps.length, modelSteps, toolSteps: steps.filter((s) => s.kind === "tool").length, moduleWrites, attempts: runs.length, cost: cost.toFixed(6), durationMs, jobId: job.id, eventId },
     error,
     rejectedIssues: rejected?.issues ?? null,
     rubric,
@@ -165,9 +221,10 @@ async function main(): Promise<number> {
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(fixture, null, 2)}\n`);
 
-  console.log(`# research bench — ${args.name} (${args.tools} tools, ${breadth})`);
-  console.log(`- job ${job.id} · runs ${runs.length} · steps ${steps.length} (${fixture.run.modelSteps} model, ${fixture.run.toolSteps} tool) · cost $${cost.toFixed(4)} · ${Math.round(durationMs / 1000)}s`);
+  console.log(`# research bench — ${args.name} (${args.tools} tools, v3)`);
+  console.log(`- job ${job.id} · runs ${runs.length} · steps ${steps.length} (${modelSteps} model, ${fixture.run.toolSteps} tool, ${moduleWrites} module writes) · cost $${cost.toFixed(4)} · ${Math.round(durationMs / 1000)}s`);
   console.log(`- ${error === null ? `event ${eventId}` : `FAILED: ${error}`}`);
+  if (output !== null) console.log(`- ${output.partial ? `PARTIAL, missing ${output.missingModules.join(", ")}` : "every module written"}`);
   console.log(`- fixture: ${path.relative(root, out)}${existsSync(fixturesDir) ? ` · tool recordings: ${path.relative(root, fixturesDir)}` : ""}`);
   if (rubric.length > 0) {
     console.log("\n| # | check | verdict | detail |\n|---|---|---|---|");

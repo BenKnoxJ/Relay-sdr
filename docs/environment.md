@@ -96,12 +96,6 @@ FIRECRAWL_API_KEY=""
 # brief's subdirectory). RELAY_TOOL_RECORD="1" makes a live run write them.
 RELAY_TOOL_FIXTURES=""
 RELAY_TOOL_RECORD=""
-# The directory priorKnowledge() reads its three allowlisted articles from,
-# as <dir>/<product>/{overview,icp,competitors}.md. Default
-# fixtures/prior-knowledge in the repository (a small sample, so the offline
-# suite needs nothing outside the repo); on the VPS the worker points it at
-# the wiki's topics directory.
-RELAY_PRIOR_KNOWLEDGE_DIR=""
 ```
 
 ## Notes

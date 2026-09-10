@@ -12,7 +12,10 @@ import {
   staleAndOverClaimed,
 } from "../../agents/_shared/item.schema";
 import { authoredText, domainCounts, researchOutputSchema } from "../../agents/research/output.schema";
-import { AGENT_KINDS, agentsDir, loadDefinition, RESEARCH_BREADTH_BUDGETS } from "@/lib/agents/definitions";
+import { AGENT_KINDS, agentsDir, loadDefinition } from "@/lib/agents/definitions";
+import { loadFacts } from "@/lib/facts/load";
+
+import { goodPack, mod } from "./researchPack";
 
 /**
  * The five definitions load, their schemas compile, and each one accepts its own
@@ -53,7 +56,8 @@ describe("the signed definitions", () => {
     for (const kind of ["research", "orchestrator", "leadgen", "outreach"] as const) {
       const { definition } = loadDefinition(kind);
       expect(definition).toMatch(/^# Relay agent definition — /);
-      expect(definition).toMatch(/SIGNED by Benny-san 2026-09-08/);
+      // Research was re-signed as v3 on 2026-09-09; the other three stand at v2.
+      expect(definition).toMatch(kind === "research" ? /v3 · SIGNED by the product owner 2026-09-09/ : /SIGNED by Benny-san 2026-09-08/);
     }
   });
 
@@ -62,16 +66,15 @@ describe("the signed definitions", () => {
     expect(loadDefinition("echo")).toBe(first);
   });
 
-  it("names research's three breadth budgets, with standard as the default", () => {
-    // §6's table is the contract, and the `standard` row is what a definition
-    // loaded without a breadth gets.
-    expect(loadDefinition("research").budget).toEqual(RESEARCH_BREADTH_BUDGETS.standard);
-    expect(RESEARCH_BREADTH_BUDGETS.narrow.maxSearches).toBe(20);
-    expect(RESEARCH_BREADTH_BUDGETS.wide.maxSearches).toBe(60);
-    for (const breadth of ["narrow", "standard", "wide"] as const) {
-      const budget = RESEARCH_BREADTH_BUDGETS[breadth];
-      expect(budget.maxFetches ?? 0).toBeLessThan(budget.maxSearches ?? 0);
-    }
+  it("gives research one set of rails, an order above a real run (v3 §6)", () => {
+    expect(loadDefinition("research").budget).toEqual({
+      maxModelSteps: 200,
+      maxSearches: 120,
+      maxFetches: 60,
+      maxSeconds: 90 * 60,
+      maxFetchedChars: 400_000,
+      maxSpendUsd: 50,
+    });
   });
 });
 
@@ -130,13 +133,22 @@ describe("each definition's schemas, against its own fixtures", () => {
   });
 });
 
-describe("research: confidence is derived, never asserted", () => {
+describe("research v3: the pack's rules, on a complete pack built in code", () => {
+  const live = loadFacts("insights360", 1).facts.facts.find((fact) => fact.status === "live")!.id;
+  const good = () => goodPack({ liveFactId: live });
+
+  it("accepts the complete pack, every module present and at its floors", () => {
+    const result = researchOutputSchema.safeParse(good());
+    if (!result.success) throw new Error(result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "));
+  });
+
   it("rejects an item whose confidence is above its evidence ceiling", () => {
-    const result = researchOutputSchema.safeParse(fixture("research", "output.bad.json"));
+    const pack = good();
+    mod(pack, "m05").perArchetype[0]!.pains[0]!.confidence = "strong";
+    const result = researchOutputSchema.safeParse(pack);
     expect(result.success).toBe(false);
     if (result.success) return;
-    const issue = result.error.issues.find((candidate) => candidate.path.includes("confidence"));
-    expect(issue?.message).toMatch(/above the ceiling "weak"/);
+    expect(result.error.issues.some((issue) => /above the ceiling "weak"/.test(issue.message))).toBe(true);
   });
 
   it("derives the ceiling from the evidence, exactly as §3 states it", () => {
@@ -144,38 +156,23 @@ describe("research: confidence is derived, never asserted", () => {
     const sameHost = (n: number) => Array.from({ length: n }, (_, i) => `https://a.test/page-${i}`);
     expect(confidenceCeiling({ urls: [], primary: false, domains: [] })).toBe("speculative");
     expect(confidenceCeiling({ urls: sameHost(1), primary: false, domains: ["a.test"] })).toBe("weak");
-    // Two urls on ONE domain is still weak: §3 says two urls across two distinct
-    // domains, and two pages of the same site are one source's opinion twice.
+    // Two urls on ONE domain is still weak: two pages of the same site are one source's opinion twice.
     expect(confidenceCeiling({ urls: sameHost(2), primary: false, domains: ["a.test"] })).toBe("weak");
     expect(confidenceCeiling({ urls: spread(2), primary: false, domains: ["h0.test", "h1.test"] })).toBe("moderate");
     expect(confidenceCeiling({ urls: spread(3), primary: false, domains: ["h0.test", "h1.test", "h2.test"] })).toBe("strong");
-    // A primary source is strong on its own.
     expect(confidenceCeiling({ urls: sameHost(1), primary: true, domains: ["a.test"] })).toBe("strong");
   });
 
-  it("ignores a padded domains list when deriving the ceiling", () => {
-    // The over-claim the derivation exists to refuse: three urls on one site plus
-    // three invented hosts in `domains` used to buy `strong`. The hosts come from
-    // the urls now, so it is `weak`, and the padded list is its own error.
-    const padded = {
-      urls: ["https://a.test/1", "https://a.test/2", "https://a.test/3"],
-      primary: false,
-      domains: ["a.test", "b.test", "c.test"],
-    };
+  it("ignores a padded domains list when deriving the ceiling, and refuses the padding", () => {
+    const padded = { urls: ["https://a.test/1", "https://a.test/2", "https://a.test/3"], primary: false, domains: ["a.test", "b.test", "c.test"] };
     expect(confidenceCeiling(padded)).toBe("weak");
     expect(aboveCeiling("strong", padded)).toBe(true);
-
-    const pack = JSON.parse(JSON.stringify(fixture("research", "output.good.json"))) as {
-      archetypes: Array<{ pains: Array<{ evidence: { domains: string[] } }> }>;
-    };
-    const pain = pack.archetypes[0]?.pains[0];
-    if (pain === undefined) throw new Error("no pain to seed");
+    const pack = good();
+    const pain = mod(pack, "m05").perArchetype[0]!.pains[0]!;
     pain.evidence.domains = [...pain.evidence.domains, "invented.test"];
     const result = researchOutputSchema.safeParse(pack);
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((issue) => /domains must be the hosts of urls/.test(issue.message))).toBe(true);
-    }
+    if (!result.success) expect(result.error.issues.some((issue) => /domains must be the hosts of urls/.test(issue.message))).toBe(true);
   });
 
   it("allows an agent to under-claim", () => {
@@ -190,74 +187,67 @@ describe("research: confidence is derived, never asserted", () => {
     const stale = { publishedAt: "2024-01-01", confidence: "strong" } as const;
     expect(staleAndOverClaimed(stale, now)).toBe(true);
     expect(demoteStale(stale, now).confidence).toBe("weak");
-    // An undated item has no age, so the rule cannot fire on it.
     expect(staleAndOverClaimed({ confidence: "strong" }, now)).toBe(false);
-    // And a demotion never strengthens anything.
     expect(demoteStale({ publishedAt: "2024-01-01", confidence: "speculative" }, now).confidence).toBe("speculative");
   });
 
   it("accepts the precision a source gives on publishedAt: a date-time, a date, a month or a year", () => {
-    const pack = fixture("research", "output.good.json") as { hook: { whyNow: { publishedAt?: string } } };
     for (const value of ["2026-07-10T09:00:00Z", "2026-07-10", "2026-07", "2026"]) {
-      const copy = JSON.parse(JSON.stringify(pack)) as typeof pack;
-      copy.hook.whyNow.publishedAt = value;
-      expect(researchOutputSchema.safeParse(copy).success, value).toBe(true);
+      const pack = good();
+      mod(pack, "m01").triggers[0]!.publishedAt = value;
+      expect(researchOutputSchema.safeParse(pack).success, value).toBe(true);
     }
     for (const value of ["July 2026", "2026-13", "26"]) {
-      const copy = JSON.parse(JSON.stringify(pack)) as typeof pack;
-      copy.hook.whyNow.publishedAt = value;
-      expect(researchOutputSchema.safeParse(copy).success, value).toBe(false);
+      const pack = good();
+      mod(pack, "m01").triggers[0]!.publishedAt = value;
+      expect(researchOutputSchema.safeParse(pack).success, value).toBe(false);
     }
   });
 
-  it("caps a pack at three sources per domain", () => {
-    const pack = fixture("research", "output.good.json") as Record<string, unknown>;
-    const parsed = researchOutputSchema.parse(pack);
-    for (const [, count] of domainCounts(parsed)) expect(count).toBeLessThanOrEqual(3);
+  it("caps pages per domain per module, not across the pack, and exempts primary sources", () => {
+    const onOneDomain = (count: number, primary = false) => {
+      const pack = good();
+      mod(pack, "m05").perArchetype[0]!.pains.slice(0, count).forEach((pain, i) => {
+        pain.evidence = { urls: [`https://onedomain.test/page-${i}`], primary, domains: ["onedomain.test"] };
+      });
+      return pack;
+    };
+    for (const [, count] of domainCounts(onOneDomain(3), "m05")) expect(count).toBeLessThanOrEqual(3);
+    expect(researchOutputSchema.safeParse(onOneDomain(3)).success).toBe(true);
+    const over = researchOutputSchema.safeParse(onOneDomain(4));
+    expect(over.success).toBe(false);
+    if (!over.success) expect(over.error.issues.some((issue) => /the cap is 3 per domain per module/.test(issue.message))).toBe(true);
+    expect(researchOutputSchema.safeParse(onOneDomain(4, true)).success).toBe(true);
 
-    // A source is a page. Many items citing the same three pages of one domain
-    // is fine; a fourth page from that domain is refused.
-    const shared = JSON.parse(JSON.stringify(pack)) as typeof parsed;
-    for (const firm of shared.seedFirms) {
-      firm.signal.evidence.urls = ["https://onedomain.test/a"];
-      firm.signal.evidence.domains = ["onedomain.test"];
-    }
-    expect(researchOutputSchema.safeParse(shared).success).toBe(true);
-    const overCapped = JSON.parse(JSON.stringify(pack)) as typeof parsed;
-    overCapped.seedFirms.forEach((firm, i) => {
-      firm.signal.evidence.urls = [`https://onedomain.test/page-${i}`];
-      firm.signal.evidence.domains = ["onedomain.test"];
+    // The same four pages split across two modules is two modules at their cap, not one over it.
+    const split = onOneDomain(2);
+    mod(split, "m09").perArchetype[0]!.verbatim.slice(0, 2).forEach((item, i) => {
+      item.evidence = { urls: [`https://onedomain.test/page-${i + 2}`], primary: false, domains: ["onedomain.test"] };
     });
-    expect(overCapped.seedFirms.length).toBeGreaterThanOrEqual(4);
-    const result = researchOutputSchema.safeParse(overCapped);
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues.some((issue) => /the cap is 3 per domain/.test(issue.message))).toBe(true);
-    }
+    expect(researchOutputSchema.safeParse(split).success).toBe(true);
   });
 
   it("refuses a pack with no unknowns", () => {
-    const pack = JSON.parse(JSON.stringify(fixture("research", "output.good.json"))) as { unknowns: unknown[] };
-    pack.unknowns = [];
+    const pack = good();
+    mod(pack, "m18").unknowns = [];
     expect(researchOutputSchema.safeParse(pack).success).toBe(false);
   });
 
-  it("checks plain words on what the pack wrote and not on what it quoted", () => {
-    const parsed = researchOutputSchema.parse(fixture("research", "output.good.json"));
-    const authored = authoredText(parsed);
-    // The pack's own prose is checked...
-    expect(authored).toContain(parsed.hook.text);
-    // ...and a buyer's quote, a firm's name and a url are not. `plainWords` bans
-    // ordinary English and thirteen first names, and a source's own words are not
-    // Relay's machinery on a rep's screen.
-    expect(authored).not.toContain(parsed.archetypes[0]?.pains[0]?.quote);
-    expect(authored.some((text) => text.includes("https://"))).toBe(false);
-    expect(authored).not.toContain(parsed.seedFirms[0]?.name);
+  it("checks rep words on the rep summary only, never on a quote or a module the campaign agent reads", () => {
+    const pack = good();
+    expect(authoredText(pack)).toEqual([...mod(pack, "repSummary").lines]);
+    mod(pack, "m06").perArchetype[0]!.phrases[0]!.quote = "Our orchestrator of a pipeline is a persona problem";
+    mod(pack, "m01").body = "The ICP the campaign agent reads, persona by persona.";
+    expect(researchOutputSchema.safeParse(pack).success).toBe(true);
+    mod(pack, "repSummary").lines[0] = "The orchestrator will start a job for this archetype.";
+    expect(researchOutputSchema.safeParse(pack).success).toBe(false);
+  });
 
-    // And the check does fire on the pack's own words.
-    const leaked = JSON.parse(JSON.stringify(fixture("research", "output.good.json"))) as { hook: { text: string } };
-    leaked.hook.text = "The orchestrator will start a job for this archetype.";
-    expect(researchOutputSchema.safeParse(leaked).success).toBe(false);
+  it("closes a run with a manifest, not the pack: the modules are written as the run goes", () => {
+    const definition = loadDefinition("research");
+    expect(definition.tools).toEqual(["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule"]);
+    expect(definition.output.safeParse({ modulesWritten: ["m00", "m01"] }).success).toBe(true);
+    expect(definition.output.safeParse(good()).success).toBe(false);
   });
 });
 

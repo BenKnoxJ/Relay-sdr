@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import goodPack from "../../agents/research/fixtures/output.good.json";
-import { packItems, researchOutputSchema } from "../../agents/research/output.schema";
+import { moduleItems, packItems, researchOutputSchema } from "../../agents/research/output.schema";
+import { loadFacts } from "@/lib/facts/load";
 import { createCorpus } from "@/lib/research/corpus";
 import { checkProvenance, citedNumbers, contentWords, distinctiveWords, matchItem, quoteSpans } from "@/lib/research/provenance";
+
+import { goodPack as buildPack } from "../agents/researchPack";
+
+const liveId = loadFacts("insights360", 1).facts.facts.find((fact) => fact.status === "live")!.id;
+const goodPack = () => buildPack({ liveFactId: liveId });
 
 const item = (over: Partial<ReturnType<typeof packItems>[number]> = {}) => ({
   id: "pain-1",
@@ -55,7 +60,7 @@ describe("matchItem", () => {
 
 describe("checkProvenance", () => {
   it("demotes failures to speculative, names why, and rejects past twenty percent", () => {
-    const pack = researchOutputSchema.parse(goodPack);
+    const pack = researchOutputSchema.parse(goodPack());
     const corpus = createCorpus();
     const { pack: checked, report } = checkProvenance(pack, corpus);
     expect(report.total).toBe(packItems(pack).length);
@@ -70,7 +75,7 @@ describe("checkProvenance", () => {
   });
 
   it("passes a pack whose evidence is all in the corpus", () => {
-    const pack = researchOutputSchema.parse(goodPack);
+    const pack = researchOutputSchema.parse(goodPack());
     const corpus = createCorpus();
     for (const it of packItems(pack)) {
       for (const url of it.evidence.urls) corpus.addPage(url, `${it.text} ${it.quote ?? ""}`);
@@ -78,5 +83,18 @@ describe("checkProvenance", () => {
     const { report } = checkProvenance(pack, corpus);
     expect(report.failed).toEqual([]);
     expect(report.rejected).toBe(false);
+  });
+
+  it("reports per module, so only the module over the threshold is re-asked (v3 §7)", () => {
+    const pack = researchOutputSchema.parse(goodPack());
+    const corpus = createCorpus();
+    const m05 = new Set(moduleItems(pack, "m05").map((it) => it.id));
+    for (const it of packItems(pack)) {
+      if (m05.has(it.id)) continue;
+      for (const url of it.evidence.urls) corpus.addPage(url, `${it.text} ${it.quote ?? ""}`);
+    }
+    const { report } = checkProvenance(pack, corpus);
+    expect(report.modules.filter((m) => m.rejected).map((m) => m.module)).toEqual(["m05"]);
+    expect(report.failed.every((f) => f.module === "m05")).toBe(true);
   });
 });

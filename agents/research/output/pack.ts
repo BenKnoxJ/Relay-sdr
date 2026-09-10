@@ -62,8 +62,8 @@ export type PackShape = z.infer<typeof packShape>;
 export function completeModule<M extends ModuleId>(pack: PackShape, id: M): CompleteModule<M> | undefined {
   // Indexed through a loose record: indexing the twenty-two-way union by a
   // generic key is more than the checker will represent (TS2590).
-  const module = (pack.modules as Record<ModuleId, Module<ModuleId> | undefined>)[id] as Module<M> | undefined;
-  return module !== undefined && module.status === "complete" ? (module as CompleteModule<M>) : undefined;
+  const entry = (pack.modules as Record<ModuleId, Module<ModuleId> | undefined>)[id] as Module<M> | undefined;
+  return entry !== undefined && entry.status === "complete" ? (entry as CompleteModule<M>) : undefined;
 }
 
 /**
@@ -74,34 +74,34 @@ export function completeModule<M extends ModuleId>(pack: PackShape, id: M): Comp
  * later shows up here as a missing line rather than as a silently unchecked one.
  */
 export function moduleItems(pack: PackShape, id: ModuleId): Item[] {
-  const module = (pack.modules as Record<ModuleId, Module<ModuleId> | undefined>)[id];
-  if (module === undefined) return [];
-  const items: Item[] = [...module.claims];
-  if (module.status !== "complete") return items;
+  const entry = (pack.modules as Record<ModuleId, Module<ModuleId> | undefined>)[id];
+  if (entry === undefined) return [];
+  const items: Item[] = [...entry.claims];
+  if (entry.status !== "complete") return items;
   switch (id) {
     case "m01":
-      items.push(...(module as CompleteModule<"m01">).triggers);
+      items.push(...(entry as CompleteModule<"m01">).triggers);
       break;
     case "m02":
-      for (const c of (module as CompleteModule<"m02">).competitors) items.push(...c.recentMoves);
+      for (const c of (entry as CompleteModule<"m02">).competitors) items.push(...c.recentMoves);
       break;
     case "m03":
-      for (const a of (module as CompleteModule<"m03">).archetypes) items.push(a.dominantPain);
+      for (const a of (entry as CompleteModule<"m03">).archetypes) items.push(a.dominantPain);
       break;
     case "m04":
-      for (const t of (module as CompleteModule<"m04">).perArchetype) for (const f of t.seedFirms) items.push(f.signal);
+      for (const t of (entry as CompleteModule<"m04">).perArchetype) for (const f of t.seedFirms) items.push(f.signal);
       break;
     case "m05":
-      for (const p of (module as CompleteModule<"m05">).perArchetype) items.push(...p.pains);
+      for (const p of (entry as CompleteModule<"m05">).perArchetype) items.push(...p.pains);
       break;
     case "m06":
-      for (const p of (module as CompleteModule<"m06">).perArchetype) items.push(...p.phrases);
+      for (const p of (entry as CompleteModule<"m06">).perArchetype) items.push(...p.phrases);
       break;
     case "m09":
-      for (const p of (module as CompleteModule<"m09">).perArchetype) items.push(...p.verbatim);
+      for (const p of (entry as CompleteModule<"m09">).perArchetype) items.push(...p.verbatim);
       break;
     case "m17":
-      for (const c of (module as CompleteModule<"m17">).entries) {
+      for (const c of (entry as CompleteModule<"m17">).entries) {
         if (c.a !== undefined) items.push(c.a);
         if (c.b !== undefined) items.push(c.b);
       }
@@ -110,6 +110,64 @@ export function moduleItems(pack: PackShape, id: ModuleId): Item[] {
       break;
   }
   return items;
+}
+
+/**
+ * Every id a module owns — its items' ids and the ids of its own records
+ * (archetypes, seed firms, candidates, contradictions, unknowns) — for the
+ * pack-wide uniqueness rule, checked on write and again at ingest.
+ */
+export function moduleOwnIds(pack: PackShape, id: ModuleId): string[] {
+  const ids = moduleItems(pack, id).map((item) => item.id);
+  const entry = (pack.modules as Record<ModuleId, Module<ModuleId> | undefined>)[id];
+  if (entry === undefined || entry.status !== "complete") return ids;
+  switch (id) {
+    case "m03":
+      ids.push(...(entry as CompleteModule<"m03">).archetypes.map((a) => a.id));
+      break;
+    case "m04":
+      for (const t of (entry as CompleteModule<"m04">).perArchetype) ids.push(...t.seedFirms.map((f) => f.id));
+      break;
+    case "m16":
+      ids.push(...(entry as CompleteModule<"m16">).candidates.map((c) => c.id));
+      break;
+    case "m17":
+      ids.push(...(entry as CompleteModule<"m17">).entries.map((c) => c.id));
+      break;
+    case "m18":
+      ids.push(...(entry as CompleteModule<"m18">).unknowns.map((u) => u.id));
+      break;
+    default:
+      break;
+  }
+  return ids;
+}
+
+/**
+ * Every fact id a module cites, with where (§3: "cite live fact ids only").
+ * Checked against the facts file on write and at ingest.
+ */
+export function moduleFactIds(pack: PackShape, id: ModuleId): Array<{ where: string; ids: string[] }> {
+  switch (id) {
+    case "m00": {
+      const m = completeModule(pack, "m00");
+      return m === undefined ? [] : [{ where: "m00.offerHook", ids: m.offerHook }];
+    }
+    case "m03":
+      return (completeModule(pack, "m03")?.archetypes ?? []).map((a, i) => ({ where: `m03.archetypes.${i}.dealEconomics.factIds`, ids: a.dealEconomics.factIds }));
+    case "m07":
+      return (completeModule(pack, "m07")?.mappings ?? []).map((m, i) => ({ where: `m07.mappings.${i}.factIds`, ids: m.factIds }));
+    case "m11":
+      return (completeModule(pack, "m11")?.perArchetype ?? []).flatMap((p, i) =>
+        p.objections.map((o, j) => ({ where: `m11.perArchetype.${i}.objections.${j}.factIds`, ids: o.factIds })),
+      );
+    case "m15": {
+      const m = completeModule(pack, "m15");
+      return m === undefined ? [] : [{ where: "m15.proof", ids: m.proof.map((p) => p.factId) }];
+    }
+    default:
+      return [];
+  }
 }
 
 /** Every `Item` in the pack. */
@@ -275,14 +333,7 @@ function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck
 
   // Ids unique across the pack.
   const seen = new Set<string>();
-  const all: string[] = [
-    ...ids,
-    ...packItems(pack).map((i) => i.id),
-    ...(m04?.perArchetype.flatMap((t) => t.seedFirms.map((f) => f.id)) ?? []),
-    ...(completeModule(pack, "m18")?.unknowns.map((u) => u.id) ?? []),
-    ...(completeModule(pack, "m17")?.entries.map((c) => c.id) ?? []),
-    ...(m16?.candidates.map((c) => c.id) ?? []),
-  ];
+  const all: string[] = [...MODULE_IDS.flatMap((id) => moduleOwnIds(pack, id)), ...(pack.insufficient?.found.map((i) => i.id) ?? [])];
   for (const id of all) {
     if (seen.has(id)) issue(`duplicate id ${JSON.stringify(id)}`);
     seen.add(id);
@@ -294,6 +345,19 @@ function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck
   } catch (error) {
     issue(error instanceof Error ? error.message : "the rep summary uses words a rep would not", ["modules", "repSummary"]);
   }
+}
+
+/**
+ * The pack-level rules as a list, without the module schemas in front of them.
+ * For the depth fixture (§7): Signal's May pack is proved against every rule,
+ * and zod runs a refinement only once every module parses, so the fixture's
+ * test reads the module issues and these separately.
+ */
+export function packIssues(pack: PackShape, options: { staleCheck: boolean } = { staleCheck: false }): Array<{ path: (string | number)[]; message: string }> {
+  const out: Array<{ path: (string | number)[]; message: string }> = [];
+  const ctx = { addIssue: (issue: { path?: (string | number)[]; message?: string }) => out.push({ path: issue.path ?? [], message: issue.message ?? "" }) };
+  refinePack(pack, ctx as unknown as z.RefinementCtx, options);
+  return out;
 }
 
 /** Every pack rule. What a pack must satisfy at ingest, after `demoteStale`. */

@@ -1,77 +1,81 @@
 import { describe, expect, it } from "vitest";
 
-import goodPack from "../../agents/research/fixtures/output.good.json";
 import { researchOutputSchema, researchRawSchema } from "../../agents/research/output.schema";
 import { loadFacts } from "@/lib/facts/load";
 import { validatePack } from "@/lib/research/validate";
 
+import { goodPack, mod } from "../agents/researchPack";
+
 /**
- * Ingest, end to end: the raw parse the loop does, the demotion the runtime
- * does, the strict parse, and the facts rule.
+ * Ingest, end to end (research v3 §7): the demotion the runtime does, the
+ * strict pack parse, and the rules that need the run's input — live fact ids,
+ * contact rules per channel, changes since a prior pack. Every issue names
+ * its module, so the handler can re-ask that module alone.
  */
 
 const facts = loadFacts("insights360", 1).facts;
 const liveId = facts.facts.find((fact) => fact.status === "live")!.id;
 const plannedId = facts.facts.find((fact) => fact.status === "planned")!.id;
-
-function pack(): typeof goodPack {
-  return structuredClone(goodPack);
-}
+const context = { facts, channels: ["email"], priorPackIds: [] as string[] };
 
 describe("validatePack", () => {
-  it("accepts the good fixture against the facts file", () => {
-    const candidate = pack();
-    candidate.hook.answeredBy = [liveId];
-    const result = validatePack(candidate, { facts });
-    expect(result.ok).toBe(true);
+  it("accepts the complete pack against the facts file", () => {
+    const result = validatePack(goodPack({ liveFactId: liveId }), context);
+    expect(result).toMatchObject({ ok: true, demoted: [] });
   });
 
-  it("refuses a hook that cites a planned fact, by id", () => {
-    const candidate = pack();
-    candidate.hook.answeredBy = [liveId, plannedId];
-    const result = validatePack(candidate, { facts });
-    expect(result).toMatchObject({ ok: false });
-    if (result.ok) throw new Error("unreachable");
-    expect(result.issues[0]).toContain(plannedId);
+  it("refuses a planned fact id wherever a module cites one, naming the module", () => {
+    const pack = goodPack({ liveFactId: liveId });
+    mod(pack, "m07").mappings[0]!.factIds = [liveId, plannedId];
+    const result = validatePack(pack, context);
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.issues).toEqual([{ module: "m07", message: expect.stringContaining(plannedId) }]);
   });
 
-  it("demotes a stale strong whyNow to weak rather than rejecting the pack", () => {
-    const candidate = pack();
-    candidate.hook.answeredBy = [liveId];
-    candidate.hook.whyNow.publishedAt = "2024-01-15";
-    candidate.hook.whyNow.confidence = "strong";
-    // Strong needs a primary source or three URLs over two domains; give it one
-    // so the only thing wrong with it is its age.
-    candidate.hook.whyNow.evidence.primary = true;
-    // The loop's parse lets it through; the strict one would not.
-    expect(researchRawSchema.safeParse(candidate).success).toBe(true);
-    expect(researchOutputSchema.safeParse(candidate).success).toBe(false);
-    const result = validatePack(candidate, { facts, now: new Date("2026-09-09") });
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(result.pack.hook.whyNow.confidence).toBe("weak");
-    expect(result.demoted).toEqual([expect.stringMatching(/^hook\.whyNow .*strong → weak$/)]);
+  it("demotes a stale strong trigger to weak rather than refusing the pack", () => {
+    const pack = goodPack({ liveFactId: liveId });
+    const trigger = mod(pack, "m01").triggers[0]!;
+    trigger.publishedAt = "2024-01-15";
+    trigger.confidence = "strong";
+    trigger.evidence.primary = true;
+    expect(researchRawSchema.safeParse(pack).success).toBe(true);
+    expect(researchOutputSchema.safeParse(pack).success).toBe(false);
+    const result = validatePack(pack, context);
+    if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));
+    expect(mod(result.pack, "m01").triggers[0]!.confidence).toBe("weak");
+    expect(result.demoted).toEqual([expect.stringMatching(/^m01\.triggers\.0 .*strong → weak$/)]);
   });
 
-  it("waives the archetype and seed-firm minimums only when the pack is insufficient", () => {
-    const thin = pack();
-    thin.hook.answeredBy = [liveId];
-    thin.archetypes = [thin.archetypes[0]!];
-    thin.seedFirms = [];
-    expect(researchRawSchema.safeParse(thin).success).toBe(false);
-    const stopped = {
-      ...thin,
-      insufficient: {
-        // New ids: every id in a pack is unique, and these are copies.
-        found: thin.archetypes[0]!.pains.slice(0, 2).map((item, index) => ({ ...item, id: `found-${index}` })),
-        widenings: [
-          { kind: "region", text: "Widen to the whole of the UK" },
-          { kind: "size", text: "Include firms up to 500 people" },
-          { kind: "pain", text: "Name the pain you want to open on" },
-        ],
-      },
-    };
-    expect(researchRawSchema.safeParse(stopped).success).toBe(true);
-    expect(validatePack(stopped, { facts }).ok).toBe(true);
+  it("needs a contact rule for every channel on the card", () => {
+    const result = validatePack(goodPack({ liveFactId: liveId }), { ...context, channels: ["email", "linkedin"] });
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.issues).toEqual([{ module: "m12", message: 'm12: no contact rule for the channel "linkedin"' }]);
+  });
+
+  it("needs changes since the last pack when a prior pack was read", () => {
+    const result = validatePack(goodPack({ liveFactId: liveId }), { ...context, priorPackIds: ["evt_prior"] });
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.issues[0]).toMatchObject({ module: "m14" });
+  });
+
+  it("names the module a pack-level rule refuses: every per-archetype module covers every kind of buyer", () => {
+    const pack = goodPack({ liveFactId: liveId });
+    mod(pack, "m05").perArchetype.pop();
+    const result = validatePack(pack, context);
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.issues.some((i) => i.module === "m05" && /does not cover archetype/.test(i.message))).toBe(true);
+  });
+
+  it("accepts a partial pack whose missing modules are listed, and refuses one whose are not", () => {
+    const pack = goodPack({ liveFactId: liveId });
+    delete (pack.modules as Record<string, unknown>).m19;
+    expect(validatePack(pack, context).ok).toBe(false);
+    expect(validatePack({ ...pack, partial: true, missingModules: ["m19"] }, context).ok).toBe(true);
+  });
+
+  it("accepts a module stored insufficient, and skips the pack rules that would read it", () => {
+    const pack = goodPack({ liveFactId: liveId });
+    (pack.modules as Record<string, unknown>).m03 = { status: "insufficient", body: "Thin.", claims: [], issues: ["archetypes: needs 3"] };
+    expect(validatePack(pack, context).ok).toBe(true);
   });
 });

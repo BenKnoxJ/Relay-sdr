@@ -9,29 +9,10 @@
     "channels": [
       "email",
       "linkedin"
-    ]
+    ],
+    "existingCustomers": "Two regional brokers who bought it for complaint handling"
   },
-  "facts": {
-    "product": "Insights360",
-    "version": 4,
-    "facts": [
-      {
-        "id": "i360.read-every-call",
-        "status": "live",
-        "text": "Reads every recorded call rather than a sample.",
-        "notes": "Do not claim a percentage accuracy figure."
-      },
-      {
-        "id": "i360.evidence-pack",
-        "status": "live",
-        "text": "Produces an evidence pack per complaint in under 2 minutes."
-      },
-      {
-        "id": "i360.live-assist",
-        "status": "planned",
-        "text": "Prompts the handler during the call."
-      }
-    ]
-  },
-  "breadth": "standard"
+  "factsVersion": 1,
+  "knowledgeVersion": 1,
+  "priorPackIds": []
 }

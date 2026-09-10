@@ -452,3 +452,24 @@ describe("usage from the SDK's wire block", () => {
     expect(canonicalModelId("claude-opus-5")).toBe("claude-opus-5");
   });
 });
+
+describe("a bridge that refuses its settings", () => {
+  it("closes the run as failed rather than leaving it running with the wall-clock timer armed", async () => {
+    const jobId = await seedJob("echo", { text: "x" });
+    const refusing: RunModel = {
+      transport: "agent-sdk",
+      forRun() {
+        throw new Error("Invalid default settings: maxTurns: Too big: expected number to be <=100");
+      },
+    };
+    const failure = await runAgent({
+      definition: loadDefinition("echo"),
+      input: { text: "x" },
+      ctx: { db: prisma, orgId: ORG_ID, jobId, model: refusing, modelId: MODEL, tools: (recorder) => echoTools(recorder) },
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(AgentRunFailedError);
+    expect((failure as AgentRunFailedError).reason).toBe("error");
+    const run = await prisma.agentRun.findFirstOrThrow({ where: { jobId } });
+    expect(run.status).toBe("failed");
+  });
+});

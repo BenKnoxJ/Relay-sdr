@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm call handling client care",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-10T09:50:21.969Z"
+}

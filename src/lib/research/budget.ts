@@ -1,9 +1,12 @@
 import type { AgentBudget } from "@/lib/agents/definitions";
 
 /**
- * The research budget, enforced (research v2 §6).
+ * The research rails, enforced (research v3 §6; v2's four caps per breadth
+ * became one set of rails an order above a real run).
  *
- * Four caps per breadth: searches, fetches, model steps, minutes. Model steps
+ * Six rails: searches, fetches, characters of fetched text, model steps,
+ * minutes, and spend. Fetched text is recorded after a page is read and stops
+ * the *next* fetch; spend is read from the run's ledger. Model steps
  * are the runtime's (`maxTurns` on the Agent SDK, `stepCountIs` on the Messages
  * API) and minutes are a timer on the run's controller; the two tool caps are
  * this object's, charged from inside the tool's own `execute` so that a
@@ -45,6 +48,16 @@ export type ResearchBudget = {
   readonly limits: AgentBudget;
   /** Count one call, or `amount` units of fetched text. Throws `BudgetExceededError` when the charge would pass the rail. */
   charge(field: CountedField, amount?: number): void;
+  /**
+   * Count what was already used and cannot be refused after the fact — the
+   * characters of a page that has been read. Never throws; `exhausted` is how
+   * the next call is stopped.
+   */
+  record(field: CountedField, amount: number): void;
+  /** True when a rail is already used up, so the next call must not run. */
+  exhausted(field: CountedField | "spend", observed?: Observed): boolean;
+  /** The limit on a rail, when the definition sets one. */
+  limitOf(field: BudgetField): number | undefined;
   /**
    * Fields that have newly crossed seventy percent since the last call, each
    * reported once per attempt. `modelSteps` is the caller's count; minutes are
@@ -99,11 +112,19 @@ export function createResearchBudget(options: { limits: AgentBudget; now?: () =>
 
   return {
     limits,
+    limitOf,
     charge(field, amount = 1) {
       const limit = limitOf(field);
       // A definition with no rail on a field has no rail on it.
       if (limit !== undefined && counts[field] + amount > limit) throw new BudgetExceededError(field, limit);
       counts[field] += amount;
+    },
+    record(field, amount) {
+      counts[field] += amount;
+    },
+    exhausted(field, observed = { modelSteps: 0 }) {
+      const limit = limitOf(field);
+      return limit !== undefined && usedOf(field, observed) >= limit;
     },
     crossed(observed) {
       const out: BudgetField[] = [];

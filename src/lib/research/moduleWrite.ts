@@ -17,6 +17,7 @@ import { assertPlainWords } from "@/lib/copy/plainWords";
 import { neverSayIssues, type NeverSayFile } from "@/lib/facts/neverSay";
 
 import { authoredTexts } from "./authored";
+import { normaliseModule } from "./normalise";
 
 import { demoteStaleItems } from "./validate";
 
@@ -40,25 +41,29 @@ export type ModuleWriteContext = {
   liveFactIds: ReadonlySet<string>;
   /** Fact ids in the facts file that are not retired: what an m11 "not today" may cite (§10 note 9). */
   knownFactIds?: ReadonlySet<string>;
+  /** Planned fact ids: an m11 answer citing one in `factIds` is moved to `notYetFactIds` (§10 notes 9, 23). */
+  plannedFactIds?: ReadonlySet<string>;
   /** The product's never-say list (§10 note 20), linted over what the module's author wrote. */
   neverSay?: Pick<NeverSayFile, "entries">;
   now: Date;
 };
 
 export type ModuleCheck =
-  | { ok: true; module: CompleteModule<ModuleId>; demoted: string[] }
-  | { ok: false; issues: string[] };
+  | { ok: true; module: CompleteModule<ModuleId>; demoted: string[]; normalised: string[] }
+  | { ok: false; issues: string[]; normalised: string[] };
 
 export function checkModuleWrite(id: ModuleId, content: unknown, context: ModuleWriteContext): ModuleCheck {
   // The model writes the fields; the state is the runtime's to set (§3: the
   // model never writes an `insufficient` module itself).
+  // Mechanical slips first (§10 note 23): corrected and reported, never refused.
+  const { content: fixed, notes: normalised } = normaliseModule(id, content, context.plannedFactIds === undefined ? {} : { plannedFactIds: context.plannedFactIds });
   const withStatus =
-    content !== null && typeof content === "object" && !Array.isArray(content) ? { ...(content as Record<string, unknown>), status: "complete" } : content;
+    fixed !== null && typeof fixed === "object" && !Array.isArray(fixed) ? { ...(fixed as Record<string, unknown>), status: "complete" } : fixed;
 
   const demoted: string[] = [];
   const edited = (demoteStaleItems({ modules: { [id]: withStatus } }, context.now, demoted) as { modules: Record<string, unknown> }).modules[id];
   const parsed = (COMPLETE_MODULE_SCHEMAS[id] as z.ZodType<CompleteModule<ModuleId>>).safeParse(edited);
-  if (!parsed.success) return { ok: false, issues: parsed.error.issues.map((issue) => `${issue.path.join(".") || id}: ${issue.message}`) };
+  if (!parsed.success) return { ok: false, issues: parsed.error.issues.map((issue) => `${issue.path.join(".") || id}: ${issue.message}`), normalised };
   const written = parsed.data;
 
   const pack = { modules: { ...context.accepted, [id]: written }, partial: false, missingModules: [] } as unknown as PackShape;
@@ -105,5 +110,5 @@ export function checkModuleWrite(id: ModuleId, content: unknown, context: Module
     }
   }
 
-  return issues.length > 0 ? { ok: false, issues } : { ok: true, module: written, demoted };
+  return issues.length > 0 ? { ok: false, issues, normalised } : { ok: true, module: written, demoted, normalised };
 }

@@ -129,8 +129,8 @@ const itemFields = {
   text: z.string().min(1).max(2000),
   /** The source's own words. Needed for the provenance check (§7). */
   quote: z.string().min(1).max(2000).optional(),
-  speaker: z.string().min(1).max(160).optional(),
-  role: z.string().min(1).max(160).optional(),
+  speaker: z.string().min(1).max(500).optional(),
+  role: z.string().min(1).max(500).optional(),
   /**
    * When the source said it. ISO date-time, date, year-month or a bare year:
    * a report is often dated "March 2026" or just "2026", and refusing a pack

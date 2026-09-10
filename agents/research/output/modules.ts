@@ -273,7 +273,7 @@ export const recipeSchema = z
       .object({ min: z.number().int().nonnegative(), max: z.number().int().positive() })
       .strict()
       .refine((band) => band.min < band.max, "sizeBand.min must be below sizeBand.max"),
-    countries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(20),
+    countries: z.array(z.string().regex(/^[A-Z]{2}$/, "a country is an ISO-3166 alpha-2 code, e.g. GB")).min(1).max(20),
     industries: z.array(label).min(1).max(30),
     triggers: z.array(label).max(30),
   })

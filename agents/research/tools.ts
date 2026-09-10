@@ -11,6 +11,7 @@ import { latestModules, moduleWriteOutputSchema, refusals, type ModuleWrite, typ
 import { BudgetExceededError, type CountedField, type ResearchBudget } from "@/lib/research/budget";
 import type { Corpus } from "@/lib/research/corpus";
 import { checkModuleWrite } from "@/lib/research/moduleWrite";
+import { applyFixes } from "@/lib/research/normalise";
 import { capText, scrubFetched } from "@/lib/research/scrub";
 import { fetchDiscriminator, searchDiscriminator } from "@/lib/services/research/discriminator";
 import { ServiceError, type FetchService, type SearchHit, type SearchService } from "@/lib/services/types";
@@ -90,9 +91,17 @@ const writeArgs = z
   .object({
     module: z.enum(MODULE_IDS),
     /** The module's fields as its schema names them; `status` is the runtime's and is set on write. */
-    content: z.record(z.unknown()),
+    content: z.record(z.unknown()).optional(),
+    /**
+     * After a refusal: only the fields that were wrong, as `{ path, value }` with
+     * the paths the issues name; applied to the last refused version (§10 note
+     * 23). `value: null` removes the field. Send `content` or `fixes`, not both.
+     */
+    fixes: z.array(z.object({ path: z.string().min(1).max(300), value: z.unknown() }).strict()).min(1).max(100).optional(),
   })
   .strict();
+/** What the replayed inner call is keyed and stored on: always the whole module. */
+const resolvedArgs = z.object({ module: z.enum(MODULE_IDS), content: z.record(z.unknown()) }).strict();
 const noArgs = z.object({}).strict();
 
 const searchOutput = z.object({ hits: z.array(z.object({ title: z.string(), url: z.string(), snippet: z.string(), publishedAt: z.string().optional() })) }).strict();
@@ -127,9 +136,13 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
   const now = deps.now ?? (() => new Date());
   const live = liveFactIds(deps.facts);
   const known = new Set(deps.facts.facts.filter((fact) => fact.status !== "retired").map((fact) => fact.id));
+  const planned = new Set(deps.facts.facts.filter((fact) => fact.status === "planned").map((fact) => fact.id));
   // The run's view of what is written, seeded from the job's earlier runs.
   const accepted: Partial<Record<ModuleId, Record<string, unknown>>> = latestModules(deps.priorWrites);
   const refused = refusals(deps.priorWrites);
+  // The last version the model sent for each module: the base for `fixes`.
+  const lastSent = new Map<ModuleId, Record<string, unknown>>();
+  for (const write of deps.priorWrites) if (write.content !== undefined) lastSent.set(write.module, write.content);
 
   /** §5 step 1: facts first. Answered outside the record: it is not a call, it is a refusal to make one. */
   const requireFacts = (name: string): { runtimeNote: string } | null =>
@@ -227,7 +240,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     },
   });
 
-  const writeModule = withReplay<z.infer<typeof writeArgs>, ModuleWriteOutput>(recorder, {
+  const writeModule = withReplay<z.infer<typeof resolvedArgs>, ModuleWriteOutput>(recorder, {
     name: "writeModule",
     toolKey: (args) => `${args.module}:${contentDigest(args.content)}`,
     output: moduleWriteOutputSchema,
@@ -237,12 +250,14 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
         accepted,
         liveFactIds: live,
         knownFactIds: known,
+        plannedFactIds: planned,
         ...(deps.neverSay === undefined ? {} : { neverSay: deps.neverSay }),
         now: now(),
       });
       if (check.ok) {
         if (check.demoted.length > 0) deps.log?.({ event: "research.module.demoted", module: args.module, demoted: check.demoted });
-        return { accepted: true, module: args.module, digest, stored: check.module as Record<string, unknown> };
+        if (check.normalised.length > 0) deps.log?.({ event: "research.module.normalised", module: args.module, normalised: check.normalised });
+        return { accepted: true, module: args.module, digest, stored: check.module as Record<string, unknown>, ...(check.normalised.length > 0 ? { normalised: check.normalised } : {}) };
       }
       const seen = refused.get(args.module) ?? new Set<string>();
       seen.add(digest);
@@ -314,16 +329,41 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
         // A bench run restricted to some modules: refused outside the record, like a call before facts.
         if (args.module === "m19") return { accepted: false, module: args.module, issues: ["m19 is assembled by the runtime from every url the pack cites; do not write it"], stillToWrite: remaining() };
         if (!allowed(args.module)) return { accepted: false, module: args.module, issues: [`this run writes only ${deps.onlyModules!.join(", ")}`], stillToWrite: remaining() };
-        const result = await writeModule(args);
+        // `content`, or `fixes` to the last version sent (§10 note 23): resolved to the whole module first.
+        let content = args.content;
+        if (args.fixes !== undefined) {
+          const base = lastSent.get(args.module);
+          if (content !== undefined || base === undefined) {
+            return { accepted: false, module: args.module, issues: [content !== undefined ? "send content or fixes, not both" : "there is no earlier version of this module to fix; send its whole content"] };
+          }
+          const applied = applyFixes(base, args.fixes);
+          if (applied.errors.length > 0) return { accepted: false, module: args.module, issues: applied.errors, note: "Fix the paths, or send the whole content." };
+          content = applied.content;
+        }
+        if (content === undefined) return { accepted: false, module: args.module, issues: ["send the module's content, or fixes to its last refused version"] };
+        lastSent.set(args.module, content);
+        const result = await writeModule({ module: args.module, content });
         if (result.accepted) {
           accepted[args.module] = result.stored;
-          return withNote({ accepted: true, module: args.module, title: MODULE_TITLES[args.module], stillToWrite: remaining() });
+          const normalised = (result as { normalised?: string[] }).normalised;
+          return withNote({
+            accepted: true,
+            module: args.module,
+            title: MODULE_TITLES[args.module],
+            ...(normalised === undefined ? {} : { correctedByTheRuntime: normalised }),
+            stillToWrite: remaining(),
+          });
         }
         if (result.insufficient !== undefined && accepted[args.module]?.status !== "complete") {
           accepted[args.module] = result.insufficient;
           return withNote({ accepted: false, module: args.module, issues: result.issues, storedAs: "insufficient", note: "Stored as insufficient with these issues. Move on to the next module.", stillToWrite: remaining() });
         }
-        return withNote({ accepted: false, module: args.module, issues: result.issues, note: "Fix these issues and write this module again. A second refusal stores it as insufficient." });
+        return withNote({
+          accepted: false,
+          module: args.module,
+          issues: result.issues,
+          note: "Send only the fixes: writeModule({ module, fixes: [{ path, value }] }) with the paths above; the rest of your last version is kept. A second refusal stores it as insufficient.",
+        });
       },
     }),
   };

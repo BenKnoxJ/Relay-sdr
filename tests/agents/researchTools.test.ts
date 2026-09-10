@@ -236,4 +236,25 @@ describe("the research tools", () => {
     const all = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: [{ createdAt: "asc" }, { index: "asc" }] }));
     expect(all.filter((w) => !w.output.accepted && w.output.insufficient !== undefined)).toHaveLength(0);
   });
+
+  it("answers a refusal with fixes to the last version, not the whole module again (§10 note 23)", async () => {
+    const d = deps();
+    const full = moduleContent(pack, "m03") as { archetypes: unknown[] };
+    const thin = { ...full, archetypes: full.archetypes.slice(0, 2) };
+    const { result } = await run(
+      [
+        call("facts", {}),
+        call("writeModule", { module: "m03", fixes: [{ path: "body", value: "x" }] }),
+        call("writeModule", { module: "m03", content: thin }),
+        call("writeModule", { module: "m03", fixes: [{ path: "archetypes", value: full.archetypes }] }),
+        done,
+      ],
+      d,
+    );
+    expect(result).not.toBeInstanceOf(AgentRunFailedError);
+    const writes = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } }));
+    // The fixes with nothing to fix were refused outside the record; the thin write was refused; the fixes made it whole.
+    expect(writes.map((w) => w.output.accepted)).toEqual([false, true]);
+    expect(writes[1]?.output).toMatchObject({ accepted: true, stored: { archetypes: expect.arrayContaining([expect.objectContaining({ id: "claims-teams" })]) } });
+  });
 });

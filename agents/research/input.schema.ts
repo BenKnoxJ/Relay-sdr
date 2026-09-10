@@ -13,7 +13,6 @@ import { z } from "zod";
  */
 
 export const MOTIONS = ["direct", "channel"] as const;
-export const BREADTHS = ["narrow", "standard", "wide"] as const;
 
 /** ISO-3166 alpha-2, upper case. Country names are a screen concern (§10). */
 export const regionSchema = z.string().regex(/^[A-Z]{2}$/, "region is an ISO-3166 alpha-2 code");
@@ -69,28 +68,37 @@ export const priorRunSchema = z
   .strict();
 
 /**
- * What the runtime names when it re-runs a pack that failed the §7 provenance
- * check: the items that could not be found in the corpus, and why. A runtime
- * field, not one the rep or the orchestrator supplies; approved 2026-09-09 as
- * an amendment note beside §2.
+ * What the runtime names when it re-asks the modules that failed the §7
+ * provenance check (v3: per module, never the run): the modules, and the items
+ * in them that could not be found in the corpus, and why. A runtime field,
+ * not one the rep or the orchestrator supplies.
  */
 export const provenanceRerunSchema = z
   .object({
+    modules: z.array(z.string().min(1).max(20)).min(1).max(30),
     failures: z
-      .array(z.object({ id: z.string().min(1).max(120), text: z.string().min(1).max(1000), reason: z.string().min(1).max(300) }).strict())
+      .array(
+        z
+          .object({ module: z.string().min(1).max(20), id: z.string().min(1).max(120), text: z.string().min(1).max(1000), reason: z.string().min(1).max(300) })
+          .strict(),
+      )
       .min(1)
-      .max(80),
+      .max(200),
   })
   .strict();
 
+/** `ResearchInput` — v3 §2. The facts and knowledge reach the model through its tools; the input names their versions. */
 export const researchInputSchema = z
   .object({
     brief: researchBriefSchema,
-    facts: productFactsSchema,
+    /** The signed facts file the run may claim from. */
+    factsVersion: z.number().int().positive(),
+    /** The product knowledge set the run may read. */
+    knowledgeVersion: z.number().int().positive(),
+    /** This org's earlier packs for the same product, by id, read-only. */
+    priorPackIds: z.array(z.string().min(1).max(80)).max(20),
     priorRun: priorRunSchema.optional(),
     provenanceRerun: provenanceRerunSchema.optional(),
-    /** Set by the runtime from the brief (§6), never chosen by the model. */
-    breadth: z.enum(BREADTHS),
   })
   .strict();
 

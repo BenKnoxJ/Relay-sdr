@@ -71,7 +71,17 @@ export const MODULE_TITLES: Record<ModuleId, string> = {
 };
 
 const text = (max: number) => z.string().min(1).max(max);
-const lines = z.array(text(600));
+/**
+ * No ceilings on what the research says (§3: "floors per module and no
+ * ceilings"). These are rails an order above any real sentence, there only so
+ * a runaway write cannot fill a row: prose for anything the campaign agent
+ * reads, a label for a name, a title or a short value. The first live run
+ * (brief E, 2026-09-10) was refused three times on 120- and 600-character
+ * field caps the model had every reason to pass.
+ */
+const prose = text(8000);
+const label = text(500);
+const lines = z.array(prose);
 const claims = z.array(itemSchema).max(200);
 
 /** Fields every module carries. */
@@ -99,21 +109,22 @@ function complete<T extends z.ZodRawShape>(fields: T) {
 
 export const hardFiltersSchema = z
   .object({
-    geography: z.array(text(120)).min(1),
-    sizeCap: text(120).optional(),
-    subSectorsIn: z.array(text(160)),
-    subSectorsOut: z.array(text(160)),
-    firmsOut: z.array(text(160)),
-    other: z.array(text(300)),
+    geography: z.array(label).min(1),
+    /** The rep's size limit, as words or a head count. */
+    sizeCap: z.union([label, z.number().int().positive().transform(String)]).optional(),
+    subSectorsIn: z.array(label),
+    subSectorsOut: z.array(label),
+    firmsOut: z.array(label),
+    other: z.array(prose),
   })
   .strict();
 
 export const m00Schema = complete({
   hardFilters: hardFiltersSchema,
   /** The regulatory or commercial spine the campaign hangs on. */
-  spine: text(1000),
+  spine: prose,
   /** What the product displaces. */
-  displacement: text(1000),
+  displacement: prose,
   /** What "ready now" looks like for this buyer. */
   readyNow: lines.min(1),
   /** What must not lead the messaging. */
@@ -130,20 +141,20 @@ export const m00Schema = complete({
 
 export const repSummarySchema = complete({
   /** Who to reach, why now, what to say first, the biggest unknown, the size of the opportunity. */
-  lines: z.tuple([text(300), text(300), text(300), text(300), text(300)]),
+  lines: z.tuple([text(400), text(400), text(400), text(400), text(400)]),
 });
 
 // ---------------------------------------------------------------------------
 // execSummary
 
 export const execSummarySchema = complete({
-  wedge: text(1000),
-  icp: text(1000),
-  archetypesNamed: z.array(text(160)).min(1),
-  competitivePosition: text(1000),
+  wedge: prose,
+  icp: prose,
+  archetypesNamed: z.array(label).min(1),
+  competitivePosition: prose,
   /** Constraints every downstream agent must respect (integrations, unshipped features, claims that may not be made). */
   productConstraints: lines.min(1),
-  verdict: text(600),
+  verdict: prose,
 }).refine((m) => m.claims.length >= 3, { message: "the executive summary rests on at least three claims", path: ["claims"] });
 
 // ---------------------------------------------------------------------------
@@ -157,16 +168,16 @@ export const m01Schema = complete({
     .array(
       z
         .object({
-          name: text(160),
-          countEstimate: text(160).optional(),
-          sizeRange: text(160).optional(),
+          name: label,
+          countEstimate: label.optional(),
+          sizeRange: label.optional(),
           fit: fitSchema,
-          why: text(600),
+          why: prose,
         })
         .strict(),
     )
     .min(4),
-  bodies: z.array(z.object({ name: text(160), role: text(400), relevance: text(400), url: urlSchema.optional() }).strict()),
+  bodies: z.array(z.object({ name: label, role: prose, relevance: prose, url: urlSchema.optional() }).strict()),
   /** Dated triggers from the last twelve months. */
   triggers: z.array(itemSchema).min(3),
   activityMetrics: lines,
@@ -178,10 +189,10 @@ export const m01Schema = complete({
 
 export const competitorSchema = z
   .object({
-    name: text(160),
+    name: label,
     url: urlSchema.optional(),
-    positioning: text(600),
-    pricing: text(300).optional(),
+    positioning: prose,
+    pricing: prose.optional(),
     pricingGated: z.boolean(),
     strengths: lines,
     weaknesses: lines,
@@ -192,11 +203,11 @@ export const competitorSchema = z
 
 export const m02Schema = complete({
   competitors: z.array(competitorSchema).min(3),
-  adjacent: z.array(z.object({ name: text(160), note: text(600) }).strict()),
-  doNothing: text(600),
+  adjacent: z.array(z.object({ name: label, note: prose }).strict()),
+  doNothing: prose,
   /** The product beside each competitor: name, price, minimum, commitment. */
   pricingTable: z
-    .array(z.object({ name: text(160), price: text(160), minimum: text(160).optional(), commitment: text(160).optional() }).strict())
+    .array(z.object({ name: label, price: label, minimum: label.optional(), commitment: label.optional() }).strict())
     .min(2),
   discoveryChannels: lines.min(1),
 });
@@ -206,25 +217,25 @@ export const m02Schema = complete({
 
 export const roleSchema = z
   .object({
-    title: text(160),
-    seniority: text(80),
+    title: label,
+    seniority: label,
     /** signs the purchase, champions it, or runs it day to day */
     part: z.enum(["signs", "champions", "runs"]),
-    needs: text(400),
+    needs: prose,
   })
   .strict();
 
 export const dealEconomicsSchema = z
   .object({
-    seatRange: text(120).optional(),
-    plan: text(120).optional(),
-    yearOneValue: text(160).optional(),
-    salesCycle: text(120).optional(),
-    budgetLine: text(120).optional(),
+    seatRange: label.optional(),
+    plan: label.optional(),
+    yearOneValue: label.optional(),
+    salesCycle: label.optional(),
+    budgetLine: label.optional(),
     /** The live pricing facts the figures rest on; empty means speculative (§3 rule). */
     factIds: z.array(factIdSchema),
     confidence: z.enum(["strong", "moderate", "weak", "speculative"]),
-    note: text(400).optional(),
+    note: prose.optional(),
   })
   .strict()
   .refine((d) => d.factIds.length > 0 || d.confidence === "speculative", {
@@ -235,13 +246,13 @@ export const dealEconomicsSchema = z
 export const archetypeSchema = z
   .object({
     id: idSchema,
-    name: text(120),
+    name: label,
     /** A situation — sector, size, circumstance — never a job title. */
-    situation: text(1000),
-    sizeRange: text(120),
+    situation: prose,
+    sizeRange: label,
     dominantPain: itemSchema,
     roles: z.array(roleSchema).min(2),
-    openingAngle: text(1000),
+    openingAngle: prose,
     dealEconomics: dealEconomicsSchema,
   })
   .strict();
@@ -256,32 +267,32 @@ export const m03Schema = complete({
 /** Lead gen's recipe, six fields exactly (leadgen v2 §2). */
 export const recipeSchema = z
   .object({
-    titles: z.array(text(120)).min(1).max(40),
-    excludeTitles: z.array(text(120)).max(40),
+    titles: z.array(label).min(1).max(40),
+    excludeTitles: z.array(label).max(40),
     sizeBand: z
       .object({ min: z.number().int().nonnegative(), max: z.number().int().positive() })
       .strict()
       .refine((band) => band.min < band.max, "sizeBand.min must be below sizeBand.max"),
     countries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(20),
-    industries: z.array(text(120)).min(1).max(30),
-    triggers: z.array(text(160)).max(30),
+    industries: z.array(label).min(1).max(30),
+    triggers: z.array(label).max(30),
   })
   .strict();
 
 export const triggerRowSchema = z
-  .object({ signal: text(300), strength: z.enum(["HOT", "WARM"]), whereToFind: text(300), url: urlSchema.optional() })
+  .object({ signal: prose, strength: z.enum(["HOT", "WARM"]), whereToFind: prose, url: urlSchema.optional() })
   .strict();
 
 export const seedFirmSchema = z
   .object({
     id: idSchema,
-    name: text(200),
+    name: label,
     domain: z.string().min(1).max(253).optional(),
-    region: text(80),
+    region: label,
     size: z
       .object({
         status: z.enum(["confirmed", "estimated", "unknown"]),
-        value: text(120).optional(),
+        value: label.optional(),
         source: urlSchema.optional(),
       })
       .strict()
@@ -294,9 +305,9 @@ export const targetingSchema = z
   .object({
     archetypeId: idSchema,
     recipe: recipeSchema,
-    hardFiltersEchoed: z.array(text(300)).min(1),
+    hardFiltersEchoed: z.array(prose).min(1),
     triggerTaxonomy: z.array(triggerRowSchema).min(3),
-    listSources: z.array(z.object({ name: text(160), url: urlSchema, note: text(300).optional() }).strict()).min(1),
+    listSources: z.array(z.object({ name: label, url: urlSchema, note: prose.optional() }).strict()).min(1),
     /** Validation sample, not the list. */
     seedFirms: z.array(seedFirmSchema).min(2),
   })
@@ -340,13 +351,13 @@ export const m07Schema = complete({
         .object({
           painId: idSchema,
           /** The shipped capability, as the knowledge set names it. */
-          capability: text(300),
+          capability: prose,
           factIds: z.array(factIdSchema),
-          mustNotImply: text(400).optional(),
+          mustNotImply: prose.optional(),
         })
         .strict(),
     ),
-  unmatched: z.array(z.object({ painId: idSchema, roadmapStatus: text(300), note: text(400).optional() }).strict()),
+  unmatched: z.array(z.object({ painId: idSchema, roadmapStatus: prose, note: prose.optional() }).strict()),
 });
 
 // ---------------------------------------------------------------------------
@@ -355,7 +366,7 @@ export const m07Schema = complete({
 export const m08Schema = complete({
   idealCompany: lines.min(1),
   idealBuyer: lines.min(1),
-  disqualifiers: z.array(z.object({ who: text(300), why: text(600) }).strict()).min(1),
+  disqualifiers: z.array(z.object({ who: prose, why: prose }).strict()).min(1),
   hardFiltersEchoed: hardFiltersSchema,
 });
 
@@ -365,9 +376,9 @@ export const m08Schema = complete({
 export const angleSchema = z
   .object({
     rank: z.number().int().positive(),
-    text: text(1000),
+    text: prose,
     confidence: z.enum(["strong", "moderate", "weak", "speculative"]),
-    channelFit: z.array(text(80)).min(1),
+    channelFit: z.array(label).min(1),
   })
   .strict();
 
@@ -379,10 +390,10 @@ export const m09Schema = complete({
         .object({
           archetypeId: idSchema,
           angles: z.array(angleSchema).min(5),
-          doDont: z.array(z.object({ use: text(200), avoid: text(200), why: text(300).optional() }).strict()).min(1),
+          doDont: z.array(z.object({ use: label, avoid: label, why: prose.optional() }).strict()).min(1),
           /** Verbatim phrases from primary sources content and outreach may reuse. */
           verbatim: z.array(itemSchema).min(3),
-          vocabulary: z.array(text(160)),
+          vocabulary: z.array(label),
         })
         .strict(),
     )
@@ -398,11 +409,11 @@ export const m10Schema = complete({
       z
         .object({
           kind: z.enum(["press", "event", "association", "community", "review-site", "publication"]),
-          name: text(200),
+          name: label,
           url: urlSchema,
           date: z.string().optional(),
-          audience: text(300),
-          why: text(400),
+          audience: prose,
+          why: prose,
           archetypeIds: z.array(idSchema).optional(),
         })
         .strict(),
@@ -423,9 +434,9 @@ export const m11Schema = complete({
             .array(
               z
                 .object({
-                  objection: text(400),
+                  objection: prose,
                   /** Grounded only in live facts and the shipped column; absent means "no grounded answer". */
-                  answer: text(800).optional(),
+                  answer: prose.optional(),
                   factIds: z.array(factIdSchema),
                 })
                 .strict(),
@@ -442,7 +453,7 @@ export const m11Schema = complete({
 
 export const m12Schema = complete({
   rules: z
-    .array(z.object({ channel: text(60), region: text(80), rule: text(800), source: urlSchema, bars: z.boolean() }).strict())
+    .array(z.object({ channel: label, region: label, rule: prose, source: urlSchema, bars: z.boolean() }).strict())
     .min(1),
 });
 
@@ -451,9 +462,9 @@ export const m12Schema = complete({
 
 export const m13Schema = complete({
   /** Dated as §3 dates everything: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. */
-  entries: z.array(z.object({ date: z.string().date().or(partialDateSchema), what: text(400), source: urlSchema, why: text(400) }).strict()),
+  entries: z.array(z.object({ date: z.string().date().or(partialDateSchema), what: prose, source: urlSchema, why: prose }).strict()),
   noneFound: z.boolean(),
-  queriesTried: z.array(text(300)),
+  queriesTried: z.array(prose),
 }).refine((m) => m.noneFound || m.entries.length >= 3, { message: "at least three dated entries, or noneFound with the queries tried", path: ["entries"] })
   .refine((m) => !m.noneFound || m.queriesTried.length > 0, { message: "noneFound must name the queries tried", path: ["queriesTried"] });
 
@@ -466,7 +477,7 @@ export const m14Schema = complete({
     z
       .object({
         kind: z.enum(["trigger", "archetype", "price", "contradiction", "other"]),
-        text: text(600),
+        text: prose,
         priorPackId: z.string().min(1),
       })
       .strict(),
@@ -477,7 +488,7 @@ export const m14Schema = complete({
 // m15 — proof the rep may use
 
 export const m15Schema = complete({
-  proof: z.array(z.object({ factId: factIdSchema, text: text(400), allowed: z.boolean(), note: text(400).optional() }).strict()).min(1),
+  proof: z.array(z.object({ factId: factIdSchema, text: prose, allowed: z.boolean(), note: prose.optional() }).strict()).min(1),
 });
 
 // ---------------------------------------------------------------------------
@@ -488,11 +499,11 @@ export const candidateSchema = z
     id: idSchema,
     rank: z.number().int().positive(),
     archetypeId: idSchema,
-    leadAngle: text(600),
-    channelFit: z.array(text(80)).min(1),
-    whyNow: text(600),
+    leadAngle: prose,
+    channelFit: z.array(label).min(1),
+    whyNow: prose,
     seedFirmIds: z.array(idSchema),
-    wrongIf: text(600),
+    wrongIf: prose,
   })
   .strict();
 
@@ -506,9 +517,9 @@ export const m16Schema = complete({
 export const contradictionSchema = z
   .object({
     id: idSchema,
-    text: text(600),
+    text: prose,
     kind: z.enum(["against", "disagree"]),
-    meaning: text(600),
+    meaning: prose,
     a: itemSchema.optional(),
     b: itemSchema.optional(),
   })
@@ -529,11 +540,11 @@ export const m17Schema = complete({
 export const unknownSchema = z
   .object({
     id: idSchema,
-    text: text(600),
+    text: prose,
     kind: z.enum(["not-found", "confirmed-absent", "unreadable", "conflicting", "out-of-budget"]),
-    whyItMatters: text(600),
-    askOnFirstCall: text(400).optional(),
-    queriesTried: z.array(text(300)),
+    whyItMatters: prose,
+    askOnFirstCall: prose.optional(),
+    queriesTried: z.array(prose),
   })
   .strict()
   .refine((u) => u.kind !== "not-found" || u.queriesTried.length > 0, {
@@ -549,7 +560,7 @@ export const m18Schema = complete({
 // m19 — sources
 
 export const m19Schema = complete({
-  sources: z.array(z.object({ url: urlSchema, title: text(300), accessedAt: z.string().date() }).strict()).min(1),
+  sources: z.array(z.object({ url: urlSchema, title: prose, accessedAt: z.string().date() }).strict()).min(1),
   knowledgeArticles: z.array(z.string().min(1)),
   factsVersion: z.number().int().positive(),
   priorPackIds: z.array(z.string().min(1)),

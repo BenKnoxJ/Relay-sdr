@@ -118,9 +118,9 @@ export function aboveCeiling(asserted: Confidence, evidence: Evidence): boolean 
 
 const itemFields = {
   id: idSchema,
-  text: z.string().min(1).max(600),
+  text: z.string().min(1).max(2000),
   /** The source's own words. Needed for the provenance check (§7). */
-  quote: z.string().min(1).max(600).optional(),
+  quote: z.string().min(1).max(2000).optional(),
   speaker: z.string().min(1).max(160).optional(),
   role: z.string().min(1).max(160).optional(),
   /**
@@ -136,7 +136,7 @@ const itemFields = {
   evidence: evidenceSchema,
   confidence: z.enum(CONFIDENCE),
   /** Required for `speculative`: what the inference was made from. */
-  inferredFrom: z.string().min(1).max(400).optional(),
+  inferredFrom: z.string().min(1).max(1000).optional(),
 };
 
 /**
@@ -209,9 +209,9 @@ export const phraseObject = z
   .object({
     ...itemFields,
     /** What to say. */
-    say: z.string().min(1).max(300),
+    say: z.string().min(1).max(1000),
     /** What not to say, when the contrast is the point. */
-    notThis: z.string().min(1).max(300).optional(),
+    notThis: z.string().min(1).max(1000).optional(),
     /** True when a vendor or consultant said it, not a buyer. */
     notBuyer: z.boolean(),
   })

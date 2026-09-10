@@ -1,0 +1,11 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://www.legalombudsman.org.uk/information-centre/data-centre/complaints-data/202526-quarter-3-complaints-data"
+  },
+  "response": {
+    "unreadable": true,
+    "reason": "firecrawl: timed out"
+  },
+  "recordedAt": "2026-09-10T09:53:52.376Z"
+}

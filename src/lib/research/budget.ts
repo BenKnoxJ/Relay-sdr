@@ -25,8 +25,10 @@ import type { AgentBudget } from "@/lib/agents/definitions";
 
 export const SOFT_FRACTION = 0.7;
 
-export type CountedField = "searches" | "fetches";
-export type BudgetField = CountedField | "modelSteps" | "minutes";
+export type CountedField = "searches" | "fetches" | "fetchedChars";
+export type BudgetField = CountedField | "modelSteps" | "minutes" | "spend";
+/** What the caller observes and the budget cannot count itself. */
+export type Observed = { modelSteps: number; spendUsd?: number };
 
 export class BudgetExceededError extends Error {
   readonly unspent = true as const;
@@ -41,25 +43,25 @@ export class BudgetExceededError extends Error {
 
 export type ResearchBudget = {
   readonly limits: AgentBudget;
-  /** Count one call. Throws `BudgetExceededError` when the call would pass the cap. */
-  charge(field: CountedField): void;
+  /** Count one call, or `amount` units of fetched text. Throws `BudgetExceededError` when the charge would pass the rail. */
+  charge(field: CountedField, amount?: number): void;
   /**
    * Fields that have newly crossed seventy percent since the last call, each
    * reported once per attempt. `modelSteps` is the caller's count; minutes are
    * read from the clock.
    */
-  crossed(observed: { modelSteps: number }): BudgetField[];
+  crossed(observed: Observed): BudgetField[];
   /** What was used, for the run report and rubric check 11. */
-  actuals(): { searches: number; fetches: number; seconds: number };
+  actuals(): { searches: number; fetches: number; fetchedChars: number; seconds: number };
   /** The line the model reads on the next tool result after a crossing. */
-  note(field: BudgetField, observed: { modelSteps: number }): string;
+  note(field: BudgetField, observed: Observed): string;
 };
 
 export function createResearchBudget(options: { limits: AgentBudget; now?: () => number }): ResearchBudget {
   const { limits } = options;
   const now = options.now ?? (() => Date.now());
   const startedAt = now();
-  const counts = { searches: 0, fetches: 0 };
+  const counts = { searches: 0, fetches: 0, fetchedChars: 0 };
   const noted = new Set<BudgetField>();
 
   const limitOf = (field: BudgetField): number | undefined => {
@@ -72,9 +74,13 @@ export function createResearchBudget(options: { limits: AgentBudget; now?: () =>
         return limits.maxModelSteps;
       case "minutes":
         return limits.maxSeconds === undefined ? undefined : limits.maxSeconds / 60;
+      case "fetchedChars":
+        return limits.maxFetchedChars;
+      case "spend":
+        return limits.maxSpendUsd;
     }
   };
-  const usedOf = (field: BudgetField, observed: { modelSteps: number }): number => {
+  const usedOf = (field: BudgetField, observed: Observed): number => {
     switch (field) {
       case "searches":
         return counts.searches;
@@ -84,20 +90,24 @@ export function createResearchBudget(options: { limits: AgentBudget; now?: () =>
         return observed.modelSteps;
       case "minutes":
         return (now() - startedAt) / 60_000;
+      case "fetchedChars":
+        return counts.fetchedChars;
+      case "spend":
+        return observed.spendUsd ?? 0;
     }
   };
 
   return {
     limits,
-    charge(field) {
+    charge(field, amount = 1) {
       const limit = limitOf(field);
-      // A definition with no cap on a field has no cap on it.
-      if (limit !== undefined && counts[field] + 1 > limit) throw new BudgetExceededError(field, limit);
-      counts[field] += 1;
+      // A definition with no rail on a field has no rail on it.
+      if (limit !== undefined && counts[field] + amount > limit) throw new BudgetExceededError(field, limit);
+      counts[field] += amount;
     },
     crossed(observed) {
       const out: BudgetField[] = [];
-      for (const field of ["searches", "fetches", "modelSteps", "minutes"] as const) {
+      for (const field of ["searches", "fetches", "fetchedChars", "modelSteps", "minutes", "spend"] as const) {
         const limit = limitOf(field);
         if (limit === undefined || noted.has(field)) continue;
         if (usedOf(field, observed) >= limit * SOFT_FRACTION) {
@@ -108,13 +118,20 @@ export function createResearchBudget(options: { limits: AgentBudget; now?: () =>
       return out;
     },
     actuals() {
-      return { searches: counts.searches, fetches: counts.fetches, seconds: Math.round((now() - startedAt) / 1000) };
+      return { searches: counts.searches, fetches: counts.fetches, fetchedChars: counts.fetchedChars, seconds: Math.round((now() - startedAt) / 1000) };
     },
     note(field, observed) {
       const limit = limitOf(field) ?? 0;
       const used = usedOf(field, observed);
-      const shown = field === "minutes" ? `${Math.floor(used)} of ${Math.floor(limit)} minutes` : `${Math.floor(used)} of ${limit} ${field}`;
-      return `Runtime checkpoint: ${shown} used. State what you still lack and either finish or narrow. Prefer your highest-value remaining queries; do not repeat one.`;
+      const shown =
+        field === "minutes"
+          ? `${Math.floor(used)} of ${Math.floor(limit)} minutes`
+          : field === "spend"
+            ? `$${used.toFixed(2)} of $${limit} spend`
+            : field === "fetchedChars"
+              ? `${Math.floor(used / 1000)}k of ${Math.floor(limit / 1000)}k characters of fetched text`
+              : `${Math.floor(used)} of ${limit} ${field}`;
+      return `Runtime checkpoint: ${shown} used. State what you still lack, then finish, or say which modules will be partial. Write every module you can now; prefer your highest-value remaining queries; do not repeat one.`;
     },
   };
 }

@@ -1,4 +1,4 @@
-import { packItems, type ResearchPack } from "../../../agents/research/output.schema";
+import { MODULE_IDS, moduleItems, type ModuleId, type PackShape } from "../../../agents/research/output.schema";
 import type { Item } from "../../../agents/_shared/item.schema";
 import type { Corpus } from "@/lib/research/corpus";
 
@@ -22,18 +22,19 @@ import type { Corpus } from "@/lib/research/corpus";
 
 export const PROVENANCE_FAIL_FRACTION = 0.2;
 
-export type ProvenanceFailure = { id: string; text: string; reason: string };
+export type ProvenanceFailure = { module: ModuleId | "insufficient"; id: string; text: string; reason: string };
 export type ProvenanceReport = {
   total: number;
   passed: number;
   failed: ProvenanceFailure[];
   /** `failed.length / total`, zero for an empty pack. */
   fraction: number;
-  /** Over the threshold: the caller re-runs once. */
+  /** At least one module is over the threshold: the caller re-asks those modules once. */
   rejected: boolean;
+  modules: ModuleProvenance[];
 };
 
-export type ProvenanceResult = { pack: ResearchPack; report: ProvenanceReport };
+export type ProvenanceResult = { pack: PackShape; report: ProvenanceReport };
 
 const STOPWORDS = new Set(
   `about above after again against also among another any because been before being below between both
@@ -144,25 +145,53 @@ export function distinctiveWords(corpus: Corpus): (text: string) => string[] {
   };
 }
 
+/** One module's report: the caller re-asks a module whose fraction is over the threshold (§7). */
+export type ModuleProvenance = { module: ModuleId; total: number; passed: number; failed: ProvenanceFailure[]; fraction: number; rejected: boolean };
+
 /**
- * Check every item; demote the failures in place on a copy; report.
+ * Check every item, module by module; demote the failures in place on a copy;
+ * report per module and for the pack.
+ *
+ * Research v3 §7: provenance runs per module and the handler re-asks only the
+ * failing modules, never the run. `report.rejected` therefore means "at least
+ * one module is over the threshold", and `modules` says which.
  */
-export function checkProvenance(pack: ResearchPack, corpus: Corpus): ProvenanceResult {
+export function checkProvenance(pack: PackShape, corpus: Corpus): ProvenanceResult {
   const copy = structuredClone(pack);
   const distinctive = distinctiveWords(corpus);
+  const modules: ModuleProvenance[] = [];
   const failed: ProvenanceFailure[] = [];
   let total = 0;
-  for (const item of packItems(copy)) {
-    total += 1;
-    const match = matchItem(item, corpus, distinctive);
-    if (match.passed) continue;
-    failed.push({ id: item.id, text: item.text, reason: match.reason });
-    item.confidence = "speculative";
-    item.inferredFrom = `provenance: ${match.reason}`;
+  for (const id of MODULE_IDS) {
+    const moduleFailed: ProvenanceFailure[] = [];
+    let moduleTotal = 0;
+    for (const item of moduleItems(copy, id)) {
+      moduleTotal += 1;
+      const match = matchItem(item, corpus, distinctive);
+      if (match.passed) continue;
+      moduleFailed.push({ module: id, id: item.id, text: item.text, reason: match.reason });
+      item.confidence = "speculative";
+      item.inferredFrom = `provenance: ${match.reason}`;
+    }
+    if (moduleTotal === 0) continue;
+    const fraction = moduleFailed.length / moduleTotal;
+    modules.push({ module: id, total: moduleTotal, passed: moduleTotal - moduleFailed.length, failed: moduleFailed, fraction, rejected: fraction > PROVENANCE_FAIL_FRACTION });
+    total += moduleTotal;
+    failed.push(...moduleFailed);
+  }
+  if (copy.insufficient !== undefined) {
+    for (const item of copy.insufficient.found) {
+      total += 1;
+      const match = matchItem(item, corpus, distinctive);
+      if (match.passed) continue;
+      failed.push({ module: "insufficient", id: item.id, text: item.text, reason: match.reason });
+      item.confidence = "speculative";
+      item.inferredFrom = `provenance: ${match.reason}`;
+    }
   }
   const fraction = total === 0 ? 0 : failed.length / total;
   return {
     pack: copy,
-    report: { total, passed: total - failed.length, failed, fraction, rejected: fraction > PROVENANCE_FAIL_FRACTION },
+    report: { total, passed: total - failed.length, failed, fraction, rejected: modules.some((m) => m.rejected), modules },
   };
 }

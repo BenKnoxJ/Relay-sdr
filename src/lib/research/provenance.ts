@@ -166,6 +166,13 @@ export function checkProvenance(pack: PackShape, corpus: Corpus): ProvenanceResu
     const moduleFailed: ProvenanceFailure[] = [];
     let moduleTotal = 0;
     for (const item of moduleItems(copy, id)) {
+      // A guess that says it is a guess — `speculative`, no url, and what it
+      // was inferred from — has nothing to check against a page, and the
+      // schema already requires exactly that of it. Counting it as a failure
+      // re-asked eight honest modules on brief E (2026-09-10) and rewarded
+      // deleting the guess or inventing a citation. Only a claim that cites a
+      // page is checked against the pages.
+      if (item.evidence.urls.length === 0 && item.confidence === "speculative" && item.inferredFrom !== undefined) continue;
       moduleTotal += 1;
       const match = matchItem(item, corpus, distinctive);
       if (match.passed) continue;

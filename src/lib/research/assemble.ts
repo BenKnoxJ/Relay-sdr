@@ -21,7 +21,7 @@ import { normaliseUrl, type Corpus } from "@/lib/research/corpus";
 
 /** What `writeModule` stores on its step (the model sees less; see the tool). */
 export const moduleWriteOutputSchema = z.union([
-  z.object({ accepted: z.literal(true), module: z.string(), digest: z.string(), stored: z.record(z.unknown()) }).strict(),
+  z.object({ accepted: z.literal(true), module: z.string(), digest: z.string(), stored: z.record(z.unknown()), normalised: z.array(z.string()).optional() }).strict(),
   z
     .object({
       accepted: z.literal(false),
@@ -35,7 +35,8 @@ export const moduleWriteOutputSchema = z.union([
 ]);
 export type ModuleWriteOutput = z.infer<typeof moduleWriteOutputSchema>;
 
-export type ModuleWrite = { module: ModuleId; digest: string; output: ModuleWriteOutput };
+/** `content` is what the model sent, the base a `fixes` answer to a refusal applies to (§10 note 23). */
+export type ModuleWrite = { module: ModuleId; digest: string; output: ModuleWriteOutput; content?: Record<string, unknown> };
 
 /** The `writeModule` steps, in the order they happened across the job's runs. */
 export function moduleWritesFromSteps(steps: readonly AgentRunStep[]): ModuleWrite[] {
@@ -44,7 +45,13 @@ export function moduleWritesFromSteps(steps: readonly AgentRunStep[]): ModuleWri
     if (step.name !== "writeModule") continue;
     const parsed = moduleWriteOutputSchema.safeParse(step.output);
     if (!parsed.success || !isModuleId(parsed.data.module)) continue;
-    out.push({ module: parsed.data.module, digest: parsed.data.digest, output: parsed.data });
+    const sent = (step.input as { content?: unknown } | null)?.content;
+    out.push({
+      module: parsed.data.module,
+      digest: parsed.data.digest,
+      output: parsed.data,
+      ...(sent !== null && typeof sent === "object" && !Array.isArray(sent) ? { content: sent as Record<string, unknown> } : {}),
+    });
   }
   return out;
 }

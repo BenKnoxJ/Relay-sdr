@@ -75,9 +75,14 @@ and dated events are findings with evidence; the campaign agent chooses.
    write it.
 6. **Write each module the moment it is ready**, then move on. Never hold
    modules to the end: a rail can end the run at any time, and only modules
-   already written survive. A refusal comes back with `issues` — fix exactly
-   those and write the module once more. A second refusal is stored as
-   insufficient; move on.
+   already written survive. A refusal comes back with `issues`: answer it with
+   **only the fixes**, `writeModule({ module, fixes: [{ path, value }] })`,
+   using the paths the issues name — never the whole module again. A second
+   refusal is stored as insufficient; move on. Mechanical slips (a confidence
+   word above its evidence, `domains`, a country name, an empty list left out,
+   a market-size line as an object) are corrected by the runtime and reported
+   back as `correctedByTheRuntime`; they are not refusals, but do not repeat
+   them.
 7. **Motion.** Channel packs lead with partner economics, portfolio fit and
    margin; direct packs with buyer pain.
 8. **Stop rule.** After wave 2, if any kind of buyer has fewer than three

@@ -1,0 +1,213 @@
+{
+  "product": "insights360",
+  "version": 1,
+  "source": "The signed facts file's usage notes (facts/insights360.v1.json) and the knowledge set's brand-voice article. Linted over text the research agent authored, never over quotes. An entry fires only in a sentence that names the product (Insights360, the product, the platform, our platform, we) unless it says productOnly: false; a match preceded in its sentence by a negation or a reporting word (never, not, avoid, exclude, claims, says, wrongly...) is guidance, not a claim, and is skipped unless the entry says negatable: false.",
+  "entries": [
+    {
+      "id": "independently-audited",
+      "pattern": "\\bindependently[- ](?:audited|tested|verified|assessed)\\b|\\bpen[- ]?test(?:ed|ing)?\\b|\\bpenetration[- ]test(?:ed|ing|s)?\\b|\\bthird[- ]party (?:audit(?:ed)?|security (?:audit|assessment)|pen(?:etration)? test)\\b",
+      "sayInstead": "internally audited",
+      "factId": "i360.proof.tenant-isolation-independently-audited",
+      "why": "the tenant-isolation audit was internal, not a third-party penetration test"
+    },
+    {
+      "id": "real-time-results",
+      "pattern": "\\b(?:results?|scores?|scoring|insights?|analysis|analytics|dashboards?|alerts?|flags?|transcripts?)\\b[^.;]{0,40}\\b(?:in )?real[- ]?time\\b|\\breal[- ]?time\\b[^.;]{0,20}\\b(?:results?|scor\\w*|analysis|analytics|insights?|monitoring|dashboards?|alerts?|assist\\w*|coaching)\\b|\\b(?:insights ?360|the product|the platform|it) (?:works|runs|scores|analyses|analyzes) (?:calls )?(?:in )?real[- ]?time\\b",
+      "sayInstead": "post-call; results the same day or within a couple of hours",
+      "factId": "i360.boundary.not-real-time",
+      "why": "post-call only: no websockets or streaming; results lag up to about an hour"
+    },
+    {
+      "id": "within-minutes",
+      "pattern": "\\b(?:typically |usually )?within (?:a few |few )?minutes\\b|\\b(?:in|within) (?:seconds|minutes) of (?:the|a) call\\b|\\bminutes after the call\\b",
+      "sayInstead": "same day, or within a couple of hours",
+      "factId": "i360.product.results-lag-up-to-about-an-hour",
+      "why": "ingestion polls about every 15 minutes, then transcription, then an hourly sync"
+    },
+    {
+      "id": "uk-data-residency",
+      "pattern": "\\bnever leaves the uk\\b|\\bnever leaves uk\\b|\\buk data residency\\b|\\bdata (?:stays|remains|is kept) (?:in|within) the uk\\b|\\b(?:hosted|stored|processed|held) (?:in|within) the uk\\b|\\buk[- ]hosted\\b|\\bhosted in britain\\b",
+      "sayInstead": "EU (Frankfurt)",
+      "factId": "i360.product.hosted-eu-frankfurt",
+      "why": "processing and storage are in the EU (Frankfurt), not the UK"
+    },
+    {
+      "id": "every-call-absolute",
+      "pattern": "\\b100 ?% of (?:your |their |all )?calls\\b|\\bevery call (?:you|they|your team|the firm) (?:make|makes|take|takes|handle|handles)\\b|\\bevery single call\\b|\\bevery call, (?:without|no) exception\\b|\\bnever misses a call\\b",
+      "sayInstead": "every call we ingest",
+      "factId": "i360.product.every-ingested-call-analysed",
+      "why": "the pipeline can lose calls on failure paths; literal 100% completeness is not promised"
+    },
+    {
+      "id": "unwired-integrations",
+      "pattern": "\\bintegrat(?:es|ed|ion|ions|ing) (?:directly |natively |seamlessly )?with (?:microsoft )?(?:teams|cisco|avaya|mitel|8x8|five9)\\b|\\b(?:microsoft teams|teams|cisco|avaya|mitel|8x8|five9) (?:integration|connector)\\b|\\bplugs? (?:straight |directly )?into (?:microsoft )?(?:teams|cisco|avaya|mitel|8x8|five9)\\b|\\bconnects? (?:directly |natively )?(?:to|with) (?:microsoft )?(?:teams|cisco|avaya|mitel|8x8|five9)\\b",
+      "sayInstead": "works with recordings from that platform, scoped per customer during onboarding",
+      "factId": "i360.integration.other-platforms-scoped-per-customer",
+      "why": "only 3CX, OAK (ClarifyGo) and RingCentral have automated feeds; the rest are scoped per customer"
+    },
+    {
+      "id": "seamless",
+      "pattern": "\\bseamless(?:ly)?\\b",
+      "sayInstead": "name what actually connects, and how",
+      "factId": "i360.integration.other-platforms-scoped-per-customer",
+      "why": "brand voice bans 'seamless'; the facts note bans it for integrations"
+    },
+    {
+      "id": "free-or-instant-start",
+      "pattern": "\\bfree trial\\b|\\bfree to start\\b|\\bstart (?:for )?free\\b|\\bget started in (?:seconds|minutes)\\b|\\bset ?up in (?:seconds|minutes)\\b|\\binstant(?:ly)? (?:set ?up|onboard\\w*|live|available)\\b|\\bno set ?up fees?\\b",
+      "sayInstead": "a GBP 1,280 setup and a GBP 640 configuration review around month one",
+      "factId": "i360.price.setup-and-config-review-fees",
+      "why": "there is a one-off setup fee and a month-one configuration review"
+    },
+    {
+      "id": "product-iso-certified",
+      "pattern": "\\binsights ?360 (?:is|has been|was|is fully) (?:iso(?:/iec)? ?27001[- ]certified|certified (?:to|under|against) iso(?:/iec)? ?27001)\\b|\\binsights ?360['’]s iso(?:/iec)? ?27001 certific\\w*\\b|\\biso(?:/iec)? ?27001[- ]certified (?:product|platform|software|application|service)\\b",
+      "sayInstead": "Conversant is ISO 27001 certified",
+      "factId": "i360.compliance.iso27001-certified-group",
+      "why": "the certificate is Conversant's, at group level; do not claim a product scope beyond it",
+      "productOnly": false
+    },
+    {
+      "id": "trifle",
+      "pattern": "\\btrifle\\b",
+      "sayInstead": "nothing: no customer is named",
+      "factId": "i360.proof.paying-customers-in-production",
+      "why": "Trifle Solutions is not a customer and must never be referenced",
+      "negatable": false,
+      "productOnly": false
+    },
+    {
+      "id": "customer-count-or-case-study",
+      "pattern": "\\b(?:over |more than |\\d+\\+? )(?:paying |live )?(?:customers|tenants|firms) (?:use|using|run|running|on) insights ?360\\b|\\binsights ?360 (?:customers|users) (?:saved|save|cut|reduced?)\\b|\\b(?:saves?|saved|cuts?|reduced?) (?:qa|review|compliance) time by \\d+ ?%",
+      "sayInstead": "in production with paying customers, unnamed and uncounted",
+      "factId": "i360.proof.paying-customers-in-production",
+      "why": "no customer may be named or counted, and no case-study numbers exist"
+    },
+    {
+      "id": "call-recording-product",
+      "pattern": "\\bcall[- ]recording (?:product|platform|solution|tool|service)\\b|\\b(?:insights ?360|the product|the platform|it) (?:records|captures|stores recordings of) (?:your |their |the |every )?calls\\b|\\b(?:mifid|voice[- ]retention)[- ](?:compliant|recording|product|solution)\\b",
+      "sayInstead": "analyses the recordings your phone system already makes",
+      "factId": "i360.boundary.does-not-record-calls",
+      "why": "Insights360 does not record calls and is not a MiFID or voice-retention product"
+    },
+    {
+      "id": "aws-comprehend",
+      "pattern": "\\b(?:aws|amazon) comprehend\\b",
+      "sayInstead": "Bedrock (Claude Haiku) analysis",
+      "factId": "i360.product.analysis-model-bedrock-claude-haiku",
+      "why": "sentiment comes from the Bedrock analysis call; there is no Comprehend in the code"
+    },
+    {
+      "id": "anomaly-callouts",
+      "pattern": "\\b(?:automatic|automated|proactive) anomaly (?:detection|callouts?|alerts?)\\b",
+      "sayInstead": "dashboard KPIs with period comparison",
+      "factId": "i360.feature.dashboard-kpis-with-period-comparison",
+      "why": "automatic anomaly callouts are not built"
+    },
+    {
+      "id": "per-team-scorecards",
+      "pattern": "\\bper[- ]team scorecards?\\b|\\bteam[- ]level (?:scorecards?|comparisons?|reporting)\\b|\\bcompare teams\\b|\\bdifferent scorecards? (?:for|per) (?:each )?(?:team|department)s?\\b",
+      "sayInstead": "one scorecard per firm",
+      "factId": "i360.feature.auto-qa-scoring-against-tenant-rules",
+      "why": "one scorecard per tenant; team entities do not ship in the UI"
+    },
+    {
+      "id": "agent-side-sentiment",
+      "pattern": "\\bper[- ]speaker sentiment\\b|\\bagent[- ]side sentiment\\b|\\bagent sentiment (?:scores?|on the scorecard)\\b",
+      "sayInstead": "customer-side and per-call sentiment",
+      "factId": "i360.feature.sentiment-per-call-and-customer-side",
+      "why": "agent-side sentiment is computed but not shown to users"
+    },
+    {
+      "id": "vulnerability-module",
+      "pattern": "\\bvulnerability[- ]detection (?:module|feature|engine|tool|capability)\\b|\\b(?:insights ?360|the product|the platform|it) (?:detects|identifies|spots) vulnerab\\w*\\b|\\bautomatic(?:ally)? (?:detects?|flags?) vulnerab\\w*\\b",
+      "sayInstead": "configurable risk types that flag vulnerability-related calls",
+      "factId": "i360.feature.risk-flagging-configurable-types",
+      "why": "risk flagging is configurable risk types, not a purpose-built vulnerability module"
+    },
+    {
+      "id": "editable-coaching",
+      "pattern": "\\b(?:edit|author|write|add|assign) (?:your own |their own )?coaching (?:notes|points|plans)\\b|\\bcoaching workflows?\\b",
+      "sayInstead": "read-only coaching points on each call",
+      "factId": "i360.feature.coaching-points-read-only",
+      "why": "coaching points are read-only; there is no in-app editing or authoring"
+    },
+    {
+      "id": "review-workflow",
+      "pattern": "\\bassign(?:s|ed|ing)? (?:calls? |reviews? )?to (?:a )?reviewers?\\b|\\breview (?:workflow|queue) with (?:sla|status|assignment)\\w*\\b|\\bsla tracking\\b",
+      "sayInstead": "a needs-review list",
+      "factId": "i360.feature.needs-review-list",
+      "why": "it is a list, not a workflow: no assignment, status or SLA tracking"
+    },
+    {
+      "id": "full-audit-trail",
+      "pattern": "\\bfull audit trail\\b|\\baudit trail of every (?:user |single )?action\\b|\\bcomplete audit (?:trail|log) of (?:every|all) (?:user )?actions?\\b",
+      "sayInstead": "an append-only audit log of settings changes",
+      "factId": "i360.feature.audit-log-append-only",
+      "why": "coverage today is settings writes; team and role changes are being added"
+    },
+    {
+      "id": "bulk-export",
+      "pattern": "\\bbulk (?:csv |data )?exports?\\b|\\bscheduled (?:exports?|reports?)\\b|\\bexport (?:all|every) calls?\\b",
+      "sayInstead": "a single-call transcript PDF export",
+      "factId": "i360.feature.transcript-pdf-export",
+      "why": "export is one call at a time, browser-side; no bulk or scheduled export"
+    },
+    {
+      "id": "transcription-accuracy-figure",
+      "pattern": "\\b\\d{2}(?:\\.\\d+)? ?% (?:transcription |word )?accura(?:te|cy)\\b|\\baccuracy of \\d{2}(?:\\.\\d+)? ?%",
+      "sayInstead": "no accuracy figure: none is written down",
+      "factId": "i360.feature.analysis-output-language-selectable",
+      "why": "no transcription accuracy figure exists in the sources"
+    },
+    {
+      "id": "audio-playback",
+      "pattern": "\\blisten to the evidence\\b|\\bin[- ]app (?:audio )?playback\\b|\\b(?:play|replay) (?:back )?(?:the )?(?:call|recording|audio) in (?:the )?(?:app|dashboard)\\b|\\bsynchroni[sz]ed transcripts?\\b|\\bword[- ]level confidence\\b",
+      "sayInstead": "the transcript, scores and summary for each call",
+      "factId": "i360.boundary.no-audio-playback-in-app",
+      "why": "audio playback in the app is planned, not shipped"
+    },
+    {
+      "id": "agent-self-service",
+      "pattern": "\\bagent self[- ]service\\b|\\bagents? (?:can )?(?:see|view|track) their own (?:qa |quality )?(?:scores?|trends?|performance)\\b|\\bagent[- ]facing (?:portal|dashboard|app)\\b",
+      "sayInstead": "supervisors and managers see agent performance",
+      "factId": "i360.boundary.no-agent-self-service",
+      "why": "there is no agent self-service portal; do not target agents"
+    },
+    {
+      "id": "evidence-packs",
+      "pattern": "\\b(?:compliance|regulator[- ]ready|audit[- ]ready|regulatory) evidence packs?\\b|\\bone[- ]click (?:evidence|compliance) (?:packs?|reports?)\\b|\\bevidence packs? for (?:the )?(?:sra|fca|regulator|ombudsman)\\b",
+      "sayInstead": "a single-call PDF and the settings audit log",
+      "factId": "i360.boundary.no-compliance-evidence-packs",
+      "why": "compliance evidence packs are planned, not shipped"
+    },
+    {
+      "id": "group-dashboard",
+      "pattern": "\\b(?:insights ?360|the product|the platform|it)\\b[^.;]{0,40}\\b(?:group|cross[- ]tenant|multi[- ]tenant|multi[- ]entity|multi[- ]site|cross[- ]office) (?:dashboards?|views?|reporting)\\b",
+      "sayInstead": "one dashboard per firm",
+      "factId": "i360.boundary.no-group-or-cross-tenant-dashboard",
+      "why": "there is no group or cross-tenant dashboard, and none is on the roadmap"
+    },
+    {
+      "id": "sso-redaction-crm",
+      "pattern": "\\b(?:insights ?360|the product|the platform|our platform|it)\\b[^.;]{0,40}\\b(?:offers?|supports?|provides?|has|includes?|comes with)\\b[^.;]{0,20}\\b(?:sso|single sign[- ]on|saml|scim|pii redaction|card[- ]number redaction|redaction|crm (?:connectors?|integrations?|sync))\\b|\\bredacts? (?:pii|card numbers|personal data)\\b",
+      "sayInstead": "login via email and password (Clerk); no SSO, SCIM, redaction or CRM connector today",
+      "factId": "i360.boundary.no-sso-scim-no-pii-redaction-no-crm",
+      "why": "SSO/SCIM, PII and card-number redaction and CRM connectors are planned, not shipped"
+    },
+    {
+      "id": "retention-period",
+      "pattern": "\\b(?:insights ?360|the product|the platform|we|it)\\b[^.;]{0,40}\\b(?:retains?|keeps?|stores?|deletes?|holds?)\\b[^.;]{0,30}\\b\\d+ (?:days|months|years)\\b|\\bautomatic(?:ally)? (?:deletes?|deletion|purges?)\\b",
+      "sayInstead": "retention is agreed per contract and applied manually today",
+      "factId": "i360.boundary.no-automated-retention-or-deletion",
+      "why": "there is no automated retention or deletion; never state a retention period"
+    },
+    {
+      "id": "end-to-end",
+      "pattern": "\\bend[- ]to[- ]end (?:solution|platform|product|qa|quality)\\b",
+      "sayInstead": "name the coverage: post-call scoring of the recordings the phone system makes",
+      "factId": "i360.boundary.does-not-record-calls",
+      "why": "brand voice: Insights360 is not end-to-end (it does not record and is not real-time)"
+    }
+  ]
+}

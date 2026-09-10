@@ -4,6 +4,7 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 
 import { withReplay, type ToolRecorder } from "@/lib/agents/tools";
+import type { NeverSayFile } from "@/lib/facts/neverSay";
 import { liveFactIds } from "@/lib/facts/schema";
 import { KNOWLEDGE_ARTICLES, type LoadedKnowledge } from "@/lib/knowledge/load";
 import { latestModules, moduleWriteOutputSchema, refusals, type ModuleWrite, type ModuleWriteOutput } from "@/lib/research/assemble";
@@ -57,8 +58,12 @@ export type ResearchToolDeps = {
   fetch: FetchService;
   /** The `writeModule` steps the job's earlier runs stored: what is accepted, and what was refused once. */
   priorWrites: ModuleWrite[];
-  /** Bench only (`--modules`): the modules this run may write. Absent means all of them. */
+  /** The modules this run may write (the phase's, or the bench's `--modules`). Absent means all of them. */
   onlyModules?: readonly ModuleId[];
+  /** The product's never-say list (§10 note 20), checked on every module write. */
+  neverSay?: Pick<NeverSayFile, "entries">;
+  /** v3.1 (§10 note 17): the synthesis phase writes from the accepted modules; search and fetch are closed. */
+  phase?: "research" | "synthesis";
   now?: () => Date;
   /** Where stripped injection lines and other runtime notes go. */
   log?: (line: Record<string, unknown>) => void;
@@ -228,7 +233,13 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     output: moduleWriteOutputSchema,
     execute: async (args) => {
       const digest = contentDigest(args.content);
-      const check = checkModuleWrite(args.module, args.content, { accepted, liveFactIds: live, knownFactIds: known, now: now() });
+      const check = checkModuleWrite(args.module, args.content, {
+        accepted,
+        liveFactIds: live,
+        knownFactIds: known,
+        ...(deps.neverSay === undefined ? {} : { neverSay: deps.neverSay }),
+        now: now(),
+      });
       if (check.ok) {
         if (check.demoted.length > 0) deps.log?.({ event: "research.module.demoted", module: args.module, demoted: check.demoted });
         return { accepted: true, module: args.module, digest, stored: check.module as Record<string, unknown> };
@@ -245,7 +256,11 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     },
   });
 
-  const allowed = (id: ModuleId): boolean => deps.onlyModules === undefined || deps.onlyModules.includes(id);
+  // m19 is the runtime's (§10 note 18); the model never writes it.
+  const allowed = (id: ModuleId): boolean => id !== "m19" && (deps.onlyModules === undefined || deps.onlyModules.includes(id));
+  /** The synthesis phase reads no new pages: answered outside the record, like a call before facts. */
+  const closedInSynthesis = (name: string): { runtimeNote: string } | null =>
+    deps.phase === "synthesis" ? { runtimeNote: `${name}() is closed in the synthesis phase: write from the accepted modules and cite the pages they cite.` } : null;
   const remaining = (): ModuleId[] => MODULE_IDS.filter((id) => allowed(id) && accepted[id] === undefined);
 
   return {
@@ -272,7 +287,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       description: "Web search for the market, the buyers and their words. Top eight results with title, url, snippet and date when known.",
       inputSchema: searchArgs,
       execute: async (args) => {
-        const refusedNote = requireFacts("search");
+        const refusedNote = requireFacts("search") ?? closedInSynthesis("search");
         if (refusedNote !== null) return refusedNote;
         const result = await search(args);
         for (const hit of result.hits) deps.corpus.addSnippet(hit.url, [hit.title, hit.snippet].filter((s) => s.length > 0).join(" — "));
@@ -283,7 +298,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       description: "Read one page's main content as markdown (about 12,000 characters at most). If it cannot be read, say so as an unknown rather than guessing.",
       inputSchema: fetchArgs,
       execute: async (args) => {
-        const refusedNote = requireFacts("fetch");
+        const refusedNote = requireFacts("fetch") ?? closedInSynthesis("fetch");
         if (refusedNote !== null) return refusedNote;
         const result = await fetchPage(args);
         if ("unreadable" in result) deps.corpus.markUnreadable(result.url);
@@ -297,6 +312,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       inputSchema: writeArgs,
       execute: async (args) => {
         // A bench run restricted to some modules: refused outside the record, like a call before facts.
+        if (args.module === "m19") return { accepted: false, module: args.module, issues: ["m19 is assembled by the runtime from every url the pack cites; do not write it"], stillToWrite: remaining() };
         if (!allowed(args.module)) return { accepted: false, module: args.module, issues: [`this run writes only ${deps.onlyModules!.join(", ")}`], stillToWrite: remaining() };
         const result = await writeModule(args);
         if (result.accepted) {

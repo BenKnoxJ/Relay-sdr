@@ -318,352 +318,408 @@
       "path": "modules.m06",
       "message": "3% of phrases are buyer words with a role; the floor is 60%",
       "reason": "The May pack's verbatim phrases are regulator (FCA), adviser (Ridley & Co, CMS Law) and vendor (Aveni, Voyc, Max Contact) commentary; the only named buyer with a role is the Iprism Underwriting CEO (quoted in Module 4)."
-    }
-  ],
-  "ruleConflicts": [
+    },
     {
+      "rule": "v3-addition",
       "module": "m02",
       "path": "doNothing",
       "message": "Required",
-      "whatTheMayPackSays": "Module 2 names no do-nothing option. Its adjacent-solutions list and the 'we already have call recording' objection are the nearest content, and neither is framed as doing nothing."
+      "reason": "Module 2 names no do-nothing option. Its adjacent-solutions list and the 'we already have call recording' objection are the nearest content, and neither is framed as doing nothing."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.0.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.0.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.1.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.1.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.2.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.2.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.3.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.3.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.4.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.0.angles.4.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.0.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.0.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.1.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.1.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.2.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.2.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.3.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.3.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.4.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.1.angles.4.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.0.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.0.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.1.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.1.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.2.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.2.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.3.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.3.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.4.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.2.angles.4.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.0.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.0.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.1.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.1.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.2.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.2.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.3.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.3.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.4.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.3.angles.4.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.0.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.0.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.1.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.1.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.2.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.2.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.3.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.3.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.4.confidence",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
+      "reason": "Module 8 ranks each archetype's angles in priority order but tags no angle with a confidence word."
     },
     {
+      "rule": "v3-addition",
       "module": "m09",
       "path": "perArchetype.4.angles.4.channelFit",
       "message": "Required",
-      "whatTheMayPackSays": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
+      "reason": "Module 8 gives no channel fit per angle; channels appear only once, in Module 7 ('Channels that reach them'), for the buyer as a whole."
     },
     {
+      "rule": "v3-addition",
       "module": "m18",
       "path": "unknowns.2.queriesTried",
       "message": "a not-found unknown names the queries tried",
-      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+      "reason": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
     },
     {
+      "rule": "v3-addition",
       "module": "m18",
       "path": "unknowns.3.queriesTried",
       "message": "a not-found unknown names the queries tried",
-      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+      "reason": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
     },
     {
+      "rule": "v3-addition",
       "module": "m18",
       "path": "unknowns.4.queriesTried",
       "message": "a not-found unknown names the queries tried",
-      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+      "reason": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
     },
     {
+      "rule": "v3-addition",
       "module": "m18",
       "path": "unknowns.5.queriesTried",
       "message": "a not-found unknown names the queries tried",
-      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+      "reason": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
     },
     {
+      "rule": "v3-addition",
       "module": "m18",
       "path": "unknowns.6.queriesTried",
       "message": "a not-found unknown names the queries tried",
-      "whatTheMayPackSays": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
+      "reason": "Unknowns Flagged records no queries tried for any unknown; these five are truthfully not-found (no intelligence / no sourced data / no confirmed slot / unknown without a register check / no EU aggregate found)."
     },
     {
+      "rule": "v3-addition",
       "module": "m19",
       "path": "factsVersion",
       "message": "Required",
-      "whatTheMayPackSays": "The May pack predates the signed facts file. It cites six product knowledge articles and no facts version."
+      "reason": "The May pack predates the signed facts file. It cites six product knowledge articles and no facts version."
     }
   ],
+  "ruleConflicts": [],
   "notes": [
     "The fixture is a PackShape: 13 modules present, all status complete; 9 missing and listed, so partial is true.",
     "The fixture as written does not parse under researchRawSchema: modules m02, m04, m09 and m19 fail their union (zod reports 'Invalid input'), and m18 reports its five queriesTried issues, for exactly the issues listed under exemptions (m04) and ruleConflicts. zod runs the pack-level rules only once every module parses, so they were evaluated on a probe copy with placeholders at those paths only (m04 recipe/hardFiltersEchoed/triggerTaxonomy, m09 angle confidence/channelFit, m02 doNothing, m18 queriesTried, m19 factsVersion). The probe's module parses were clean, and it surfaced only the two pack-level exemptions listed. The per-module domain cap never fired: fca.org.uk, register.fca.org.uk, financial-ombudsman.org.uk and bankofengland.co.uk pages are flagged primary; no other domain exceeds three pages in any module.",
@@ -681,6 +737,7 @@
     "m09 doDont carries only pairs the pack itself states (brand voice sentence; the telephony-connector phrasing instruction; the Archetype 4 CCaaS phrasing). The DO lists and regulatory phrases are in vocabulary, and the DON'T word list is in brandConstraints.",
     "Pack inconsistencies kept as written: the Executive Summary says 28 named targets (16 brokers, 7 MGAs, 5 InsurTechs) and Module 4 lists 27 (15 brokers, 7 MGAs, 5 InsurTechs). DUAL's '20 controls still open as of June 2025' cites a December 2024 newsletter, so publishedAt is the source's date, 2024-12.",
     "Stale check (researchOutputSchema, informational, time-relative): run today, five m04 seed-firm signals (UIBL, RS Insurance Brokers, Prestige, Marshmallow, ManyPets) are older than twelve months and still above weak. Ingest demotes them with demoteStale; the raw schema, which the fixture is proved against, does not check this.",
-    "Unknown #4 names the product owner ('[the product owner]') verbatim from the pack. That is a person, not an agent codename or a path."
+    "Unknown #4 names the product owner ('[the product owner]') verbatim from the pack. That is a person, not an agent codename or a path.",
+    "2026-09-10: the five rule conflicts became the fourth exemption, v3-addition (definition §10 note 6, product owner)."
   ]
 }

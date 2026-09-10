@@ -109,7 +109,7 @@ describe("the research job (v3)", () => {
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     const a = await after(result.eventId);
     expect(a.jobId).toBe(job.id);
-    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 1, draft: true } });
+    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 1, draft: false } });
     expect(a.report).toMatchObject({ attempts: 1, reasked: [], insufficientModules: [] });
     expect(a.report.provenance[0]?.rejected).toBe(false);
     expect(researchOutputSchema.safeParse(a.pack).success).toBe(true);

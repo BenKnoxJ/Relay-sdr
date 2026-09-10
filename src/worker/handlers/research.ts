@@ -245,7 +245,10 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
     // The two phases. A rail anywhere ends the job's runs (§6).
     let railed = false;
     for (const phase of ["research", "synthesis"] as const) {
-      const modules = restrict(phase === "research" ? RESEARCH_PHASE_MODULES : SYNTHESIS_PHASE_MODULES);
+      // A resumed job (a retry, or the bench's --job) writes only what is not stored yet;
+      // a phase with nothing left to write is skipped.
+      const stored = latestModules(moduleWritesFromSteps(await steps()));
+      const modules = restrict(phase === "research" ? RESEARCH_PHASE_MODULES : SYNTHESIS_PHASE_MODULES).filter((id) => stored[id] === undefined);
       if (modules.length === 0) continue;
       // The stop rule (§5 rule 8): a thin brief ends with what research found.
       if (phase === "synthesis" && insufficient !== undefined) break;

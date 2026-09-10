@@ -58,6 +58,18 @@ const packShape = z
 
 export type PackShape = z.infer<typeof packShape>;
 
+/**
+ * A value as JSON with every object's keys sorted. "Verbatim" means the same
+ * content, not the same key order: Postgres `jsonb` stores keys in its own
+ * order, so a module read back from its step no longer matches a fresh write
+ * byte for byte.
+ */
+function canonical(value: unknown): string {
+  const sort = (v: unknown): unknown =>
+    Array.isArray(v) ? v.map(sort) : v !== null && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, sort(x)])) : v;
+  return JSON.stringify(sort(value));
+}
+
 /** The module, when it was written and is complete. */
 export function completeModule<M extends ModuleId>(pack: PackShape, id: M): CompleteModule<M> | undefined {
   // Indexed through a loose record: indexing the twenty-two-way union by a
@@ -233,20 +245,20 @@ export function archetypeIds(pack: PackShape): string[] {
   return m03 === undefined ? [] : m03.archetypes.map((a) => a.id);
 }
 
-function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck: boolean }): void {
+/**
+ * The rules that tie one module to another — every per-archetype module covers
+ * m03's kinds of buyer by id, m07 covers m05's pains, m08 echoes m00's hard
+ * filters, m16 names real archetypes and seed firms — plus the two per-module
+ * shares (buyer words, seed-firm sources). Checked at ingest over the whole
+ * pack, and on write for the module being written against those already
+ * accepted, so the model hears about a broken reference while it still holds
+ * the evidence (brief E, 2026-09-10: m07 and m11 were refused only at ingest).
+ */
+export function crossModuleIssues(pack: PackShape): Array<{ module: ModuleId; message: string; path: (string | number)[] }> {
+  const out: Array<{ module: ModuleId; message: string; path: (string | number)[] }> = [];
   const issue = (message: string, path: (string | number)[] = []): void => {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path });
+    out.push({ module: path[1] as ModuleId, message, path });
   };
-
-  // §6: every module present unless the run was cut short, and then listed.
-  const missing = new Set<string>(pack.missingModules);
-  for (const id of MODULE_IDS) {
-    const present = (pack.modules as Record<ModuleId, unknown>)[id] !== undefined;
-    if (!present && !missing.has(id)) issue(`module ${id} is missing and not listed in missingModules`, ["modules", id]);
-    if (present && missing.has(id)) issue(`module ${id} is present but listed as missing`, ["missingModules"]);
-  }
-  if (pack.partial !== pack.missingModules.length > 0) issue("partial is true exactly when modules are missing", ["partial"]);
-
   // Cross-references by archetype id.
   const ids = archetypeIds(pack);
   const idSet = new Set(ids);
@@ -280,14 +292,15 @@ function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck
   // m08 echoes m00's hard filters verbatim.
   const m00 = completeModule(pack, "m00");
   const m08 = completeModule(pack, "m08");
-  if (m00 && m08 && JSON.stringify(m00.hardFilters) !== JSON.stringify(m08.hardFiltersEchoed)) {
+  if (m00 && m08 && canonical(m00.hardFilters) !== canonical(m08.hardFiltersEchoed)) {
     issue("m08 must echo m00's hard filters verbatim", ["modules", "m08", "hardFiltersEchoed"]);
   }
 
   // m06: six in ten phrases from a named buyer, across the pack.
   if (m06 && pack.insufficient === undefined) {
     const phrases = m06.perArchetype.flatMap((p) => p.phrases);
-    const buyer = phrases.filter((p) => !p.notBuyer && p.role !== undefined).length;
+    // v3.1 (§10 note 13): only a practitioner's own words count.
+    const buyer = phrases.filter((p) => (p as { voice?: string }).voice === "practitioner" && p.role !== undefined).length;
     if (phrases.length > 0 && buyer / phrases.length < BUYER_WORDS_MIN) {
       issue(`${Math.round((100 * buyer) / phrases.length)}% of phrases are buyer words with a role; the floor is ${BUYER_WORDS_MIN * 100}%`, ["modules", "m06"]);
     }
@@ -317,6 +330,26 @@ function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck
       }
     }
   }
+
+  return out;
+}
+
+function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck: boolean }): void {
+  const issue = (message: string, path: (string | number)[] = []): void => {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path });
+  };
+
+  // §6: every module present unless the run was cut short, and then listed.
+  const missing = new Set<string>(pack.missingModules);
+  for (const id of MODULE_IDS) {
+    const present = (pack.modules as Record<ModuleId, unknown>)[id] !== undefined;
+    if (!present && !missing.has(id)) issue(`module ${id} is missing and not listed in missingModules`, ["modules", id]);
+    if (present && missing.has(id)) issue(`module ${id} is present but listed as missing`, ["missingModules"]);
+  }
+  if (pack.partial !== pack.missingModules.length > 0) issue("partial is true exactly when modules are missing", ["partial"]);
+
+  for (const found of crossModuleIssues(pack)) issue(found.message, found.path);
+  const m04 = completeModule(pack, "m04");
 
   // §3: the per-module domain cap, primary sources exempt.
   for (const id of MODULE_IDS) {

@@ -97,7 +97,10 @@ export function deriveArchetype(pack: PackShape, archetypeId: string): z.infer<t
   const persona = m03?.archetypes.find((a) => a.id === archetypeId);
   if (persona === undefined) return undefined;
   const pains: Item[] = completeModule(pack, "m05")?.perArchetype.find((p) => p.archetypeId === archetypeId)?.pains ?? [persona.dominantPain];
-  const language: Phrase[] = completeModule(pack, "m06")?.perArchetype.find((p) => p.archetypeId === archetypeId)?.phrases ?? [];
+  // The cards keep the shared `Phrase` shape; m06's `voice` is the pack's own field.
+  const language: Phrase[] = (completeModule(pack, "m06")?.perArchetype.find((p) => p.archetypeId === archetypeId)?.phrases ?? []).map(
+    (phrase) => Object.fromEntries(Object.entries(phrase).filter(([key]) => key !== "voice")) as Phrase,
+  );
   return { id: persona.id, name: persona.name, situation: persona.situation, pains: pains.slice(0, 12), language: language.slice(0, 20) };
 }
 

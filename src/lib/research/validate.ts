@@ -13,7 +13,10 @@ import {
   type PackShape,
   type ResearchPack,
 } from "../../../agents/research/output.schema";
+import { neverSayIssues, type NeverSayFile } from "@/lib/facts/neverSay";
 import { liveFactIds } from "@/lib/facts/schema";
+
+import { authoredTexts } from "./authored";
 
 /**
  * Ingest (research v3 §7): the one entry point an assembled pack passes
@@ -37,6 +40,8 @@ export type ValidateContext = {
   facts: ProductFacts;
   channels: string[];
   priorPackIds: string[];
+  /** The product's never-say list (§10 note 20). Absent means not linted. */
+  neverSay?: Pick<NeverSayFile, "entries">;
   now?: Date;
 };
 
@@ -71,6 +76,15 @@ export function validatePack(raw: unknown, context: ValidateContext): ValidateRe
   for (const { where, ids } of moduleNotYetFactIds(pack, "m11")) {
     const unknown = ids.filter((factId) => !known.has(factId));
     if (unknown.length > 0) issues.push({ module: "m11", message: `${where}: ${unknown.map((d) => JSON.stringify(d)).join(", ")} not in the facts file, or retired` });
+  }
+
+  // Never-say, over what each complete module's author wrote (§10 note 20).
+  if (context.neverSay !== undefined) {
+    for (const id of MODULE_IDS) {
+      const found = completeModule(pack, id);
+      if (found === undefined) continue;
+      for (const message of neverSayIssues(authoredTexts(id, found), context.neverSay)) issues.push({ module: id, message });
+    }
   }
 
   // Contact rules cover every channel on the card (§3 m12 floor).

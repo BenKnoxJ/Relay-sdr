@@ -1,0 +1,41 @@
+{
+  "kind": "research",
+  "contract": "v3",
+  "name": "research-e-legal-direct-m00m01",
+  "source": "run",
+  "recordedAt": "2026-09-10T09:11:44.038Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v1.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "law or legal firms, ideally with a customer-facing line or support service, around 10 to 50 users or employees",
+      "region": "GB",
+      "howMany": 25,
+      "weeks": 4,
+      "channels": [
+        "email",
+        "linkedin"
+      ],
+      "existingCustomers": "one or two small firms like this already, no big household names"
+    }
+  },
+  "output": null,
+  "report": null,
+  "run": {
+    "steps": 0,
+    "modelSteps": 0,
+    "toolSteps": 0,
+    "moduleWrites": 0,
+    "attempts": 1,
+    "cost": "0.000000",
+    "durationMs": 52,
+    "jobId": "50e05215-5afb-44e5-9e53-15025b8543b9",
+    "eventId": null
+  },
+  "error": "Error: Invalid default settings: maxTurns: Too big: expected number to be <=100",
+  "rejectedIssues": [],
+  "rubric": []
+}

@@ -7,6 +7,7 @@ import {
   completeModule,
   isModuleId,
   moduleFactIds,
+  moduleNotYetFactIds,
   researchOutputSchema,
   type ModuleId,
   type PackShape,
@@ -63,6 +64,13 @@ export function validatePack(raw: unknown, context: ValidateContext): ValidateRe
         issues.push({ module: id, message: `${where}: ${dead.map((d) => JSON.stringify(d)).join(", ")} ${dead.length === 1 ? "is" : "are"} not live in the facts file` });
       }
     }
+  }
+
+  // m11 "not today" citations: in the facts file and not retired (§10 note 9).
+  const known = new Set(context.facts.facts.filter((fact) => fact.status !== "retired").map((fact) => fact.id));
+  for (const { where, ids } of moduleNotYetFactIds(pack, "m11")) {
+    const unknown = ids.filter((factId) => !known.has(factId));
+    if (unknown.length > 0) issues.push({ module: "m11", message: `${where}: ${unknown.map((d) => JSON.stringify(d)).join(", ")} not in the facts file, or retired` });
   }
 
   // Contact rules cover every channel on the card (§3 m12 floor).

@@ -107,4 +107,16 @@ describe("checkModuleWrite", () => {
     expect(check.demoted).toHaveLength(1);
     expect((check.module as { triggers: Array<{ confidence: string }> }).triggers[0]!.confidence).toBe("weak");
   });
+
+  it("lets an objection cite a planned fact as the reason it is not available, and never in factIds (§10 note 9)", () => {
+    const known = new Set(facts.facts.filter((fact) => fact.status !== "retired").map((fact) => fact.id));
+    const m11 = content("m11") as { perArchetype: Array<{ objections: Array<{ factIds: string[]; notYetFactIds?: string[] }> }> };
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = [plannedId];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(true);
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = ["i360.boundary.not-a-real-fact"];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(false);
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = [];
+    m11.perArchetype[0]!.objections[0]!.factIds = [plannedId];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(false);
+  });
 });

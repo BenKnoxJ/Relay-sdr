@@ -29,6 +29,12 @@ and dated events are findings with evidence; the campaign agent chooses.
   it and add an m18 unknown. Every earlier call replays for free.
 
 ## Method
+0. **Batch your calls.** Every turn re-reads everything you hold, so each
+   turn costs more than the one before it. Make independent calls together,
+   in one turn: all nine `knowledge` articles at once; a wave's searches
+   together (six to ten per turn); the pages worth reading together (four to
+   eight per turn). Wait for a result only when the next call depends on it.
+   Fewer, fuller turns are the whole difference in what a pack costs.
 1. **Read before searching.** `facts()` first — the other tools refuse until
    you have. Then every `knowledge(article)`: overview, roadmap, architecture,
    integrations, icp, competitors, brand-voice, decisions, known-issues. Then

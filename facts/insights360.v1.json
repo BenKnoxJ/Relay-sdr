@@ -2,7 +2,8 @@
   "product": "insights360",
   "version": 1,
   "draftedAt": "2026-09-07",
-  "status": "draft-awaiting-signature",
+  "signedAt": "2026-09-10",
+  "status": "signed",
   "codeBaseline": {
     "repo": "insights360",
     "branch": "main",
@@ -278,14 +279,14 @@
     {
       "id": "i360.integration.ringcentral-ingestion-in-code",
       "area": "integration",
-      "claim": "A RingCentral ingestion connector (RingCX and RingEX) is in the shipped pipeline code.",
+      "claim": "A RingCentral ingestion connector (RingCX and RingEX) ships in the pipeline and is working in production.",
       "status": "live",
       "source": {
         "path": "insights360:docs/ARCHITECTURE.md",
         "section": "2.1 Ingestion (per provider); handler infra/cci-lite/cci-lite-ringcentral-ingestion.py",
-        "lastVerified": "2026-09-07"
+        "lastVerified": "2026-09-10"
       },
-      "notes": "The wiki (integrations.md, roadmap.md) still says only 3CX and OAK are wired; the code now includes RingCentral, so code wins. Not verified that a production tenant runs on it. Say 'supported', not 'proven at customer X', until confirmed."
+      "notes": "Confirmed working by the product owner, 2026-09-10. The knowledge set's integrations and roadmap articles still list only 3CX and OAK; this fact wins over them."
     },
     {
       "id": "i360.integration.other-platforms-scoped-per-customer",
@@ -307,9 +308,9 @@
       "source": {
         "path": "product-wiki:insights360/articles/overview.md",
         "section": "Pricing",
-        "lastVerified": "2026-06-29"
+        "lastVerified": "2026-09-10"
       },
-      "notes": "Found only in the wiki and brand-voice; nothing in code and no dated price list document. The vault master doc section 28 says future platform pricing is TBD but that existing customers pay the current tier. Signature needed before any rep quotes these."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
     },
     {
       "id": "i360.price.overage-per-hour",
@@ -319,9 +320,9 @@
       "source": {
         "path": "product-wiki:insights360/articles/overview.md",
         "section": "Pricing",
-        "lastVerified": "2026-06-29"
+        "lastVerified": "2026-09-10"
       },
-      "notes": "Same caveat as i360.price.per-seat-plans."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
     },
     {
       "id": "i360.price.setup-and-config-review-fees",
@@ -331,9 +332,9 @@
       "source": {
         "path": "product-wiki:insights360/articles/overview.md",
         "section": "Pricing",
-        "lastVerified": "2026-06-29"
+        "lastVerified": "2026-09-10"
       },
-      "notes": "Same caveat as i360.price.per-seat-plans. Because of the setup fee, never say 'get started in seconds' or 'free to start'."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Because of the setup fee, never say 'get started in seconds' or 'free to start'."
     },
     {
       "id": "i360.price.no-seat-minimum-no-annual-lock-in",
@@ -343,9 +344,9 @@
       "source": {
         "path": "product-wiki:insights360/articles/overview.md",
         "section": "Pricing (bullets)",
-        "lastVerified": "2026-06-29"
+        "lastVerified": "2026-09-10"
       },
-      "notes": "Corroborated by the vault master doc section 28 ('month-to-month + no seat minimum ... carried forward'). Still wiki-sourced; sign before use."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
     },
     {
       "id": "i360.proof.paying-customers-in-production",
@@ -372,16 +373,16 @@
       "notes": "Internal audit, not a third-party penetration test. Say 'internally audited', not 'pen-tested'."
     },
     {
-      "id": "i360.compliance.iso27001-aligned-not-certified-claim",
+      "id": "i360.compliance.iso27001-certified-group",
       "area": "compliance",
-      "claim": "The development and operations process is documented against ISO/IEC 27001:2022 Annex A controls; the product documentation itself claims alignment of practice, not certification.",
+      "claim": "Conversant is ISO/IEC 27001 certified at group level (certificate 21362-ISMS-001), and Insights360 is developed and operated under that ISMS.",
       "status": "live",
       "source": {
-        "path": "insights360:docs/DEVELOPMENT_PROCESS.md",
-        "section": "line 3 and section 9 alignment statement",
-        "lastVerified": "2026-09-07"
+        "path": "the product owner, in session",
+        "section": "facts decisions, 2026-09-10 (the ISMS register reads certificate 21362-ISMS-001 as covering Insights360)",
+        "lastVerified": "2026-09-10"
       },
-      "notes": "Conflict: the vault ISMS gap register (2026-08-18) reads the group certificate 21362-ISMS-001 as already covering Insights360, and the wiki overview says ISO 27001 and ISO 9001 at group level. Confirmation with the ISMS owner is pending (worklist Gate 0). Until signed, reps say 'Conversant operates an ISO 27001 ISMS' only if the product owner approves that wording; never 'Insights360 is ISO 27001 certified'."
+      "notes": "Confirmed by the product owner, 2026-09-10. Say 'Conversant is ISO 27001 certified'. Do not name a certification body or claim a scope beyond the group certificate; the product repo's own process document still describes alignment only."
     },
     {
       "id": "i360.boundary.does-not-record-calls",

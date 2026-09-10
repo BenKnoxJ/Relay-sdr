@@ -12,8 +12,8 @@ import { KNOWLEDGE_SCRUB } from "@/lib/knowledge/load";
  * converted to the v3 shape — bodies verbatim, claims from its tagged lines,
  * the modules it does not have listed missing. "A rule that refuses it is
  * wrong." Every refusal a rule makes of it must be one the fixture's manifest
- * names, either as one of the three exemptions §7 grants, or as a rule
- * conflict awaiting the product owner's decision; and every entry the manifest names
+ * names as one of the exemptions the definition grants (§7's three, and
+ * §10 note 6: fields v3 added that the May pack predates); and every entry the manifest names
  * must still happen, so the list cannot go stale. A new rule that refuses
  * Signal-grade depth fails here.
  */
@@ -69,12 +69,13 @@ describe("the depth fixture: Signal's May pack against every v3 rule", () => {
     expect(stale, stale.map((e) => `${e.module}.${e.path}: ${e.message}`).join("\n")).toEqual([]);
   });
 
-  it("uses only the three exemptions §7 grants", () => {
-    expect([...new Set(manifest.exemptions.map((e) => e.rule))].every((rule) => ["m04-shape", "m06-buyer-words", "domain-cap"].includes(rule ?? ""))).toBe(true);
+  it("uses only the exemptions the definition grants: §7's three and §10 note 6's fourth", () => {
+    expect([...new Set(manifest.exemptions.map((e) => e.rule))].every((rule) => ["m04-shape", "m06-buyer-words", "domain-cap", "v3-addition"].includes(rule ?? ""))).toBe(true);
+    expect(manifest.ruleConflicts).toEqual([]);
   });
 
-  it("pins the rule conflicts awaiting a decision: five v3 additions the May pack predates", () => {
-    const kinds = [...new Set(manifest.ruleConflicts.map((c) => `${c.module}:${c.path.replace(/\.\d+/g, ".*")}`))].sort();
+  it("names exactly the five fields v3 added that the May pack predates (§10 note 6)", () => {
+    const kinds = [...new Set(manifest.exemptions.filter((e) => e.rule === "v3-addition").map((c) => `${c.module}:${c.path.replace(/\.\d+/g, ".*")}`))].sort();
     expect(kinds).toEqual(["m02:doNothing", "m09:perArchetype.*.angles.*.channelFit", "m09:perArchetype.*.angles.*.confidence", "m18:unknowns.*.queriesTried", "m19:factsVersion"]);
   });
 

@@ -16,10 +16,11 @@ import { factsFileSchema, liveFactIds, toProductFacts } from "@/lib/facts/schema
 describe("the Insights360 facts file", () => {
   const loaded = loadFacts("insights360", 1);
 
-  it("parses, names itself, and is still a draft", () => {
+  it("parses, names itself, and is signed (product owner, 2026-09-10)", () => {
     expect(loaded.file.product).toBe("insights360");
     expect(loaded.file.version).toBe(1);
-    expect(loaded.draft).toBe(true);
+    expect(loaded.draft).toBe(false);
+    expect(loaded.file).toMatchObject({ status: "signed", signedAt: "2026-09-10" });
     expect(loaded.path).toBe(factsPath("insights360", 1));
   });
 
@@ -77,7 +78,7 @@ describe("the Insights360 facts file", () => {
     const base = loaded.file;
     const duplicate = { ...base, facts: [base.facts[0]!, base.facts[0]!] };
     expect(factsFileSchema.safeParse(duplicate).success).toBe(false);
-    const signedWithoutDate = { ...base, status: "signed" };
+    const signedWithoutDate = { ...base, status: "signed", signedAt: undefined };
     expect(factsFileSchema.safeParse(signedWithoutDate).success).toBe(false);
     const signed = { ...base, status: "signed", signedAt: "2026-09-10" };
     expect(factsFileSchema.safeParse(signed).success).toBe(true);

@@ -53,7 +53,8 @@ and dated events are findings with evidence; the campaign agent chooses.
 4. **Wave 3, contradictions** (`purpose: "contradiction"`): at least one query
    per kind of buyer for the opposite claim, for the incumbent, for the
    do-nothing option. Write **m17**.
-5. **Write the rest** from what you hold: m07, m08, m09, m10, m11, m12, m13,
+5. **Write the rest** from what you hold, three to five modules per turn
+   (they no longer depend on each other's results): m07, m08, m09, m10, m11, m12, m13,
    m14, m15, m16, m18, m19, then execSummary, then repSummary.
 6. **Write each module the moment it is ready**, then move on. Never hold
    modules to the end: a rail can end the run at any time, and only modules
@@ -79,12 +80,13 @@ markdown prose for the campaign agent, as long as the market needs. `claims`
 is `Item[]`: the checkable statements the body rests on that have no field of
 their own. Do not send `status`; the runtime sets it.
 
-`Item = { id, text (≤600), quote?, speaker?, role?, publishedAt?, accessedAt,
+`Item = { id, text (≤2000), quote?, speaker?, role?, publishedAt?, accessedAt,
 evidence: { urls: [..], primary: bool, domains: [..] }, confidence,
 inferredFrom? }`.
-`Phrase = Item & { say (≤300), notThis?, notBuyer: bool }`.
+`Phrase = Item & { say (≤1000), notThis?, notBuyer: bool }`.
 Every Item or Phrase anywhere in a module is checked against the pages you
-read.
+read, except an honest guess: `speculative`, no url, and `inferredFrom` saying
+what it rests on. Use that shape for inferences; never invent a citation.
 
 ## The modules (field names are exact; floors are refused if unmet)
 - **m00 Steering note.** `hardFilters: { geography[≥1], sizeCap?, subSectorsIn[],
@@ -92,7 +94,7 @@ read.
   `readyNow[≥1]`, `mustNotLead[]`, `offerHook[]` (live fact ids),
   `priorPacksRead[]`, `hypotheses[]`. Good: the regulatory clock named with its
   date, the incumbent practice being displaced, and what is OUT stated plainly.
-- **repSummary.** `lines`: exactly five, ≤300 characters each, in rep words —
+- **repSummary.** `lines`: exactly five, ≤400 characters each, in rep words —
   who to reach, why now, what to say first, the biggest unknown, the size of
   the opportunity.
 - **execSummary.** `wedge`, `icp`, `archetypesNamed[≥1]`,
@@ -148,7 +150,9 @@ read.
   association|community|review-site|publication, name, url, date?, audience,
   why, archetypeIds? }`. A person appears only as the author of a source.
 - **m11 Objections.** `perArchetype[]` each `{ archetypeId, objections[≥3]
-  { objection, answer?, factIds[] } }`. Answer only from live facts and the
+  { objection, answer?, factIds[], notYetFactIds? } }`.
+  When the honest answer is "not today", cite the planned fact that says so
+  in `notYetFactIds` and say plainly it is not available; never promise it. Answer only from live facts and the
   shipped column; with no grounded answer, leave `answer` out.
 - **m12 Contact rules.** `rules[≥1]` each `{ channel, region, rule, source
   (url), bars: bool }` — at least one rule for every channel on the card.

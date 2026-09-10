@@ -6,6 +6,7 @@ import {
   MODULE_IDS,
   domainCounts,
   moduleFactIds,
+  moduleNotYetFactIds,
   moduleOwnIds,
   type CompleteModule,
   type ModuleId,
@@ -33,6 +34,8 @@ export type ModuleWriteContext = {
   /** The modules accepted so far on this job, by id, latest version each. */
   accepted: Partial<Record<ModuleId, unknown>>;
   liveFactIds: ReadonlySet<string>;
+  /** Fact ids in the facts file that are not retired: what an m11 "not today" may cite (§10 note 9). */
+  knownFactIds?: ReadonlySet<string>;
   now: Date;
 };
 
@@ -73,6 +76,13 @@ export function checkModuleWrite(id: ModuleId, content: unknown, context: Module
   for (const { where, ids } of moduleFactIds(pack, id)) {
     const dead = ids.filter((factId) => !context.liveFactIds.has(factId));
     if (dead.length > 0) issues.push(`${where}: ${dead.map((d) => JSON.stringify(d)).join(", ")} ${dead.length === 1 ? "is" : "are"} not a live fact id`);
+  }
+
+  if (context.knownFactIds !== undefined) {
+    for (const { where, ids } of moduleNotYetFactIds(pack, id)) {
+      const unknown = ids.filter((factId) => !context.knownFactIds!.has(factId));
+      if (unknown.length > 0) issues.push(`${where}: ${unknown.map((d) => JSON.stringify(d)).join(", ")} ${unknown.length === 1 ? "is" : "are"} not in the facts file, or retired`);
+    }
   }
 
   if (id === "repSummary") {

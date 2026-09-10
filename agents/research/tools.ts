@@ -121,6 +121,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
   let factsRead = false;
   const now = deps.now ?? (() => new Date());
   const live = liveFactIds(deps.facts);
+  const known = new Set(deps.facts.facts.filter((fact) => fact.status !== "retired").map((fact) => fact.id));
   // The run's view of what is written, seeded from the job's earlier runs.
   const accepted: Partial<Record<ModuleId, Record<string, unknown>>> = latestModules(deps.priorWrites);
   const refused = refusals(deps.priorWrites);
@@ -227,7 +228,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     output: moduleWriteOutputSchema,
     execute: async (args) => {
       const digest = contentDigest(args.content);
-      const check = checkModuleWrite(args.module, args.content, { accepted, liveFactIds: live, now: now() });
+      const check = checkModuleWrite(args.module, args.content, { accepted, liveFactIds: live, knownFactIds: known, now: now() });
       if (check.ok) {
         if (check.demoted.length > 0) deps.log?.({ event: "research.module.demoted", module: args.module, demoted: check.demoted });
         return { accepted: true, module: args.module, digest, stored: check.module as Record<string, unknown> };

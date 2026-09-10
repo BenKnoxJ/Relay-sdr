@@ -170,6 +170,14 @@ export function moduleFactIds(pack: PackShape, id: ModuleId): Array<{ where: str
   }
 }
 
+/** m11's "not today" citations: fact ids that must exist in the facts file and not be retired (§10 note 9). */
+export function moduleNotYetFactIds(pack: PackShape, id: ModuleId): Array<{ where: string; ids: string[] }> {
+  if (id !== "m11") return [];
+  return (completeModule(pack, "m11")?.perArchetype ?? []).flatMap((p, i) =>
+    p.objections.map((o, j) => ({ where: `m11.perArchetype.${i}.objections.${j}.notYetFactIds`, ids: o.notYetFactIds ?? [] })),
+  );
+}
+
 /** Every `Item` in the pack. */
 export function packItems(pack: PackShape): Item[] {
   const items: Item[] = [];

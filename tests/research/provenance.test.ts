@@ -97,4 +97,19 @@ describe("checkProvenance", () => {
     expect(report.modules.filter((m) => m.rejected).map((m) => m.module)).toEqual(["m05"]);
     expect(report.failed.every((f) => f.module === "m05")).toBe(true);
   });
+
+  it("does not count an honest guess — speculative, no url, inferredFrom — as a failure (§10 note 10)", () => {
+    const pack = researchOutputSchema.parse(goodPack());
+    const corpus = createCorpus();
+    for (const it of packItems(pack)) for (const url of it.evidence.urls) corpus.addPage(url, `${it.text} ${it.quote ?? ""}`);
+    const guess = { id: "guess-1", text: "Most firms in the band run a single phone line", accessedAt: "2026-09-10", evidence: { urls: [], primary: false, domains: [] }, confidence: "speculative" as const, inferredFrom: "the size bands in m01" };
+    const m14 = (pack.modules as Record<string, { claims: unknown[] }>).m14!;
+    m14.claims = [guess];
+    const { report } = checkProvenance(pack, corpus);
+    expect(report.failed).toEqual([]);
+    expect(report.modules.find((m) => m.module === "m14")).toBeUndefined();
+    // A claim that cites nothing and does not say it is a guess is still a failure.
+    m14.claims = [{ ...guess, confidence: "weak", inferredFrom: undefined, evidence: { urls: ["https://nowhere.example/"], primary: false, domains: ["nowhere.example"] } }];
+    expect(checkProvenance(pack, corpus).report.failed.map((f) => f.id)).toEqual(["guess-1"]);
+  });
 });

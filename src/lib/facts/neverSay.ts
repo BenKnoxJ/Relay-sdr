@@ -101,6 +101,21 @@ const GUIDANCE =
  */
 const PRODUCT = /\b(?:insights ?360|the product|the platform|our (?:platform|product|tool|service)|we)\b/i;
 
+/**
+ * Negation after the phrase, in the same sentence: "…in-app audio playback as
+ * not shipped" is an honest statement of a gap (brief A, m02, 2026-09-10). Kept
+ * tight — "not just", "not only" are not negations of the phrase.
+ */
+const GUIDANCE_AFTER =
+  /\b(?:(?:is|are|was|as|remains?|still)\s+(?:not|n['’]t)\s+(?:yet\s+)?(?:shipped|available|live|built|supported|included|offered|in the product)|not (?:yet )?(?:shipped|available|live)|(?:is|are) planned|planned,? not shipped|on the roadmap|unavailable|(?:is|are) missing|does not (?:exist|have it)|lacks?)\b/i;
+
+/** The rest of the sentence after a match. */
+function sentenceAfter(text: string, end: number): string {
+  const rest = text.slice(end);
+  const stop = rest.search(/[.;\n!?](?:\s|$)/);
+  return stop === -1 ? rest : rest.slice(0, stop);
+}
+
 /** The sentence up to a match: from the last sentence end before it. */
 function sentenceBefore(text: string, index: number): string {
   let start = 0;
@@ -127,7 +142,7 @@ export function neverSayIssues(texts: ReadonlyArray<NeverSayText>, list: Pick<Ne
         if (match[0].length === 0) continue;
         const before = sentenceBefore(text, match.index ?? 0);
         if (entry.productOnly !== false && aboutProduct !== true && !PRODUCT.test(`${before}${match[0]}`)) continue;
-        if (entry.negatable !== false && GUIDANCE.test(before)) continue;
+        if (entry.negatable !== false && (GUIDANCE.test(before) || GUIDANCE_AFTER.test(sentenceAfter(text, (match.index ?? 0) + match[0].length)))) continue;
         issues.push(`${where}: says "${match[0]}" — say instead: ${entry.sayInstead} (${entry.why})`);
       }
     }

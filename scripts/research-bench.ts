@@ -50,10 +50,12 @@ type Args = {
   priorPacks: string[];
   modules?: ModuleId[];
   recordStream: boolean;
+  /** Resume an existing bench job: every stored call and module replays, and only the unfinished part runs. */
+  job?: string;
 };
 
 const USAGE =
-  "usage: research-bench.ts <brief.md> [--name n] [--tools mock|live|record] [--expect-insufficient] [--prior-from <fixture name>] [--prior-packs <eventId,...>] [--modules m01,m02] [--record-stream]";
+  "usage: research-bench.ts <brief.md> [--name n] [--tools mock|live|record] [--expect-insufficient] [--prior-from <fixture name>] [--prior-packs <eventId,...>] [--modules m01,m02] [--record-stream] [--job <jobId>]";
 
 function parseArgs(argv: string[]): Args {
   const [brief, ...rest] = argv;
@@ -74,6 +76,7 @@ function parseArgs(argv: string[]): Args {
     if (flag === "--name") args.name = value;
     else if (flag === "--tools" && (value === "mock" || value === "live" || value === "record")) args.tools = value;
     else if (flag === "--prior-from") args.priorFrom = value;
+    else if (flag === "--job") args.job = value;
     else if (flag === "--prior-packs") args.priorPacks = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     else if (flag === "--modules") args.modules = parseModules(value);
     else throw new Error(`unknown argument ${flag} ${value}\n${USAGE}`);
@@ -133,7 +136,11 @@ async function main(): Promise<number> {
   if ((await prisma.org.findUnique({ where: { id: orgId } })) === null) {
     await mutate(prisma, { orgId, actor: { kind: "system" }, kind: "org.created", apply: (tx) => tx.org.create({ data: { id: orgId, name: "bench" } }) });
   }
-  const { job } = await enqueue(prisma, { orgId, kind: "research_bench", idempotencyKey: `bench:research:${args.name}:${randomUUID()}`, input: JSON.parse(JSON.stringify(jobInput)) });
+  // `--job`: resume that job (its stored calls and modules replay for free); otherwise a new one.
+  const job =
+    args.job === undefined
+      ? (await enqueue(prisma, { orgId, kind: "research_bench", idempotencyKey: `bench:research:${args.name}:${randomUUID()}`, input: JSON.parse(JSON.stringify(jobInput)) })).job
+      : await prisma.job.findUniqueOrThrow({ where: { id: args.job } });
   if (args.recordStream) {
     const runDir = path.join(homedir(), ".relay", "agents", "research", "runs", job.id);
     mkdirSync(runDir, { recursive: true });

@@ -1,0 +1,11 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://www.sra.org.uk/news/news/releases/safeguards-protect-client-money"
+  },
+  "response": {
+    "unreadable": true,
+    "reason": "firecrawl: timed out"
+  },
+  "recordedAt": "2026-09-10T09:53:21.916Z"
+}

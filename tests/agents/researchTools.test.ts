@@ -138,7 +138,7 @@ describe("the research tools", () => {
     expect(steps[3]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "search", searchDiscriminator({ query: "claims backlog UK insurers", region: "GB" })));
     expect(steps[4]?.toolKey).toBe(toolKey(ORG_ID, jobId, "research", "fetch", fetchDiscriminator(PAGE_URL)));
 
-    expect(steps[0]?.output).toMatchObject({ product: "insights360", version: 1, draft: true });
+    expect(steps[0]?.output).toMatchObject({ product: "insights360", version: 1, draft: false });
     expect(JSON.stringify(steps[0]?.output)).not.toContain("/home/");
     // The knowledge set: one article, versioned, the roadmap's shipped column in it.
     expect(steps[1]?.output).toMatchObject({ article: "roadmap", version: 1 });

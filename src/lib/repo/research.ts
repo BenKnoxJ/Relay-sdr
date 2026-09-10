@@ -1,4 +1,4 @@
-import { Prisma, type Event, type PrismaClient } from "@prisma/client";
+import { Prisma, type AgentRunStep, type Event, type PrismaClient } from "@prisma/client";
 
 import { mutate } from "./mutate";
 
@@ -89,6 +89,26 @@ export async function findResearchCompletedForJob(
     where: { orgId: where.orgId, kind: RESEARCH_COMPLETED, after: { path: ["jobId"], equals: where.jobId } },
     orderBy: { at: "asc" },
   });
+}
+
+/**
+ * Every tool step of every run of a job, in the order they happened (runs by
+ * creation, steps by index). Research v3 assembles the pack from the
+ * `writeModule` steps and rebuilds the corpus from the search and fetch steps
+ * across runs, so a retry keeps what an earlier run wrote and read.
+ */
+export async function listJobToolSteps(db: PrismaClient, where: { orgId: string; jobId: string }): Promise<AgentRunStep[]> {
+  const runs = await db.agentRun.findMany({ where: { orgId: where.orgId, jobId: where.jobId }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  if (runs.length === 0) return [];
+  const order = new Map(runs.map((run, i) => [run.id, i]));
+  const steps = await db.agentRunStep.findMany({ where: { orgId: where.orgId, runId: { in: runs.map((run) => run.id) }, kind: "tool" } });
+  return steps.sort((a, b) => (order.get(a.runId) ?? 0) - (order.get(b.runId) ?? 0) || a.index - b.index);
+}
+
+/** This org's completed research packs by Event id, oldest first: the prior packs a run may read (v3 §4). */
+export async function findResearchPacks(db: PrismaClient, where: { orgId: string; ids: readonly string[] }): Promise<Event[]> {
+  if (where.ids.length === 0) return [];
+  return db.event.findMany({ where: { orgId: where.orgId, kind: RESEARCH_COMPLETED, id: { in: [...where.ids] } }, orderBy: { at: "asc" } });
 }
 
 function isUniqueViolation(error: unknown): boolean {

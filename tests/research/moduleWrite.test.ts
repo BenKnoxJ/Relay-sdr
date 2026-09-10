@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+
+import { MODULE_IDS } from "../../agents/research/output.schema";
+import { loadFacts } from "@/lib/facts/load";
+import { liveFactIds } from "@/lib/facts/schema";
+import { checkModuleWrite } from "@/lib/research/moduleWrite";
+
+import { goodPack, moduleContent } from "../agents/researchPack";
+
+/**
+ * The check `writeModule` runs on each module as it is written (research v3
+ * §7 "On write"): schema and floors, demotion, the per-module domain cap and
+ * its primary-source carve-out, live fact ids, ids unique against what is
+ * already accepted, rep words on the rep summary.
+ */
+
+const facts = loadFacts("insights360", 1).facts;
+const live = liveFactIds(facts);
+const liveId = [...live][0]!;
+const plannedId = facts.facts.find((fact) => fact.status === "planned")!.id;
+const now = new Date();
+
+const content = (id: (typeof MODULE_IDS)[number]): Record<string, unknown> => structuredClone(moduleContent(goodPack({ liveFactId: liveId }), id));
+
+describe("checkModuleWrite", () => {
+  it("accepts every module of the complete pack, written in order, and sets the status itself", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of MODULE_IDS) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      expect(check.module.status).toBe("complete");
+      accepted[id] = check.module;
+    }
+  });
+
+  it("refuses a module under its floor, with the issue named", () => {
+    const m03 = content("m03") as { archetypes: unknown[] };
+    m03.archetypes = m03.archetypes.slice(0, 2);
+    const check = checkModuleWrite("m03", m03, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/archetypes/);
+  });
+
+  it("refuses a fourth page from one domain in a module, and exempts a primary source", () => {
+    const m05 = content("m05") as { perArchetype: Array<{ pains: Array<{ evidence: { urls: string[]; domains: string[]; primary: boolean } }> }> };
+    m05.perArchetype[0]!.pains.forEach((pain, i) => {
+      pain.evidence = { urls: [`https://onedomain.test/page-${i}`], domains: ["onedomain.test"], primary: false };
+    });
+    const refused = checkModuleWrite("m05", m05, { accepted: {}, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/4 pages from onedomain\.test in this module; the cap is 3/);
+
+    for (const pain of m05.perArchetype[0]!.pains) pain.evidence.primary = true;
+    expect(checkModuleWrite("m05", m05, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("exempts the regulator m01 names as a primary source for later modules", () => {
+    const accepted: Record<string, unknown> = {};
+    const m01 = content("m01") as { bodies: Array<{ url?: string }> };
+    m01.bodies = [{ ...m01.bodies[0], url: "https://onedomain.test/" } as { url?: string }];
+    const first = checkModuleWrite("m01", m01, { accepted, liveFactIds: live, now });
+    if (!first.ok) throw new Error(first.issues.join("; "));
+    accepted.m01 = first.module;
+    const m05 = content("m05") as { perArchetype: Array<{ pains: Array<{ evidence: { urls: string[]; domains: string[]; primary: boolean } }> }> };
+    m05.perArchetype[0]!.pains.forEach((pain, i) => {
+      pain.evidence = { urls: [`https://onedomain.test/page-${i}`], domains: ["onedomain.test"], primary: false };
+    });
+    expect(checkModuleWrite("m05", m05, { accepted, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("refuses an id another accepted module already uses", () => {
+    const accepted: Record<string, unknown> = {};
+    const m01 = checkModuleWrite("m01", content("m01"), { accepted, liveFactIds: live, now });
+    if (!m01.ok) throw new Error(m01.issues.join("; "));
+    accepted.m01 = m01.module;
+    const exec = content("execSummary") as { claims: Array<{ id: string }> };
+    exec.claims[0]!.id = "market-1";
+    const check = checkModuleWrite("execSummary", exec, { accepted, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/"market-1" is already used by another module/);
+  });
+
+  it("refuses a fact id that is not live", () => {
+    const m15 = content("m15") as { proof: Array<{ factId: string }> };
+    m15.proof[0]!.factId = plannedId;
+    const check = checkModuleWrite("m15", m15, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toContain(plannedId);
+  });
+
+  it("checks rep words on the rep summary, and not on a module body the campaign agent reads", () => {
+    const rep = content("repSummary") as { lines: string[] };
+    rep.lines[0] = "The orchestrator will start an agent run for this persona.";
+    expect(checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now }).ok).toBe(false);
+    const m01 = content("m01") as { body: string };
+    m01.body = "The persona and ICP analysis the orchestrator reads.";
+    expect(checkModuleWrite("m01", m01, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("demotes a stale strong trigger on write and accepts it", () => {
+    const m01 = content("m01") as { triggers: Array<{ publishedAt: string; confidence: string; evidence: { primary: boolean } }> };
+    m01.triggers[0]!.publishedAt = "2024-01-15";
+    m01.triggers[0]!.confidence = "strong";
+    m01.triggers[0]!.evidence.primary = true;
+    const check = checkModuleWrite("m01", m01, { accepted: {}, liveFactIds: live, now });
+    if (!check.ok) throw new Error(check.issues.join("; "));
+    expect(check.demoted).toHaveLength(1);
+    expect((check.module as { triggers: Array<{ confidence: string }> }).triggers[0]!.confidence).toBe("weak");
+  });
+});

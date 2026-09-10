@@ -4,10 +4,11 @@ import path from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import goodPack from "../../agents/research/fixtures/output.good.json";
-import { packItems, researchOutputSchema, type ResearchPack } from "../../agents/research/output.schema";
+import { MODULE_IDS, moduleItems, researchOutputSchema, type ModuleId, type PackShape } from "../../agents/research/output.schema";
+import type { AgentBudget } from "@/lib/agents/definitions";
 import { prisma } from "@/lib/db";
 import { loadFacts } from "@/lib/facts/load";
+import { moduleWritesFromSteps } from "@/lib/research/assemble";
 import { RESEARCH_COMPLETED } from "@/lib/repo/research";
 import { fetchDiscriminator, searchDiscriminator, writeRecording } from "@/lib/services";
 import { TerminalError } from "@/worker/errors";
@@ -15,57 +16,42 @@ import { researchHandler, withUnreadableUnknowns, type ResearchHandlerDeps } fro
 
 import { emptyAll, resetDatabase } from "../db/harness";
 import { ORG_ID, scriptedModel, seedJob, seedOrg, type ScriptedCall } from "../agents/harness";
+import { citedPages, goodPack, mod, moduleContent } from "../agents/researchPack";
 
 /**
- * The research job on the worker's handler, with the scripted model and the
- * mock providers: the happy path, the automatic provenance re-run, the second
- * failure, the cap, the runtime's own unknowns, and one Event per job.
+ * The research job (v3) on the worker's handler, with the scripted model and
+ * the mock providers: the whole pack written module by module; a rail that
+ * stores a partial pack and completes; a kill mid-run whose retry keeps the
+ * first run's modules; the re-ask of only the modules that failed provenance
+ * or were never written; a module refused twice stored insufficient; and one
+ * Event per job.
  */
 
 const dir = mkdtempSync(path.join(tmpdir(), "relay-research-handler-"));
 const facts = loadFacts("insights360", 1);
-const LIVE_ID = [...facts.facts.facts].find((fact) => fact.status === "live")!.id;
-const PAGE_URL = "https://claims.example/backlog";
-const DEAD_URL = "https://dead.example/gone";
-const QUERY = { query: "claims backlog UK insurers", region: "GB" };
+const LIVE_ID = facts.facts.facts.find((fact) => fact.status === "live")!.id;
+const PACK = goodPack({ liveFactId: LIVE_ID });
+const PAGES = citedPages(PACK);
+const RAILS: AgentBudget = { maxModelSteps: 300, maxSearches: 20, maxFetches: 200, maxSeconds: 600 };
+const BRIEF = { product: "Insights360", motion: "direct", who: "claims ops people at mid-sized UK insurers", region: "GB", howMany: 20, weeks: 3, channels: ["email"] };
 
-/** Where item number `i` is cited: its own domain, so the pack stays under the domain cap. */
-const itemUrl = (i: number): string => `https://source-${i}.example/page`;
+const usage = { in: 10, out: 5 };
+const call = (name: string, args: unknown): ScriptedCall => ({ tool: { name, args }, usage });
+const facts0 = call("facts", {});
+const fetches = (urls: string[]): ScriptedCall[] => urls.map((url) => call("fetch", { url }));
+const writes = (ids: readonly ModuleId[], pack: PackShape = PACK): ScriptedCall[] => ids.map((id) => call("writeModule", { module: id, content: moduleContent(pack, id) }));
+const answer = (ids: readonly ModuleId[]): ScriptedCall => ({ text: JSON.stringify({ modulesWritten: ids }), usage });
+const urlsOf = (ids: readonly ModuleId[]): string[] => ids.flatMap((id) => moduleItems(PACK, id).flatMap((item) => item.evidence.urls));
+const ALL_URLS = PAGES.map((page) => page.url);
+const except = <T,>(list: readonly T[], drop: readonly unknown[]): T[] => list.filter((x) => !drop.includes(x));
 
-/** The good fixture, made citable: every item points at its own recorded page, and the hook cites a live fact. */
-function citablePack(): ResearchPack {
-  const pack = researchOutputSchema.parse(structuredClone(goodPack));
-  packItems(pack).forEach((item, i) => {
-    item.evidence = { urls: [itemUrl(i)], primary: item.evidence.primary, domains: [`source-${i}.example`] };
-    if (item.confidence === "strong" && !item.evidence.primary) item.confidence = "weak";
-    if (item.confidence === "moderate") item.confidence = "weak";
-  });
-  pack.hook.answeredBy = [LIVE_ID];
-  return pack;
-}
-
-/** One recorded page per item, carrying the item's text, so provenance can pass. */
-function recordPages(pack: ResearchPack): void {
-  packItems(pack).forEach((item, i) => {
-    writeRecording(dir, "scrape", fetchDiscriminator(itemUrl(i)), { tool: "scrape", args: { url: itemUrl(i) }, response: { markdown: `${item.text}\n${item.quote ?? ""}` } });
-  });
-}
-
-/** The fetches a run has to make for every item to be in the corpus. */
-function fetchAll(pack: ResearchPack): ScriptedCall[] {
-  return packItems(pack).map((_, i) => call("fetch", { url: itemUrl(i) }));
-}
-
-const call = (name: string, args: unknown): ScriptedCall => ({ tool: { name, args }, usage: { in: 10, out: 5 } });
-const answer = (pack: ResearchPack): ScriptedCall => ({ text: JSON.stringify(pack), usage: { in: 10, out: 5 } });
-
-/** Deps whose model is a queue of scripts, one per attempt. */
+/** Deps whose model is a queue of scripts, one per attempt, across handler calls. */
 function deps(scripts: ScriptedCall[][], over: Partial<ResearchHandlerDeps> = {}): ResearchHandlerDeps & { attempts: () => number } {
   let attempts = 0;
   return {
     mode: "mock",
     fixturesDir: dir,
-    priorKnowledgeDir: path.join(process.cwd(), "fixtures", "prior-knowledge"),
+    budget: RAILS,
     makeModel: () => {
       const script = scripts[attempts] ?? scripts.at(-1)!;
       attempts += 1;
@@ -81,14 +67,31 @@ async function jobRow(input: unknown) {
   return prisma.job.findUniqueOrThrow({ where: { id } });
 }
 
-const BRIEF = { product: "Insights360", motion: "direct", who: "claims ops people at mid-sized UK insurers", region: "GB", howMany: 20, weeks: 3, channels: ["email"] };
+type After = {
+  jobId: string;
+  pack: PackShape;
+  partial: boolean;
+  missingModules: string[];
+  knowledge: { version: number; hash: string };
+  facts: { version: number; draft: boolean };
+  report: { attempts: number; reasked: string[][]; insufficientModules: string[]; endings: Array<{ ending: string }>; provenance: Array<{ rejected: boolean; modules: Array<{ module: string; rejected: boolean }> }> };
+};
+
+async function after(eventId: string): Promise<After> {
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+  expect(event.kind).toBe(RESEARCH_COMPLETED);
+  return event.after as After;
+}
+
+const signal = () => new AbortController().signal;
 
 beforeAll(async () => {
   await resetDatabase();
-  const pack = citablePack();
-  writeRecording(dir, "search", searchDiscriminator(QUERY), { tool: "search", args: QUERY, response: { hits: [{ title: "Backlog", url: PAGE_URL, snippet: "the complaints backlog doubled" }] } });
-  writeRecording(dir, "scrape", fetchDiscriminator(PAGE_URL), { tool: "scrape", args: { url: PAGE_URL }, response: { markdown: "the complaints backlog doubled" } });
-  recordPages(pack);
+  for (const page of PAGES) writeRecording(dir, "scrape", fetchDiscriminator(page.url), { tool: "scrape", args: { url: page.url }, response: { markdown: page.text } });
+  for (const i of [0, 1, 2]) {
+    const q = { query: `q${i}`, region: "GB" };
+    writeRecording(dir, "search", searchDiscriminator(q), { tool: "search", args: q, response: { hits: [] } });
+  }
 }, 120_000);
 afterAll(async () => {
   rmSync(dir, { recursive: true, force: true });
@@ -99,121 +102,120 @@ beforeEach(async () => {
   await seedOrg();
 });
 
-describe("the research job", () => {
-  it("runs the definition, checks provenance, ingests, and writes one Event with the pack", async () => {
+describe("the research job (v3)", () => {
+  it("writes the pack module by module, checks provenance, ingests, and writes one Event", async () => {
     const job = await jobRow({ brief: BRIEF });
-    const pack = citablePack();
-    const d = deps([[call("facts", {}), call("search", QUERY), ...fetchAll(pack), answer(pack)]], { budget: { maxModelSteps: 80, maxSearches: 20, maxFetches: 60, maxSeconds: 480 } });
-    const result = (await researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
-
-    const event = await prisma.event.findUniqueOrThrow({ where: { id: result.eventId } });
-    expect(event.kind).toBe(RESEARCH_COMPLETED);
-    const after = event.after as { jobId: string; pack: ResearchPack; report: { provenance: Array<{ failed: unknown[] }>; attempts: number; actuals: { searches: number; fetches: number } }; facts: { version: number; draft: boolean }; breadth: string };
-    expect(after.jobId).toBe(job.id);
-    expect(after.breadth).toBe("narrow");
-    expect(after.facts).toMatchObject({ version: 1, draft: true });
-    expect(after.report.attempts).toBe(1);
-    expect(after.report.provenance[0]?.failed).toEqual([]);
-    expect(after.report.actuals).toMatchObject({ searches: 1, fetches: packItems(pack).length });
-    expect(researchOutputSchema.safeParse(after.pack).success).toBe(true);
-    // The org pinned the facts file.
-    expect(await prisma.productFactsVersion.count({ where: { orgId: ORG_ID, product: "insights360", version: 1 } })).toBe(1);
-    // The guard row.
+    const d = deps([[facts0, ...fetches(ALL_URLS), ...writes(MODULE_IDS), answer(MODULE_IDS)]]);
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect(a.jobId).toBe(job.id);
+    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 1, draft: true } });
+    expect(a.report).toMatchObject({ attempts: 1, reasked: [], insufficientModules: [] });
+    expect(a.report.provenance[0]?.rejected).toBe(false);
+    expect(researchOutputSchema.safeParse(a.pack).success).toBe(true);
     expect(await prisma.sideEffect.count({ where: { key: `research:${job.id}` } })).toBe(1);
-    expect(d.attempts()).toBe(1);
 
     // A retry of the same job returns the same Event and runs nothing.
-    const again = (await researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
+    const again = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     expect(again.eventId).toBe(result.eventId);
     expect(d.attempts()).toBe(1);
-    expect(await prisma.event.count({ where: { kind: RESEARCH_COMPLETED } })).toBe(1);
   });
 
-  it("re-runs once with the failures named when provenance fails, then ingests the second pack", async () => {
+  it("stores the modules already written as a partial pack when a rail ends the run, and completes the job", async () => {
     const job = await jobRow({ brief: BRIEF });
-    const bad = citablePack();
-    // Nothing fetched: every item fails provenance on attempt 1.
-    const good = citablePack();
-    const d = deps(
-      [
-        [call("facts", {}), answer(bad)],
-        [call("facts", {}), call("search", QUERY), ...fetchAll(good), answer(good)],
-      ],
-      { budget: { maxModelSteps: 80, maxSearches: 20, maxFetches: 60, maxSeconds: 480 } },
-    );
-    const result = (await researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
-    expect(d.attempts()).toBe(2);
-    const event = await prisma.event.findUniqueOrThrow({ where: { id: result.eventId } });
-    const after = event.after as { report: { attempts: number; provenance: Array<{ rejected: boolean; failed: unknown[] }> } };
-    expect(after.report.attempts).toBe(2);
-    expect(after.report.provenance[0]?.rejected).toBe(true);
-    expect(after.report.provenance[1]?.rejected).toBe(false);
-    // Two runs on the job, both recorded.
+    const first = ["m00", "repSummary", "execSummary", "m01", "m02"] as const;
+    const script = [facts0, ...fetches(urlsOf(first)), ...writes(first), call("search", { query: "q0", region: "GB" }), call("search", { query: "q1", region: "GB" }), answer(first)];
+    const d = deps([script], { budget: { ...RAILS, maxSearches: 1 } });
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect(a.partial).toBe(true);
+    expect(a.missingModules).toEqual(except(MODULE_IDS, first));
+    expect(Object.keys(a.pack.modules).sort()).toEqual([...first].sort());
+    expect(a.report.endings).toEqual([expect.objectContaining({ ending: "rail" })]);
+    // A rail is not re-asked: the budget is spent.
+    expect(a.report.reasked).toEqual([]);
+    expect(d.attempts()).toBe(1);
+  });
+
+  it("keeps what the first run wrote after a kill: the retry writes only the rest, and no key runs twice", async () => {
+    const job = await jobRow({ brief: BRIEF });
+    const firstHalf = MODULE_IDS.slice(0, 10);
+    const secondHalf = MODULE_IDS.slice(10);
+    // Attempt 1 dies after its tenth module: the script runs out where a worker would be killed.
+    const killed = [facts0, ...fetches(ALL_URLS), ...writes(firstHalf)];
+    const rest = [facts0, ...writes(secondHalf), answer(MODULE_IDS)];
+    const d = deps([killed, rest]);
+    await expect(researchHandler(d)({ db: prisma, job, signal: signal() })).rejects.toThrow();
+    expect(await prisma.event.count({ where: { kind: RESEARCH_COMPLETED } })).toBe(0);
+
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect(a).toMatchObject({ partial: false, missingModules: [] });
+    // Provenance passed on the retry from the pages the first run fetched.
+    expect(a.report.provenance.every((report) => !report.rejected)).toBe(true);
+    const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" } });
+    expect(moduleWritesFromSteps(steps).map((w) => w.module).sort()).toEqual([...MODULE_IDS].sort());
+    const keys = (await prisma.agentRunStep.findMany({ where: { kind: "tool" } })).map((s) => s.toolKey).filter((k) => k !== null);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("re-asks only the module that failed provenance, and ingests the second attempt", async () => {
+    const job = await jobRow({ brief: BRIEF });
+    const m05Urls = urlsOf(["m05"]);
+    const first = [facts0, ...fetches(except(ALL_URLS, m05Urls)), ...writes(MODULE_IDS), answer(MODULE_IDS)];
+    const second = [facts0, ...fetches(m05Urls), ...writes(["m05"]), answer(MODULE_IDS)];
+    const d = deps([first, second]);
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect(a.report.attempts).toBe(2);
+    expect(a.report.reasked).toEqual([["m05"]]);
+    expect(a.report.provenance[0]?.modules.filter((m) => m.rejected).map((m) => m.module)).toEqual(["m05"]);
+    expect(a.report.provenance[1]?.rejected).toBe(false);
+    expect(mod(a.pack, "m05").perArchetype[0]!.pains[0]!.confidence).toBe("weak");
     expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(2);
   });
 
-  it("fails the job as bad_output when the second pack fails provenance too", async () => {
+  it("re-asks a module that was never written", async () => {
     const job = await jobRow({ brief: BRIEF });
-    const bad = citablePack();
-    const d = deps([[call("facts", {}), answer(bad)]]);
-    await expect(researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })).rejects.toThrow(/bad_output/);
-    await expect(researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })).rejects.toBeInstanceOf(TerminalError);
-    expect(await prisma.event.count({ where: { kind: RESEARCH_COMPLETED } })).toBe(0);
+    const withoutM19 = except(MODULE_IDS, ["m19"]);
+    const d = deps([
+      [facts0, ...fetches(ALL_URLS), ...writes(withoutM19), answer(withoutM19)],
+      [facts0, ...writes(["m19"]), answer(["m19"])],
+    ]);
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect(a.report.reasked).toEqual([["m19"]]);
+    expect(a).toMatchObject({ partial: false, missingModules: [] });
   });
 
-  it("replays every stored tool call after a kill mid-run: no key runs twice, and the budget resumes (rubric check 9)", async () => {
+  it("stores a module refused twice as insufficient, and the pack still completes", async () => {
     const job = await jobRow({ brief: BRIEF });
-    const pack = citablePack();
-    const fetches = fetchAll(pack);
-    const budget = { maxModelSteps: 80, maxSearches: 20, maxFetches: 60, maxSeconds: 480 };
-    // Attempt 1 dies after its fourth tool call: the script runs out where a
-    // worker would have been killed, and the model loop fails.
-    const killed = [call("facts", {}), call("search", QUERY), ...fetches.slice(0, 2)];
-    const whole = [call("facts", {}), call("search", QUERY), ...fetches, answer(pack)];
-    const d = deps([killed, whole], { budget });
-    await expect(researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })).rejects.toThrow();
-    const firstRun = await prisma.agentRun.findFirstOrThrow({ where: { jobId: job.id } });
-    const stored = await prisma.agentRunStep.findMany({ where: { runId: firstRun.id, kind: "tool" }, orderBy: { index: "asc" } });
-    expect(stored.map((step) => step.name)).toEqual(["facts", "search", "fetch", "fetch"]);
-    expect(stored.every((step) => step.toolKey !== null)).toBe(true);
-
-    // The retry. Every call the first attempt stored is answered from its row.
-    const result = (await researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })) as { eventId: string };
-    const runs = await prisma.agentRun.findMany({ where: { jobId: job.id }, orderBy: { createdAt: "asc" } });
-    expect(runs).toHaveLength(2);
-    const secondSteps = await prisma.agentRunStep.findMany({ where: { runId: runs[1]!.id, kind: "tool" }, orderBy: { index: "asc" } });
-    // Only the calls the first attempt never reached get a row of their own.
-    expect(secondSteps.map((step) => step.name)).toEqual(fetches.slice(2).map(() => "fetch"));
-    const allKeys = [...stored, ...secondSteps].map((step) => step.toolKey);
-    expect(new Set(allKeys).size).toBe(allKeys.length);
-    // The budget resumed: the second attempt's spend is the calls it made, not
-    // a fresh count of everything it asked for.
-    const event = await prisma.event.findUniqueOrThrow({ where: { id: result.eventId } });
-    const after = event.after as { report: { actuals: { searches: number; fetches: number } } };
-    expect(after.report.actuals).toMatchObject({ searches: 0, fetches: fetches.length - 2 });
+    const thin = (n: number) => ({ ...moduleContent(PACK, "m03"), body: `thin ${n}`, archetypes: (moduleContent(PACK, "m03").archetypes as unknown[]).slice(0, 2) });
+    const others = except(MODULE_IDS, ["m03"]);
+    const script = [facts0, ...fetches(ALL_URLS), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), ...writes(others), answer(others)];
+    const d = deps([script]);
+    const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
+    const a = await after(result.eventId);
+    expect((a.pack.modules as Record<string, { status: string; issues?: string[] }>).m03).toMatchObject({ status: "insufficient", issues: [expect.stringMatching(/archetypes/)] });
+    expect(a.partial).toBe(false);
+    expect(d.attempts()).toBe(1);
   });
 
-  it("names a page the cascade could not read as an unreadable unknown, and keeps the model's own", () => {
-    const pack = citablePack();
-    const out = withUnreadableUnknowns(pack, new Set([DEAD_URL, PAGE_URL]), [PAGE_URL]);
-    expect(out.unknowns).toHaveLength(pack.unknowns.length + 1);
-    expect(out.unknowns.at(-1)).toMatchObject({ kind: "unreadable", queriesTried: [DEAD_URL] });
-    expect(withUnreadableUnknowns(pack, new Set(), [])).toBe(pack);
+  it("names a page the cascade could not read as an unreadable unknown in m18, and keeps the model's own", () => {
+    const pack = goodPack({ liveFactId: LIVE_ID });
+    const tried = mod(pack, "m18").unknowns[0]!.queriesTried[0]!;
+    const out = withUnreadableUnknowns(pack, new Set(["https://dead.example/gone", tried]));
+    expect(mod(out, "m18").unknowns).toHaveLength(2);
+    expect(mod(out, "m18").unknowns.at(-1)).toMatchObject({ kind: "unreadable", queriesTried: ["https://dead.example/gone"] });
+    expect(withUnreadableUnknowns(pack, new Set())).toBe(pack);
   });
 
-  it("reports a cap as took_too_long, terminal", async () => {
-    const job = await jobRow({ brief: BRIEF, breadth: "narrow" });
-    // Four searches against a cap of three. (The scripted model makes one call
-    // per step, so the search cap is set below the step cap here; live, a
-    // step carries several calls and the two caps are independent.)
-    const script = [call("facts", {}), ...Array.from({ length: 4 }, (_, i) => call("search", { query: `q${i}`, region: "GB" })), answer(citablePack())];
-    const d = deps([script], { budget: { maxModelSteps: 40, maxSearches: 3, maxFetches: 12, maxSeconds: 480 } });
-    await expect(researchHandler(d)({ db: prisma, job, signal: new AbortController().signal })).rejects.toThrow(/took_too_long.*searches cap \(3\)/);
-  });
-
-  it("refuses bad input as terminal, before touching anything", async () => {
-    const job = await jobRow({ brief: { ...BRIEF, region: "gbr" } });
-    await expect(researchHandler(deps([]))({ db: prisma, job, signal: new AbortController().signal })).rejects.toBeInstanceOf(TerminalError);
+  it("refuses bad input and a prior pack this org does not have, as terminal, before a run", async () => {
+    const bad = await jobRow({ brief: { ...BRIEF, region: "gbr" } });
+    await expect(researchHandler(deps([]))({ db: prisma, job: bad, signal: signal() })).rejects.toBeInstanceOf(TerminalError);
+    const stranger = await jobRow({ brief: BRIEF, priorPackIds: ["evt_not_ours"] });
+    await expect(researchHandler(deps([]))({ db: prisma, job: stranger, signal: signal() })).rejects.toThrow(/priorPackIds/);
     expect(await prisma.agentRun.count()).toBe(0);
+    expect(ORG_ID).toBeTruthy();
   });
 });

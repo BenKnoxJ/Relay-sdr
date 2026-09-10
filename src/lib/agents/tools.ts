@@ -108,6 +108,8 @@ export type ToolRecorder = {
   abortRun(reason: "cap", message: string): void;
   /** How many model steps the run has recorded so far; the budget's re-plan reads it. */
   readonly modelSteps: number;
+  /** What the run has cost so far, in dollars, read live from the ledger; research's spend rail reads it. */
+  readonly spendUsd: number;
 };
 
 export type BeginCallInput = {
@@ -145,6 +147,8 @@ export type ToolRecorderDeps = {
   abortRun?: (reason: "cap", message: string) => void;
   /** The run's model-step count, read live. `runAgent` supplies it. */
   modelSteps?: () => number;
+  /** The run's cost so far in dollars, read live. `runAgent` supplies it. */
+  spendUsd?: () => number;
 };
 
 export function createToolRecorder(deps: ToolRecorderDeps): ToolRecorder {
@@ -168,6 +172,9 @@ export function createToolRecorder(deps: ToolRecorderDeps): ToolRecorder {
     },
     get modelSteps() {
       return deps.modelSteps?.() ?? 0;
+    },
+    get spendUsd() {
+      return deps.spendUsd?.() ?? 0;
     },
     async releaseCall(stepId, error) {
       await releaseToolStep(deps.db, { orgId: deps.orgId, stepId, failureKey: FAILURE_KEY, error });

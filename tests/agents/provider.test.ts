@@ -37,6 +37,7 @@ function probeRecorder(): ToolRecorder {
     noteReplay: refuse,
     abortRun: refuse,
     modelSteps: 0,
+    spendUsd: 0,
   };
 }
 

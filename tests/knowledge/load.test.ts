@@ -39,11 +39,20 @@ describe("the Insights360 knowledge set", () => {
     expect(loaded.articles.get("roadmap")).toMatch(/shipped/i);
   });
 
-  it("is scrubbed: no fleet codename, no VPS path, no owner's name in any article", () => {
-    for (const name of KNOWLEDGE_ARTICLES) {
-      const text = readFileSync(path.join(loaded.path, `${name}.md`), "utf8");
+  it("is scrubbed: no fleet codename, no VPS path, no owner's name in any article or the manifest", () => {
+    for (const file of ["manifest.json", ...KNOWLEDGE_ARTICLES.map((name) => `${name}.md`)]) {
+      const text = readFileSync(path.join(loaded.path, file), "utf8");
       const hit = KNOWLEDGE_SCRUB.exec(text);
-      expect(hit, `${name}.md: ${hit?.[0]} at ${hit?.index}`).toBeNull();
+      expect(hit, `${file}: ${hit?.[0]} at ${hit?.index}`).toBeNull();
+    }
+  });
+
+  it("catches the lower-case spellings a copy leaves behind: an author line, a handoff filename", () => {
+    for (const leak of ["author: signal", "see `signal-insights360-legal-targeting-2026-05-15.md`", "~/wiki/topics/x", "/home/example/private-project/vault"]) {
+      expect(KNOWLEDGE_SCRUB.exec(leak), leak).not.toBeNull();
+    }
+    for (const fine of ["a buying signal", "churn signals at the call level", "critical rules", "Neon PostgreSQL"]) {
+      expect(KNOWLEDGE_SCRUB.exec(fine), fine).toBeNull();
     }
   });
 

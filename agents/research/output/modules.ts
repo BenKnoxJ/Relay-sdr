@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { factIdSchema, idSchema, itemSchema, phraseSchema, urlSchema } from "../../_shared/item.schema";
+import { factIdSchema, idSchema, itemSchema, partialDateSchema, phraseSchema, urlSchema } from "../../_shared/item.schema";
 
 /**
  * The modules of the research pack — `research.v3.signed.md` §3, one schema
@@ -450,7 +450,8 @@ export const m12Schema = complete({
 // m13 — dated events and deadlines (facts, no allocation)
 
 export const m13Schema = complete({
-  entries: z.array(z.object({ date: z.string().min(4), what: text(400), source: urlSchema, why: text(400) }).strict()),
+  /** Dated as §3 dates everything: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. */
+  entries: z.array(z.object({ date: z.string().date().or(partialDateSchema), what: text(400), source: urlSchema, why: text(400) }).strict()),
   noneFound: z.boolean(),
   queriesTried: z.array(text(300)),
 }).refine((m) => m.noneFound || m.entries.length >= 3, { message: "at least three dated entries, or noneFound with the queries tried", path: ["entries"] })

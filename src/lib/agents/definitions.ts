@@ -15,7 +15,7 @@ import { orchestratorOutputSchema } from "../../../agents/orchestrator/output.sc
 import { outreachInputSchema } from "../../../agents/outreach/input.schema";
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
 import { researchInputSchema } from "../../../agents/research/input.schema";
-import { researchRawSchema } from "../../../agents/research/output.schema";
+import { researchRunOutputSchema } from "../../../agents/research/output.schema";
 
 /**
  * The signed agent definitions, as the code's input.
@@ -46,6 +46,10 @@ export type AgentKind = (typeof AGENT_KINDS)[number];
 
 /** What a run is allowed to spend. Every number is quoted from the definition. */
 export type AgentBudget = {
+  /** v3 §6: characters of fetched page text a run may hold. */
+  maxFetchedChars?: number;
+  /** v3 §6: the spend ceiling, dollars. */
+  maxSpendUsd?: number;
   /** Hard cap on model calls. The loop stops here, and a run that stops here fails. */
   maxModelSteps: number;
   /** Search tool calls, where the definition sets one. */
@@ -117,16 +121,13 @@ const SPECS = {
   },
   research: {
     input: researchInputSchema,
-    // The raw rules: the runtime demotes stale items before the strict parse
-    // (`src/lib/research/validate.ts`). See the note above `refinePack`.
-    output: researchRawSchema,
-    // §4, the read-only four. `priorKnowledge` is advisory, `facts` is local.
-    tools: ["facts", "priorKnowledge", "search", "fetch"],
-    // §6, the `standard` row — one sector national, or a channel motion. The
-    // narrow and wide rows are `RESEARCH_BREADTH_BUDGETS` below; the runtime
-    // picks by breadth, and `standard` is what a definition loaded without one
-    // gets.
-    budget: { maxModelSteps: 30, maxSearches: 40, maxFetches: 25, maxSeconds: 15 * 60 },
+    // v3 §3/§5: the modules are written through `writeModule` as the run goes;
+    // the loop's own answer is the manifest of what was written.
+    output: researchRunOutputSchema,
+    // v3 §4, the six: five read-only, and the module writer that validates on write.
+    tools: ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule"],
+    // v3 §6: rails, not scope. One depth; these sit an order above a real run.
+    budget: { maxModelSteps: 200, maxSearches: 120, maxFetches: 60, maxSeconds: 90 * 60, maxFetchedChars: 400_000, maxSpendUsd: 50 },
     hasPrompt: true,
     model: "claude-opus-5",
     effort: "high",
@@ -170,19 +171,6 @@ const SPECS = {
     effort: "high",
   },
 } as const satisfies Record<AgentKind, Spec>;
-
-/**
- * Research's budget by breadth (§6), runtime-set and never model-chosen.
- *
- * Exported rather than folded into one budget because the definition makes the
- * scaling the point: the brief's shape decides the ration, and Task 12 picks the
- * row. `standard` is the row in `SPECS.research.budget`.
- */
-export const RESEARCH_BREADTH_BUDGETS = {
-  narrow: { maxModelSteps: 20, maxSearches: 20, maxFetches: 12, maxSeconds: 8 * 60 },
-  standard: { maxModelSteps: 30, maxSearches: 40, maxFetches: 25, maxSeconds: 15 * 60 },
-  wide: { maxModelSteps: 40, maxSearches: 60, maxFetches: 35, maxSeconds: 20 * 60 },
-} as const satisfies Record<string, AgentBudget>;
 
 export type InputOf<K extends AgentKind> = z.infer<(typeof SPECS)[K]["input"]>;
 export type OutputOf<K extends AgentKind> = z.infer<(typeof SPECS)[K]["output"]>;

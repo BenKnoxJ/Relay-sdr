@@ -7,7 +7,8 @@ import { mutate } from "./mutate";
  *
  * A completed research job writes one `research.completed` Event whose
  * `after` is the validated pack, its provenance report and what it ran under
- * (facts version and hash, breadth, the budget it used, the run id). A
+ * (facts and knowledge versions and hashes, the rails it ran under, whether a
+ * rail cut it short, the run id). A
  * `SideEffect` row keyed `research:<jobId>` is written in the same
  * transaction, and its unique index is what makes a retry of a job that had
  * already completed find the first pack rather than write a second — the
@@ -31,7 +32,10 @@ export type RecordResearchCompletedInput = {
   /** The provenance report and the run's actuals; a reviewer's evidence. */
   report: Prisma.InputJsonValue;
   facts: { product: string; version: number; hash: string; draft: boolean };
-  breadth: string;
+  knowledge: { product: string; version: number; hash: string };
+  /** True when a rail ended the run before every module was written (v3 §6). */
+  partial: boolean;
+  missingModules: string[];
 };
 
 export type RecordResearchCompletedResult = { event: Event; duplicate: boolean };
@@ -53,7 +57,9 @@ export async function recordResearchCompleted(
         pack: input.pack,
         report: input.report,
         facts: input.facts,
-        breadth: input.breadth,
+        knowledge: input.knowledge,
+        partial: input.partial,
+        missingModules: input.missingModules,
       },
       // The guard row and the Event commit together; the Event is read back
       // below because `mutate` writes it after `apply` returns.

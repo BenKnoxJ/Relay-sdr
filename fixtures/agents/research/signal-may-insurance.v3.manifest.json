@@ -316,8 +316,8 @@
       "rule": "m06-buyer-words",
       "module": "m06",
       "path": "modules.m06",
-      "message": "3% of phrases are buyer words with a role; the floor is 60%",
-      "reason": "The May pack's verbatim phrases are regulator (FCA), adviser (Ridley & Co, CMS Law) and vendor (Aveni, Voyc, Max Contact) commentary; the only named buyer with a role is the Iprism Underwriting CEO (quoted in Module 4)."
+      "message": "0% of phrases are buyer words with a role; the floor is 60%",
+      "reason": "The May pack's verbatim phrases are regulator (FCA), adviser (Ridley & Co, CMS Law) and vendor (Aveni, Voyc, Max Contact) commentary; the only named buyer with a role is the Iprism Underwriting CEO (quoted in Module 4). Under v3.1 only a practitioner voice counts, and the May pack has no voice field, so the share reads 0%."
     },
     {
       "rule": "v3-addition",
@@ -717,6 +717,244 @@
       "path": "factsVersion",
       "message": "Required",
       "reason": "The May pack predates the signed facts file. It cites six product knowledge articles and no facts version."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.0.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.1.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.2.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.3.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.4.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.5.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.6.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.0.phrases.7.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.1.phrases.0.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.1.phrases.1.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.1.phrases.2.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.0.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.1.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.2.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.3.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.4.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.5.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.6.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.2.phrases.7.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.3.phrases.0.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.3.phrases.1.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.3.phrases.2.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.3.phrases.3.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.0.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.1.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.2.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.3.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.4.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m06",
+      "path": "perArchetype.4.phrases.5.voice",
+      "message": "Required",
+      "reason": "The May pack predates the voice type (definition §10 note 13)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m18",
+      "path": "unknowns.0.askOnFirstCall",
+      "message": "a not-found or conflicting unknown says what to ask on the first call",
+      "reason": "The May pack predates the first-call question (definition §10 note 15)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m18",
+      "path": "unknowns.2.askOnFirstCall",
+      "message": "a not-found or conflicting unknown says what to ask on the first call",
+      "reason": "The May pack predates the first-call question (definition §10 note 15)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m18",
+      "path": "unknowns.4.askOnFirstCall",
+      "message": "a not-found or conflicting unknown says what to ask on the first call",
+      "reason": "The May pack predates the first-call question (definition §10 note 15)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m18",
+      "path": "unknowns.5.askOnFirstCall",
+      "message": "a not-found or conflicting unknown says what to ask on the first call",
+      "reason": "The May pack predates the first-call question (definition §10 note 15)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m18",
+      "path": "unknowns.6.askOnFirstCall",
+      "message": "a not-found or conflicting unknown says what to ask on the first call",
+      "reason": "The May pack predates the first-call question (definition §10 note 15)."
     }
   ],
   "ruleConflicts": [],
@@ -738,6 +976,7 @@
     "Pack inconsistencies kept as written: the Executive Summary says 28 named targets (16 brokers, 7 MGAs, 5 InsurTechs) and Module 4 lists 27 (15 brokers, 7 MGAs, 5 InsurTechs). DUAL's '20 controls still open as of June 2025' cites a December 2024 newsletter, so publishedAt is the source's date, 2024-12.",
     "Stale check (researchOutputSchema, informational, time-relative): run today, five m04 seed-firm signals (UIBL, RS Insurance Brokers, Prestige, Marshmallow, ManyPets) are older than twelve months and still above weak. Ingest demotes them with demoteStale; the raw schema, which the fixture is proved against, does not check this.",
     "Unknown #4 names the product owner ('[the product owner]') verbatim from the pack. That is a person, not an agent codename or a path.",
-    "2026-09-10: the five rule conflicts became the fourth exemption, v3-addition (definition §10 note 6, product owner)."
+    "2026-09-10: the five rule conflicts became the fourth exemption, v3-addition (definition §10 note 6, product owner).",
+    "2026-09-10: v3.1 added two more fields the May pack predates (m06 voice, m18 askOnFirstCall), exempt as v3-addition."
   ]
 }

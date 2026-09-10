@@ -43,7 +43,7 @@ export function scrubFetched(markdown: string): ScrubResult {
 }
 
 /** The size cap on a fetched page (research v2 §4: "12k cap"). */
-export const FETCH_CHAR_CAP = 12_000;
+export const FETCH_CHAR_CAP = 8_000;
 
 export function capText(text: string, cap: number = FETCH_CHAR_CAP): string {
   return text.length <= cap ? text : `${text.slice(0, cap)}\n\n[truncated at ${cap} characters]`;

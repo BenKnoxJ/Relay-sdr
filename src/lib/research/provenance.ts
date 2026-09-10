@@ -2,6 +2,8 @@ import { MODULE_IDS, moduleItems, type ModuleId, type PackShape } from "../../..
 import type { Item } from "../../../agents/_shared/item.schema";
 import type { Corpus } from "@/lib/research/corpus";
 
+import { moduleUrlFields } from "../../../agents/research/output/urls";
+
 /**
  * The mechanical provenance check (research v2 §7), before ingest.
  *
@@ -60,10 +62,23 @@ export function normalise(text: string): string {
     .replace(/\s+/g, " ");
 }
 
-/** Numbers of two or more digits, or a percentage, or a unit-suffixed figure, commas removed: `2.3m`, `48%`, `1,200`. */
+/**
+ * Numbers of two or more digits, or a percentage, or a unit-suffixed figure, commas removed: `2.3m`, `48%`, `1,200`.
+ * Digits glued to a letter are part of a name, not a figure — `Insights360`, `m07`, `Q3`, `D012465` —
+ * and are skipped (brief E, 2026-09-10: every claim naming the product "cited" 360).
+ */
 export function citedNumbers(text: string): string[] {
+  // Not figures: standard names (ISO 27001, ISO/IEC 27001:2022, BS 10008)
+  // and days of the month beside a month name ("10 September", "Sept 3rd").
+  // Brief E's competitor claims "As read on 10 September 2026" and "ISO 9001
+  // and ISO 27001" failed on those numbers alone.
+  const MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*";
+  text = text
+    .replace(/\b(?:ISO(?:\/IEC)?|IEC|BS|EN|PAS|SOC)\s*\d[\d:.-]*/gi, " ")
+    .replace(new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(${MONTH})\\b`, "gi"), " $1")
+    .replace(new RegExp(`\\b(${MONTH})\\s+\\d{1,2}(?:st|nd|rd|th)?\\b(?!\\d)`, "gi"), "$1 ");
   const out = new Set<string>();
-  for (const match of text.matchAll(/\d[\d,]*(?:\.\d+)?(?:%|(?:bn|k|m)\b)?/gi)) {
+  for (const match of text.matchAll(/(?<![A-Za-z\d.,])\d[\d,]*(?:\.\d+)?(?:%|(?:bn|k|m)\b)?(?![A-Za-z]{2})/gi)) {
     const value = match[0].replace(/,/g, "").toLowerCase();
     if (/[%a-z]$/.test(value) || value.replace(/\D/g, "").length >= 2) out.add(value);
   }
@@ -87,18 +102,57 @@ export function quoteSpans(quote: string, size = 6): string[] {
 
 type Match = { passed: true; how: string } | { passed: false; reason: string };
 
+/** A cited number's figure, for comparison: no commas, no unit suffix, no leading zeros. `8,917` → `8917`, `37%` → `37`, `£2.3m` → `2.3`. */
+export function numberCore(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/,/g, "")
+    .replace(/(%|bn|k|m)$/, "")
+    .replace(/^0+(?=\d)/, "")
+    .replace(/\.0+$/, "");
+}
+
+/** A four-digit year. Dates sit beside the figures they date and prove nothing about them. */
+const isYear = (value: string): boolean => /^(19[9]\d|20\d\d)$/.test(numberCore(value));
+
+/** The figures a page carries, as cores, read off the page's own tokens (never across them). */
+export function pageNumbers(text: string): Set<string> {
+  return new Set(citedNumbers(text).map(numberCore));
+}
+
 export function matchItem(item: Item, corpus: Corpus, distinctive: (text: string) => string[]): Match {
   const present = item.evidence.urls.filter((url) => corpus.has(url));
   if (present.length === 0) {
     return { passed: false, reason: item.evidence.urls.length === 0 ? "no evidence url" : "no evidence url was fetched or seen this run" };
   }
   const pages = present.map((url) => normalise(corpus.textFor(url)));
-  const numbersNormalised = pages.map((page) => page.replace(/\s/g, ""));
+  const onPage = present.map((url) => pageNumbers(corpus.textFor(url)));
 
+  // A claim that carries figures stands or falls on them: at least one must
+  // be on a page it cites. A quote or shared words must not carry a wrong
+  // number past the check — brief E (2026-09-10) passed "8,971 SRA firms"
+  // against a page whose parts sum to 8,917. Years are left out when the
+  // claim has other figures (a date proves nothing about the figure beside
+  // it); a claim whose only figures are years is matched as before. Figures
+  // are compared as the page's own tokens, never across them: the old
+  // whitespace-stripped search found "8971" inside "8,97 1…".
   const numbers = citedNumbers(`${item.text} ${item.quote ?? ""}`);
+  // The claim is its `text`; a quote is the source's own words, and a right
+  // figure in the quote must not vouch for a wrong one in the text. So the
+  // text's figures are what must be found, and the quote's only when the text
+  // carries none.
+  const textFigures = citedNumbers(item.text).filter((number) => !isYear(number));
+  const figures = textFigures.length > 0 ? textFigures : numbers.filter((number) => !isYear(number));
+  if (figures.length > 0) {
+    // Every figure, not one of them (v3.1): brief E's "8,971 firms" cited the
+    // right component figures beside the wrong total. A figure the model
+    // derived belongs in the body, marked derived, not in a claim.
+    const missing = figures.filter((number) => !onPage.some((set) => set.has(numberCore(number))));
+    if (missing.length === 0) return { passed: true, how: `number ${figures.join(", ")}` };
+    return { passed: false, reason: `cited number not on the page (${missing.join(", ")})` };
+  }
   for (const number of numbers) {
-    const needle = normalise(number).replace(/\s/g, "");
-    if (needle.length > 0 && numbersNormalised.some((page) => page.includes(needle))) return { passed: true, how: `number ${number}` };
+    if (onPage.some((set) => set.has(numberCore(number)))) return { passed: true, how: `number ${number}` };
   }
 
   if (item.quote !== undefined) {
@@ -179,6 +233,14 @@ export function checkProvenance(pack: PackShape, corpus: Corpus): ProvenanceResu
       moduleFailed.push({ module: id, id: item.id, text: item.text, reason: match.reason });
       item.confidence = "speculative";
       item.inferredFrom = `provenance: ${match.reason}`;
+    }
+    // The urls a module cites outside its Items (§7; `output/urls.ts`): each
+    // must have been read this run. A failure here demotes nothing — there is
+    // no confidence word on a url field — but counts in the module's share.
+    for (const field of moduleUrlFields(copy, id)) {
+      moduleTotal += 1;
+      if (corpus.has(field.url)) continue;
+      moduleFailed.push({ module: id, id: field.where, text: field.url, reason: "cited url was never read this run" });
     }
     if (moduleTotal === 0) continue;
     const fraction = moduleFailed.length / moduleTotal;

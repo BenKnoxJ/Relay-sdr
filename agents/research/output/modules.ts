@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { factIdSchema, idSchema, itemSchema, partialDateSchema, phraseSchema, urlSchema } from "../../_shared/item.schema";
+import { factIdSchema, idSchema, itemSchema, partialDateSchema, phraseObject, urlSchema, withCeilingRule } from "../../_shared/item.schema";
 
 /**
  * The modules of the research pack — `research.v3.signed.md` §3, one schema
@@ -311,11 +311,26 @@ export const targetingSchema = z
     /** Validation sample, not the list. */
     seedFirms: z.array(seedFirmSchema).min(2),
   })
-  .strict();
+  .strict()
+  // v3.1 (§10 note 14): a seed list nobody sized is not a validation sample.
+  .refine((t) => t.seedFirms.some((f) => f.size.status !== "unknown" && f.size.source !== undefined), {
+    message: "at least one seed firm per kind of buyer is sized (confirmed, or estimated) with a source url",
+    path: ["seedFirms"],
+  });
 
 export const m04Schema = complete({
   perArchetype: z.array(targetingSchema).min(1),
-});
+}).refine(
+  (m) => {
+    // v3.1 (§10 note 14): no more than half the seeds from one list page — brief E
+    // took eleven of sixteen from pages one to three of a list sorted Z to A.
+    const pages = m.perArchetype.flatMap((t) => t.seedFirms.map((f) => f.signal.evidence.urls[0] ?? ""));
+    const counts = new Map<string, number>();
+    for (const page of pages) counts.set(page, (counts.get(page) ?? 0) + 1);
+    return pages.length < 4 || Math.max(...counts.values()) <= pages.length / 2;
+  },
+  { message: "no more than half the seed firms may come from one list page; filter the list to fit, never take its default order", path: ["perArchetype"] },
+);
 
 // ---------------------------------------------------------------------------
 // m05 — pains by archetype
@@ -337,8 +352,21 @@ export const m05Schema = complete({
 // ---------------------------------------------------------------------------
 // m06 — buyer words
 
+/**
+ * Whose words a phrase is (v3.1, §10 note 13). A boolean could not tell a
+ * named practitioner from a firm's policy page; brief E counted five firm
+ * documents and a Law Society president as buyer words. Only a practitioner
+ * counts towards the buyer-words share, and `notBuyer` must agree.
+ */
+export const VOICES = ["practitioner", "firm-document", "representative-body", "regulator", "adviser", "vendor"] as const;
+
+export const voicedPhraseSchema = withCeilingRule(phraseObject.extend({ voice: z.enum(VOICES) }).strict()).refine(
+  (p) => p.notBuyer === (p.voice !== "practitioner"),
+  { message: "notBuyer is false only for a practitioner's own words", path: ["notBuyer"] },
+);
+
 export const m06Schema = complete({
-  perArchetype: z.array(z.object({ archetypeId: idSchema, phrases: z.array(phraseSchema).min(3) }).strict()).min(1),
+  perArchetype: z.array(z.object({ archetypeId: idSchema, phrases: z.array(voicedPhraseSchema).min(3) }).strict()).min(1),
 });
 
 // ---------------------------------------------------------------------------
@@ -557,6 +585,11 @@ export const unknownSchema = z
   .refine((u) => u.kind !== "not-found" || u.queriesTried.length > 0, {
     message: "a not-found unknown names the queries tried",
     path: ["queriesTried"],
+  })
+  // v3.1 (§10 note 15): what a rep should ask, where the research could not find out.
+  .refine((u) => (u.kind !== "not-found" && u.kind !== "conflicting") || u.askOnFirstCall !== undefined, {
+    message: "a not-found or conflicting unknown says what to ask on the first call",
+    path: ["askOnFirstCall"],
   });
 
 export const m18Schema = complete({

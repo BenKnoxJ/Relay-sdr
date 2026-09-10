@@ -20,8 +20,16 @@ export const urlSchema = z
   .string()
   .url()
   .refine((raw) => {
-    const protocol = new URL(raw).protocol;
-    return protocol === "http:" || protocol === "https:";
+    // Total: zod 3 runs this refinement even after `.url()` has failed, and a
+    // throw here is an exception out of the whole parse rather than an issue —
+    // it crashed `writeModule` twice on brief E (2026-09-10) over a size
+    // `source` written as a note.
+    try {
+      const protocol = new URL(raw).protocol;
+      return protocol === "http:" || protocol === "https:";
+    } catch {
+      return false;
+    }
   }, "must be an http:// or https:// URL");
 
 /** A stable slug id. Ids are referenced across the pack, so they cannot be prose. */

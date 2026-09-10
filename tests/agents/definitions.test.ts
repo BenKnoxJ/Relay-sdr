@@ -10,8 +10,9 @@ import {
   confidenceCeiling,
   demoteStale,
   staleAndOverClaimed,
+  urlSchema,
 } from "../../agents/_shared/item.schema";
-import { authoredText, domainCounts, researchOutputSchema } from "../../agents/research/output.schema";
+import { COMPLETE_MODULE_SCHEMAS, authoredText, domainCounts, researchOutputSchema } from "../../agents/research/output.schema";
 import { AGENT_KINDS, agentsDir, loadDefinition } from "@/lib/agents/definitions";
 import { loadFacts } from "@/lib/facts/load";
 
@@ -337,5 +338,26 @@ describe("outreach: the gates that need the touch", () => {
     // note before it, so the shrink rule is the only finding — which is the
     // distinction rule 7 is about.
     expect(findings.map((finding) => finding.rule)).toEqual(["shorter-than-the-last"]);
+  });
+});
+
+describe("a url field holding prose is a refusal, never an exception (brief E, 2026-09-10)", () => {
+  it("urlSchema refuses a note without throwing", () => {
+    expect(() => urlSchema.safeParse("Headcount not verified")).not.toThrow();
+    expect(urlSchema.safeParse("Headcount not verified").success).toBe(false);
+    expect(urlSchema.safeParse("ftp://example.com/file").success).toBe(false);
+    expect(urlSchema.safeParse("https://example.com/").success).toBe(true);
+  });
+
+  it("an m04 seed firm whose size source is a note parses to issues, not a crash", () => {
+    const live = loadFacts("insights360", 1).facts.facts.find((fact) => fact.status === "live")!.id;
+    const m04 = structuredClone(mod(goodPack({ liveFactId: live }), "m04")) as unknown as { perArchetype: Array<{ seedFirms: Array<{ size: Record<string, unknown> }> }> };
+    m04.perArchetype[0]!.seedFirms[0]!.size = { status: "unknown", source: "Headcount not verified this run; the decision data carries no firm size" };
+    let result: ReturnType<typeof COMPLETE_MODULE_SCHEMAS.m04.safeParse> | undefined;
+    expect(() => {
+      result = COMPLETE_MODULE_SCHEMAS.m04.safeParse(m04);
+    }).not.toThrow();
+    expect(result?.success).toBe(false);
+    if (result !== undefined && !result.success) expect(result.error.issues.some((issue) => issue.path.join(".").endsWith("size.source"))).toBe(true);
   });
 });

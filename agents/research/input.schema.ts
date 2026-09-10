@@ -76,6 +76,8 @@ export const priorRunSchema = z
 export const provenanceRerunSchema = z
   .object({
     modules: z.array(z.string().min(1).max(20)).min(1).max(30),
+    /** v3.1 (§10 note 16): the stored version of each re-asked module, so the re-ask edits it rather than rewriting from memory. */
+    current: z.record(z.unknown()).optional(),
     failures: z
       .array(
         z
@@ -107,6 +109,15 @@ export const researchInputSchema = z
      * amendment note on §2.
      */
     onlyModules: z.array(z.string().min(1).max(20)).min(1).max(22).optional(),
+    /**
+     * v3.1 (§10 note 17): which half of the job this run is. `research` gathers
+     * and writes the evidence modules; `synthesis` writes the rest in a fresh,
+     * smaller context from `acceptedModules`, with search and fetch refused.
+     * Set by the runtime; absent on a bench run that sets neither.
+     */
+    phase: z.enum(["research", "synthesis"]).optional(),
+    /** On the synthesis phase: the modules the research phase stored, by id. */
+    acceptedModules: z.record(z.unknown()).optional(),
   })
   .strict();
 

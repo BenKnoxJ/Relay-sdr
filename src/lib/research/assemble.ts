@@ -1,9 +1,10 @@
 import type { AgentRunStep } from "@prisma/client";
 import { z } from "zod";
 
-import { itemSchema } from "../../../agents/_shared/item.schema";
-import { MODULE_IDS, isModuleId, type ModuleId, type PackShape } from "../../../agents/research/output.schema";
-import type { Corpus } from "@/lib/research/corpus";
+import { hostOf, itemSchema } from "../../../agents/_shared/item.schema";
+import { MODULE_IDS, isModuleId, moduleItems, type ModuleId, type PackShape } from "../../../agents/research/output.schema";
+import { moduleUrlFields } from "../../../agents/research/output/urls";
+import { normaliseUrl, type Corpus } from "@/lib/research/corpus";
 
 /**
  * The pack, from what the job wrote (research v3 §3, §4 `writeModule`, §6).
@@ -129,4 +130,58 @@ export function corpusFromSteps(corpus: Corpus, steps: readonly AgentRunStep[]):
       else corpus.addPage(parsed.data.url, parsed.data.markdown);
     }
   }
+}
+
+/**
+ * m19, written by the runtime (v3.1, §10 note 18): every url any module cites
+ * — its Items and its url fields — with the title the search gave it and the
+ * day this job read it, the knowledge articles the job read, the facts
+ * version and the prior packs. Brief E's model-written m19 listed 12 of 54
+ * cited urls and said it was complete.
+ */
+export function withRuntimeSources(
+  pack: PackShape,
+  steps: readonly AgentRunStep[],
+  context: { factsVersion: number; priorPackIds: string[]; today?: string },
+): PackShape {
+  const titles = new Map<string, string>();
+  const readOn = new Map<string, string>();
+  const articles = new Set<string>();
+  for (const step of steps) {
+    const day = step.createdAt.toISOString().slice(0, 10);
+    if (step.name === "search") {
+      const parsed = searchStepOutput.safeParse(step.output);
+      if (parsed.success) for (const hit of parsed.data.hits) {
+        const key = normaliseUrl(hit.url);
+        if (!titles.has(key) && hit.title.trim().length > 0) titles.set(key, hit.title.trim());
+        if (!readOn.has(key)) readOn.set(key, day);
+      }
+    } else if (step.name === "fetch") {
+      const parsed = fetchStepOutput.safeParse(step.output);
+      if (parsed.success) readOn.set(normaliseUrl(parsed.data.url), day);
+    } else if (step.name === "knowledge") {
+      const article = (step.input as { article?: unknown } | null)?.article;
+      if (typeof article === "string") articles.add(article);
+    }
+  }
+  const cited = new Map<string, string>();
+  for (const id of MODULE_IDS) {
+    if (id === "m19") continue;
+    for (const item of moduleItems(pack, id)) for (const url of item.evidence.urls) if (!cited.has(normaliseUrl(url))) cited.set(normaliseUrl(url), url);
+    for (const field of moduleUrlFields(pack, id)) if (!cited.has(normaliseUrl(field.url))) cited.set(normaliseUrl(field.url), field.url);
+  }
+  if (cited.size === 0) return pack;
+  const today = context.today ?? new Date().toISOString().slice(0, 10);
+  const sources = [...cited.entries()].map(([key, url]) => ({ url, title: titles.get(key) ?? hostOf(url), accessedAt: readOn.get(key) ?? today }));
+  const m19 = {
+    status: "complete",
+    body: `Every source this pack cites (${sources.length}), assembled by the runtime from the modules' claims and url fields and the pages this run read.`,
+    claims: [],
+    sources,
+    knowledgeArticles: [...articles],
+    factsVersion: context.factsVersion,
+    priorPackIds: context.priorPackIds,
+  };
+  const missingModules = pack.missingModules.filter((id) => id !== "m19");
+  return { ...pack, modules: { ...pack.modules, m19 } as PackShape["modules"], missingModules, partial: missingModules.length > 0 };
 }

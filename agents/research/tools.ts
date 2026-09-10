@@ -101,7 +101,7 @@ const writeArgs = z
   })
   .strict();
 /** What the replayed inner call is keyed and stored on: always the whole module. */
-const resolvedArgs = z.object({ module: z.enum(MODULE_IDS), content: z.record(z.unknown()) }).strict();
+type ResolvedArgs = { module: ModuleId; content: Record<string, unknown> };
 const noArgs = z.object({}).strict();
 
 const searchOutput = z.object({ hits: z.array(z.object({ title: z.string(), url: z.string(), snippet: z.string(), publishedAt: z.string().optional() })) }).strict();
@@ -240,7 +240,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     },
   });
 
-  const writeModule = withReplay<z.infer<typeof resolvedArgs>, ModuleWriteOutput>(recorder, {
+  const writeModule = withReplay<ResolvedArgs, ModuleWriteOutput>(recorder, {
     name: "writeModule",
     toolKey: (args) => `${args.module}:${contentDigest(args.content)}`,
     output: moduleWriteOutputSchema,

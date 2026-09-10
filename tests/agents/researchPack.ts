@@ -1,4 +1,5 @@
 import { MODULE_IDS, moduleItems, type CompleteModule, type ModuleId, type PackShape } from "../../agents/research/output.schema";
+import { moduleUrlFields } from "../../agents/research/output/urls";
 
 /**
  * A complete research v3 pack, built in code: every module present and at its
@@ -32,7 +33,7 @@ export function goodPack(options: { liveFactId: string }): PackShape {
       ...extra,
     };
   };
-  const phrase = (id: string, text: string) => ({ ...item(id, text, { quote: text, speaker: "A claims manager", role: "Claims manager" }), say: text, notBuyer: false });
+  const phrase = (id: string, text: string) => ({ ...item(id, text, { quote: text, speaker: "A claims manager", role: "Claims manager" }), say: text, notBuyer: false, voice: "practitioner" });
   const hardFilters = { geography: ["GB"], sizeCap: "under 500 staff", subSectorsIn: ["claims teams"], subSectorsOut: ["Lloyd's syndicates"], firmsOut: [], other: [] };
   const live = options.liveFactId;
 
@@ -145,7 +146,7 @@ export function goodPack(options: { liveFactId: string }): PackShape {
           id: `${a}-firm-${i}`,
           name: `${a} firm ${i}`,
           region: "GB",
-          size: { status: "unknown" },
+          size: i === 1 ? { status: "estimated", value: "20 to 30 staff", source: `https://size-${a}.example/team` } : { status: "unknown" },
           signal: item(`${a}-firm-${i}-signal`, `${a} firm ${i} reported a complaints backlog`),
         })),
       })),
@@ -225,10 +226,14 @@ export function goodPack(options: { liveFactId: string }): PackShape {
       })),
     },
     m17: { status: "complete", body: "What argues against.", claims: [], entries: [{ id: "against-1", text: "Complaints fell last year.", kind: "against", meaning: "Do not open with drowning." }], noneFound: false },
-    m18: { status: "complete", body: "Unknowns.", claims: [], unknowns: [{ id: "unknown-seats", text: "Seat counts per firm.", kind: "not-found", whyItMatters: "Sizes the deal.", queriesTried: ["claims team size UK insurer"] }] },
+    m18: { status: "complete", body: "Unknowns.", claims: [], unknowns: [{ id: "unknown-seats", text: "Seat counts per firm.", kind: "not-found", whyItMatters: "Sizes the deal.", askOnFirstCall: "How many people take calls on your claims line?", queriesTried: ["claims team size UK insurer"] }] },
     m19: { status: "complete", body: "Sources.", claims: [], sources: [{ url: itemUrl(1), title: "Source one", accessedAt: ACCESSED }], knowledgeArticles: ["roadmap"], factsVersion: 1, priorPackIds: [] },
   };
-  return { modules, partial: false, missingModules: [] } as unknown as PackShape;
+  const pack = { modules, partial: false, missingModules: [] } as unknown as PackShape;
+  // m19 lists every source the other modules cite (checked when m19 is written).
+  const cited = [...new Set(MODULE_IDS.filter((id) => id !== "m19").flatMap((id) => moduleItems(pack, id)).flatMap((i) => i.evidence.urls))];
+  (modules.m19 as { sources: unknown[] }).sources = cited.map((url, i) => ({ url, title: `Source ${i + 1}`, accessedAt: ACCESSED }));
+  return pack;
 }
 
 /** What the model writes for a module: its fields, without the runtime's `status`. */
@@ -244,6 +249,8 @@ export function moduleContent(pack: PackShape, id: ModuleId): Record<string, unk
 export function citedPages(pack: PackShape): Array<{ url: string; text: string }> {
   const out: Array<{ url: string; text: string }> = [];
   for (const id of MODULE_IDS) for (const i of moduleItems(pack, id)) for (const url of i.evidence.urls) out.push({ url, text: `${i.text}\n${i.quote ?? ""}` });
+  // Url fields that are not Items (m01 bodies, m04 list sources and sizes, m10, m12, m13) must be read too (§10 note 19).
+  for (const id of MODULE_IDS) for (const f of moduleUrlFields(pack, id)) out.push({ url: f.url, text: `the page at ${f.url}` });
   return out;
 }
 

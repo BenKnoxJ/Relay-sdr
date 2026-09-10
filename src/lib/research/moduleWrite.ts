@@ -5,6 +5,7 @@ import {
   DOMAIN_CAP,
   MODULE_IDS,
   domainCounts,
+  crossModuleIssues,
   moduleFactIds,
   moduleNotYetFactIds,
   moduleOwnIds,
@@ -13,6 +14,9 @@ import {
   type PackShape,
 } from "../../../agents/research/output.schema";
 import { assertPlainWords } from "@/lib/copy/plainWords";
+import { neverSayIssues, type NeverSayFile } from "@/lib/facts/neverSay";
+
+import { authoredTexts } from "./authored";
 
 import { demoteStaleItems } from "./validate";
 
@@ -36,6 +40,8 @@ export type ModuleWriteContext = {
   liveFactIds: ReadonlySet<string>;
   /** Fact ids in the facts file that are not retired: what an m11 "not today" may cite (§10 note 9). */
   knownFactIds?: ReadonlySet<string>;
+  /** The product's never-say list (§10 note 20), linted over what the module's author wrote. */
+  neverSay?: Pick<NeverSayFile, "entries">;
   now: Date;
 };
 
@@ -78,12 +84,18 @@ export function checkModuleWrite(id: ModuleId, content: unknown, context: Module
     if (dead.length > 0) issues.push(`${where}: ${dead.map((d) => JSON.stringify(d)).join(", ")} ${dead.length === 1 ? "is" : "are"} not a live fact id`);
   }
 
+  // References to modules already accepted (§10 note 12): archetype ids from
+  // m03, pain ids from m05, seed firms from m04, m00's hard filters.
+  for (const found of crossModuleIssues(pack)) if (found.module === id) issues.push(found.message);
+
   if (context.knownFactIds !== undefined) {
     for (const { where, ids } of moduleNotYetFactIds(pack, id)) {
       const unknown = ids.filter((factId) => !context.knownFactIds!.has(factId));
       if (unknown.length > 0) issues.push(`${where}: ${unknown.map((d) => JSON.stringify(d)).join(", ")} ${unknown.length === 1 ? "is" : "are"} not in the facts file, or retired`);
     }
   }
+
+  if (context.neverSay !== undefined) issues.push(...neverSayIssues(authoredTexts(id, written), context.neverSay));
 
   if (id === "repSummary") {
     try {

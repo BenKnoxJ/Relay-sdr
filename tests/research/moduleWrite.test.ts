@@ -119,4 +119,25 @@ describe("checkModuleWrite", () => {
     m11.perArchetype[0]!.objections[0]!.factIds = [plannedId];
     expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(false);
   });
+
+  it("checks references to modules already accepted on write: archetype ids and pain ids (§10 note 12)", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of ["m00", "repSummary", "execSummary", "m01", "m02", "m03", "m04", "m05"] as const) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      accepted[id] = check.module;
+    }
+    const m11 = content("m11") as { perArchetype: Array<{ archetypeId: string }> };
+    m11.perArchetype[0]!.archetypeId = "conveyancing-volume-practice";
+    const wrongKind = checkModuleWrite("m11", m11, { accepted, liveFactIds: live, now });
+    if (wrongKind.ok) throw new Error("expected a refusal");
+    expect(wrongKind.issues.join(" ")).toMatch(/m11 names archetype "conveyancing-volume-practice" which m03 does not define/);
+
+    const m07 = content("m07") as { mappings: Array<{ painId: string }> };
+    m07.mappings[0]!.painId = "p-invented";
+    const wrongPain = checkModuleWrite("m07", m07, { accepted, liveFactIds: live, now });
+    if (wrongPain.ok) throw new Error("expected a refusal");
+    expect(wrongPain.issues.join(" ")).toMatch(/m07 neither maps nor lists as unmatched the pain/);
+
+  });
 });

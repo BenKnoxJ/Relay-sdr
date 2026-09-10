@@ -22,11 +22,17 @@ and dated events are findings with evidence; the campaign agent chooses.
 - `onlyModules` (a bench run only): write m00 and these modules, nothing else, and list only those in your closing answer.
 - `priorRun` (on a "widen the brief" re-run): what the last run could not find
   and how the rep widened it.
-- `provenanceRerun` (set by the runtime): `modules` it is re-asking and
-  `failures` — the claims it could not find on the pages you read, the rules
-  a module broke at ingest, or modules never written. Rewrite **only those
-  modules**: re-find each failed claim on a page you fetch this run, or drop
-  it and add an m18 unknown. Every earlier call replays for free.
+- `phase` (set by the runtime): `research` or `synthesis`, and `onlyModules`,
+  the modules this run writes. In `synthesis`, `acceptedModules` holds every
+  module the research phase stored: write from them, cite the urls they cite,
+  and do not search or fetch (those tools are closed).
+- `provenanceRerun` (set by the runtime): `modules` it is re-asking,
+  `current` — the stored version of each — and `failures`: the claims it
+  could not find on the pages you read, the rules a module broke at ingest,
+  or modules never written. **Edit the current version**: fix exactly the
+  failing claims (re-find each on a page you fetch, or drop it and add an m18
+  unknown) and keep everything else as it is. Every earlier call replays for
+  free.
 
 ## Method
 0. **Batch your calls.** Every turn re-reads everything you hold, so each
@@ -53,9 +59,20 @@ and dated events are findings with evidence; the campaign agent chooses.
 4. **Wave 3, contradictions** (`purpose: "contradiction"`): at least one query
    per kind of buyer for the opposite claim, for the incumbent, for the
    do-nothing option. Write **m17**.
-5. **Write the rest** from what you hold, three to five modules per turn
-   (they no longer depend on each other's results): m07, m08, m09, m10, m11, m12, m13,
-   m14, m15, m16, m18, m19, then execSummary, then repSummary.
+4b. **Wave 4, what lists and rules cannot skip** (`purpose: "locate"`):
+   size every seed firm you mean to keep (the regulator's register, Companies
+   House, the firm's own team page) and drop any that are over the band; read
+   the contact rules for every channel on the card (the ICO's PECR guidance,
+   the platform's user agreement) and the sector's professional rules; find
+   where these buyers gather (named events with dates, trade bodies, trade
+   press) and the list sources a rep would use. Write **m10, m12, m13**.
+5. **The two phases.** The research phase writes m00, m01, m02, m03, m05,
+   m06, m04, m10, m12, m13 and m17. The synthesis phase, a separate run
+   holding the accepted modules, writes m07 (straight from m05's pain ids),
+   m11 (from m03's ids), m08, m09, m14, m15, m16, m18, then execSummary, then
+   repSummary — three to five modules per turn, since they no longer wait on
+   each other. m19 is assembled by the runtime from every url you cite; never
+   write it.
 6. **Write each module the moment it is ready**, then move on. Never hold
    modules to the end: a rail can end the run at any time, and only modules
    already written survive. A refusal comes back with `issues` — fix exactly
@@ -126,14 +143,21 @@ what it rests on. Use that shape for inferences; never invent a citation.
   triggerTaxonomy[≥3] { signal, strength: HOT|WARM, whereToFind, url? },
   listSources[≥1] { name, url, note? }, seedFirms[≥2] { id, name, domain?,
   region, size { status: confirmed|estimated|unknown, value?, source? },
-  signal: Item } }`. Seed firms are a validation sample, not the list.
+  signal: Item } }`. Seed firms are a validation sample, not the list. At
+  least one seed per kind is sized `confirmed` or `estimated` with a `source`
+  url; no more than half of all seeds come from one list page. Filter a list
+  to fit before choosing (area, size, date) — never take its default order.
   Good: two to five firms per kind, each with a dated, sourced urgency signal
   and a seat estimate with its source.
 - **m05 Pains by kind of buyer.** `perArchetype[]` each `{ archetypeId,
   pains: Item[≥4] }`, most acute first, with the mechanism, and a quote with
   speaker, role and date where a buyer said it.
 - **m06 Buyer words.** `perArchetype[]` each `{ archetypeId, phrases:
-  Phrase[≥3] }`. Vendor or adviser voices are kept with `notBuyer: true`.
+  (Phrase & { voice })[≥3] }`, `voice`: practitioner | firm-document |
+  representative-body | regulator | adviser | vendor. `notBuyer` is false only
+  for a practitioner. At least six in ten phrases are a named practitioner's
+  own words; give a `role` only when the page states it; a joke is a joke,
+  not a tone to match.
 - **m07 Solution mapping.** `mappings[]` each `{ painId, capability, factIds[],
   mustNotImply? }`, `unmatched[]` each `{ painId, roadmapStatus, note? }`.
   Good: every pain mapped to a shipped capability, and an honest table of what
@@ -172,14 +196,34 @@ what it rests on. Use that shape for inferences; never invent a citation.
   `noneFound`. At least one entry, or `noneFound: true` after the search.
 - **m18 Unknowns.** `unknowns[≥1]` each `{ id, text, kind: not-found|
   confirmed-absent|unreadable|conflicting|out-of-budget, whyItMatters,
-  askOnFirstCall?, queriesTried[] }` — `not-found` names its queries. Good:
-  each unknown says why it matters to the campaign.
-- **m19 Sources.** `sources[≥1]` each `{ url, title, accessedAt (YYYY-MM-DD) }`,
-  `knowledgeArticles[]`, `factsVersion`, `priorPackIds[]`.
+  askOnFirstCall?, queriesTried[] }` — `not-found` names its queries;
+  `not-found` and `conflicting` say what to ask on the first call. Good: each
+  unknown says why it matters to the campaign. Where a public source
+  contradicts the facts file, that is a `conflicting` unknown for the owner.
+- **m19 Sources.** Assembled by the runtime from every url the pack cites.
+  Do not write it.
 
 The reference pack this is measured against runs to about 10,000 words over
 its modules, five kinds of buyer, 27 named firms and 31 dated sources. Reach
 that depth when the market supports it.
+
+## Quality rules (from the first full run)
+- **Ids are copied, never re-made.** Use m03's archetype ids and m05's pain
+  ids exactly in every later module.
+- **Figures.** Every figure in a claim must appear on a page the claim cites.
+  A figure you computed (a sum, a ratio, a share) goes in the body, marked
+  "derived", never in a claim. Compare prices in one currency with the rate
+  stated, or give no ratio.
+- **The facts file's notes are binding wording.** If a note says "say
+  internally audited", never write "independently"; if it says a name must
+  not be used, never write it. GB is Great Britain: Northern Ireland is not
+  in it.
+- **Bodies.** Every factual sentence in a body is either one of the module's
+  claims or marked as an inference. Do not restate the structured fields in
+  the body; the body is the argument, the fields are the data.
+- **Every url you cite is a page you read** (fetched, or a search result you
+  were shown), including list sources, contact-rule sources, venues and
+  event sources.
 
 ## Rules the runtime enforces on write and at ingest
 - **Confidence is derived, not asserted.** `strong`: a primary source, or three
@@ -198,6 +242,11 @@ that depth when the market supports it.
   `confidence: "speculative"` and a note that pricing is not confirmed. m00
   `offerHook`, m07, m11 and m15 cite live fact ids only. m07 maps only to
   capabilities the knowledge set marks shipped.
+- **Ids are shared, not re-invented.** Every per-kind module uses m03's
+  archetype `id`s exactly; m07's `painId`s are m05's pain `id`s, every one of
+  them mapped or listed unmatched; m16 names m03 archetypes and m04 seed-firm
+  `id`s; m19 lists every url any module cites. These are checked the moment
+  you write the module.
 - **Cross-module.** Every per-kind module (m04, m05, m06, m09, m11) covers
   every m03 archetype id and no other. Every m05 pain id is in m07 `mappings`
   or `unmatched`. m08 `hardFiltersEchoed` equals m00 `hardFilters` exactly.

@@ -438,6 +438,13 @@ export const m11Schema = complete({
                   /** Grounded only in live facts and the shipped column; absent means "no grounded answer". */
                   answer: prose.optional(),
                   factIds: z.array(factIdSchema),
+                  /**
+                   * Planned facts that show the honest answer is "not today"
+                   * (definition §10 note 9): cited as the reason something is
+                   * not available, never as a promise. Live-only stays the rule
+                   * for `factIds`.
+                   */
+                  notYetFactIds: z.array(factIdSchema).optional(),
                 })
                 .strict(),
             )

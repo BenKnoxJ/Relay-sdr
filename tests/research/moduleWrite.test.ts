@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MODULE_IDS, SCOPE_ISSUE, type LockedScope } from "../../agents/research/output.schema";
 import { loadFacts } from "@/lib/facts/load";
 import { liveFactIds } from "@/lib/facts/schema";
-import { checkModuleWrite } from "@/lib/research/moduleWrite";
+import { checkModuleWrite, groupVoiceIssues } from "@/lib/research/moduleWrite";
 
 import { goodPack, moduleContent } from "../agents/researchPack";
 
@@ -167,6 +167,18 @@ describe("checkModuleWrite", () => {
     const m04 = content("m04") as { perArchetype: Array<{ recipe: { locations?: string[] } }> };
     for (const t of m04.perArchetype) t.recipe.locations = [];
     expect(checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+  });
+
+  it("names a group-level m06 voice as a structural slip, where it belongs, and never copies it down (brief A v3.2)", () => {
+    const m06 = content("m06") as { perArchetype: Array<Record<string, unknown>> };
+    m06.perArchetype[0]!.voice = "practitioner";
+    m06.perArchetype[2]!.voice = "practitioner";
+    expect(groupVoiceIssues("m06", m06)).toEqual([
+      "perArchetype.0.voice: voice belongs on each phrase, not on the kind of buyer — one group can hold words from different voices. Remove perArchetype.0.voice and set perArchetype.0.phrases.<n>.voice on every phrase independently.",
+      "perArchetype.2.voice: voice belongs on each phrase, not on the kind of buyer — one group can hold words from different voices. Remove perArchetype.2.voice and set perArchetype.2.phrases.<n>.voice on every phrase independently.",
+    ]);
+    expect(groupVoiceIssues("m06", content("m06"))).toEqual([]);
+    expect(groupVoiceIssues("m05", m06)).toEqual([]);
   });
 
   it("seeds a firm once across the pack: the same domain under two kinds of buyer is refused (§10 note 28)", () => {

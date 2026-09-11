@@ -37,6 +37,9 @@ import { rejectedAnswerText, validationIssues } from "@/lib/agents/run";
 import { prisma } from "@/lib/db";
 import { enqueue } from "@/lib/jobs/queue";
 import { mutate } from "@/lib/repo/mutate";
+import { jobActuals } from "@/lib/repo/research";
+import { corpusFromSteps } from "@/lib/research/assemble";
+import { createCorpus } from "@/lib/research/corpus";
 import { scoreRubric, type RubricReport } from "@/lib/research/rubric";
 import { researchHandler, researchJobInputSchema, type ResearchHandlerDeps } from "@/worker/handlers/research";
 import { MODULE_IDS, isModuleId, type ModuleId, type PackShape } from "../agents/research/output.schema";
@@ -186,6 +189,24 @@ async function main(): Promise<number> {
     });
   const modelSteps = steps.filter((s) => s.kind === "model").length;
   const moduleWrites = steps.filter((s) => s.kind === "tool" && s.name === "writeModule").length;
+  // v3.2: the whole job's totals, across resumes; the job's calls in order (row 8); the pages it read (the place check).
+  const actuals = await jobActuals(prisma, { orgId, jobId: job.id });
+  const runOrder = new Map(runs.map((run, i) => [run.id, i]));
+  const toolSteps = steps.filter((s) => s.kind === "tool").sort((a, b) => (runOrder.get(a.runId) ?? 0) - (runOrder.get(b.runId) ?? 0) || a.index - b.index);
+  const record = toolSteps.map((s) => {
+    const input = s.input as { module?: unknown } | null;
+    const out = s.output as { accepted?: unknown; verdict?: unknown } | null;
+    return {
+      run: runOrder.get(s.runId) ?? 0,
+      name: s.name,
+      ...(typeof input?.module === "string" ? { module: input.module } : {}),
+      ...(typeof out?.verdict === "string" ? { verdict: out.verdict } : {}),
+      ...(typeof out?.accepted === "boolean" ? { accepted: out.accepted } : {}),
+    };
+  });
+  const corpus = createCorpus();
+  corpusFromSteps(corpus, toolSteps);
+  const pageText = (url: string): string | undefined => (corpus.has(url) ? corpus.textFor(url) : undefined);
 
   let priorSeedFirms: string[] | undefined;
   if (args.priorFrom !== undefined) {
@@ -200,26 +221,30 @@ async function main(): Promise<number> {
       : scoreRubric({
           pack: output,
           searches,
-          actuals: { ...(report?.actuals ?? { searches: 0, fetches: 0, fetchedChars: 0, seconds: Math.round(durationMs / 1000) }), modelSteps, costUsd: cost },
+          actuals: { searches: actuals.searches, fetches: actuals.fetches, fetchedChars: actuals.fetchedChars, seconds: actuals.elapsedSeconds, modelSteps: actuals.modelSteps, costUsd: actuals.costUsd },
           budget,
           expectInsufficient: args.expectInsufficient,
+          record,
+          pageText,
           ...(report === undefined ? {} : { report }),
           ...(priorSeedFirms === undefined ? {} : { priorSeedFirms }),
         });
 
   const fixture = {
     kind: "research",
-    contract: "v3",
+    contract: "v3.2",
     name: args.name,
     source: "run",
     recordedAt: new Date().toISOString(),
     live: true,
     tools: args.tools,
-    factsNote: "facts from facts/insights360.v1.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
+    factsNote: "facts from facts/insights360.v2.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
     input: jobInput,
     output,
     report: report ?? null,
-    run: { steps: steps.length, modelSteps, toolSteps: steps.filter((s) => s.kind === "tool").length, moduleWrites, attempts: runs.length, cost: cost.toFixed(6), durationMs, jobId: job.id, eventId },
+    // The whole job, across every run and resume; `cost` is summed from the steps, so an unfinished run counts too.
+    run: { steps: steps.length, modelSteps, toolSteps: toolSteps.length, moduleWrites, attempts: runs.length, cost: actuals.costUsd.toFixed(6), runsCostTotal: cost.toFixed(6), durationMs, jobId: job.id, eventId, actuals },
+    record,
     error,
     rejectedIssues: rejected?.issues ?? null,
     rubric,

@@ -6,6 +6,9 @@ import {
   MODULE_IDS,
   domainCounts,
   crossModuleIssues,
+  m04ScopeIssues,
+  type LockedScope,
+  type PageText,
   moduleFactIds,
   moduleNotYetFactIds,
   moduleOwnIds,
@@ -45,6 +48,10 @@ export type ModuleWriteContext = {
   plannedFactIds?: ReadonlySet<string>;
   /** The product's never-say list (§10 note 20), linted over what the module's author wrote. */
   neverSay?: Pick<NeverSayFile, "entries">;
+  /** v3.2 (§10 note 28): the rep's locked scope, enforced on m04's seed firms and recipes. */
+  scope?: LockedScope;
+  /** The text of a page the run read, for the place check. */
+  pageText?: PageText;
   now: Date;
 };
 
@@ -92,6 +99,9 @@ export function checkModuleWrite(id: ModuleId, content: unknown, context: Module
   // References to modules already accepted (§10 note 12): archetype ids from
   // m03, pain ids from m05, seed firms from m04, m00's hard filters.
   for (const found of crossModuleIssues(pack)) if (found.module === id) issues.push(found.message);
+
+  // v3.2: the seed firms and recipes lead gen works from stay inside the rep's scope.
+  if (id === "m04" && context.scope !== undefined) issues.push(...m04ScopeIssues(written as CompleteModule<"m04">, context.scope, context.pageText));
 
   if (context.knownFactIds !== undefined) {
     for (const { where, ids } of moduleNotYetFactIds(pack, id)) {

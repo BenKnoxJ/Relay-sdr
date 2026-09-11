@@ -6,7 +6,10 @@ import {
   MODULE_IDS,
   completeModule,
   isModuleId,
+  m04ScopeIssues,
   moduleFactIds,
+  type LockedScope,
+  type PageText,
   moduleNotYetFactIds,
   researchOutputSchema,
   type ModuleId,
@@ -42,6 +45,9 @@ export type ValidateContext = {
   priorPackIds: string[];
   /** The product's never-say list (§10 note 20). Absent means not linted. */
   neverSay?: Pick<NeverSayFile, "entries">;
+  /** v3.2 (§10 note 28): the locked scope m04 is held to, and the pages the place check reads. */
+  scope?: LockedScope;
+  pageText?: PageText;
   now?: Date;
 };
 
@@ -95,6 +101,10 @@ export function validatePack(raw: unknown, context: ValidateContext): ValidateRe
       if (!covered.has(channel.toLowerCase())) issues.push({ module: "m12", message: `m12: no contact rule for the channel ${JSON.stringify(channel)}` });
     }
   }
+
+  // The rep's scope on the seed firms and recipes (v3.2, §10 note 28).
+  const m04 = completeModule(pack, "m04");
+  if (m04 && context.scope !== undefined) for (const message of m04ScopeIssues(m04, context.scope, context.pageText)) issues.push({ module: "m04", message });
 
   // Changes since the last pack, when there was one (§3 m14).
   const m14 = completeModule(pack, "m14");

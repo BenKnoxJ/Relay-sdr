@@ -146,6 +146,7 @@ export function goodPack(options: { liveFactId: string }): PackShape {
           id: `${a}-firm-${i}`,
           name: `${a} firm ${i}`,
           region: "GB",
+          country: "GB",
           size: i === 1 ? { status: "estimated", value: "20 to 30 staff", source: `https://size-${a}.example/team` } : { status: "unknown" },
           signal: item(`${a}-firm-${i}-signal`, `${a} firm ${i} reported a complaints backlog`),
         })),

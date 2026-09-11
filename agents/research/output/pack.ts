@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { assertPlainWords } from "@/lib/copy/plainWords";
 
-import { hostOf, itemSchema, staleAndOverClaimed, type Item } from "../../_shared/item.schema";
+import { hostOf, staleAndOverClaimed, type Item } from "../../_shared/item.schema";
+import { lockedScopeSchema, wideningIssue, wideningSchema } from "./scope";
 import {
   MODULE_IDS,
   type CompleteModule,
@@ -32,15 +33,22 @@ export const DOMAIN_CAP = 3;
 /** Research v3 §3 m06: six in ten phrases from a named buyer. */
 export const BUYER_WORDS_MIN = 0.6;
 
-export const wideningSchema = z.object({ kind: z.enum(["region", "size", "pain"]), text: z.string().min(1).max(400) }).strict();
-
-/** The stop-rule result (§5 rule 7): what was found, and exactly three widenings. */
+/**
+ * The insufficient outcome (v3.2, §10 note 28), from the persisted
+ * `decideScope` stop: why Relay stopped, the ids of the accepted m00/m01
+ * evidence it rests on (not copies of it), and one to three genuine widening
+ * options — never padded to three.
+ */
 export const insufficientSchema = z
   .object({
-    found: z.array(itemSchema).max(40),
-    widenings: z.tuple([wideningSchema, wideningSchema, wideningSchema]),
+    reason: z.string().min(1).max(4000),
+    evidenceIds: z.array(z.string().min(1).max(200)).max(40),
+    widenings: z.array(wideningSchema).min(1).max(3),
+    decidedAt: z.string().min(1).max(40),
   })
   .strict();
+
+export const OUTCOMES = ["complete", "partial", "insufficient"] as const;
 
 const modulesShape = Object.fromEntries(
   MODULE_IDS.map((id) => [id, z.union([COMPLETE_MODULE_SCHEMAS[id], insufficientModuleSchema]).optional()]),
@@ -50,6 +58,10 @@ const packShape = z
   .object({
     modules: z.object(modulesShape).strict(),
     insufficient: insufficientSchema.optional(),
+    /** v3.2: the rep's locked scope, set by the runtime — the source of truth m00 presents. Absent on packs recorded before v3.2. */
+    scope: lockedScopeSchema.optional(),
+    /** v3.2: how the research ended. Absent on packs recorded before v3.2. */
+    outcome: z.enum(OUTCOMES).optional(),
     /** True when a rail ended the run before every module was written (§6). */
     partial: z.boolean(),
     missingModules: z.array(z.enum(MODULE_IDS)),
@@ -210,7 +222,6 @@ export function moduleNotYetFactIds(pack: PackShape, id: ModuleId): Array<{ wher
 export function packItems(pack: PackShape): Item[] {
   const items: Item[] = [];
   for (const id of MODULE_IDS) items.push(...moduleItems(pack, id));
-  if (pack.insufficient !== undefined) items.push(...pack.insufficient.found);
   return items;
 }
 
@@ -407,10 +418,29 @@ function refinePack(pack: PackShape, ctx: z.RefinementCtx, options: { staleCheck
 
   // Ids unique across the pack.
   const seen = new Set<string>();
-  const all: string[] = [...MODULE_IDS.flatMap((id) => moduleOwnIds(pack, id)), ...(pack.insufficient?.found.map((i) => i.id) ?? [])];
+  const all: string[] = MODULE_IDS.flatMap((id) => moduleOwnIds(pack, id));
   for (const id of all) {
     if (seen.has(id)) issue(`duplicate id ${JSON.stringify(id)}`);
     seen.add(id);
+  }
+
+  // v3.2 (§10 note 28): the stop rests on accepted m00/m01 evidence, and every widening genuinely widens.
+  if (pack.outcome !== undefined && (pack.outcome === "insufficient") !== (pack.insufficient !== undefined)) {
+    issue("outcome is insufficient exactly when the insufficient block is present", ["outcome"]);
+  }
+  if (pack.insufficient !== undefined) {
+    const known = new Set([...moduleItems(pack, "m00"), ...moduleItems(pack, "m01")].map((item) => item.id));
+    for (const id of pack.insufficient.evidenceIds) {
+      if (!known.has(id)) issue(`the stop cites evidence ${JSON.stringify(id)}, which is not an item of m00 or m01`, ["insufficient", "evidenceIds"]);
+    }
+    const patches = new Set<string>();
+    pack.insufficient.widenings.forEach((widening, i) => {
+      const key = canonical(widening.scopePatch);
+      if (patches.has(key)) issue("two widening options make the same change", ["insufficient", "widenings", i]);
+      patches.add(key);
+      const why = pack.scope === undefined ? null : wideningIssue(pack.scope, widening);
+      if (why !== null) issue(why, ["insufficient", "widenings", i]);
+    });
   }
 
   // §3: rep words on the one string a rep reads.
@@ -451,8 +481,7 @@ export type ResearchPack = z.infer<typeof researchOutputSchema>;
 export const researchRunOutputSchema = z
   .object({
     modulesWritten: z.array(z.enum(MODULE_IDS)),
-    /** Set when the agent stopped under §5 rule 7; the widenings are the module writer's `insufficient` payload. */
-    insufficient: insufficientSchema.optional(),
+    /** v3.2: a stop is `decideScope`, persisted as it is made; the closing answer carries none. */
     note: z.string().max(2000).optional(),
   })
   .strict();

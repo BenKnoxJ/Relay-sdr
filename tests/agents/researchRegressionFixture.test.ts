@@ -62,10 +62,11 @@ describe("the regression fixture: brief A v3.1 against today's rules", () => {
     expect(stale, stale.map((e) => `${e.module}.${e.path}: ${e.message}`).join("\n")).toEqual([]);
   });
 
-  it("exempts only fields added after it was recorded (§10 notes 25, 26)", () => {
+  it("exempts only fields added after it was recorded (§10 notes 25, 26, 28)", () => {
     expect(new Set(manifest.exemptions.map((e) => e.rule))).toEqual(new Set(["v3.2-addition"]));
     const kinds = [...new Set(manifest.exemptions.map((e) => `${e.module}:${e.path.replace(/\.\d+/g, ".*")}`))].sort();
     expect(kinds).toEqual([
+      "m04:perArchetype.*.seedFirms.*.country",
       "m07:mappings.*.mustNotImply",
       "m16:candidates.*.angleIds",
       "m16:candidates.*.contactRuleIds",

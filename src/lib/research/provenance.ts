@@ -248,16 +248,7 @@ export function checkProvenance(pack: PackShape, corpus: Corpus): ProvenanceResu
     total += moduleTotal;
     failed.push(...moduleFailed);
   }
-  if (copy.insufficient !== undefined) {
-    for (const item of copy.insufficient.found) {
-      total += 1;
-      const match = matchItem(item, corpus, distinctive);
-      if (match.passed) continue;
-      failed.push({ module: "insufficient", id: item.id, text: item.text, reason: match.reason });
-      item.confidence = "speculative";
-      item.inferredFrom = `provenance: ${match.reason}`;
-    }
-  }
+  // v3.2: the stop cites m00/m01 Items by id, and those are checked above with their modules.
   const fraction = total === 0 ? 0 : failed.length / total;
   return {
     pack: copy,

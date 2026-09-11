@@ -66,3 +66,6 @@ Any model call. Phone reveal. Per-person company size or industry. The Zoho lead
 
 ## 8. Resolved from v1's open questions
 1. Spare pool = every unheld preview beyond N. 2. Five score weights as listed; no signal not visible on the preview. 3. `isBeingContacted` kept and shared with Approve, empty in a one-rep pilot.
+
+## 9. Amendment notes
+1. **`recipe.locations`** (product owner 2026-09-11, with research v3.2 note 28; a contract correction found by testing): the targeting recipe gains one optional field, `locations[]`, the sub-national place names (e.g. "Orkney") that the rep's locked scope names. Research carries a supplied place through to it and may not widen it. Step 1 translates each location through Lusha's location filter like any other term. A location with no facet halts with `unmappable: [term]` and nothing is searched: lead gen never drops a location to widen a search.

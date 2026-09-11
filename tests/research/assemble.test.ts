@@ -2,7 +2,7 @@ import type { AgentRunStep } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import { MODULE_IDS } from "../../agents/research/output.schema";
-import { assemblePack, corpusFromSteps, latestModules, markInsufficient, moduleWritesFromSteps, refusals, type ModuleWrite } from "@/lib/research/assemble";
+import { assemblePack, corpusFromSteps, latestModules, markInsufficient, moduleWritesFromSteps, refusals, researchStateFromSteps, type ModuleWrite } from "@/lib/research/assemble";
 import { createCorpus } from "@/lib/research/corpus";
 
 import { goodPack } from "../agents/researchPack";
@@ -19,6 +19,20 @@ const refused = (module: string, digest: string, insufficient?: Record<string, u
   ({ module, digest, output: { accepted: false, module, digest, issues: ["too thin"], ...(insufficient === undefined ? {} : { insufficient }) } }) as ModuleWrite;
 
 const step = (name: string, output: unknown, index = 0): AgentRunStep => ({ name, output, index, kind: "tool" }) as unknown as AgentRunStep;
+
+describe("the research state, read from the job's steps (v3.2, §10 note 28)", () => {
+  const decision = (verdict: "continue" | "stop", extra: Record<string, unknown> = {}) =>
+    step("decideScope", { accepted: true, verdict, reason: "r", evidenceIds: [], widenings: [], decidedAt: "2026-09-11T09:00:00Z", ...extra });
+
+  it("is open until the scope is decided, gated after a continue, and stopped after a stop — terminally", () => {
+    expect(researchStateFromSteps([])).toEqual({ state: "open" });
+    expect(researchStateFromSteps([step("decideScope", { accepted: false, issues: ["x"] })])).toEqual({ state: "open" });
+    expect(researchStateFromSteps([decision("continue")])).toEqual({ state: "gated" });
+    const widening = { dimension: "region", text: "Wider.", scopePatch: { places: null } };
+    const stopped = researchStateFromSteps([decision("continue"), decision("stop", { reason: "Too thin.", evidenceIds: ["m01-a"], widenings: [widening] }), decision("continue")]);
+    expect(stopped).toEqual({ state: "stopped", stop: { reason: "Too thin.", evidenceIds: ["m01-a"], widenings: [widening], decidedAt: "2026-09-11T09:00:00Z" } });
+  });
+});
 
 describe("assembly", () => {
   it("takes the latest stored version of each module, across runs", () => {

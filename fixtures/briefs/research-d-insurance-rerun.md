@@ -17,7 +17,11 @@ The input below is what `npm run agent` reads. The prose above it is for a perso
     "channels": [
       "email",
       "linkedin"
-    ]
+    ],
+    "scope": {
+      "countries": ["GB"],
+      "roles": { "include": ["claims operations"] }
+    }
   },
   "facts": {
     "product": "Insights360",

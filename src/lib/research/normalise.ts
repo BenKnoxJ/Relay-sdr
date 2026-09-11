@@ -171,19 +171,27 @@ export function normaliseModule(id: ModuleId, content: unknown, context: { plann
   if (id === "m12") assign(copy.rules, (row, n) => `rule-${slug(row.channel)}-${n + 1}`, "m12.rules");
   if (id === "m13") assign(copy.entries, (row, n) => `event-${slug(row.date)}-${n + 1}`, "m13.entries");
 
-  // m04: country names to the ISO codes lead gen searches with.
+  // m04: country names to the ISO codes lead gen searches with, in the recipe and on each seed firm.
+  const toCode = (country: unknown, where: string): unknown => {
+    if (typeof country !== "string") return country;
+    // "United Kingdom (England, Scotland, Wales)" — the bracket is a note (brief A).
+    const trimmed = country.replace(/\s*\(.*\)\s*$/, "").trim();
+    const mapped = /^[a-z]{2}$/i.test(trimmed) && trimmed.toLowerCase() !== "uk" ? trimmed.toUpperCase() : COUNTRY_CODES[trimmed.toLowerCase()];
+    if (mapped !== undefined && mapped !== country) notes.push(`${where}: ${JSON.stringify(country)} → ${mapped}`);
+    return mapped ?? country;
+  };
   if (id === "m04" && Array.isArray(copy.perArchetype)) {
     copy.perArchetype.forEach((target, i) => {
-      const recipe = isObject(target) ? target.recipe : undefined;
-      if (!isObject(recipe) || !Array.isArray(recipe.countries)) return;
-      recipe.countries = recipe.countries.map((country, j) => {
-        if (typeof country !== "string") return country;
-        // "United Kingdom (England, Scotland, Wales)" — the bracket is a note (brief A).
-        const trimmed = country.replace(/\s*\(.*\)\s*$/, "").trim();
-        const mapped = /^[a-z]{2}$/i.test(trimmed) && trimmed.toLowerCase() !== "uk" ? trimmed.toUpperCase() : COUNTRY_CODES[trimmed.toLowerCase()];
-        if (mapped !== undefined && mapped !== country) notes.push(`m04.perArchetype.${i}.recipe.countries.${j}: ${JSON.stringify(country)} → ${mapped}`);
-        return mapped ?? country;
-      });
+      if (!isObject(target)) return;
+      const recipe = target.recipe;
+      if (isObject(recipe) && Array.isArray(recipe.countries)) {
+        recipe.countries = recipe.countries.map((country, j) => toCode(country, `m04.perArchetype.${i}.recipe.countries.${j}`));
+      }
+      if (Array.isArray(target.seedFirms)) {
+        target.seedFirms.forEach((firm, j) => {
+          if (isObject(firm) && firm.country !== undefined) firm.country = toCode(firm.country, `m04.perArchetype.${i}.seedFirms.${j}.country`);
+        });
+      }
     });
   }
 

@@ -20,7 +20,11 @@ The input below is what the bench reads. The prose above it is for a person.
     "region": "GB",
     "howMany": 15,
     "weeks": 4,
-    "channels": ["email", "linkedin"]
+    "channels": ["email", "linkedin"],
+    "scope": {
+      "countries": ["GB"],
+      "orgTypes": ["telephony reseller", "3CX partner"]
+    }
   }
 }
 ```

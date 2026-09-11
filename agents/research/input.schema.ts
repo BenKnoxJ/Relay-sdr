@@ -38,6 +38,36 @@ export const productFactsSchema = z
   })
   .strict();
 
+const scopeTerm = z.string().min(1).max(200);
+
+/**
+ * The rep's scope, structured (v3.2, §10 note 28). Every field is optional:
+ * only what the rep supplied is a constraint, and `who` stays the rep's words
+ * beside it. The orchestrator will derive this from the campaign request; the
+ * bench briefs carry it by hand. `countries` defaults to the brief's `region`.
+ */
+export const scopeSchema = z
+  .object({
+    countries: z.array(regionSchema).min(1).max(10).optional(),
+    /** Sub-national places, e.g. Orkney, with the other names a page may use for it. */
+    places: z.array(z.object({ name: scopeTerm, aliases: z.array(scopeTerm).max(10).optional() }).strict()).min(1).max(20).optional(),
+    /** What the buying organisation is, e.g. "veterinary practice". */
+    orgTypes: z.array(scopeTerm).min(1).max(20).optional(),
+    /** The rep's size band. Only an employee band can be checked against a firm; seats and sites are judged. */
+    size: z
+      .object({ unit: z.enum(["employees", "seats", "sites"]), min: z.number().int().nonnegative().optional(), max: z.number().int().positive().optional() })
+      .strict()
+      .refine((s) => s.min !== undefined || s.max !== undefined, "a size gives a min, a max or both")
+      .refine((s) => s.min === undefined || s.max === undefined || s.min <= s.max, "size.min must not be above size.max")
+      .optional(),
+    /** Roles to reach and roles never to reach. Exclusions are enforced on the recipe; inclusion is judged. */
+    roles: z.object({ include: z.array(scopeTerm).max(30).optional(), exclude: z.array(scopeTerm).max(30).optional() }).strict().optional(),
+    excludeOrgTypes: z.array(scopeTerm).max(20).optional(),
+    excludeFirms: z.array(z.object({ name: scopeTerm, domain: z.string().min(1).max(253).optional() }).strict()).max(200).optional(),
+  })
+  .strict();
+export type Scope = z.infer<typeof scopeSchema>;
+
 export const researchBriefSchema = z
   .object({
     product: z.string().min(1).max(120),
@@ -45,6 +75,8 @@ export const researchBriefSchema = z
     /** The rep's own words for who they are selling to. Kept verbatim (§2, orchestrator §2). */
     who: z.string().min(1).max(500),
     region: regionSchema,
+    /** v3.2 (§10 note 28): the rep's scope, structured, beside `who`. */
+    scope: scopeSchema.optional(),
     howMany: z.number().int().positive().max(500),
     weeks: z.number().int().positive().max(52),
     channels: z.array(z.string().min(1).max(60)).min(1).max(8),
@@ -62,7 +94,8 @@ export const researchBriefSchema = z
 export const priorRunSchema = z
   .object({
     insufficient: z.boolean(),
-    widenedBy: z.enum(["region", "size", "pain"]),
+    /** v3.2 (§10 note 28): the scope dimension the rep widened. */
+    widenedBy: z.enum(["region", "size", "sector", "role"]),
     note: z.string().max(1000),
   })
   .strict();

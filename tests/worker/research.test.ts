@@ -57,8 +57,18 @@ const urlsOf = (ids: readonly ModuleId[]): string[] =>
 const ALL_URLS = PAGES.map((page) => page.url);
 const except = <T,>(list: readonly T[], drop: readonly unknown[]): T[] => list.filter((x) => !drop.includes(x));
 
+const decide = call("decideScope", { verdict: "continue", reason: "The market inside the brief carries the rest of the pack." });
+const STOP = call("decideScope", {
+  verdict: "stop",
+  reason: "Two firms fit, not twenty.",
+  evidenceIds: ["market-1"],
+  widenings: [{ dimension: "region", text: "Ireland as well as Great Britain.", scopePatch: { countries: ["GB", "IE"] } }],
+});
+/** Writes in order, deciding the scope straight after m01 (v3.2, §10 note 28). */
+const gatedWrites = (ids: readonly ModuleId[], pack: PackShape = PACK): ScriptedCall[] => ids.flatMap((id) => (id === "m01" ? [...writes([id], pack), decide] : writes([id], pack)));
+
 /** A research phase that reads everything and writes its modules, then a synthesis phase that writes the rest. */
-const researchScript = (ids: readonly ModuleId[] = RESEARCH): ScriptedCall[] => [facts0, ...fetches(ALL_URLS), ...writes(ids), answer(ids)];
+const researchScript = (ids: readonly ModuleId[] = RESEARCH): ScriptedCall[] => [facts0, ...fetches(ALL_URLS), ...gatedWrites(ids), answer(ids)];
 const synthesisScript = (ids: readonly ModuleId[] = SYNTHESIS): ScriptedCall[] => [facts0, ...writes(ids), answer(ids)];
 
 /** Deps whose model is a queue of scripts, one per run, across handler calls; records which model each run asked for. */
@@ -93,7 +103,9 @@ type After = {
   missingModules: string[];
   knowledge: { version: number; hash: string };
   facts: { version: number; draft: boolean };
+  outcome: string;
   report: {
+    actuals: { runs: number; searches: number; fetches: number; fetchedChars: number; modelSteps: number; costUsd: number; elapsedSeconds: number; activeSeconds: number; unfinishedRuns: string[] };
     attempts: number;
     reasked: string[][];
     insufficientModules: string[];
@@ -134,7 +146,7 @@ describe("the research job (v3.1, two phases)", () => {
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     const a = await after(result.eventId);
     expect(a.jobId).toBe(job.id);
-    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 2, draft: false } });
+    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 2, draft: false }, outcome: "complete" });
     expect(a.report).toMatchObject({ attempts: 2, reasked: [], insufficientModules: [] });
     expect(a.report.endings.map((e) => e.phase)).toEqual(["research", "synthesis"]);
     expect(d.models).toEqual(["claude-opus-5", SYNTHESIS_MODEL]);
@@ -155,7 +167,7 @@ describe("the research job (v3.1, two phases)", () => {
 
   it("closes search and fetch in the synthesis phase, and keeps each phase to its own modules", async () => {
     const job = await jobRow({ brief: BRIEF });
-    const strayResearch = [facts0, ...fetches(ALL_URLS), ...writes(RESEARCH), ...writes(["m07"]), answer(RESEARCH)];
+    const strayResearch = [facts0, ...fetches(ALL_URLS), ...gatedWrites(RESEARCH), ...writes(["m07"]), answer(RESEARCH)];
     const straySynthesis = [facts0, call("search", { query: "q0", region: "GB" }), call("fetch", { url: ALL_URLS[0]! }), ...writes(SYNTHESIS), answer(SYNTHESIS)];
     await researchHandler(deps([strayResearch, straySynthesis]))({ db: prisma, job, signal: signal() });
     const runs = await prisma.agentRun.findMany({ where: { jobId: job.id }, orderBy: { createdAt: "asc" } });
@@ -169,11 +181,12 @@ describe("the research job (v3.1, two phases)", () => {
   it("stores the modules already written as a partial pack when a rail ends the research phase, and completes the job", async () => {
     const job = await jobRow({ brief: BRIEF });
     const first = ["m00", "m01", "m02"] as const;
-    const script = [facts0, ...fetches(urlsOf(first)), ...writes(first), call("search", { query: "q0", region: "GB" }), call("search", { query: "q1", region: "GB" }), answer(first)];
+    const script = [facts0, ...fetches(urlsOf(first)), ...gatedWrites(first), call("search", { query: "q0", region: "GB" }), call("search", { query: "q1", region: "GB" }), answer(first)];
     const d = deps([script], { budget: { ...RAILS, maxSearches: 1 } });
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     const a = await after(result.eventId);
     expect(a.partial).toBe(true);
+    expect(a.outcome).toBe("partial");
     expect(Object.keys(a.pack.modules).sort()).toEqual([...first, "m19"].sort());
     expect(a.report.endings).toEqual([expect.objectContaining({ phase: "research", ending: "rail" })]);
     // A rail ends the job's runs: no synthesis, no re-ask.
@@ -186,7 +199,7 @@ describe("the research job (v3.1, two phases)", () => {
     const firstHalf = RESEARCH.slice(0, 5);
     const secondHalf = RESEARCH.slice(5);
     // The research phase dies after its fifth module: the script runs out where a worker would be killed.
-    const killed = [facts0, ...fetches(ALL_URLS), ...writes(firstHalf)];
+    const killed = [facts0, ...fetches(ALL_URLS), ...gatedWrites(firstHalf)];
     const rest = [facts0, ...writes(secondHalf), answer(RESEARCH)];
     const d = deps([killed, rest, synthesisScript()]);
     await expect(researchHandler(d)({ db: prisma, job, signal: signal() })).rejects.toThrow();
@@ -200,12 +213,29 @@ describe("the research job (v3.1, two phases)", () => {
     expect(moduleWritesFromSteps(steps).map((w) => w.module).sort()).toEqual([...RESEARCH, ...SYNTHESIS].sort());
     const keys = (await prisma.agentRunStep.findMany({ where: { kind: "tool" } })).map((s) => s.toolKey).filter((k) => k !== null);
     expect(new Set(keys).size).toBe(keys.length);
+
+    // v3.2: the actuals are the whole job's — both attempts, every run — not the attempt that finished it.
+    const all = await prisma.agentRunStep.findMany({ where: { orgId: ORG_ID } });
+    const fetched = all.filter((s) => s.name === "fetch");
+    const chars = fetched.reduce((sum, s) => sum + ((s.output as { markdown?: string } | null)?.markdown?.length ?? 0), 0);
+    const micros = all.reduce((sum, s) => sum + Math.round(Number(s.cost.toString()) * 1_000_000), 0);
+    expect(a.report.actuals).toMatchObject({
+      runs: await prisma.agentRun.count({ where: { jobId: job.id } }),
+      searches: all.filter((s) => s.name === "search").length,
+      fetches: fetched.length,
+      fetchedChars: chars,
+      modelSteps: all.filter((s) => s.kind === "model").length,
+      costUsd: micros / 1_000_000,
+    });
+    expect(a.report.actuals.runs).toBe(3);
+    expect(a.report.actuals.fetches).toBeGreaterThan(0);
+    expect(a.report.actuals.elapsedSeconds).toBeGreaterThanOrEqual(a.report.actuals.activeSeconds - 1);
   });
 
   it("re-asks only the module that failed provenance, in its own phase, with its stored version to edit", async () => {
     const job = await jobRow({ brief: BRIEF });
     const m05Urls = urlsOf(["m05"]);
-    const research = [facts0, ...fetches(except(ALL_URLS, m05Urls)), ...writes(RESEARCH), answer(RESEARCH)];
+    const research = [facts0, ...fetches(except(ALL_URLS, m05Urls)), ...gatedWrites(RESEARCH), answer(RESEARCH)];
     const reask = [facts0, ...fetches(m05Urls), ...writes(["m05"]), answer(["m05"])];
     const d = deps([research, synthesisScript(), reask]);
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
@@ -233,14 +263,66 @@ describe("the research job (v3.1, two phases)", () => {
   it("stores a module refused twice as insufficient, and the pack still completes", async () => {
     const job = await jobRow({ brief: BRIEF });
     const thin = (n: number) => ({ ...moduleContent(PACK, "m03"), body: `thin ${n}`, archetypes: (moduleContent(PACK, "m03").archetypes as unknown[]).slice(0, 2) });
-    const others = except(RESEARCH, ["m03"]);
-    const research = [facts0, ...fetches(ALL_URLS), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), ...writes(others), answer(others)];
+    const others = except(RESEARCH, ["m00", "m01", "m03"]);
+    const research = [
+      facts0,
+      ...fetches(ALL_URLS),
+      ...gatedWrites(["m00", "m01"]),
+      call("writeModule", { module: "m03", content: thin(1) }),
+      call("writeModule", { module: "m03", content: thin(2) }),
+      ...writes(others),
+      answer(except(RESEARCH, ["m03"])),
+    ];
     const d = deps([research, synthesisScript()]);
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     const a = await after(result.eventId);
     expect((a.pack.modules as Record<string, { status: string; issues?: string[] }>).m03).toMatchObject({ status: "insufficient", issues: [expect.stringMatching(/archetypes/)] });
     expect(a.partial).toBe(false);
     expect(d.attempts()).toBe(2);
+  });
+
+  it("stops after m01 on a thin market: nothing after the stop, no synthesis, no re-ask, and the Event says insufficient (§10 note 28)", async () => {
+    const job = await jobRow({ brief: BRIEF });
+    // m01's pages are never read, so m01 fails provenance: a job that had not stopped would re-ask it.
+    const script = [
+      facts0,
+      ...fetches(urlsOf(["m00"])),
+      ...writes(["m00", "m01"]),
+      STOP,
+      call("search", { query: "q0", region: "GB" }),
+      call("writeModule", { module: "m02", content: moduleContent(PACK, "m02") }),
+      answer(["m00", "m01"]),
+    ];
+    const d = deps([script]);
+    const a = await after(((await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string }).eventId);
+    expect(a.outcome).toBe("insufficient");
+    expect(a.pack.outcome).toBe("insufficient");
+    expect(a.pack.scope).toMatchObject({ countries: ["GB"], supplied: ["countries"] });
+    expect(a.pack.insufficient).toMatchObject({ reason: "Two firms fit, not twenty.", evidenceIds: ["market-1"], widenings: [expect.objectContaining({ dimension: "region" })] });
+    expect(Object.keys(a.pack.modules).sort()).toEqual(["m00", "m01", "m19"]);
+    expect(a.partial).toBe(true);
+    expect(a.missingModules).toContain("m02");
+    expect(a.report.reasked).toEqual([]);
+    expect(a.report.provenance[0]?.modules.find((m) => m.module === "m01")?.rejected).toBe(true);
+    expect(d.attempts()).toBe(1);
+    const tools = await prisma.agentRunStep.findMany({ where: { kind: "tool" } });
+    expect(tools.filter((s) => s.name === "search")).toHaveLength(0);
+    expect(moduleWritesFromSteps(tools).map((w) => w.module)).toEqual(["m00", "m01"]);
+  });
+
+  it("keeps a stop across retries: a kill after it, and the retry researches nothing and completes as insufficient", async () => {
+    const job = await jobRow({ brief: BRIEF });
+    // The script runs out after the stop: the worker is killed before it closes.
+    const killed = [facts0, ...fetches(urlsOf(["m00", "m01"])), ...writes(["m00", "m01"]), STOP];
+    const d = deps([killed, researchScript()]);
+    await expect(researchHandler(d)({ db: prisma, job, signal: signal() })).rejects.toThrow();
+    const runs = await prisma.agentRun.count();
+    const toolSteps = await prisma.agentRunStep.count({ where: { kind: "tool" } });
+    const a = await after(((await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string }).eventId);
+    expect(a.outcome).toBe("insufficient");
+    expect(await prisma.agentRun.count()).toBe(runs);
+    expect(await prisma.agentRunStep.count({ where: { kind: "tool" } })).toBe(toolSteps);
+    expect(d.attempts()).toBe(1);
   });
 
   it("names a page the cascade could not read as an unreadable unknown in m18, and keeps the model's own", () => {

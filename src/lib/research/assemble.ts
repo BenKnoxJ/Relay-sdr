@@ -2,7 +2,7 @@ import type { AgentRunStep } from "@prisma/client";
 import { z } from "zod";
 
 import { hostOf, itemSchema } from "../../../agents/_shared/item.schema";
-import { MODULE_IDS, isModuleId, moduleItems, type ModuleId, type PackShape } from "../../../agents/research/output.schema";
+import { MODULE_IDS, isModuleId, moduleItems, wideningSchema, type LockedScope, type ModuleId, type PackShape } from "../../../agents/research/output.schema";
 import { moduleUrlFields } from "../../../agents/research/output/urls";
 import { normaliseUrl, type Corpus } from "@/lib/research/corpus";
 
@@ -56,6 +56,45 @@ export function moduleWritesFromSteps(steps: readonly AgentRunStep[]): ModuleWri
   return out;
 }
 
+/** What `decideScope` stores on its step (v3.2, §10 note 28). */
+export const scopeDecisionOutputSchema = z.union([
+  z
+    .object({
+      accepted: z.literal(true),
+      verdict: z.enum(["continue", "stop"]),
+      reason: z.string(),
+      evidenceIds: z.array(z.string()),
+      widenings: z.array(wideningSchema),
+      decidedAt: z.string(),
+    })
+    .strict(),
+  z.object({ accepted: z.literal(false), issues: z.array(z.string()) }).strict(),
+]);
+export type ScopeDecisionOutput = z.infer<typeof scopeDecisionOutputSchema>;
+
+/**
+ * Where the job's research stands, read from its steps every time (v3.2):
+ * `open` until the scope is decided, `gated` after a `continue`, `stopped`
+ * after a `stop` — terminal, whatever follows. The stop, when there is one,
+ * is the pack's insufficient block.
+ */
+export type ResearchState = { state: "open" | "gated" | "stopped"; stop?: NonNullable<PackShape["insufficient"]> };
+
+export function researchStateFromSteps(steps: readonly AgentRunStep[]): ResearchState {
+  let state: ResearchState = { state: "open" };
+  for (const step of steps) {
+    if (step.name !== "decideScope") continue;
+    const parsed = scopeDecisionOutputSchema.safeParse(step.output);
+    if (!parsed.success || !parsed.data.accepted) continue;
+    const decision = parsed.data;
+    if (decision.verdict === "stop") {
+      return { state: "stopped", stop: { reason: decision.reason, evidenceIds: decision.evidenceIds, widenings: decision.widenings, decidedAt: decision.decidedAt } };
+    }
+    state = { state: "gated" };
+  }
+  return state;
+}
+
 /** The stored version of a write: the accepted module, the `insufficient` record, or nothing. */
 export function storedOf(write: ModuleWrite): Record<string, unknown> | undefined {
   return write.output.accepted ? write.output.stored : write.output.insufficient;
@@ -91,12 +130,13 @@ export function refusals(writes: readonly ModuleWrite[]): Map<ModuleId, Set<stri
 }
 
 /** The pack as written, unvalidated: every stored module, the rest listed missing (§6). */
-export function assemblePack(writes: readonly ModuleWrite[], options: { insufficient?: PackShape["insufficient"] } = {}): PackShape {
+export function assemblePack(writes: readonly ModuleWrite[], options: { insufficient?: PackShape["insufficient"]; scope?: LockedScope } = {}): PackShape {
   const modules = latestModules(writes);
   const missingModules = MODULE_IDS.filter((id) => modules[id] === undefined);
   return {
     modules: modules as PackShape["modules"],
     ...(options.insufficient === undefined ? {} : { insufficient: options.insufficient }),
+    ...(options.scope === undefined ? {} : { scope: options.scope }),
     partial: missingModules.length > 0,
     missingModules,
   };

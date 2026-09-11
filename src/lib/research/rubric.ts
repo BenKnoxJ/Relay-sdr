@@ -1,14 +1,19 @@
 import {
   DOMAIN_CAP,
   MODULE_IDS,
+  SYNTHESIS_PHASE_MODULES,
   completeModule,
   domainCounts,
+  m04ScopeIssues,
   moduleItems,
   planCards,
   planCardsSchema,
   researchRawSchema,
+  wideningIssue,
+  type LockedScope,
   type ModuleId,
   type PackShape,
+  type PageText,
 } from "../../../agents/research/output.schema";
 import { aboveCeiling, hostOf, monthsOld, type Item } from "../../../agents/_shared/item.schema";
 import type { AgentBudget } from "@/lib/agents/definitions";
@@ -45,6 +50,12 @@ export type RubricInput = {
   priorSeedFirms?: string[];
   /** For brief C: the brief is thin and `insufficient` is the expected answer. */
   expectInsufficient?: boolean;
+  /** The job's tool calls in order, across runs (row 8 reads it): which call, which module, the verdict, whether accepted. */
+  record?: Array<{ run: number; name: string; module?: string; verdict?: string; accepted?: boolean }>;
+  /** The locked scope, when the pack does not carry it (rows 8 and 14). */
+  scope?: LockedScope;
+  /** The pages the run read, for the place check (rows 8 and 14). */
+  pageText?: PageText;
   /** The completion Event's report: provenance per attempt, modules stored insufficient, how each attempt ended. */
   report?: RubricReport;
   now?: Date;
@@ -165,11 +176,15 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
     });
   }
 
-  // 8 — the insufficient path.
+  // 8 — the insufficient path (v3.2, §10 note 28): a persisted stop, nothing after it, no padding.
   if (input.expectInsufficient === true) {
-    const firms = m04?.perArchetype.flatMap((t) => t.seedFirms) ?? [];
-    const ok = pack.insufficient !== undefined && pack.insufficient.widenings.length === 3 && firms.every((f) => f.signal.evidence.urls.length > 0);
-    rows.push({ check: 8, name: "Insufficient path", verdict: ok ? "pass" : "fail", detail: pack.insufficient === undefined ? "the pack did not stop" : `${pack.insufficient.widenings.map((w) => w.kind).join(", ")}; ${firms.length} firm(s), all sourced` });
+    const problems = insufficientPathProblems(input);
+    rows.push({
+      check: 8,
+      name: "Insufficient path",
+      verdict: problems.length === 0 ? "pass" : "fail",
+      detail: problems.length === 0 ? `stopped; widen by ${pack.insufficient!.widenings.map((w) => w.dimension).join(", ")}; ${pack.insufficient!.evidenceIds.length} piece(s) of in-scope evidence` : problems.join("; "),
+    });
   } else {
     rows.push({ check: 8, name: "Insufficient path", verdict: "n/a", detail: "not a thin brief" });
   }
@@ -228,5 +243,66 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
     detail: !cards.success ? `planCards does not parse: ${cards.error.issues[0]?.message ?? ""}` : (words ?? `${cards.data.archetypes.length} kind(s) of buyer, ${cards.data.seedFirms.length} firm(s) on the cards`),
   });
 
+  // 14 — scope held (v3.2): the seed firms and recipes lead gen works from stay inside the rep's scope.
+  const scope = input.scope ?? pack.scope;
+  if (scope === undefined) {
+    rows.push({ check: 14, name: "Scope held", verdict: "n/a", detail: "no locked scope recorded (a pack from before v3.2)" });
+  } else {
+    const issues = m04 === undefined ? [] : m04ScopeIssues(m04, scope, input.pageText);
+    const firms = m04?.perArchetype.flatMap((t) => t.seedFirms).length ?? 0;
+    rows.push({
+      check: 14,
+      name: "Scope held",
+      verdict: issues.length === 0 ? "pass" : "fail",
+      detail: issues.length === 0 ? `${firms} seed firm(s) and ${m04?.perArchetype.length ?? 0} recipe(s) inside the scope (${scope.supplied.join(", ")})` : `${issues.length} issue(s): ${issues.slice(0, 4).join("; ")}`,
+    });
+  }
+
   return rows.sort((x, y) => x.check - y.check);
+}
+
+/** The research calls a stop ends (v3.2). */
+const RESEARCH_CALLS = new Set(["search", "fetch", "writeModule", "decideScope"]);
+
+/** Why a thin brief's run is not a valid insufficient outcome (row 8); empty when it is. */
+export function insufficientPathProblems(input: RubricInput): string[] {
+  const { pack } = input;
+  const problems: string[] = [];
+  const record = input.record;
+  if (record === undefined) problems.push("no step record supplied");
+  const stopAt = record?.findIndex((s) => s.name === "decideScope" && s.accepted === true && s.verdict === "stop") ?? -1;
+  if (record !== undefined && stopAt < 0) problems.push("no persisted stop (decideScope)");
+  if (record !== undefined && stopAt >= 0) {
+    const after = record.slice(stopAt + 1).filter((s) => RESEARCH_CALLS.has(s.name));
+    if (after.length > 0) problems.push(`${after.length} research call(s) after the stop`);
+  }
+  const written = new Set([
+    ...(record ?? []).filter((s) => s.name === "writeModule" && s.accepted === true && s.module !== undefined).map((s) => s.module!),
+    ...MODULE_IDS.filter((id) => (pack.modules as Record<string, unknown>)[id] !== undefined),
+  ]);
+  const synthesised = SYNTHESIS_PHASE_MODULES.filter((id) => written.has(id));
+  if (synthesised.length > 0) problems.push(`synthesis wrote ${synthesised.join(", ")}`);
+  if (pack.outcome !== "insufficient" || pack.insufficient === undefined) problems.push("the outcome is not insufficient");
+  for (const id of ["m00", "m01"] as const) if (completeModule(pack, id) === undefined) problems.push(`${id} was not kept`);
+  const scope = input.scope ?? pack.scope;
+  if (scope === undefined) problems.push("no locked scope recorded");
+  if (pack.insufficient !== undefined) {
+    const known = new Set([...moduleItems(pack, "m00"), ...moduleItems(pack, "m01")].map((item) => item.id));
+    const loose = pack.insufficient.evidenceIds.filter((id) => !known.has(id));
+    if (loose.length > 0) problems.push(`evidence ${loose.join(", ")} is not in m00 or m01`);
+    const count = pack.insufficient.widenings.length;
+    if (count < 1 || count > 3) problems.push(`${count} widening options; one to three`);
+    if (scope !== undefined) {
+      for (const widening of pack.insufficient.widenings) {
+        const why = wideningIssue(scope, widening);
+        if (why !== null) problems.push(why);
+      }
+    }
+  }
+  const m04 = completeModule(pack, "m04");
+  if (m04 !== undefined && scope !== undefined) {
+    const outside = m04ScopeIssues(m04, scope, input.pageText);
+    if (outside.length > 0) problems.push(`${outside.length} seed firm or recipe issue(s) outside the scope, e.g. ${outside[0]}`);
+  }
+  return problems;
 }

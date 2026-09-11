@@ -37,11 +37,12 @@ describe("the research rubric, row by row", () => {
       report: { provenance: [{ total: 60, failed: [] }] },
       priorSeedFirms: ["A firm nobody found"],
     });
-    expect(rows.map((r) => r.check)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+    expect(rows.map((r) => r.check)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
     const failed = rows.filter((r) => r.verdict === "fail");
     expect(failed, failed.map((r) => `${r.check} ${r.name}: ${r.detail}`).join("\n")).toEqual([]);
     for (const check of [1, 2, 3, 4, 5, 6, 7, 10, 11, 13]) expect(row(rows, check).verdict, `row ${check}`).toBe("pass");
-    for (const check of [8, 9, 12]) expect(row(rows, check).verdict, `row ${check}`).toBe("n/a");
+    // Row 14 reads the locked scope; a pack built without one has none to hold.
+    for (const check of [8, 9, 12, 14]) expect(row(rows, check).verdict, `row ${check}`).toBe("n/a");
   });
 
   it("row 2 fails a partial pack and a pack with an insufficient module", () => {
@@ -99,20 +100,75 @@ describe("the research rubric, row by row", () => {
     expect(row(scoreRubric({ pack: pack as PackShape }), 13).verdict).toBe("fail");
   });
 
-  it("row 8 passes a thin brief that stopped with three widenings", () => {
-    const pack = fresh() as Loose;
-    pack.insufficient = {
-      found: [],
-      widenings: [
-        { kind: "region", text: "Widen to Scotland." },
-        { kind: "size", text: "Include smaller practices." },
-        { kind: "pain", text: "Name the pain yourself." },
-      ],
-    };
-    expect(row(scoreRubric({ pack: pack as PackShape, expectInsufficient: true }), 8).verdict).toBe("pass");
+  it("row 8 passes a persisted stop after m01 with nothing researched after it (§10 note 28)", () => {
+    const { pack, record } = stoppedAfterM01();
+    expect(row(scoreRubric({ pack, record, expectInsufficient: true }), 8)).toMatchObject({ verdict: "pass", detail: expect.stringMatching(/widen by region/) });
+  });
+
+  it("row 8 fails a widened pack that only carries an insufficient block, as brief C's run would have", () => {
+    const widened = fresh() as Loose;
+    widened.scope = ORKNEY;
+    widened.outcome = "insufficient";
+    widened.insufficient = { reason: "Only two practices.", evidenceIds: [], widenings: [WIDEN_REGION], decidedAt: "2026-09-11T09:12:14Z" };
+    const record = [
+      { run: 0, name: "writeModule", module: "m00", accepted: true },
+      { run: 0, name: "writeModule", module: "m04", accepted: true },
+    ];
+    const detail = row(scoreRubric({ pack: widened as PackShape, record, expectInsufficient: true }), 8);
+    expect(detail.verdict).toBe("fail");
+    expect(detail.detail).toMatch(/no persisted stop/);
+    expect(detail.detail).toMatch(/synthesis wrote/);
+    expect(detail.detail).toMatch(/outside the scope/);
+  });
+
+  it("row 8 fails a stop followed by more research, an unresolved evidence id, or a widening that does not widen", () => {
+    const after = stoppedAfterM01();
+    expect(row(scoreRubric({ pack: after.pack, record: [...after.record, { run: 0, name: "search" }], expectInsufficient: true }), 8).detail).toMatch(/1 research call\(s\) after the stop/);
+
+    const loose = stoppedAfterM01();
+    (loose.pack as Loose).insufficient.evidenceIds = ["not-an-item"];
+    expect(row(scoreRubric({ ...loose, expectInsufficient: true }), 8).detail).toMatch(/not-an-item is not in m00 or m01/);
+
+    const narrow = stoppedAfterM01();
+    (narrow.pack as Loose).insufficient.widenings = [{ dimension: "size", text: "Smaller.", scopePatch: { size: { unit: "employees", max: 5 } } }];
+    expect(row(scoreRubric({ ...narrow, expectInsufficient: true }), 8).detail).toMatch(/the rep set no size to widen/);
     expect(row(scoreRubric({ pack: fresh(), expectInsufficient: true }), 8).verdict).toBe("fail");
   });
+
+  it("row 14 holds seed firms to the locked scope on every brief", () => {
+    const inside = fresh() as Loose;
+    inside.scope = { countries: ["GB"], supplied: ["countries"] };
+    expect(row(scoreRubric({ pack: inside as PackShape }), 14).verdict).toBe("pass");
+    const outside = fresh() as Loose;
+    outside.scope = ORKNEY;
+    expect(row(scoreRubric({ pack: outside as PackShape }), 14)).toMatchObject({ verdict: "fail", detail: expect.stringMatching(/names none of the brief's places \(Orkney/) });
+  });
 });
+
+const ORKNEY = { countries: ["GB"], places: [{ name: "Orkney", aliases: ["Kirkwall"] }], orgTypes: ["veterinary practice"], supplied: ["countries", "places", "orgTypes"] };
+const WIDEN_REGION = { dimension: "region", text: "The Highlands and Islands as well as Orkney.", scopePatch: { places: [{ name: "Orkney" }, { name: "Highlands and Islands" }] } };
+
+/** A thin brief done right: m00 and m01 written, the scope decided `stop`, and nothing after it. */
+function stoppedAfterM01(): { pack: PackShape; record: Array<{ run: number; name: string; module?: string; verdict?: string; accepted?: boolean }> } {
+  const full = fresh() as Loose;
+  const modules = { m00: full.modules.m00, m01: full.modules.m01 };
+  const missing = Object.keys(full.modules).filter((id) => !(id in modules));
+  const pack = {
+    modules,
+    partial: true,
+    missingModules: missing,
+    scope: ORKNEY,
+    outcome: "insufficient",
+    insufficient: { reason: "Orkney holds two veterinary practices, not ten.", evidenceIds: ["market-1"], widenings: [WIDEN_REGION], decidedAt: "2026-09-11T09:00:00Z" },
+  } as unknown as PackShape;
+  const record = [
+    { run: 0, name: "search" },
+    { run: 0, name: "writeModule", module: "m00", accepted: true },
+    { run: 0, name: "writeModule", module: "m01", accepted: true },
+    { run: 0, name: "decideScope", verdict: "stop", accepted: true },
+  ];
+  return { pack, record };
+}
 
 const DIR = path.join(path.dirname(agentsDir()), "fixtures", "agents", "research");
 

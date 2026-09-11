@@ -12,7 +12,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-import { MODULE_IDS, MODULE_TITLES, type ModuleId, type PackShape } from "../agents/research/output.schema";
+import { MODULE_IDS, MODULE_TITLES, moduleItems, type ModuleId, type PackShape } from "../agents/research/output.schema";
 
 type Item = { text: string; quote?: string; speaker?: string; role?: string; publishedAt?: string; confidence: string; evidence: { urls: string[] } };
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -104,8 +104,33 @@ function records(id: ModuleId, m: Loose): string[] {
   return outLines;
 }
 
-lines.push(`# Research pack — ${fixture.name ?? file}`, "");
-if (pack.partial) lines.push(`> **Partial:** missing ${pack.missingModules.join(", ")}`, "");
+if (pack.insufficient !== undefined) {
+  // v3.2 (§10 note 28): a stopped pack leads with the stop. What follows it is evidence, not a campaign.
+  const stop = pack.insufficient;
+  const byId = new Map([...moduleItems(pack, "m00"), ...moduleItems(pack, "m01")].map((i) => [i.id, i]));
+  lines.push(
+    "# Research stopped: evidence insufficient",
+    "",
+    `_${fixture.name ?? file}_${pack.scope === undefined ? "" : ` · scope: ${JSON.stringify(Object.fromEntries(Object.entries(pack.scope).filter(([k]) => k !== "supplied")))}`}`,
+    "",
+    "## What was found in scope",
+    ...(stop.evidenceIds.length === 0 ? ["- nothing inside the brief"] : stop.evidenceIds.map((id) => (byId.has(id) ? item(byId.get(id)! as Item) : `- ${id} (not in m00 or m01)`))),
+    "",
+    "## Why Relay stopped",
+    stop.reason,
+    "",
+    "## Ways to widen — each needs a new brief the rep approves",
+    ...stop.widenings.map((w, i) => `${i + 1}. **${w.dimension}**: ${w.text}\n   scope change: \`${JSON.stringify(w.scopePatch)}\``),
+    "",
+    "## Gathered evidence — not campaign-ready",
+    "",
+    "> Written before the stop. It is what research found, not a pack a campaign can run on.",
+    "",
+  );
+} else {
+  lines.push(`# Research pack — ${fixture.name ?? file}`, "");
+}
+if (pack.partial && pack.insufficient === undefined) lines.push(`> **Partial:** missing ${pack.missingModules.join(", ")}`, "");
 for (const id of MODULE_IDS) {
   const m = (pack.modules as Record<string, Loose | undefined>)[id];
   if (m === undefined) {
@@ -122,7 +147,6 @@ for (const id of MODULE_IDS) {
   const claims = (m.claims as Item[]) ?? [];
   if (claims.length > 0) lines.push("**Claims**", ...claims.map((c) => item(c)), "");
 }
-if (pack.insufficient !== undefined) lines.push("## Stopped as insufficient", ...pack.insufficient.widenings.map((w) => `- widen by ${w.kind}: ${w.text}`), "");
 if (fixture.run !== undefined) {
   lines.push("## The run", `- ${fixture.run.attempts ?? 1} attempt(s), ${fixture.run.modelSteps} model turns, ${fixture.run.toolSteps} tool calls (${fixture.run.moduleWrites ?? "?"} module writes), ${Math.round(fixture.run.durationMs / 1000)}s, $${Number(fixture.run.cost).toFixed(2)}`);
   if (fixture.report?.reasked !== undefined && fixture.report.reasked.length > 0) lines.push(`- re-asked: ${fixture.report.reasked.map((r) => r.join(", ")).join(" | ")}`);

@@ -22,6 +22,12 @@ and dated events are findings with evidence; the campaign agent chooses.
 - `onlyModules` (a bench run only): write m00 and these modules, nothing else, and list only those in your closing answer.
 - `priorRun` (on a "widen the brief" re-run): what the last run could not find
   and how the rep widened it.
+- `brief.scope` (when the rep gave one): the rep's scope, structured —
+  `countries`, `places` (sub-national, with aliases), `orgTypes`, `size { unit,
+  min?, max? }`, `roles { include?, exclude? }`, `excludeOrgTypes`,
+  `excludeFirms`. Only what is there binds you; countries default to `region`.
+  It is locked: **never widen it yourself**. A market outside it is not yours
+  to research — it is a widening option for the rep (see the stop rule).
 - `phase` (set by the runtime): `research` or `synthesis`, and `onlyModules`,
   the modules this run writes. In `synthesis`, `acceptedModules` holds every
   module the research phase stored: write from them, cite the urls they cite,
@@ -46,11 +52,26 @@ and dated events are findings with evidence; the campaign agent chooses.
    integrations, icp, competitors, brand-voice, decisions, known-issues. Then
    `priorPacks()`. Write **m00** with `writeModule` before any search: the
    spine, the displacement, "ready now", what must not lead, the hard filters
-   derived from `who` and `region`, and what prior packs claimed as hypotheses.
+   derived from `who`, `region` and `brief.scope` (present the scope; it is
+   locked and the runtime keeps it), and what prior packs claimed as
+   hypotheses.
 2. **Wave 1, survey** (`purpose: "survey"`): two-to-three-word queries that
    map the landscape; read titles and snippets, fetch nothing yet. Kinds of
    buyer are situations (sector + size + circumstance), never job titles.
-   Write **m01** when the landscape holds.
+   Write **m01** when the landscape holds, with the organisations you found
+   inside the scope as its claims (each an Item with its page).
+2b. **Decide the scope** — `decideScope`, straight after m01 and before any
+   other module (the runtime refuses m02 onward until you do). `continue`
+   when the market inside the scope can carry the rest of the pack: three
+   kinds of buyer and at least two seed firms each, inside the scope.
+   `stop` when it cannot: a `reason`, the `evidenceIds` of the m00/m01 items
+   that show what exists inside the scope, and **one to three** ways the rep
+   could widen the brief — `dimension: region | size | sector | role`, `text`,
+   and a `scopePatch` that changes that dimension only (e.g. region: `{
+   places: [{ name: "Highlands and Islands" }] }`; `places: null` means the
+   whole country). Aim for three where three genuinely exist; never invent
+   one to reach three. A stop ends research: no more searches, pages or
+   modules; close straight after it.
 3. **Wave 2, locate and read** (`purpose: "locate"`): specific queries; fetch
    the pages worth reading in full — buyers' own words (forums, reviews, job
    adverts, trade-press quotes with a name and role, regulator complaints,
@@ -66,8 +87,8 @@ and dated events are findings with evidence; the campaign agent chooses.
    the platform's user agreement) and the sector's professional rules; find
    where these buyers gather (named events with dates, trade bodies, trade
    press) and the list sources a rep would use. Write **m10, m12, m13**.
-5. **The two phases.** The research phase writes m00, m01, m02, m03, m05,
-   m06, m04, m10, m12, m13 and m17. The synthesis phase, a separate run
+5. **The two phases.** The research phase writes m00 and m01, decides the
+   scope, then writes m02, m03, m05, m06, m04, m10, m12, m13 and m17. The synthesis phase, a separate run
    holding the accepted modules, writes m07 (straight from m05's pain ids),
    m11 (from m03's ids), m08, m09, m14, m15, m16, m18, then execSummary, then
    repSummary — three to five modules per turn, since they no longer wait on
@@ -85,16 +106,19 @@ and dated events are findings with evidence; the campaign agent chooses.
    them.
 7. **Motion.** Channel packs lead with partner economics, portfolio fit and
    margin; direct packs with buyer pain.
-8. **Stop rule.** After wave 2, if any kind of buyer has fewer than three
-   sourced pains, or fewer than two seed firms, and budget is unspent, search
-   more. With the same result and budget spent, or a brief thin on its face,
-   answer `insufficient`: what you found, and exactly three widenings of kinds
-   `region`, `size`, `pain`. No padding, no invented firms.
+8. **Stop rule.** A floor is never met from outside the scope. If the
+   market inside the scope cannot give three kinds of buyer with two seed
+   firms each, stop at step 2b. If you continued and later find it cannot —
+   m04's seed firms will not fill inside the scope — `decideScope` stop then.
+   A seed firm or recipe outside the scope is refused on write, and every
+   kind of buyer needs seed firms inside it; two scope refusals of m04 leave
+   a stop as the only action. Never
+   pad, never invent firms, never reuse one firm under two kinds of buyer.
 9. **Before finishing, read the budget line.** If most searches and pages are
-   unspent and a floor is unmet, you are not done.
+   unspent and a floor is unmet inside the scope, you are not done.
 10. **Close** with the structured answer only: `{ modulesWritten: [...ids],
-    insufficient?: { found: Item[], widenings: [3] }, note? }`. The modules are
-    already stored; do not repeat them.
+    note? }`. The modules and any stop are already stored; do not repeat
+    them.
 
 ## Shapes
 Every module's `content` is `{ body, claims, ...its fields }`. `body` is
@@ -144,11 +168,19 @@ what it rests on. Use that shape for inferences; never invent a citation.
   three roles each with what each needs, deal economics per kind.
 - **m04 Targeting specification.** `perArchetype[]` each `{ archetypeId,
   recipe { titles[≥1], excludeTitles[], sizeBand { min, max }, countries[≥1],
-  industries[≥1], triggers[] }, hardFiltersEchoed[≥1] (strings),
+  industries[≥1], triggers[], locations? }, hardFiltersEchoed[≥1] (strings),
   triggerTaxonomy[≥3] { signal, strength: HOT|WARM, whereToFind, url? },
   listSources[≥1] { name, url, note? }, seedFirms[≥2] { id, name, domain?,
-  region, size { status: confirmed|estimated|unknown, value?, source? },
-  signal: Item } }`. Seed firms are a validation sample, not the list. At
+  region, country (ISO code), orgType?, size { status: confirmed|estimated|
+  unknown, value?, source?, employees? { min?, max? } }, signal: Item } }`.
+  **Scope, checked on write:** every seed firm's `country` is one of the
+  scope's countries; with `places`, its `region` names the place and a page it
+  cites names it too; with `orgTypes`, its `orgType` is one of them, word for
+  word; with an employee band, a sized firm gives `size.employees` inside it;
+  no excluded firm. Each recipe keeps the scope's countries and employee band
+  or narrows them, carries the scope's places in `locations`, excludes every
+  excluded role in `excludeTitles`, and names no excluded kind of
+  organisation. A firm is one seed across the pack. Seed firms are a validation sample, not the list. At
   least one seed per kind is sized `confirmed` or `estimated` with a `source`
   url; no more than half of all seeds come from one list page. Filter a list
   to fit before choosing (area, size, date) — never take its default order.

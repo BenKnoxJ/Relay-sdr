@@ -1284,6 +1284,195 @@
       "path": "perArchetype.4.angles.4.id",
       "message": "Required",
       "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.3.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.4.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.3.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.4.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.5.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.6.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.7.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.8.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.9.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.3.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.4.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.5.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.6.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.3.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.4.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28; the May pack predates it. Its firms are UK firms."
     }
   ],
   "ruleConflicts": [],

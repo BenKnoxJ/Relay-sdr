@@ -17,7 +17,12 @@ The input below is what `npm run agent` reads. The prose above it is for a perso
     "weeks": 3,
     "channels": [
       "email"
-    ]
+    ],
+    "scope": {
+      "countries": ["GB"],
+      "places": [{ "name": "Orkney", "aliases": ["Orkney Islands", "Kirkwall", "Stromness"] }],
+      "orgTypes": ["veterinary practice"]
+    }
   },
   "facts": {
     "product": "Insights360",

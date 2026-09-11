@@ -125,7 +125,7 @@ const SPECS = {
     // the loop's own answer is the manifest of what was written.
     output: researchRunOutputSchema,
     // v3 §4, the six: five read-only, and the module writer that validates on write.
-    tools: ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule"],
+    tools: ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule", "decideScope"],
     // v3 §6: rails, not scope. One depth; these sit an order above a real run.
     budget: { maxModelSteps: 200, maxSearches: 120, maxFetches: 60, maxSeconds: 90 * 60, maxFetchedChars: 400_000, maxSpendUsd: 50 },
     hasPrompt: true,

@@ -7,7 +7,16 @@ import { withReplay, type ToolRecorder } from "@/lib/agents/tools";
 import type { NeverSayFile } from "@/lib/facts/neverSay";
 import { liveFactIds } from "@/lib/facts/schema";
 import { KNOWLEDGE_ARTICLES, type LoadedKnowledge } from "@/lib/knowledge/load";
-import { latestModules, moduleWriteOutputSchema, refusals, type ModuleWrite, type ModuleWriteOutput } from "@/lib/research/assemble";
+import {
+  latestModules,
+  moduleWriteOutputSchema,
+  refusals,
+  scopeDecisionOutputSchema,
+  type ModuleWrite,
+  type ModuleWriteOutput,
+  type ResearchState,
+  type ScopeDecisionOutput,
+} from "@/lib/research/assemble";
 import { BudgetExceededError, type CountedField, type ResearchBudget } from "@/lib/research/budget";
 import type { Corpus } from "@/lib/research/corpus";
 import { checkModuleWrite } from "@/lib/research/moduleWrite";
@@ -18,7 +27,7 @@ import { ServiceError, type FetchService, type SearchHit, type SearchService } f
 
 import { itemSchema } from "../_shared/item.schema";
 import type { ProductFacts } from "./input.schema";
-import { MODULE_IDS, MODULE_TITLES, type ModuleId } from "./output.schema";
+import { MODULE_IDS, MODULE_TITLES, SCOPE_ISSUE, moduleItems, wideningIssue, wideningSchema, type LockedScope, type ModuleId, type PackShape } from "./output.schema";
 
 /**
  * Research's six tools (`research.v3.signed.md` §4). Five read; `writeModule`
@@ -42,7 +51,12 @@ import { MODULE_IDS, MODULE_TITLES, type ModuleId } from "./output.schema";
  * modules already accepted as a `partial` pack (§6).
  */
 
-export const RESEARCH_TOOL_NAMES = ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule"] as const;
+export const RESEARCH_TOOL_NAMES = ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule", "decideScope"] as const;
+
+/** v3.2 (§10 note 28): what may be written before the scope is decided. */
+const BEFORE_THE_GATE: readonly ModuleId[] = ["m00", "m01"];
+/** Scope refusals of m04 after which a stop is the only action left. */
+const M04_SCOPE_LOCK = 2;
 
 /** A prior pack as the agent reads it: module bodies, advisory (§4). */
 export type PriorPack = { id: string; at: string; modules: Array<{ module: string; title: string; body: string }> };
@@ -65,6 +79,12 @@ export type ResearchToolDeps = {
   neverSay?: Pick<NeverSayFile, "entries">;
   /** v3.1 (§10 note 17): the synthesis phase writes from the accepted modules; search and fetch are closed. */
   phase?: "research" | "synthesis";
+  /** v3.2 (§10 note 28): the rep's locked scope, enforced on m04 and on each widening option. */
+  scope?: LockedScope;
+  /** v3.2: where the job's research stood when this run began, read from its steps. Absent means open. */
+  priorState?: ResearchState;
+  /** v3.2: this run is a re-ask; the scope is not decided again in one. */
+  reask?: boolean;
   now?: () => Date;
   /** Where stripped injection lines and other runtime notes go. */
   log?: (line: Record<string, unknown>) => void;
@@ -103,6 +123,17 @@ const writeArgs = z
 /** What the replayed inner call is keyed and stored on: always the whole module. */
 type ResolvedArgs = { module: ModuleId; content: Record<string, unknown> };
 const noArgs = z.object({}).strict();
+const decideArgs = z
+  .object({
+    verdict: z.enum(["continue", "stop"]),
+    /** Why the market inside the brief does, or does not, support the rest of the pack. */
+    reason: z.string().min(1).max(4000),
+    /** Ids of accepted m00/m01 Items the decision rests on — the in-scope evidence, cited, not copied. */
+    evidenceIds: z.array(z.string().min(1).max(200)).max(40).optional(),
+    /** On a stop: one to three genuine widening options, each a scope change for the rep to approve. Never padded. */
+    widenings: z.array(wideningSchema).min(1).max(3).optional(),
+  })
+  .strict();
 
 const searchOutput = z.object({ hits: z.array(z.object({ title: z.string(), url: z.string(), snippet: z.string(), publishedAt: z.string().optional() })) }).strict();
 const fetchOutput = z.union([
@@ -143,6 +174,12 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
   // The last version the model sent for each module: the base for `fixes`.
   const lastSent = new Map<ModuleId, Record<string, unknown>>();
   for (const write of deps.priorWrites) if (write.content !== undefined) lastSent.set(write.module, write.content);
+  // v3.2 (§10 note 28): the scope decision, and how often m04 has been refused for scope.
+  let state: ResearchState["state"] = deps.priorState?.state ?? "open";
+  const isScopeRefusal = (issues: readonly string[]): boolean => issues.some((issue) => issue.startsWith(SCOPE_ISSUE));
+  let m04ScopeRefusals = deps.priorWrites.filter((w) => w.module === "m04" && !w.output.accepted && isScopeRefusal(w.output.issues)).length;
+  const locked = (): boolean => state === "gated" && m04ScopeRefusals >= M04_SCOPE_LOCK;
+  const pageText = (url: string): string | undefined => (deps.corpus.has(url) ? deps.corpus.textFor(url) : undefined);
 
   /** §5 step 1: facts first. Answered outside the record: it is not a call, it is a refusal to make one. */
   const requireFacts = (name: string): { runtimeNote: string } | null =>
@@ -252,6 +289,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
         knownFactIds: known,
         plannedFactIds: planned,
         ...(deps.neverSay === undefined ? {} : { neverSay: deps.neverSay }),
+        ...(deps.scope === undefined ? {} : { scope: deps.scope, pageText }),
         now: now(),
       });
       if (check.ok) {
@@ -264,7 +302,8 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       refused.set(args.module, seen);
       // §7: one rewrite with the issues; a second refusal is stored `insufficient`
       // and the run moves on — unless a complete version is already stored, which stands.
-      if (seen.size >= 2 && accepted[args.module]?.status !== "complete") {
+      // v3.2: an m04 refused for scope is never stored; the lock sends the run to a decision instead.
+      if (seen.size >= 2 && accepted[args.module]?.status !== "complete" && !(args.module === "m04" && isScopeRefusal(check.issues))) {
         return { accepted: false, module: args.module, digest, issues: check.issues, insufficient: insufficientRecord(args.content, check.issues) };
       }
       return { accepted: false, module: args.module, digest, issues: check.issues };
@@ -277,6 +316,44 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
   const closedInSynthesis = (name: string): { runtimeNote: string } | null =>
     deps.phase === "synthesis" ? { runtimeNote: `${name}() is closed in the synthesis phase: write from the accepted modules and cite the pages they cite.` } : null;
   const remaining = (): ModuleId[] => MODULE_IDS.filter((id) => allowed(id) && accepted[id] === undefined);
+
+  /** v3.2: after a stop nothing more is researched or written. Answered outside the record. */
+  const afterStop = (name: string): { runtimeNote: string } | null =>
+    state === "stopped" ? { runtimeNote: `Research has stopped: the evidence inside the brief is insufficient. ${name}() is closed; close now with { modulesWritten, note }.` } : null;
+  /** v3.2: two scope refusals of m04 after a continue — a stop is the only action left. */
+  const whileLocked = (name: string): { runtimeNote: string } | null =>
+    locked()
+      ? { runtimeNote: `${name}() is closed: m04 has been refused twice for leaving the rep's scope, so the market inside the brief cannot fill it. The only action left is decideScope({ verdict: "stop", reason, evidenceIds, widenings }).` }
+      : null;
+
+  const decideScope = withReplay<z.infer<typeof decideArgs>, ScopeDecisionOutput>(recorder, {
+    name: "decideScope",
+    toolKey: (args) => `${args.verdict}:${contentDigest(args)}`,
+    output: scopeDecisionOutputSchema,
+    execute: async (args) => {
+      const issues: string[] = [];
+      // After m01 (§10 note 28): the decision rests on the steering note and the landscape.
+      if (accepted.m00 === undefined) issues.push("write m00 before deciding the scope");
+      if (allowed("m01") && accepted.m01 === undefined) issues.push("write m01, the market landscape, before deciding the scope");
+      const held = { modules: accepted, partial: false, missingModules: [] } as unknown as PackShape;
+      const known = new Set([...moduleItems(held, "m00"), ...moduleItems(held, "m01")].map((item) => item.id));
+      for (const id of args.evidenceIds ?? []) if (!known.has(id)) issues.push(`evidenceIds: ${JSON.stringify(id)} is not an item of the accepted m00 or m01`);
+      if (args.verdict === "continue" && args.widenings !== undefined) issues.push("widenings: a continue proposes no widening; widenings go with a stop");
+      if (args.verdict === "stop") {
+        if (args.widenings === undefined) issues.push("widenings: a stop names one to three genuine ways the rep could widen the brief");
+        const patches = new Set<string>();
+        for (const [i, widening] of (args.widenings ?? []).entries()) {
+          const key = contentDigest(widening.scopePatch);
+          if (patches.has(key)) issues.push(`widenings.${i}: the same change as an earlier option`);
+          patches.add(key);
+          const why = deps.scope === undefined ? null : wideningIssue(deps.scope, widening);
+          if (why !== null) issues.push(`widenings.${i}: ${why}`);
+        }
+      }
+      if (issues.length > 0) return { accepted: false, issues };
+      return { accepted: true, verdict: args.verdict, reason: args.reason, evidenceIds: args.evidenceIds ?? [], widenings: args.widenings ?? [], decidedAt: now().toISOString() };
+    },
+  });
 
   return {
     facts: tool({
@@ -302,7 +379,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       description: "Web search for the market, the buyers and their words. Top eight results with title, url, snippet and date when known.",
       inputSchema: searchArgs,
       execute: async (args) => {
-        const refusedNote = requireFacts("search") ?? closedInSynthesis("search");
+        const refusedNote = requireFacts("search") ?? closedInSynthesis("search") ?? afterStop("search") ?? whileLocked("search");
         if (refusedNote !== null) return refusedNote;
         const result = await search(args);
         for (const hit of result.hits) deps.corpus.addSnippet(hit.url, [hit.title, hit.snippet].filter((s) => s.length > 0).join(" — "));
@@ -313,7 +390,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       description: "Read one page's main content as markdown (about 12,000 characters at most). If it cannot be read, say so as an unknown rather than guessing.",
       inputSchema: fetchArgs,
       execute: async (args) => {
-        const refusedNote = requireFacts("fetch") ?? closedInSynthesis("fetch");
+        const refusedNote = requireFacts("fetch") ?? closedInSynthesis("fetch") ?? afterStop("fetch") ?? whileLocked("fetch");
         if (refusedNote !== null) return refusedNote;
         const result = await fetchPage(args);
         if ("unreadable" in result) deps.corpus.markUnreadable(result.url);
@@ -323,9 +400,19 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     }),
     writeModule: tool({
       description:
-        "Write one module of the pack as soon as it is ready. It is validated on the spot: accepted modules are kept even if the run is cut short; a refused one comes back with its issues — fix them and write it again once. A second refusal stores it as insufficient and you move on.",
+        "Write one module of the pack as soon as it is ready. It is validated on the spot: accepted modules are kept even if the run is cut short; a refused one comes back with its issues — fix them and write it again once. A second refusal stores it as insufficient and you move on. Only m00 and m01 may be written before decideScope.",
       inputSchema: writeArgs,
       execute: async (args) => {
+        const closed = afterStop("writeModule") ?? whileLocked("writeModule");
+        if (closed !== null) return closed;
+        // v3.2 (§10 note 28): the gate after m01. Answered outside the record.
+        if (deps.phase !== "synthesis" && state === "open" && !BEFORE_THE_GATE.includes(args.module)) {
+          return {
+            accepted: false,
+            module: args.module,
+            issues: ["decide scope first: after m01, call decideScope — continue if the market inside the brief supports the rest of the pack, stop if it does not"],
+          };
+        }
         // A bench run restricted to some modules: refused outside the record, like a call before facts.
         if (args.module === "m19") return { accepted: false, module: args.module, issues: ["m19 is assembled by the runtime from every url the pack cites; do not write it"], stillToWrite: remaining() };
         if (!allowed(args.module)) return { accepted: false, module: args.module, issues: [`this run writes only ${deps.onlyModules!.join(", ")}`], stillToWrite: remaining() };
@@ -358,12 +445,36 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
           accepted[args.module] = result.insufficient;
           return withNote({ accepted: false, module: args.module, issues: result.issues, storedAs: "insufficient", note: "Stored as insufficient with these issues. Move on to the next module.", stillToWrite: remaining() });
         }
+        const scoped = args.module === "m04" && isScopeRefusal(result.issues);
+        if (scoped) m04ScopeRefusals += 1;
         return withNote({
           accepted: false,
           module: args.module,
           issues: result.issues,
-          note: "Send only the fixes: writeModule({ module, fixes: [{ path, value }] }) with the paths above; the rest of your last version is kept. A second refusal stores it as insufficient.",
+          note: scoped
+            ? locked()
+              ? 'm04 has been refused twice for leaving the rep\'s scope. The only action left is decideScope({ verdict: "stop", reason, evidenceIds, widenings }).'
+              : 'A seed firm or recipe outside the rep\'s scope cannot be written. Replace it with one inside the scope, or, if the market inside the brief cannot fill m04, decideScope({ verdict: "stop", ... }). Never widen the brief yourself.'
+            : "Send only the fixes: writeModule({ module, fixes: [{ path, value }] }) with the paths above; the rest of your last version is kept. A second refusal stores it as insufficient.",
         });
+      },
+    }),
+    decideScope: tool({
+      description:
+        "Decide, after m01, whether the market inside the rep's brief supports the rest of the pack. continue: go on to m02 and the rest. stop: research ends here — no more searches, pages or modules — with the reason, the ids of the m00/m01 items it rests on, and one to three genuine ways the rep could widen the brief (region, size, sector or role), each as a scope change. Never widen the brief yourself; never invent an option to reach three.",
+      inputSchema: decideArgs,
+      execute: async (args) => {
+        const closed = afterStop("decideScope");
+        if (closed !== null) return closed;
+        if (deps.phase === "synthesis" || deps.reask === true) return { runtimeNote: "decideScope() is for the research phase; the scope is already decided." };
+        if (args.verdict === "continue" && locked()) return whileLocked("decideScope(continue)");
+        if (args.verdict === "continue" && state === "gated") return { accepted: true, verdict: "continue", note: "The scope is already decided: continue." };
+        const result = await decideScope(args);
+        if (!result.accepted) return { accepted: false, issues: result.issues, note: "Fix the issues and decide again." };
+        state = result.verdict === "stop" ? "stopped" : "gated";
+        return result.verdict === "stop"
+          ? { accepted: true, verdict: "stop", note: "Research has stopped. Close now with { modulesWritten, note }." }
+          : withNote({ accepted: true, verdict: "continue", stillToWrite: remaining() });
       },
     }),
   };

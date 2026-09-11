@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MODULE_IDS } from "../../agents/research/output.schema";
+import { MODULE_IDS, SCOPE_ISSUE, type LockedScope } from "../../agents/research/output.schema";
 import { loadFacts } from "@/lib/facts/load";
 import { liveFactIds } from "@/lib/facts/schema";
 import { checkModuleWrite } from "@/lib/research/moduleWrite";
@@ -150,6 +150,26 @@ describe("checkModuleWrite", () => {
     expect(refused.issues.join(" ")).toMatch(/a partial mapping says in mustNotImply/);
     m07.mappings[0]!.mustNotImply = "Earlier visibility; it does not lower the complaint count.";
     expect(checkModuleWrite("m07", m07, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("holds m04's seed firms and recipes to the rep's locked scope on write, and only when a scope is given (§10 note 28)", () => {
+    const orkney = { countries: ["GB"], places: [{ name: "Orkney" }], supplied: ["countries", "places"] } as LockedScope;
+    const refused = checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now, scope: orkney });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.filter((i) => i.startsWith(SCOPE_ISSUE)).length).toBeGreaterThanOrEqual(6);
+    expect(refused.issues.join(" ")).toMatch(/names none of the brief's places \(Orkney\)/);
+    expect(refused.issues.join(" ")).toMatch(/must carry the brief's places in locations/);
+    expect(checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+    expect(checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("seeds a firm once across the pack: the same domain under two kinds of buyer is refused (§10 note 28)", () => {
+    const m04 = content("m04") as { perArchetype: Array<{ seedFirms: Array<{ name: string; domain?: string }> }> };
+    m04.perArchetype[0]!.seedFirms[0]!.domain = "northvet.co.uk";
+    m04.perArchetype[1]!.seedFirms[0]!.domain = "https://www.northvet.co.uk/";
+    const check = checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/is already a seed firm \(claims-teams-firm-1\); a firm is seeded once across the pack/);
   });
 
   it("checks a candidate's references against its own kind of buyer's records (§10 note 26)", () => {

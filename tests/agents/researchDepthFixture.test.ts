@@ -78,6 +78,7 @@ describe("the depth fixture: Signal's May pack against every v3 rule", () => {
     const kinds = [...new Set(manifest.exemptions.filter((e) => e.rule === "v3-addition").map((c) => `${c.module}:${c.path.replace(/\.\d+/g, ".*")}`))].sort();
     expect(kinds).toEqual([
       "m02:doNothing",
+      "m04:perArchetype.*.seedFirms.*.country",
       "m06:perArchetype.*.phrases.*.voice",
       "m07:mappings.*.strength",
       "m09:perArchetype.*.angles.*.channelFit",

@@ -3,7 +3,15 @@ import path from "node:path";
 import { z } from "zod";
 
 import { researchBriefSchema, priorRunSchema, type ResearchInput } from "../../../agents/research/input.schema";
-import { completeModule, MODULE_IDS, type ModuleId, type PackShape, type ResearchRunOutput } from "../../../agents/research/output.schema";
+import {
+  completeModule,
+  lockScope,
+  MODULE_IDS,
+  RESEARCH_PHASE_MODULES,
+  SYNTHESIS_PHASE_MODULES,
+  type ModuleId,
+  type PackShape,
+} from "../../../agents/research/output.schema";
 import { researchTools, type PriorPack } from "../../../agents/research/tools";
 import { agentsDir, loadDefinition, type AgentBudget } from "@/lib/agents/definitions";
 import type { LanguageModel } from "ai";
@@ -16,13 +24,13 @@ import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
 import { loadNeverSay } from "@/lib/facts/neverSay";
 import { loadKnowledge } from "@/lib/knowledge/load";
-import { assemblePack, corpusFromSteps, latestModules, markInsufficient, moduleWritesFromSteps, storedOf, withRuntimeSources } from "@/lib/research/assemble";
+import { assemblePack, corpusFromSteps, latestModules, markInsufficient, moduleWritesFromSteps, researchStateFromSteps, storedOf, withRuntimeSources } from "@/lib/research/assemble";
 import { createResearchBudget } from "@/lib/research/budget";
 import { createCorpus } from "@/lib/research/corpus";
 import { checkProvenance, type ProvenanceReport } from "@/lib/research/provenance";
 import { describeIssues, validatePack, type PackIssue } from "@/lib/research/validate";
 import { ensureFactsVersion } from "@/lib/repo/productFacts";
-import { findResearchCompletedForJob, findResearchPacks, listJobToolSteps, recordResearchCompleted } from "@/lib/repo/research";
+import { findResearchCompletedForJob, findResearchPacks, jobActuals, listJobToolSteps, recordResearchCompleted } from "@/lib/repo/research";
 import { createFirecrawlService, createTavilyService, type ResearchServiceMode } from "@/lib/services";
 import { TerminalError, safeError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
@@ -65,9 +73,8 @@ const FACTS_PRODUCT = "insights360";
 const FACTS_VERSION = 2;
 const KNOWLEDGE_VERSION = 1;
 
-/** The modules each phase writes (§10 note 17). m19 is the runtime's. */
-export const RESEARCH_PHASE_MODULES: readonly ModuleId[] = ["m00", "m01", "m02", "m03", "m05", "m06", "m04", "m10", "m12", "m13", "m17"];
-export const SYNTHESIS_PHASE_MODULES: readonly ModuleId[] = ["m07", "m08", "m09", "m11", "m14", "m15", "m16", "m18", "execSummary", "repSummary"];
+/** The modules each phase writes (§10 note 17), defined beside the modules. */
+export { RESEARCH_PHASE_MODULES, SYNTHESIS_PHASE_MODULES };
 /** The synthesis phase's model: it writes from accepted modules and reads no new pages. */
 export const SYNTHESIS_MODEL: PricedModel = "claude-sonnet-5";
 
@@ -119,6 +126,10 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
     }
     const { brief } = parsed.data;
     const priorPackIds = parsed.data.priorPackIds ?? [];
+    // v3.2 (§10 note 28): the rep's scope, locked for the whole job.
+    const locked = lockScope(brief);
+    if (!locked.ok) throw new TerminalError(`research: bad input (${locked.issue})`);
+    const scope = locked.scope;
 
     // Already done on an earlier attempt: the Event is the answer.
     const done = await findResearchCompletedForJob(db, { orgId: job.orgId, jobId: job.id });
@@ -157,19 +168,19 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
       priorPackIds,
       ...(parsed.data.priorRun === undefined ? {} : { priorRun: parsed.data.priorRun }),
     };
-    const validateContext = { facts: facts.facts, channels: brief.channels, priorPackIds, neverSay };
+    const pageText = (url: string): string | undefined => (corpus.has(url) ? corpus.textFor(url) : undefined);
+    const validateContext = { facts: facts.facts, channels: brief.channels, priorPackIds, neverSay, scope, pageText };
     /** The bench's `--modules` narrows every phase; a job writes them all. */
     const restrict = (ids: readonly ModuleId[]): ModuleId[] => ids.filter((id) => deps.onlyModules === undefined || deps.onlyModules.includes(id));
 
     const endings: Array<{ phase: Phase; ending: Ending; message?: string }> = [];
-    const actuals = { searches: 0, fetches: 0, fetchedChars: 0, seconds: 0 };
     let runId = "";
-    let insufficient: ResearchRunOutput["insufficient"];
 
     /** One run of one phase, writing `modules`. A rail or a missing closing answer loses nothing: the modules are the stored writes. */
     const runPhase = async (phase: Phase, modules: ModuleId[], extra: Partial<ResearchInput> = {}): Promise<Ending> => {
       const budget = createResearchBudget({ limits: definition.budget, ...(deps.now === undefined ? {} : { now: deps.now }) });
-      const writes = moduleWritesFromSteps(await steps());
+      const all = await steps();
+      const writes = moduleWritesFromSteps(all);
       const modelId: PricedModel = phase === "research" ? researchModel : SYNTHESIS_MODEL;
       const input: ResearchInput = {
         ...baseInput,
@@ -205,12 +216,14 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
                 onlyModules: modules,
                 phase,
                 neverSay,
+                scope,
+                priorState: researchStateFromSteps(all),
+                reask: extra.provenanceRerun !== undefined,
               }),
             scrub: safeError,
             ...(deps.onSdkMessage === undefined ? {} : { onSdkMessage: deps.onSdkMessage }),
           },
         });
-        insufficient ??= result.object.insufficient;
         runId = result.run.id;
         ending = "answer";
         endings.push({ phase, ending });
@@ -221,20 +234,19 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
         endings.push({ phase, ending, message: error.message });
         log({ event: "research.run.ended", phase, ending, message: error.message });
       }
-      const used = budget.actuals();
-      actuals.searches += used.searches;
-      actuals.fetches += used.fetches;
-      actuals.fetchedChars += used.fetchedChars;
-      actuals.seconds += used.seconds;
       return ending;
     };
+
+    /** Where the job's research stands: read from its steps, so a retry sees a stop an earlier run made. */
+    const researchState = async () => researchStateFromSteps(await steps());
 
     /** Assemble, add the runtime's m19 and unknowns, check provenance, validate. */
     const check = async () => {
       const all = await steps();
       const writes = moduleWritesFromSteps(all);
+      const stop = researchStateFromSteps(all).stop;
       const assembled = withUnreadableUnknowns(
-        withRuntimeSources(assemblePack(writes, insufficient === undefined ? {} : { insufficient }), all, { factsVersion: facts.file.version, priorPackIds }),
+        withRuntimeSources(assemblePack(writes, { scope, ...(stop === undefined ? {} : { insufficient: stop }) }), all, { factsVersion: facts.file.version, priorPackIds }),
         corpus.unreadable,
       );
       const checked = checkProvenance(assembled, corpus);
@@ -242,16 +254,20 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
       return { writes, pack: checked.pack, report: checked.report, issues: validated.ok ? [] : validated.issues };
     };
 
-    // The two phases. A rail anywhere ends the job's runs (§6).
+    // The two phases. A rail anywhere ends the job's runs (§6). A stop (v3.2,
+    // §10 note 28) is terminal: once the job's steps hold one, nothing more is
+    // researched, synthesised or re-asked — on this attempt or any retry.
     let railed = false;
     for (const phase of ["research", "synthesis"] as const) {
+      const state = await researchState();
+      if (state.state === "stopped") break;
+      // Synthesis writes from a decided scope; a research phase that never decided has nothing to synthesise.
+      if (phase === "synthesis" && state.state !== "gated") break;
       // A resumed job (a retry, or the bench's --job) writes only what is not stored yet;
       // a phase with nothing left to write is skipped.
       const stored = latestModules(moduleWritesFromSteps(await steps()));
       const modules = restrict(phase === "research" ? RESEARCH_PHASE_MODULES : SYNTHESIS_PHASE_MODULES).filter((id) => stored[id] === undefined);
       if (modules.length === 0) continue;
-      // The stop rule (§5 rule 8): a thin brief ends with what research found.
-      if (phase === "synthesis" && insufficient !== undefined) break;
       if ((await runPhase(phase, modules)) === "rail") {
         railed = true;
         break;
@@ -259,7 +275,9 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
     }
 
     let result = await check();
-    if (!result.writes.some((write) => storedOf(write) !== undefined)) {
+    const decided = await researchState();
+    const stopped = decided.state === "stopped";
+    if (!stopped && !result.writes.some((write) => storedOf(write) !== undefined)) {
       throw new TerminalError(
         railed
           ? `research: took_too_long — a rail was reached before any module was written (${endings.at(-1)?.message ?? ""})`
@@ -272,15 +290,15 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
 
     // What to re-ask (§7): modules over the provenance threshold, modules the
     // ingest refused, and modules never written — never after a rail, never
-    // after the stop rule.
+    // after a stop, and only once the scope is decided (v3.2).
     const again = new Set<ModuleId>();
     for (const checkedModule of result.report.modules) if (checkedModule.rejected) again.add(checkedModule.module);
     for (const issue of result.issues) if (issue.module !== undefined) again.add(issue.module);
-    if (insufficient === undefined) for (const id of result.pack.missingModules) again.add(id);
+    for (const id of result.pack.missingModules) again.add(id);
     const writable = new Set([...restrict(RESEARCH_PHASE_MODULES), ...restrict(SYNTHESIS_PHASE_MODULES)]);
     const reask = MODULE_IDS.filter((id) => again.has(id) && writable.has(id));
 
-    if (reask.length > 0 && !railed) {
+    if (reask.length > 0 && !railed && decided.state === "gated") {
       const current = latestModules(result.writes);
       for (const phase of ["research", "synthesis"] as const) {
         const modules = reask.filter((id) => phaseOf(id) === phase);
@@ -314,7 +332,9 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
 
     // §7: a module still refused at ingest after its re-ask is stored
     // `insufficient` with its issues, and the pack completes.
-    let pack = result.pack;
+    // How the research ended (v3.2): a stop, a pack cut short, or a whole pack.
+    const outcome = stopped ? "insufficient" : result.pack.partial ? "partial" : "complete";
+    let pack: PackShape = { ...result.pack, outcome };
     const insufficientModules: ModuleId[] = [];
     let validated = validatePack(pack, validateContext);
     for (let round = 0; !validated.ok && round < 3; round += 1) {
@@ -331,11 +351,15 @@ export function researchHandler(deps: ResearchHandlerDeps = defaultResearchDeps(
       throw new TerminalError(`research: bad_output — the pack does not validate at ingest: ${describeIssues(validated.issues).slice(0, 5).join("; ")}`);
     }
 
+    // Whole-job actuals (v3.2): every run of the job, across resumes.
+    const actuals = await jobActuals(db, { orgId: job.orgId, jobId: job.id });
     const { event } = await recordResearchCompleted(db, {
       orgId: job.orgId,
       jobId: job.id,
       runId,
       pack: JSON.parse(JSON.stringify(validated.pack)),
+      outcome,
+      scope: JSON.parse(JSON.stringify(scope)),
       report: JSON.parse(
         JSON.stringify({
           provenance,

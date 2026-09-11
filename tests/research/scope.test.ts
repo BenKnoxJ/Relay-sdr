@@ -140,6 +140,14 @@ describe("recipes against the scope: they may narrow, never widen", () => {
     expect(issues).toMatch(/industries include "Corporate group veterinary"/);
   });
 
+  it("keeps locations empty when the rep named no places: no free-form exclusion lead gen cannot map (§10 note 29; brief D v3.2)", () => {
+    const invented = recipe({ locations: ["England excluding Greater Manchester, Merseyside, Cheshire and Lancashire"] });
+    expect(recipeScopeIssues(invented, "m04.perArchetype.0", GB)).toEqual([
+      expect.stringMatching(/locations \(England excluding Greater Manchester, Merseyside, Cheshire and Lancashire\) are only for places the rep named; this brief names none, so leave locations empty/),
+    ]);
+    expect(recipeScopeIssues(recipe({ locations: undefined }), "w", GB)).toEqual([]);
+  });
+
   it("reads a whole m04: every recipe and every seed firm", () => {
     const m04 = { perArchetype: [{ recipe: recipe(), seedFirms: [firm(), firm({ id: "firm-2", name: "Equicomms", region: "Sussex" })] }] } as unknown as CompleteModule<"m04">;
     const issues = m04ScopeIssues(m04, ORKNEY, pages("Orkney practices"));

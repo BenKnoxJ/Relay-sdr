@@ -287,12 +287,29 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
  * so a renamed repeat counts as retained. Whether m14 describes the changes
  * accurately is the product owner's read; this row checks it records them.
  */
+/**
+ * Whether two seed firms are the same firm: by domain when both carry one;
+ * otherwise by name, where a name's bracketed part is another name for it —
+ * "Commercial Express Quotes Ltd (Commercial Express)" is "Commercial Express"
+ * (brief D v3.2 rerun). No wider entity resolution than that.
+ */
+export function sameSeedFirm(a: { name: string; domain?: string }, b: { name: string; domain?: string }): boolean {
+  const hasDomain = (firm: { domain?: string }) => firm.domain !== undefined && firm.domain.trim().length > 0;
+  if (hasDomain(a) && hasDomain(b)) return seedFirmKey(a) === seedFirmKey(b);
+  const names = (name: string): string[] => {
+    const bracketed = [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]!);
+    return [name, name.replace(/\([^)]*\)/g, " "), ...bracketed].map((n) => seedFirmKey({ name: n })).filter((key) => key !== "name:");
+  };
+  const mine = names(a.name);
+  return names(b.name).some((key) => mine.includes(key));
+}
+
 function wideningRow(input: RubricInput, m04: ReturnType<typeof completeModule<"m04">>): RubricRow {
   const prior = input.prior!;
-  const known = new Map(prior.seedFirms.map((firm) => [seedFirmKey(firm), firm.name]));
   const firms = m04?.perArchetype.flatMap((t) => t.seedFirms) ?? [];
-  const retained = firms.filter((firm) => known.has(seedFirmKey(firm)));
-  const fresh = firms.filter((firm) => !known.has(seedFirmKey(firm)));
+  const inPrior = (firm: { name: string; domain?: string }): boolean => prior.seedFirms.some((earlier) => sameSeedFirm(earlier, firm));
+  const retained = firms.filter(inPrior);
+  const fresh = firms.filter((firm) => !inPrior(firm));
   const problems: string[] = [];
   if (firms.length === 0) problems.push("no seed firms written");
   else if (fresh.length === 0) problems.push("no new seed firms: every seed firm was in the prior pack");

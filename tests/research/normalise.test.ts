@@ -75,6 +75,14 @@ describe("normaliseModule", () => {
 });
 
 describe("applyFixes", () => {
+  it("reads a bracketed path as the dotted one: claims[1].text is claims.1.text (brief D v3.2 rerun)", () => {
+    const base = { claims: [{ text: "first" }, { text: "second" }] };
+    const { content: fixed, errors } = applyFixes(base, [{ path: "claims[1].text", value: "fixed" }]);
+    expect(errors).toEqual([]);
+    expect(fixed).toEqual({ claims: [{ text: "first" }, { text: "fixed" }] });
+    expect(applyFixes(base, [{ path: "claims[5].text", value: "x" }]).errors).toEqual(["claims[5].text: no 5 to fix"]);
+  });
+
   it("sets a field by the path a refusal names, removes one with null, and names a path that does not exist", () => {
     const base = { perArchetype: [{ pains: [{ role: "x".repeat(10) }, { role: "y" }] }], extra: 1 };
     const { content: fixed, errors } = applyFixes(base, [

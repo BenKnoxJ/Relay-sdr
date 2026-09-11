@@ -19,7 +19,7 @@ import {
 } from "@/lib/research/assemble";
 import { BudgetExceededError, type CountedField, type ResearchBudget } from "@/lib/research/budget";
 import type { Corpus } from "@/lib/research/corpus";
-import { checkModuleWrite } from "@/lib/research/moduleWrite";
+import { checkModuleWrite, groupVoiceIssues } from "@/lib/research/moduleWrite";
 import { applyFixes } from "@/lib/research/normalise";
 import { capText, scrubFetched } from "@/lib/research/scrub";
 import { fetchDiscriminator, searchDiscriminator } from "@/lib/services/research/discriminator";
@@ -466,7 +466,21 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
           content = applied.content;
         }
         if (content === undefined) return { accepted: false, module: args.module, issues: ["send the module's content, or fixes to its last refused version"] };
+        // What is checked is what is stored: a fix sent with no value leaves no
+        // key, as the JSON it is stored as does (brief A v3.2 removed m06's
+        // group voice that way, and the key it left behind refused it again).
+        content = JSON.parse(JSON.stringify(content)) as Record<string, unknown>;
         lastSent.set(args.module, content);
+        // A structural slip, answered outside the record: it does not spend the module's one rewrite.
+        const structural = groupVoiceIssues(args.module, content);
+        if (structural.length > 0) {
+          return {
+            accepted: false,
+            module: args.module,
+            issues: structural,
+            note: 'A structural refusal: it does not use up your rewrite. Send fixes [{ path: "perArchetype.<n>.voice", value: null }] for each group, keeping every phrase\'s own voice — or the whole module again without the group-level field.',
+          };
+        }
         const result = await writeModule({ module: args.module, content });
         if (result.accepted) {
           accepted[args.module] = result.stored;

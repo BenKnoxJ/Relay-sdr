@@ -358,6 +358,35 @@ describe("the research tools", () => {
     expect(researchStateFromSteps(steps).state).toBe("stopped");
   });
 
+  it("refuses brief A v3.2's m06 shape — voice on each group as well as each phrase — outside the record, and takes the valueless fixes it then sent (brief A v3.2)", async () => {
+    // The exact shape: every group carries `voice: "practitioner"` beside phrases that carry their own, mixed voices.
+    const slipped = moduleContent(pack, "m06") as { perArchetype: Array<Record<string, unknown> & { phrases: Array<{ voice: string; notBuyer: boolean }> }> };
+    slipped.perArchetype.forEach((group) => {
+      group.voice = "practitioner";
+    });
+    slipped.perArchetype[0]!.phrases[2]!.voice = "adviser";
+    slipped.perArchetype[0]!.phrases[2]!.notBuyer = true;
+    const { result } = await run(
+      [
+        call("facts", {}),
+        ...gate,
+        call("writeModule", { module: "m06", content: slipped }),
+        // What the model sent next: paths with no value, meaning "remove".
+        call("writeModule", { module: "m06", fixes: [0, 1, 2].map((n) => ({ path: `perArchetype.${n}.voice` })) }),
+        done,
+      ],
+      deps(),
+    );
+    expect(result).not.toBeInstanceOf(AgentRunFailedError);
+    const m06 = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } })).filter((w) => w.module === "m06");
+    // The structural refusal left no step, so it spent no rewrite; the fixed module was accepted with each phrase's own voice.
+    expect(m06).toHaveLength(1);
+    expect(m06[0]!.output).toMatchObject({ accepted: true });
+    const stored = (m06[0]!.output as unknown as { stored: { perArchetype: Array<Record<string, unknown> & { phrases: Array<{ voice: string }> }> } }).stored;
+    expect(stored.perArchetype.every((group) => !("voice" in group))).toBe(true);
+    expect(stored.perArchetype[0]!.phrases.map((p) => p.voice)).toEqual(["practitioner", "practitioner", "adviser"]);
+  });
+
   it("names the exact m00/m01 item ids when a stop cites ones that do not resolve (brief C v3.2)", async () => {
     await run(
       [

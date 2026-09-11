@@ -83,4 +83,14 @@ describe("the never-say lint reads the rest of the sentence", () => {
   it("still fires on the claim itself", () => {
     expect(neverSayIssues([{ where: "m09", text: "Insights360 offers in-app audio playback for every call." }], list).length).toBeGreaterThan(0);
   });
+
+  it("assigns stable ids where a model left them out (§10 note 26)", () => {
+    const m09 = content("m09") as { perArchetype: Array<{ archetypeId: string; angles: Array<{ id?: string; rank: number }> }> };
+    for (const angle of m09.perArchetype[0]!.angles) delete angle.id;
+    const fixed = normaliseModule("m09", m09).content as typeof m09;
+    expect(fixed.perArchetype[0]!.angles.map((a) => a.id)).toEqual([1, 2, 3, 4, 5].map((r) => `claims-teams-angle-${r}`));
+    const m13 = content("m13") as { entries: Array<{ id?: string }> };
+    delete m13.entries[0]!.id;
+    expect((normaliseModule("m13", m13).content as typeof m13).entries[0]!.id).toMatch(/^event-/);
+  });
 });

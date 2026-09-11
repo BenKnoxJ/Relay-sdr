@@ -138,6 +138,39 @@ export function normaliseModule(id: ModuleId, content: unknown, context: { plann
     });
   }
 
+  // Stable ids on angles, venues, objections, contact rules and dated events (§10 note 26): assigned when missing.
+  const slug = (value: unknown): string =>
+    String(value ?? "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "item";
+  const assign = (rows: unknown, make: (row: Loose, index: number) => string, where: string): void => {
+    if (!Array.isArray(rows)) return;
+    const used = new Set(rows.filter(isObject).map((row) => row.id).filter((id): id is string => typeof id === "string"));
+    rows.forEach((row, index) => {
+      if (!isObject(row) || typeof row.id === "string") return;
+      let id = make(row, index);
+      for (let n = 2; used.has(id); n += 1) id = `${make(row, index)}-${n}`;
+      used.add(id);
+      row.id = id;
+      notes.push(`${where}.${index}.id: assigned ${id}`);
+    });
+  };
+  if (id === "m09" && Array.isArray(copy.perArchetype)) {
+    copy.perArchetype.forEach((entry, i) => {
+      if (isObject(entry)) assign(entry.angles, (row, n) => `${slug(entry.archetypeId)}-angle-${typeof row.rank === "number" ? row.rank : n + 1}`, `m09.perArchetype.${i}.angles`);
+    });
+  }
+  if (id === "m11" && Array.isArray(copy.perArchetype)) {
+    copy.perArchetype.forEach((entry, i) => {
+      if (isObject(entry)) assign(entry.objections, (_row, n) => `${slug(entry.archetypeId)}-objection-${n + 1}`, `m11.perArchetype.${i}.objections`);
+    });
+  }
+  if (id === "m10") assign(copy.entries, (row) => `venue-${slug(row.name)}`, "m10.entries");
+  if (id === "m12") assign(copy.rules, (row, n) => `rule-${slug(row.channel)}-${n + 1}`, "m12.rules");
+  if (id === "m13") assign(copy.entries, (row, n) => `event-${slug(row.date)}-${n + 1}`, "m13.entries");
+
   // m04: country names to the ISO codes lead gen searches with.
   if (id === "m04" && Array.isArray(copy.perArchetype)) {
     copy.perArchetype.forEach((target, i) => {

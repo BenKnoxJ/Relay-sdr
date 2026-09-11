@@ -134,7 +134,7 @@ describe("the research job (v3.1, two phases)", () => {
     const result = (await researchHandler(d)({ db: prisma, job, signal: signal() })) as { eventId: string };
     const a = await after(result.eventId);
     expect(a.jobId).toBe(job.id);
-    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 1, draft: false } });
+    expect(a).toMatchObject({ partial: false, missingModules: [], knowledge: { version: 1 }, facts: { version: 2, draft: false } });
     expect(a.report).toMatchObject({ attempts: 2, reasked: [], insufficientModules: [] });
     expect(a.report.endings.map((e) => e.phase)).toEqual(["research", "synthesis"]);
     expect(d.models).toEqual(["claude-opus-5", SYNTHESIS_MODEL]);

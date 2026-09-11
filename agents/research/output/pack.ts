@@ -149,10 +149,26 @@ export function moduleOwnIds(pack: PackShape, id: ModuleId): string[] {
     case "m18":
       ids.push(...(entry as CompleteModule<"m18">).unknowns.map((u) => u.id));
       break;
+    case "m09":
+      for (const p of (entry as CompleteModule<"m09">).perArchetype) ids.push(...p.angles.map((a) => a.id));
+      break;
+    case "m10":
+      ids.push(...(entry as CompleteModule<"m10">).entries.map((e) => e.id));
+      break;
+    case "m11":
+      for (const p of (entry as CompleteModule<"m11">).perArchetype) ids.push(...p.objections.map((o) => o.id));
+      break;
+    case "m12":
+      ids.push(...(entry as CompleteModule<"m12">).rules.map((r) => r.id));
+      break;
+    case "m13":
+      ids.push(...(entry as CompleteModule<"m13">).entries.map((e) => e.id));
+      break;
     default:
       break;
   }
-  return ids;
+  // A raw pack (a fixture read before its schema) may lack an id; the schema reports that, not the uniqueness rule.
+  return ids.filter((own): own is string => typeof own === "string");
 }
 
 /**
@@ -318,9 +334,26 @@ export function crossModuleIssues(pack: PackShape): Array<{ module: ModuleId; me
   const m16 = completeModule(pack, "m16");
   if (m16) {
     const firmIds = new Set(m04?.perArchetype.flatMap((t) => t.seedFirms.map((f) => f.id)) ?? []);
+    // §10 note 26: every reference resolves, and a kind of buyer's own records stay its own.
+    const m10 = completeModule(pack, "m10");
+    const m12 = completeModule(pack, "m12");
+    const m13 = completeModule(pack, "m13");
+    const ofKind = <T>(list: Array<{ archetypeId: string } & T> | undefined, pick: (row: T) => string[], kind: string): Set<string> =>
+      new Set((list ?? []).filter((row) => row.archetypeId === kind).flatMap((row) => pick(row)));
     for (const c of m16.candidates) {
       if (ids.length > 0 && !idSet.has(c.archetypeId)) issue(`candidate ${c.id} names an unknown archetype`, ["modules", "m16"]);
       for (const f of c.seedFirmIds) if (m04 && !firmIds.has(f)) issue(`candidate ${c.id} names an unknown seed firm ${f}`, ["modules", "m16"]);
+      const check = (refs: string[] | undefined, known: Set<string> | undefined, what: string): void => {
+        // A raw pack (a fixture read before its schema) may not carry the field at all.
+        if (known === undefined || refs === undefined) return;
+        for (const ref of refs) if (!known.has(ref)) issue(`candidate ${c.id} names ${what} ${JSON.stringify(ref)}, which is not one of its kind of buyer's in the pack`, ["modules", "m16"]);
+      };
+      check(c.painIds, m05 && ofKind(m05.perArchetype, (row: { pains: Array<{ id: string }> }) => row.pains.map((x) => x.id), c.archetypeId), "the pain");
+      check(c.angleIds, m09 && ofKind(m09.perArchetype, (row: { angles: Array<{ id: string }> }) => row.angles.map((x) => x.id), c.archetypeId), "the angle");
+      check(c.objectionIds, m11 && ofKind(m11.perArchetype, (row: { objections: Array<{ id: string }> }) => row.objections.map((x) => x.id), c.archetypeId), "the objection");
+      check(c.eventIds, m13 && new Set(m13.entries.map((e) => e.id)), "the dated event");
+      check(c.venueIds, m10 && new Set(m10.entries.map((e) => e.id)), "the venue");
+      check(c.contactRuleIds, m12 && new Set(m12.rules.map((r) => r.id)), "the contact rule");
     }
     if (m05 && pack.insufficient === undefined) {
       for (const p of m05.perArchetype) {

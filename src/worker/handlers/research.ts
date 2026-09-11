@@ -62,7 +62,7 @@ import type { Handler } from "@/worker/handlers/index";
  */
 
 const FACTS_PRODUCT = "insights360";
-const FACTS_VERSION = 1;
+const FACTS_VERSION = 2;
 const KNOWLEDGE_VERSION = 1;
 
 /** The modules each phase writes (§10 note 17). m19 is the runtime's. */

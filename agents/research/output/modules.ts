@@ -380,10 +380,20 @@ export const m07Schema = complete({
           painId: idSchema,
           /** The shipped capability, as the knowledge set names it. */
           capability: prose,
+          /**
+           * How fully it answers the pain (§10 note 25): `direct` answers it;
+           * `partial` gives visibility or evidence around it without removing it,
+           * and says in `mustNotImply` what it does not change.
+           */
+          strength: z.enum(["direct", "partial"]),
           factIds: z.array(factIdSchema),
           mustNotImply: prose.optional(),
         })
-        .strict(),
+        .strict()
+        .refine((row) => row.strength === "direct" || row.mustNotImply !== undefined, {
+          message: "a partial mapping says in mustNotImply what the capability does not change",
+          path: ["mustNotImply"],
+        }),
     ),
   unmatched: z.array(z.object({ painId: idSchema, roadmapStatus: prose, note: prose.optional() }).strict()),
 });
@@ -403,6 +413,8 @@ export const m08Schema = complete({
 
 export const angleSchema = z
   .object({
+    /** Stable, so a campaign candidate can name it (§10 note 26). */
+    id: idSchema,
     rank: z.number().int().positive(),
     text: prose,
     confidence: z.enum(["strong", "moderate", "weak", "speculative"]),
@@ -436,6 +448,7 @@ export const m10Schema = complete({
     .array(
       z
         .object({
+          id: idSchema,
           kind: z.enum(["press", "event", "association", "community", "review-site", "publication"]),
           name: label,
           url: urlSchema,
@@ -462,6 +475,7 @@ export const m11Schema = complete({
             .array(
               z
                 .object({
+                  id: idSchema,
                   objection: prose,
                   /** Grounded only in live facts and the shipped column; absent means "no grounded answer". */
                   answer: prose.optional(),
@@ -488,7 +502,7 @@ export const m11Schema = complete({
 
 export const m12Schema = complete({
   rules: z
-    .array(z.object({ channel: label, region: label, rule: prose, source: urlSchema, bars: z.boolean() }).strict())
+    .array(z.object({ id: idSchema, channel: label, region: label, rule: prose, source: urlSchema, bars: z.boolean() }).strict())
     .min(1),
 });
 
@@ -497,7 +511,7 @@ export const m12Schema = complete({
 
 export const m13Schema = complete({
   /** Dated as §3 dates everything: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`. */
-  entries: z.array(z.object({ date: z.string().date().or(partialDateSchema), what: prose, source: urlSchema, why: prose }).strict()),
+  entries: z.array(z.object({ id: idSchema, date: z.string().date().or(partialDateSchema), what: prose, source: urlSchema, why: prose }).strict()),
   noneFound: z.boolean(),
   queriesTried: z.array(prose),
 }).refine((m) => m.noneFound || m.entries.length >= 3, { message: "at least three dated entries, or noneFound with the queries tried", path: ["entries"] })
@@ -539,6 +553,17 @@ export const candidateSchema = z
     whyNow: prose,
     seedFirmIds: z.array(idSchema),
     wrongIf: prose,
+    /**
+     * What the candidate rests on, by id (§10 note 26), so the campaign agent
+     * resolves it without reading prose: the kind of buyer's own pains, angles
+     * and objections, and the pack's dated events, venues and contact rules.
+     */
+    painIds: z.array(idSchema).min(1),
+    angleIds: z.array(idSchema).min(1),
+    objectionIds: z.array(idSchema),
+    eventIds: z.array(idSchema),
+    venueIds: z.array(idSchema),
+    contactRuleIds: z.array(idSchema),
   })
   .strict();
 

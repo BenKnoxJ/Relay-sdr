@@ -955,6 +955,335 @@
       "path": "unknowns.6.askOnFirstCall",
       "message": "a not-found or conflicting unknown says what to ask on the first call",
       "reason": "The May pack predates the first-call question (definition §10 note 15)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.0.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.1.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.2.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.3.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.4.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.5.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.6.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.7.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.8.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.9.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.10.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.11.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.12.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.13.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.14.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.15.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.16.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.17.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.18.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.19.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.20.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m07",
+      "path": "mappings.21.strength",
+      "message": "Required",
+      "reason": "The May pack predates direct/partial mapping strength (definition §10 note 25)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.0.angles.0.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.0.angles.1.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.0.angles.2.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.0.angles.3.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.0.angles.4.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.1.angles.0.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.1.angles.1.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.1.angles.2.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.1.angles.3.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.1.angles.4.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.2.angles.0.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.2.angles.1.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.2.angles.2.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.2.angles.3.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.2.angles.4.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.3.angles.0.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.3.angles.1.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.3.angles.2.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.3.angles.3.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.3.angles.4.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.4.angles.0.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.4.angles.1.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.4.angles.2.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.4.angles.3.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
+    },
+    {
+      "rule": "v3-addition",
+      "module": "m09",
+      "path": "perArchetype.4.angles.4.id",
+      "message": "Required",
+      "reason": "The May pack predates stable angle ids (definition §10 note 26)."
     }
   ],
   "ruleConflicts": [],
@@ -977,6 +1306,7 @@
     "Stale check (researchOutputSchema, informational, time-relative): run today, five m04 seed-firm signals (UIBL, RS Insurance Brokers, Prestige, Marshmallow, ManyPets) are older than twelve months and still above weak. Ingest demotes them with demoteStale; the raw schema, which the fixture is proved against, does not check this.",
     "Unknown #4 names the product owner ('[the product owner]') verbatim from the pack. That is a person, not an agent codename or a path.",
     "2026-09-10: the five rule conflicts became the fourth exemption, v3-addition (definition §10 note 6, product owner).",
-    "2026-09-10: v3.1 added two more fields the May pack predates (m06 voice, m18 askOnFirstCall), exempt as v3-addition."
+    "2026-09-10: v3.1 added two more fields the May pack predates (m06 voice, m18 askOnFirstCall), exempt as v3-addition.",
+    "2026-09-11: v3.1 notes 25-26 added m07 strength and m09 angle ids, which the May pack predates; exempt as v3-addition."
   ]
 }

@@ -163,29 +163,33 @@ what it rests on. Use that shape for inferences; never invent a citation.
   for a practitioner. At least six in ten phrases are a named practitioner's
   own words; give a `role` only when the page states it; a joke is a joke,
   not a tone to match.
-- **m07 Solution mapping.** `mappings[]` each `{ painId, capability, factIds[],
-  mustNotImply? }`, `unmatched[]` each `{ painId, roadmapStatus, note? }`.
+- **m07 Solution mapping.** `mappings[]` each `{ painId, capability, strength:
+  direct|partial, factIds[], mustNotImply? }`, `unmatched[]` each `{ painId,
+  roadmapStatus, note? }`. `direct` answers the pain; `partial` gives
+  visibility or evidence around it without removing it and says in
+  `mustNotImply` what it does not change. Every pain is accounted for —
+  direct, partial or unmatched; never stretch a capability to make it direct.
   Good: every pain mapped to a shipped capability, and an honest table of what
   is not shipped with its roadmap status.
 - **m08 ICP definition.** `idealCompany[≥1]`, `idealBuyer[≥1]`,
   `disqualifiers[≥1]` each `{ who, why }`, `hardFiltersEchoed` (the m00
   `hardFilters` object, copied exactly).
 - **m09 Messaging and positioning.** `brandConstraints[]`, `perArchetype[]`
-  each `{ archetypeId, angles[≥5] { rank, text, confidence, channelFit[≥1] },
+  each `{ archetypeId, angles[≥5] { id, rank, text, confidence, channelFit[≥1] },
   doDont[≥1] { use, avoid, why? }, verbatim: Item[≥3], vocabulary[] }`.
   Good: five ranked angles per kind with channel fit, a do/don't table, and
   phrases lifted verbatim from primary sources.
-- **m10 Where buyers gather.** `entries[≥5]` each `{ kind: press|event|
+- **m10 Where buyers gather.** `entries[≥5]` each `{ id, kind: press|event|
   association|community|review-site|publication, name, url, date?, audience,
   why, archetypeIds? }`. A person appears only as the author of a source.
 - **m11 Objections.** `perArchetype[]` each `{ archetypeId, objections[≥3]
-  { objection, answer?, factIds[], notYetFactIds? } }`.
+  { id, objection, answer?, factIds[], notYetFactIds? } }`.
   When the honest answer is "not today", cite the planned fact that says so
   in `notYetFactIds` and say plainly it is not available; never promise it. Answer only from live facts and the
   shipped column; with no grounded answer, leave `answer` out.
-- **m12 Contact rules.** `rules[≥1]` each `{ channel, region, rule, source
+- **m12 Contact rules.** `rules[≥1]` each `{ id, channel, region, rule, source
   (url), bars: bool }` — at least one rule for every channel on the card.
-- **m13 Dated events and deadlines.** `entries[]` each `{ date, what, source
+- **m13 Dated events and deadlines.** `entries[]` each `{ id, date, what, source
   (url), why }`, `noneFound`, `queriesTried[]`. At least three entries, or
   `noneFound: true` with the queries tried. Facts with dates, no allocation.
 - **m14 Changes since the last pack.** `applicable`, `changes[]` each `{ kind:
@@ -194,8 +198,11 @@ what it rests on. Use that shape for inferences; never invent a citation.
 - **m15 Proof the rep may use.** `proof[≥1]` each `{ factId, text, allowed,
   note? }` — live fact ids only.
 - **m16 Campaign candidates.** `candidates[≥1]` each `{ id, rank, archetypeId,
-  leadAngle, channelFit[≥1], whyNow, seedFirmIds[], wrongIf }`. Findings, not
-  a plan.
+  leadAngle, channelFit[≥1], whyNow, seedFirmIds[], wrongIf, painIds[≥1],
+  angleIds[≥1], objectionIds[], eventIds[], venueIds[], contactRuleIds[] }` —
+  the ids of what the candidate rests on: its kind of buyer's own pains (m05),
+  angles (m09) and objections (m11), and the pack's dated events (m13), venues
+  (m10) and contact rules (m12). Findings, not a plan.
 - **m17 Contradictions.** `entries[]` each `{ id, text, kind: against|disagree,
   meaning, a?: Item, b?: Item }` (`disagree` needs both `a` and `b`),
   `noneFound`. At least one entry, or `noneFound: true` after the search.

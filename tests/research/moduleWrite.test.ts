@@ -140,4 +140,32 @@ describe("checkModuleWrite", () => {
     expect(wrongPain.issues.join(" ")).toMatch(/m07 neither maps nor lists as unmatched the pain/);
 
   });
+
+  it("needs a partial mapping to say what it does not change (§10 note 25)", () => {
+    const m07 = content("m07") as { mappings: Array<{ strength: string; mustNotImply?: string }> };
+    m07.mappings[0]!.strength = "partial";
+    delete m07.mappings[0]!.mustNotImply;
+    const refused = checkModuleWrite("m07", m07, { accepted: {}, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/a partial mapping says in mustNotImply/);
+    m07.mappings[0]!.mustNotImply = "Earlier visibility; it does not lower the complaint count.";
+    expect(checkModuleWrite("m07", m07, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("checks a candidate's references against its own kind of buyer's records (§10 note 26)", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of MODULE_IDS.filter((m) => m !== "m16" && m !== "m19")) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      accepted[id] = check.module;
+    }
+    expect(checkModuleWrite("m16", content("m16"), { accepted, liveFactIds: live, now }).ok).toBe(true);
+    const m16 = content("m16") as { candidates: Array<{ painIds: string[]; angleIds: string[]; venueIds: string[] }> };
+    m16.candidates[0]!.painIds = ["regional-brokers-pain-1"];
+    m16.candidates[0]!.venueIds = ["venue-nowhere"];
+    const refused = checkModuleWrite("m16", m16, { accepted, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/names the pain "regional-brokers-pain-1", which is not one of its kind of buyer's/);
+    expect(refused.issues.join(" ")).toMatch(/names the venue "venue-nowhere"/);
+  });
 });

@@ -74,13 +74,15 @@ describe("the depth fixture: Signal's May pack against every v3 rule", () => {
     expect(manifest.ruleConflicts).toEqual([]);
   });
 
-  it("names exactly the fields v3 added that the May pack predates (§10 notes 6, 13, 15)", () => {
+  it("names exactly the fields v3 added that the May pack predates (§10 notes 6, 13, 15, 25, 26)", () => {
     const kinds = [...new Set(manifest.exemptions.filter((e) => e.rule === "v3-addition").map((c) => `${c.module}:${c.path.replace(/\.\d+/g, ".*")}`))].sort();
     expect(kinds).toEqual([
       "m02:doNothing",
       "m06:perArchetype.*.phrases.*.voice",
+      "m07:mappings.*.strength",
       "m09:perArchetype.*.angles.*.channelFit",
       "m09:perArchetype.*.angles.*.confidence",
+      "m09:perArchetype.*.angles.*.id",
       "m18:unknowns.*.askOnFirstCall",
       "m18:unknowns.*.queriesTried",
       "m19:factsVersion",

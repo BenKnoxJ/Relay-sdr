@@ -119,7 +119,10 @@ export function deriveHook(pack: PackShape, archetypeId: string): z.infer<typeof
   const whyNow = m01.triggers.slice().sort((a, b) => rank[a.confidence] - rank[b.confidence])[0];
   if (whyNow === undefined) return undefined;
   const m07 = completeModule(pack, "m07");
-  const answeredBy = m07?.mappings.filter((m) => m.painId === persona.dominantPain.id).flatMap((m) => m.factIds) ?? [];
+  // A direct mapping answers the pain; a partial one only surrounds it (§10 note 25).
+  const rows = m07?.mappings.filter((m) => m.painId === persona.dominantPain.id) ?? [];
+  const direct = rows.filter((m) => m.strength === "direct");
+  const answeredBy = (direct.length > 0 ? direct : rows).flatMap((m) => m.factIds);
   return { id: `hook-${persona.id}`, text: persona.openingAngle, whyNow, answeredBy: [...new Set(answeredBy)].slice(0, 8) };
 }
 

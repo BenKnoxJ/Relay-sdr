@@ -25,6 +25,19 @@ describe("normaliseModule", () => {
     expect(normaliseModule("m01", content("m01")).notes).toEqual([]);
   });
 
+  it("writes an m01 sub-segment's count or size given as a number as text, so the slip costs no rewrite (brief C v3.2)", () => {
+    const m01 = content("m01") as { subSegments: Array<Record<string, unknown>> };
+    m01.subSegments[0]!.countEstimate = 3;
+    m01.subSegments[1]!.sizeRange = 12;
+    const { content: fixed, notes } = normaliseModule("m01", m01);
+    expect((fixed as typeof m01).subSegments[0]!.countEstimate).toBe("3");
+    expect((fixed as typeof m01).subSegments[1]!.sizeRange).toBe("12");
+    expect(notes).toEqual(["m01.subSegments.0.countEstimate: the number 3 written as text", "m01.subSegments.1.sizeRange: the number 12 written as text"]);
+    // Accepted on the first write: the module's one rewrite is still unspent.
+    const check = checkModuleWrite("m01", m01, { accepted: {}, liveFactIds: live, now });
+    expect(check.ok).toBe(true);
+  });
+
   it("lowers a confidence word to what its urls support, and sets domains from the urls (brief E m05, m17)", () => {
     const m05 = content("m05") as { perArchetype: Array<{ pains: Array<{ confidence: string; evidence: { urls: string[]; domains: string[] } }> }> };
     const pain = m05.perArchetype[0]!.pains[0]!;

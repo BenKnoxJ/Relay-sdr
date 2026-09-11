@@ -461,7 +461,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
           if (content !== undefined || base === undefined) {
             return { accepted: false, module: args.module, issues: [content !== undefined ? "send content or fixes, not both" : "there is no earlier version of this module to fix; send its whole content"] };
           }
-          const applied = applyFixes(base, args.fixes);
+          const applied = applyFixes(base, args.fixes, args.module);
           if (applied.errors.length > 0) return { accepted: false, module: args.module, issues: applied.errors, note: "Fix the paths, or send the whole content." };
           content = applied.content;
         }

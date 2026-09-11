@@ -56,6 +56,33 @@ export type ModuleWriteContext = {
 };
 
 /**
+ * The rep-words rule on the rep summary, unchanged — `assertPlainWords` decides
+ * — with each refusal naming the words it caught and where. Brief A v3.2b was
+ * told only "machine word … at $[4]" with the line echoed back; it guessed,
+ * swapped "job" for a phrase with "touch" in it, and lost the module.
+ */
+export function repWordIssues(lines: readonly string[]): string[] {
+  const banned = (text: string): boolean => {
+    try {
+      assertPlainWords([text]);
+      return false;
+    } catch {
+      return true;
+    }
+  };
+  return lines.flatMap((line, i) => {
+    if (!banned(line)) return [];
+    const tokens = line.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? [];
+    // The words the rule caught; a banned phrase of two words when no single word is.
+    let words = [...new Set(tokens.filter(banned))];
+    if (words.length === 0) words = [...new Set(tokens.slice(0, -1).map((token, n) => `${token} ${tokens[n + 1]}`).filter(banned))];
+    if (words.length === 0) return [`lines.${i}: uses words a rep would not; rewrite it in plain words`];
+    const named = words.map((word) => `"${word}"`).join(", ");
+    return [`lines.${i}: ${named} ${words.length === 1 ? "is a word" : "are words"} a rep would not use — rewrite the line without ${words.length === 1 ? "it" : "them"}`];
+  });
+}
+
+/**
  * m06 with `voice` on a kind of buyer rather than on its phrases (brief A
  * v3.2): a structural slip, refused with where the field belongs. Never
  * corrected by copying it down — `voice` is each phrase's own fact, and one
@@ -131,13 +158,7 @@ export function checkModuleWrite(id: ModuleId, content: unknown, context: Module
 
   if (context.neverSay !== undefined) issues.push(...neverSayIssues(authoredTexts(id, written), context.neverSay));
 
-  if (id === "repSummary") {
-    try {
-      assertPlainWords([...(written as CompleteModule<"repSummary">).lines]);
-    } catch (error) {
-      issues.push(error instanceof Error ? error.message : "the rep summary uses words a rep would not");
-    }
-  }
+  if (id === "repSummary") issues.push(...repWordIssues([...(written as CompleteModule<"repSummary">).lines]));
 
   return issues.length > 0 ? { ok: false, issues, normalised } : { ok: true, module: written, demoted, normalised };
 }

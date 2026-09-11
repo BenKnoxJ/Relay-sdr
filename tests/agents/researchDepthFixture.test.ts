@@ -18,7 +18,7 @@ import { KNOWLEDGE_SCRUB } from "@/lib/knowledge/load";
  * Signal-grade depth fails here.
  */
 
-const DIR = path.join(path.dirname(agentsDir()), "fixtures", "agents", "research");
+const DIR = path.join(path.dirname(agentsDir()), "fixtures", "research");
 const pack = JSON.parse(readFileSync(path.join(DIR, "signal-may-insurance.v3.json"), "utf8")) as PackShape;
 type Entry = { module: string; path: string; message: string; rule?: string };
 const manifest = JSON.parse(readFileSync(path.join(DIR, "signal-may-insurance.v3.manifest.json"), "utf8")) as {

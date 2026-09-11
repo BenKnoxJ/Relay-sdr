@@ -162,3 +162,7 @@ export function authoredText(value: z.infer<typeof pickSchema> | z.infer<typeof 
 
 export type LeadgenOutput = z.infer<typeof leadgenOutputSchema>;
 export type Person = z.infer<typeof personSchema>;
+/** A person after the reveal, with the email status the Your people rows show. */
+export type RevealedPerson = z.infer<typeof revealedPersonSchema>;
+export type Revealed = z.infer<typeof revealedSchema>;
+export type Pick = z.infer<typeof pickSchema>;

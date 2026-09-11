@@ -26,7 +26,7 @@ import { scoreRubric, type RubricRow } from "@/lib/research/rubric";
  */
 
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-const DIR = path.join(path.dirname(agentsDir()), "fixtures", "agents", "research");
+const DIR = path.join(path.dirname(agentsDir()), "fixtures", "research");
 const fixture = JSON.parse(readFileSync(path.join(DIR, "relay-c-orkney.v3.1.json"), "utf8")) as {
   brief: { region: string; scope: LockedScope };
   modules: Record<"m00" | "m01" | "m03" | "m04", Loose>;

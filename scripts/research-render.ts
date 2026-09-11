@@ -1,7 +1,7 @@
 /**
  * Render a recorded research v3 run as plain markdown for a human review.
  *
- *   npx tsx scripts/research-render.ts fixtures/agents/research/<name>.json [out.md]
+ *   npx tsx scripts/research-render.ts fixtures/research/<name>.json [out.md]
  *
  * Reads what `scripts/research-bench.ts` wrote and writes the pack in module
  * order: each module's prose verbatim, then its structured records compactly

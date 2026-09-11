@@ -17,7 +17,7 @@ import { normaliseModule } from "@/lib/research/normalise";
  * Relay contract's own.
  */
 
-const DIR = path.join(path.dirname(agentsDir()), "fixtures", "agents", "research");
+const DIR = path.join(path.dirname(agentsDir()), "fixtures", "research");
 const fixture = JSON.parse(readFileSync(path.join(DIR, "relay-a-insurance.v3.1.json"), "utf8")) as { pack: PackShape };
 type Entry = { module: string; path: string; message: string; rule: string };
 const manifest = JSON.parse(readFileSync(path.join(DIR, "relay-a-insurance.v3.1.manifest.json"), "utf8")) as { exemptions: Entry[] };

@@ -211,7 +211,7 @@ async function main(): Promise<number> {
   // Row 10 (§10 note 29): the prior pack's seed firms by identity and the geography it covered.
   let prior: { seedFirms: Array<{ name: string; domain?: string }>; countries: string[]; places: string[] } | undefined;
   if (args.priorFrom !== undefined) {
-    const recorded = JSON.parse(readFileSync(path.join(root, "fixtures", "agents", "research", `${args.priorFrom}.json`), "utf8")) as Fixture;
+    const recorded = JSON.parse(readFileSync(path.join(root, "fixtures", "research",`${args.priorFrom}.json`), "utf8")) as Fixture;
     if (recorded.output != null && recorded.output.modules === undefined) throw new Error(`--prior-from ${args.priorFrom} was recorded under research v2; re-record it first`);
     const m04 = (recorded.output?.modules as { m04?: { perArchetype?: Array<{ recipe: { countries: string[] }; seedFirms: Array<{ name: string; domain?: string }> }> } } | undefined)?.m04;
     const targets = m04?.perArchetype ?? [];
@@ -257,7 +257,7 @@ async function main(): Promise<number> {
     rejectedIssues: rejected?.issues ?? null,
     rubric,
   };
-  const out = path.join(root, "fixtures", "agents", "research", `${args.name}.json`);
+  const out = path.join(root, "fixtures", "research",`${args.name}.json`);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(fixture, null, 2)}\n`);
 

@@ -9,4 +9,5 @@ export * from "./output/modules";
 export * from "./output/pack";
 export * from "./output/derived";
 export * from "./output/scope";
-export { urlSchema } from "../_shared/item.schema";
+export { urlSchema, itemSchema, phraseSchema } from "../_shared/item.schema";
+export type { Item, Phrase, Confidence } from "../_shared/item.schema";

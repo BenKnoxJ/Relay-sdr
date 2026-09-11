@@ -65,7 +65,7 @@ src/lib/facts/               the product facts file: schema, loader, hash (Task 
 src/lib/services/{tavily,firecrawl}/  the research providers: live, mock (replays fixtures/tools) and record
 facts/<product>.v<n>.json    the facts file, draft until the product owner signs it
 fixtures/tools/research/<brief>/  recorded provider responses, keyed by the call's discriminator
-fixtures/agents/research/<brief>.json  the bench's record of a run: pack, run totals, rubric
+fixtures/research/<brief>.json  the research bench's record of a run: pack, run totals, rubric (fixtures/agents/<kind>/ is the agent bench's)
 fixtures/briefs/research-*.md  the four sign-off briefs A–D
 scripts/research-bench.ts    run one brief (mock, live or record tools), write its fixture, print the rubric
 prisma/schema.prisma         the Phase 1 data model (master doc §25); slice-1 entities follow

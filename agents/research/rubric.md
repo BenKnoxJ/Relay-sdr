@@ -29,5 +29,5 @@ managed print dealers, Midlands, 15 over 4 weeks · (C) thin: vets in Orkney · 
 25 over 4 weeks, one or two existing customers.
 
 Sign-off requires zero `insufficient` modules on A, B, D and E. The v2 recordings of A, B and E in
-`fixtures/agents/research/` predate this contract; the rubric test skips them until they are re-recorded
+`fixtures/research/` predate this contract; the rubric test skips them until they are re-recorded
 in Step 6.

@@ -1,0 +1,227 @@
+{
+  "kind": "outreach",
+  "name": "first-email",
+  "source": "sample",
+  "recordedAt": "2026-09-09T00:00:00.000Z",
+  "live": false,
+  "input": {
+    "person": {
+      "id": "p2",
+      "lushaId": "l-1002",
+      "name": "Helen Marsh",
+      "title": "Claims Operations Director",
+      "company": "Westbury Mutual",
+      "domain": "westburymutual.co.uk",
+      "country": "GB",
+      "hasEmail": true,
+      "score": 6,
+      "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
+      "rank": 1,
+      "companyKey": "westburymutual.co.uk",
+      "email": "helen.marsh@westburymutual.co.uk",
+      "status": "verified"
+    },
+    "touch": {
+      "kind": "email1",
+      "ordinal": 1,
+      "dueAt": "2026-09-10T08:00:00Z"
+    },
+    "thread": [],
+    "pack": {
+      "briefVersion": 1,
+      "archetype": {
+        "id": "uk-claims-ops",
+        "name": "UK claims operations under a complaints spike",
+        "situation": "A general insurer with twenty to sixty claims handlers, complaints rising quarter on quarter, and quality checking done on a hand-picked one in fifty calls.",
+        "pains": [
+          {
+            "id": "pain-sampling",
+            "text": "Quality checking covers about two per cent of calls, so a bad habit is found weeks after it started.",
+            "accessedAt": "2026-09-08",
+            "evidence": {
+              "urls": [
+                "https://claimsweekly.co.uk/a/pain-sampling"
+              ],
+              "primary": false,
+              "domains": [
+                "claimsweekly.co.uk"
+              ]
+            },
+            "confidence": "weak",
+            "quote": "We listen to maybe one call in fifty and we know that is not enough.",
+            "publishedAt": "2026-04-02"
+          },
+          {
+            "id": "pain-complaints",
+            "text": "Complaint volumes are rising and nobody can say which conversations caused them.",
+            "accessedAt": "2026-09-08",
+            "evidence": {
+              "urls": [
+                "https://insurancetimes.co.uk/a/pain-complaints"
+              ],
+              "primary": false,
+              "domains": [
+                "insurancetimes.co.uk"
+              ]
+            },
+            "confidence": "weak",
+            "quote": "We can tell you the complaint came in. We cannot tell you which call caused it.",
+            "publishedAt": "2026-04-02"
+          },
+          {
+            "id": "pain-evidence",
+            "text": "Regulators ask for evidence of fair treatment and the team assembles it by hand each time.",
+            "accessedAt": "2026-09-08",
+            "evidence": {
+              "urls": [
+                "https://fca.org.uk/a/pain-evidence"
+              ],
+              "primary": false,
+              "domains": [
+                "fca.org.uk"
+              ]
+            },
+            "confidence": "weak",
+            "quote": "Firms should be able to evidence the outcomes their customers receive.",
+            "publishedAt": "2026-04-02"
+          }
+        ],
+        "language": [
+          {
+            "id": "phrase-one-in-fifty",
+            "text": "Handlers describe the sampling rate in their own words.",
+            "accessedAt": "2026-09-08",
+            "evidence": {
+              "urls": [
+                "https://reddit.com/a/phrase-one-in-fifty"
+              ],
+              "primary": false,
+              "domains": [
+                "reddit.com"
+              ]
+            },
+            "confidence": "weak",
+            "quote": "one call in fifty and a prayer",
+            "publishedAt": "2026-04-02",
+            "say": "one call in fifty",
+            "notThis": "low quality assurance coverage",
+            "notBuyer": false
+          }
+        ]
+      },
+      "hook": {
+        "id": "hook-complaints-evidence",
+        "text": "Your complaints are up and the calls behind them are unread. Read all of them instead of one in fifty.",
+        "whyNow": {
+          "id": "why-now-fca",
+          "text": "The regulator restated in April that firms must be able to evidence customer outcomes.",
+          "accessedAt": "2026-09-08",
+          "evidence": {
+            "urls": [
+              "https://bankofengland.co.uk/a/why-now-fca"
+            ],
+            "primary": false,
+            "domains": [
+              "bankofengland.co.uk"
+            ]
+          },
+          "confidence": "weak",
+          "publishedAt": "2026-04-14"
+        },
+        "answeredBy": [
+          "i360.read-every-call",
+          "i360.evidence-pack"
+        ]
+      }
+    },
+    "facts": {
+      "product": "Insights360",
+      "version": 4,
+      "facts": [
+        {
+          "id": "i360.read-every-call",
+          "status": "live",
+          "text": "Reads every recorded call rather than a sample.",
+          "notes": "Do not claim a percentage accuracy figure."
+        },
+        {
+          "id": "i360.evidence-pack",
+          "status": "live",
+          "text": "Produces an evidence pack per complaint in under 2 minutes."
+        }
+      ]
+    },
+    "voice": {
+      "email": [
+        "Short, warm, no preamble. Sign off with just my first name."
+      ],
+      "linkedin": [],
+      "howIWrite": "Plain sentences. No hype."
+    },
+    "standard": {
+      "version": 2,
+      "rules": [
+        "Open on the referenced item in one sentence.",
+        "One pain, never two.",
+        "At most one product claim in a first email, by fact id.",
+        "One question, last sentence, and it is the ask.",
+        "British English, no em dashes, no bullets in an email.",
+        "Voice from the samples for this register.",
+        "Follow-ups anchor on the person's own earlier message and shrink.",
+        "No reused phrasing."
+      ],
+      "exemplars": [],
+      "bannedLexicon": [
+        "leverage",
+        "synergy",
+        "cutting-edge"
+      ]
+    },
+    "lookup": {
+      "items": [
+        {
+          "id": "look-westbury-rebuild",
+          "text": "Told the trade press in June that complaint handling was being rebuilt.",
+          "quote": "We are rebuilding how complaints are handled, end to end.",
+          "speaker": "Helen Marsh",
+          "role": "Claims Operations Director",
+          "publishedAt": "2026-06-11",
+          "accessedAt": "2026-09-08",
+          "evidence": {
+            "urls": [
+              "https://ft.com/a/westbury-rebuild"
+            ],
+            "primary": false,
+            "domains": [
+              "ft.com"
+            ]
+          },
+          "confidence": "weak",
+          "about": "firm"
+        }
+      ],
+      "usable": true,
+      "searches": 2,
+      "fetches": 1
+    },
+    "recentOpeners": []
+  },
+  "output": {
+    "kind": "message",
+    "subject": "Reading every claims call, not one in fifty",
+    "body": "Helen, you told the trade press in June that complaint handling was being rebuilt and that quality checking was the first thing you wanted fixed. Most claims teams I speak to are reading about one call in fifty and finding the habit weeks after it started. We read every recorded call instead, so the pattern shows up in the first week rather than the next quarter. Would it help to see a week of your own calls read back?",
+    "ask": "Would it help to see a week of your own calls read back?",
+    "opener": {
+      "ref": "look-westbury-rebuild",
+      "kind": "person_fact"
+    },
+    "claims": [
+      "i360.read-every-call"
+    ]
+  },
+  "run": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}

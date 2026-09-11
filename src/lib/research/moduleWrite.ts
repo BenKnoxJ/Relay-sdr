@@ -55,6 +55,25 @@ export type ModuleWriteContext = {
   now: Date;
 };
 
+/**
+ * m06 with `voice` on a kind of buyer rather than on its phrases (brief A
+ * v3.2): a structural slip, refused with where the field belongs. Never
+ * corrected by copying it down — `voice` is each phrase's own fact, and one
+ * group holds words from different voices.
+ */
+export function groupVoiceIssues(id: ModuleId, content: unknown): string[] {
+  if (id !== "m06" || content === null || typeof content !== "object") return [];
+  const groups = (content as { perArchetype?: unknown }).perArchetype;
+  if (!Array.isArray(groups)) return [];
+  return groups.flatMap((group, i) =>
+    group !== null && typeof group === "object" && Object.hasOwn(group, "voice")
+      ? [
+          `perArchetype.${i}.voice: voice belongs on each phrase, not on the kind of buyer — one group can hold words from different voices. Remove perArchetype.${i}.voice and set perArchetype.${i}.phrases.<n>.voice on every phrase independently.`,
+        ]
+      : [],
+  );
+}
+
 export type ModuleCheck =
   | { ok: true; module: CompleteModule<ModuleId>; demoted: string[]; normalised: string[] }
   | { ok: false; issues: string[]; normalised: string[] };

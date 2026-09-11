@@ -8,4 +8,5 @@
 export * from "./output/modules";
 export * from "./output/pack";
 export * from "./output/derived";
+export * from "./output/scope";
 export { urlSchema } from "../_shared/item.schema";

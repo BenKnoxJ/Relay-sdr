@@ -18,6 +18,7 @@
     "tokens:css": "tsx scripts/tokens-css.ts",
     "tokens:check": "tsx scripts/tokens-css.ts --check",
     "audit": "node scripts/audit-check.mjs",
+    "agent": "tsx scripts/agent.ts",
     "proofs": "vitest run --project node -t @proof",
     "worker": "node --import tsx src/worker/main.ts",
     "worker:build": "tsup",

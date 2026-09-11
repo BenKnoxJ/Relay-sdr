@@ -1,0 +1,25 @@
+{
+  "model": {
+    "calls": [
+      {
+        "tool": {
+          "name": "shout",
+          "args": {
+            "text": "the bench is the sign-off surface"
+          }
+        },
+        "usage": {
+          "in": 1800,
+          "out": 42
+        }
+      },
+      {
+        "text": "{\"text\": \"THE BENCH IS THE SIGN-OFF SURFACE\"}",
+        "usage": {
+          "in": 2100,
+          "out": 58
+        }
+      }
+    ]
+  }
+}

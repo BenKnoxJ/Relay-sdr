@@ -1,0 +1,39 @@
+{
+  "role": "research v3.2 sign-off evaluation runs (definition §10 notes 22, 28, 29). Each is the bench's record of a live run on the code at its commit: the pack, the job's tool calls in order, whole-job actuals and the rubric as scored then. tests/agents/researchRubric.test.ts re-checks each run's required rows, so a later change that would have failed them is caught. Their tool recordings and SDK streams are not committed.",
+  "signedBy": "product owner, 2026-09-11 (\"Commit the C rerun, B and D rerun as the signed evaluation fixtures\")",
+  "runs": [
+    {
+      "fixture": "research-c-thin-vets-v3.2-rerun.json",
+      "brief": "fixtures/briefs/research-c-thin-vets.md",
+      "job": "ec569bf1-8d2f-4ec3-a489-8e728eac9082",
+      "event": "cmtwuoy140035kw1swb2hvgp8",
+      "commit": "0e89e58",
+      "preserves": "The insufficient stop on a thin market: m00 and m01 written inside the locked scope (Orkney, veterinary practices), decideScope stop after m01 citing nine m00/m01 evidence ids, three genuine widening options (all of GB; the Scottish island groups; Orkney organisations of any kind), nothing researched after the stop, no synthesis, no re-ask.",
+      "required": [1, 3, 8, 11, 14],
+      "actuals": { "runs": 1, "seconds": 385, "costUsd": 2.635434, "searches": 17, "fetches": 7, "fetchedChars": 31000 }
+    },
+    {
+      "fixture": "research-b-telephony-channel-v3.2.json",
+      "brief": "fixtures/briefs/research-b-telephony-channel.md",
+      "job": "744c265b-243d-4418-ae8f-ff8afd249ac3",
+      "event": "cmtwvv6oe0043kww65zr7qc49",
+      "commit": "0e89e58",
+      "modules": ["m00", "m03", "m09"],
+      "preserves": "Channel framing: the spine is the reseller's own economics (per-seat recurring revenue on a base it already owns); five kinds of partner; partner-shaped angles; deal economics from list-price facts only, with no partner margin asserted. Scored before rows 2, 4 and 7 were made n/a for a targeted run, so its stored rubric shows them failing; they are not required here.",
+      "required": [1, 3, 5, 6, 11, 13, 14],
+      "actuals": { "runs": 2, "seconds": 904, "costUsd": 3.880584, "searches": 22, "fetches": 11, "fetchedChars": 72074 }
+    },
+    {
+      "fixture": "research-d-insurance-rerun-v3.2b.json",
+      "brief": "fixtures/briefs/research-d-insurance-rerun.md",
+      "job": "5c7f07f7-7954-4599-8d9a-7077ee3e5473",
+      "event": "cmtwwux3d005lkwfgquqmrdas",
+      "commit": "5a9dfff",
+      "modules": ["m00", "m04", "m14"],
+      "priorPack": "cmtvknbpe002dkwozlhiav3c3 (brief A v3.1)",
+      "preserves": "A re-run widened from GB to GB and Ireland, reading brief A's pack from priorPacks: m14 accounts for all eleven prior seed firms (three kept and re-sourced, two dropped on size, one on a contradiction, five lapsed for want of a fresh source); five new Irish seed firms and two new GB ones; no invented recipe locations. Its stored row 10 reads '2 of 11 retained' — scored before sameSeedFirm matched Commercial Express; m14's three is correct.",
+      "required": [1, 2, 3, 5, 6, 10, 11, 13, 14],
+      "actuals": { "runs": 3, "seconds": 993, "costUsd": 5.851957, "searches": 34, "fetches": 13, "fetchedChars": 81198 }
+    }
+  ]
+}

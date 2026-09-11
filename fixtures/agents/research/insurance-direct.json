@@ -1,0 +1,2352 @@
+{
+  "kind": "research",
+  "name": "insurance-direct",
+  "source": "sample",
+  "recordedAt": "2026-09-09T00:00:00.000Z",
+  "live": false,
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "claims ops people at mid-sized UK insurers who are drowning in complaints",
+      "region": "GB",
+      "howMany": 20,
+      "weeks": 3,
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    },
+    "factsVersion": 2,
+    "knowledgeVersion": 1,
+    "priorPackIds": []
+  },
+  "output": {
+    "modules": {
+      "m00": {
+        "status": "complete",
+        "body": "The spine is the regulator's call-quality guidance.",
+        "claims": [],
+        "hardFilters": {
+          "geography": [
+            "GB"
+          ],
+          "sizeCap": "under 500 staff",
+          "subSectorsIn": [
+            "claims teams"
+          ],
+          "subSectorsOut": [
+            "Lloyd's syndicates"
+          ],
+          "firmsOut": [],
+          "other": []
+        },
+        "spine": "The regulator's July guidance on call quality.",
+        "displacement": "Manual sampling of two to five percent of calls.",
+        "readyNow": [
+          "A complaints backlog in the last quarter."
+        ],
+        "mustNotLead": [
+          "Price."
+        ],
+        "offerHook": [
+          "i360.product.post-call-call-analytics"
+        ],
+        "priorPacksRead": [],
+        "hypotheses": []
+      },
+      "repSummary": {
+        "status": "complete",
+        "body": "Five lines for the card.",
+        "claims": [],
+        "lines": [
+          "Reach claims managers at mid-sized UK insurers.",
+          "The regulator's July guidance puts call quality on the board's desk.",
+          "Open on the backlog their handlers describe.",
+          "We could not confirm how many seats each firm runs.",
+          "About forty firms fit."
+        ]
+      },
+      "execSummary": {
+        "status": "complete",
+        "body": "The wedge is the guidance.",
+        "claims": [
+          {
+            "id": "exec-1",
+            "text": "The guidance landed in July",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-13.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-13.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "exec-2",
+            "text": "Sampling covers two to five percent of calls",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-14.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-14.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "exec-3",
+            "text": "Complaints fell last year",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-15.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-15.example"
+              ]
+            },
+            "confidence": "weak"
+          }
+        ],
+        "wedge": "Every call checked, not a sample.",
+        "icp": "Mid-sized UK insurers with an in-house claims line.",
+        "archetypesNamed": [
+          "Claims teams",
+          "Regional brokers",
+          "Delegated MGAs"
+        ],
+        "competitivePosition": "Cheaper than the enterprise tools, deeper than spreadsheets.",
+        "productConstraints": [
+          "Audio playback is not shipped."
+        ],
+        "verdict": "Worth a three-week campaign."
+      },
+      "m01": {
+        "status": "complete",
+        "body": "The market.",
+        "claims": [
+          {
+            "id": "market-1",
+            "text": "market claim 1 about UK insurers",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-16.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-16.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "market-2",
+            "text": "market claim 2 about UK insurers",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-17.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-17.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "market-3",
+            "text": "market claim 3 about UK insurers",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-18.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-18.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "market-4",
+            "text": "market claim 4 about UK insurers",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-19.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-19.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "market-5",
+            "text": "market claim 5 about UK insurers",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-20.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-20.example"
+              ]
+            },
+            "confidence": "weak"
+          }
+        ],
+        "marketSize": [
+          "About 300 insurers."
+        ],
+        "subSegments": [
+          {
+            "name": "Personal lines insurers",
+            "fit": "HIGH",
+            "why": "Own claims lines."
+          },
+          {
+            "name": "Regional brokers",
+            "fit": "MEDIUM",
+            "why": "Smaller lines."
+          },
+          {
+            "name": "Delegated MGAs",
+            "fit": "MEDIUM",
+            "why": "Oversight pressure."
+          },
+          {
+            "name": "Lloyd's syndicates",
+            "fit": "OUT",
+            "why": "No consumer line."
+          }
+        ],
+        "bodies": [
+          {
+            "name": "FCA",
+            "role": "Conduct regulator",
+            "relevance": "Sets the guidance.",
+            "url": "https://www.fca.org.uk/"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "trigger-1",
+            "text": "trigger 1: the regulator published guidance on call quality",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-21.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-21.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "trigger-2",
+            "text": "trigger 2: the regulator published guidance on call quality",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-22.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-22.example"
+              ]
+            },
+            "confidence": "weak"
+          },
+          {
+            "id": "trigger-3",
+            "text": "trigger 3: the regulator published guidance on call quality",
+            "publishedAt": "2026-07-13",
+            "accessedAt": "2026-09-09",
+            "evidence": {
+              "urls": [
+                "https://source-23.example/page"
+              ],
+              "primary": false,
+              "domains": [
+                "source-23.example"
+              ]
+            },
+            "confidence": "weak"
+          }
+        ],
+        "activityMetrics": [],
+        "nextSixMonths": []
+      },
+      "m02": {
+        "status": "complete",
+        "body": "The competitors.",
+        "claims": [],
+        "competitors": [
+          {
+            "name": "Vendor 1",
+            "positioning": "Contact-centre quality tool.",
+            "pricingGated": true,
+            "strengths": [],
+            "weaknesses": [],
+            "recentMoves": [
+              {
+                "id": "vendor-1-move",
+                "text": "vendor 1 raised prices this spring",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-24.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-24.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          },
+          {
+            "name": "Vendor 2",
+            "positioning": "Contact-centre quality tool.",
+            "pricingGated": true,
+            "strengths": [],
+            "weaknesses": [],
+            "recentMoves": [
+              {
+                "id": "vendor-2-move",
+                "text": "vendor 2 raised prices this spring",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-25.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-25.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          },
+          {
+            "name": "Vendor 3",
+            "positioning": "Contact-centre quality tool.",
+            "pricingGated": true,
+            "strengths": [],
+            "weaknesses": [],
+            "recentMoves": [
+              {
+                "id": "vendor-3-move",
+                "text": "vendor 3 raised prices this spring",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-26.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-26.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          }
+        ],
+        "adjacent": [],
+        "doNothing": "Keep sampling by hand.",
+        "pricingTable": [
+          {
+            "name": "Insights360",
+            "price": "per seat"
+          },
+          {
+            "name": "Vendor 1",
+            "price": "on request"
+          }
+        ],
+        "discoveryChannels": [
+          "Trade press."
+        ]
+      },
+      "m03": {
+        "status": "complete",
+        "body": "Three kinds of buyer.",
+        "claims": [],
+        "archetypes": [
+          {
+            "id": "claims-teams",
+            "name": "The claims teams",
+            "situation": "A mid-sized firm with its own claims line.",
+            "sizeRange": "50 to 500 staff",
+            "dominantPain": {
+              "id": "claims-teams-dominant",
+              "text": "claims-teams: the backlog after the storms is the pain handlers name first",
+              "publishedAt": "2026-07-13",
+              "accessedAt": "2026-09-09",
+              "evidence": {
+                "urls": [
+                  "https://source-27.example/page"
+                ],
+                "primary": false,
+                "domains": [
+                  "source-27.example"
+                ]
+              },
+              "confidence": "weak"
+            },
+            "roles": [
+              {
+                "title": "Head of claims",
+                "seniority": "Director",
+                "part": "signs",
+                "needs": "Proof for the board."
+              },
+              {
+                "title": "Claims team leader",
+                "seniority": "Manager",
+                "part": "runs",
+                "needs": "Less manual checking."
+              }
+            ],
+            "openingAngle": "Every call checked, not a sample.",
+            "dealEconomics": {
+              "factIds": [],
+              "confidence": "speculative",
+              "note": "Pricing is not yet confirmed."
+            }
+          },
+          {
+            "id": "regional-brokers",
+            "name": "The regional brokers",
+            "situation": "A mid-sized firm with its own claims line.",
+            "sizeRange": "50 to 500 staff",
+            "dominantPain": {
+              "id": "regional-brokers-dominant",
+              "text": "regional-brokers: the backlog after the storms is the pain handlers name first",
+              "publishedAt": "2026-07-13",
+              "accessedAt": "2026-09-09",
+              "evidence": {
+                "urls": [
+                  "https://source-28.example/page"
+                ],
+                "primary": false,
+                "domains": [
+                  "source-28.example"
+                ]
+              },
+              "confidence": "weak"
+            },
+            "roles": [
+              {
+                "title": "Head of claims",
+                "seniority": "Director",
+                "part": "signs",
+                "needs": "Proof for the board."
+              },
+              {
+                "title": "Claims team leader",
+                "seniority": "Manager",
+                "part": "runs",
+                "needs": "Less manual checking."
+              }
+            ],
+            "openingAngle": "Every call checked, not a sample.",
+            "dealEconomics": {
+              "factIds": [],
+              "confidence": "speculative",
+              "note": "Pricing is not yet confirmed."
+            }
+          },
+          {
+            "id": "delegated-mgas",
+            "name": "The delegated mgas",
+            "situation": "A mid-sized firm with its own claims line.",
+            "sizeRange": "50 to 500 staff",
+            "dominantPain": {
+              "id": "delegated-mgas-dominant",
+              "text": "delegated-mgas: the backlog after the storms is the pain handlers name first",
+              "publishedAt": "2026-07-13",
+              "accessedAt": "2026-09-09",
+              "evidence": {
+                "urls": [
+                  "https://source-29.example/page"
+                ],
+                "primary": false,
+                "domains": [
+                  "source-29.example"
+                ]
+              },
+              "confidence": "weak"
+            },
+            "roles": [
+              {
+                "title": "Head of claims",
+                "seniority": "Director",
+                "part": "signs",
+                "needs": "Proof for the board."
+              },
+              {
+                "title": "Claims team leader",
+                "seniority": "Manager",
+                "part": "runs",
+                "needs": "Less manual checking."
+              }
+            ],
+            "openingAngle": "Every call checked, not a sample.",
+            "dealEconomics": {
+              "factIds": [],
+              "confidence": "speculative",
+              "note": "Pricing is not yet confirmed."
+            }
+          }
+        ]
+      },
+      "m04": {
+        "status": "complete",
+        "body": "Targeting.",
+        "claims": [],
+        "perArchetype": [
+          {
+            "archetypeId": "claims-teams",
+            "recipe": {
+              "titles": [
+                "Head of Claims"
+              ],
+              "excludeTitles": [],
+              "sizeBand": {
+                "min": 50,
+                "max": 500
+              },
+              "countries": [
+                "GB"
+              ],
+              "industries": [
+                "Insurance"
+              ],
+              "triggers": []
+            },
+            "hardFiltersEchoed": [
+              "GB only",
+              "under 500 staff"
+            ],
+            "triggerTaxonomy": [
+              {
+                "signal": "signal 1",
+                "strength": "HOT",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 2",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 3",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              }
+            ],
+            "listSources": [
+              {
+                "name": "FCA register",
+                "url": "https://register.fca.org.uk/"
+              }
+            ],
+            "seedFirms": [
+              {
+                "id": "claims-teams-firm-1",
+                "name": "claims-teams firm 1",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "estimated",
+                  "value": "20 to 30 staff",
+                  "source": "https://size-claims-teams.example/team"
+                },
+                "signal": {
+                  "id": "claims-teams-firm-1-signal",
+                  "text": "claims-teams firm 1 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-30.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-30.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              },
+              {
+                "id": "claims-teams-firm-2",
+                "name": "claims-teams firm 2",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "unknown"
+                },
+                "signal": {
+                  "id": "claims-teams-firm-2-signal",
+                  "text": "claims-teams firm 2 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-31.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-31.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              }
+            ]
+          },
+          {
+            "archetypeId": "regional-brokers",
+            "recipe": {
+              "titles": [
+                "Head of Claims"
+              ],
+              "excludeTitles": [],
+              "sizeBand": {
+                "min": 50,
+                "max": 500
+              },
+              "countries": [
+                "GB"
+              ],
+              "industries": [
+                "Insurance"
+              ],
+              "triggers": []
+            },
+            "hardFiltersEchoed": [
+              "GB only",
+              "under 500 staff"
+            ],
+            "triggerTaxonomy": [
+              {
+                "signal": "signal 1",
+                "strength": "HOT",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 2",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 3",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              }
+            ],
+            "listSources": [
+              {
+                "name": "FCA register",
+                "url": "https://register.fca.org.uk/"
+              }
+            ],
+            "seedFirms": [
+              {
+                "id": "regional-brokers-firm-1",
+                "name": "regional-brokers firm 1",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "estimated",
+                  "value": "20 to 30 staff",
+                  "source": "https://size-regional-brokers.example/team"
+                },
+                "signal": {
+                  "id": "regional-brokers-firm-1-signal",
+                  "text": "regional-brokers firm 1 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-32.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-32.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              },
+              {
+                "id": "regional-brokers-firm-2",
+                "name": "regional-brokers firm 2",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "unknown"
+                },
+                "signal": {
+                  "id": "regional-brokers-firm-2-signal",
+                  "text": "regional-brokers firm 2 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-33.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-33.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              }
+            ]
+          },
+          {
+            "archetypeId": "delegated-mgas",
+            "recipe": {
+              "titles": [
+                "Head of Claims"
+              ],
+              "excludeTitles": [],
+              "sizeBand": {
+                "min": 50,
+                "max": 500
+              },
+              "countries": [
+                "GB"
+              ],
+              "industries": [
+                "Insurance"
+              ],
+              "triggers": []
+            },
+            "hardFiltersEchoed": [
+              "GB only",
+              "under 500 staff"
+            ],
+            "triggerTaxonomy": [
+              {
+                "signal": "signal 1",
+                "strength": "HOT",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 2",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              },
+              {
+                "signal": "signal 3",
+                "strength": "WARM",
+                "whereToFind": "Trade press"
+              }
+            ],
+            "listSources": [
+              {
+                "name": "FCA register",
+                "url": "https://register.fca.org.uk/"
+              }
+            ],
+            "seedFirms": [
+              {
+                "id": "delegated-mgas-firm-1",
+                "name": "delegated-mgas firm 1",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "estimated",
+                  "value": "20 to 30 staff",
+                  "source": "https://size-delegated-mgas.example/team"
+                },
+                "signal": {
+                  "id": "delegated-mgas-firm-1-signal",
+                  "text": "delegated-mgas firm 1 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-34.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-34.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              },
+              {
+                "id": "delegated-mgas-firm-2",
+                "name": "delegated-mgas firm 2",
+                "region": "GB",
+                "country": "GB",
+                "size": {
+                  "status": "unknown"
+                },
+                "signal": {
+                  "id": "delegated-mgas-firm-2-signal",
+                  "text": "delegated-mgas firm 2 reported a complaints backlog",
+                  "publishedAt": "2026-07-13",
+                  "accessedAt": "2026-09-09",
+                  "evidence": {
+                    "urls": [
+                      "https://source-35.example/page"
+                    ],
+                    "primary": false,
+                    "domains": [
+                      "source-35.example"
+                    ]
+                  },
+                  "confidence": "weak"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "m05": {
+        "status": "complete",
+        "body": "Pains.",
+        "claims": [],
+        "perArchetype": [
+          {
+            "archetypeId": "claims-teams",
+            "pains": [
+              {
+                "id": "claims-teams-pain-1",
+                "text": "claims-teams pain 1: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-1.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-1.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "claims-teams-pain-2",
+                "text": "claims-teams pain 2: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-2.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-2.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "claims-teams-pain-3",
+                "text": "claims-teams pain 3: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-3.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-3.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "claims-teams-pain-4",
+                "text": "claims-teams pain 4: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-4.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-4.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          },
+          {
+            "archetypeId": "regional-brokers",
+            "pains": [
+              {
+                "id": "regional-brokers-pain-1",
+                "text": "regional-brokers pain 1: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-5.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-5.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "regional-brokers-pain-2",
+                "text": "regional-brokers pain 2: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-6.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-6.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "regional-brokers-pain-3",
+                "text": "regional-brokers pain 3: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-7.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-7.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "regional-brokers-pain-4",
+                "text": "regional-brokers pain 4: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-8.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-8.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          },
+          {
+            "archetypeId": "delegated-mgas",
+            "pains": [
+              {
+                "id": "delegated-mgas-pain-1",
+                "text": "delegated-mgas pain 1: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-9.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-9.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "delegated-mgas-pain-2",
+                "text": "delegated-mgas pain 2: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-10.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-10.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "delegated-mgas-pain-3",
+                "text": "delegated-mgas pain 3: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-11.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-11.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "delegated-mgas-pain-4",
+                "text": "delegated-mgas pain 4: handlers say the complaints backlog grew after the storms",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-12.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-12.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ]
+          }
+        ]
+      },
+      "m06": {
+        "status": "complete",
+        "body": "Their words.",
+        "claims": [],
+        "perArchetype": [
+          {
+            "archetypeId": "claims-teams",
+            "phrases": [
+              {
+                "id": "claims-teams-phrase-1",
+                "text": "claims-teams phrase 1: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-36.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-36.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "claims-teams phrase 1: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "claims-teams phrase 1: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "claims-teams-phrase-2",
+                "text": "claims-teams phrase 2: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-37.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-37.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "claims-teams phrase 2: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "claims-teams phrase 2: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "claims-teams-phrase-3",
+                "text": "claims-teams phrase 3: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-38.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-38.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "claims-teams phrase 3: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "claims-teams phrase 3: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              }
+            ]
+          },
+          {
+            "archetypeId": "regional-brokers",
+            "phrases": [
+              {
+                "id": "regional-brokers-phrase-1",
+                "text": "regional-brokers phrase 1: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-39.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-39.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "regional-brokers phrase 1: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "regional-brokers phrase 1: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "regional-brokers-phrase-2",
+                "text": "regional-brokers phrase 2: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-40.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-40.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "regional-brokers phrase 2: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "regional-brokers phrase 2: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "regional-brokers-phrase-3",
+                "text": "regional-brokers phrase 3: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-41.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-41.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "regional-brokers phrase 3: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "regional-brokers phrase 3: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              }
+            ]
+          },
+          {
+            "archetypeId": "delegated-mgas",
+            "phrases": [
+              {
+                "id": "delegated-mgas-phrase-1",
+                "text": "delegated-mgas phrase 1: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-42.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-42.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "delegated-mgas phrase 1: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "delegated-mgas phrase 1: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "delegated-mgas-phrase-2",
+                "text": "delegated-mgas phrase 2: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-43.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-43.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "delegated-mgas phrase 2: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "delegated-mgas phrase 2: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              },
+              {
+                "id": "delegated-mgas-phrase-3",
+                "text": "delegated-mgas phrase 3: we are drowning in complaints",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-44.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-44.example"
+                  ]
+                },
+                "confidence": "weak",
+                "quote": "delegated-mgas phrase 3: we are drowning in complaints",
+                "speaker": "A claims manager",
+                "role": "Claims manager",
+                "say": "delegated-mgas phrase 3: we are drowning in complaints",
+                "notBuyer": false,
+                "voice": "practitioner"
+              }
+            ]
+          }
+        ]
+      },
+      "m07": {
+        "status": "complete",
+        "body": "What answers each pain.",
+        "claims": [],
+        "mappings": [
+          {
+            "painId": "claims-teams-pain-1",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "claims-teams-pain-2",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "claims-teams-pain-3",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "claims-teams-pain-4",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "regional-brokers-pain-1",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "regional-brokers-pain-2",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "regional-brokers-pain-3",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "regional-brokers-pain-4",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "delegated-mgas-pain-1",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "delegated-mgas-pain-2",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "delegated-mgas-pain-3",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          },
+          {
+            "painId": "delegated-mgas-pain-4",
+            "capability": "Every call scored",
+            "strength": "direct",
+            "factIds": [
+              "i360.product.post-call-call-analytics"
+            ]
+          }
+        ],
+        "unmatched": []
+      },
+      "m08": {
+        "status": "complete",
+        "body": "The ideal customer.",
+        "claims": [],
+        "idealCompany": [
+          "A mid-sized UK insurer."
+        ],
+        "idealBuyer": [
+          "A head of claims under board pressure."
+        ],
+        "disqualifiers": [
+          {
+            "who": "Lloyd's syndicates",
+            "why": "No consumer line."
+          }
+        ],
+        "hardFiltersEchoed": {
+          "geography": [
+            "GB"
+          ],
+          "sizeCap": "under 500 staff",
+          "subSectorsIn": [
+            "claims teams"
+          ],
+          "subSectorsOut": [
+            "Lloyd's syndicates"
+          ],
+          "firmsOut": [],
+          "other": []
+        }
+      },
+      "m09": {
+        "status": "complete",
+        "body": "Messaging.",
+        "claims": [],
+        "brandConstraints": [],
+        "perArchetype": [
+          {
+            "archetypeId": "claims-teams",
+            "angles": [
+              {
+                "id": "claims-teams-angle-1",
+                "rank": 1,
+                "text": "angle 1",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "claims-teams-angle-2",
+                "rank": 2,
+                "text": "angle 2",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "claims-teams-angle-3",
+                "rank": 3,
+                "text": "angle 3",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "claims-teams-angle-4",
+                "rank": 4,
+                "text": "angle 4",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "claims-teams-angle-5",
+                "rank": 5,
+                "text": "angle 5",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              }
+            ],
+            "doDont": [
+              {
+                "use": "every call",
+                "avoid": "AI-powered"
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "claims-teams-verbatim-1",
+                "text": "claims-teams verbatim 1: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-45.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-45.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "claims-teams-verbatim-2",
+                "text": "claims-teams verbatim 2: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-46.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-46.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "claims-teams-verbatim-3",
+                "text": "claims-teams verbatim 3: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-47.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-47.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ],
+            "vocabulary": []
+          },
+          {
+            "archetypeId": "regional-brokers",
+            "angles": [
+              {
+                "id": "regional-brokers-angle-1",
+                "rank": 1,
+                "text": "angle 1",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "regional-brokers-angle-2",
+                "rank": 2,
+                "text": "angle 2",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "regional-brokers-angle-3",
+                "rank": 3,
+                "text": "angle 3",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "regional-brokers-angle-4",
+                "rank": 4,
+                "text": "angle 4",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "regional-brokers-angle-5",
+                "rank": 5,
+                "text": "angle 5",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              }
+            ],
+            "doDont": [
+              {
+                "use": "every call",
+                "avoid": "AI-powered"
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "regional-brokers-verbatim-1",
+                "text": "regional-brokers verbatim 1: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-48.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-48.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "regional-brokers-verbatim-2",
+                "text": "regional-brokers verbatim 2: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-49.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-49.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "regional-brokers-verbatim-3",
+                "text": "regional-brokers verbatim 3: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-50.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-50.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ],
+            "vocabulary": []
+          },
+          {
+            "archetypeId": "delegated-mgas",
+            "angles": [
+              {
+                "id": "delegated-mgas-angle-1",
+                "rank": 1,
+                "text": "angle 1",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "delegated-mgas-angle-2",
+                "rank": 2,
+                "text": "angle 2",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "delegated-mgas-angle-3",
+                "rank": 3,
+                "text": "angle 3",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "delegated-mgas-angle-4",
+                "rank": 4,
+                "text": "angle 4",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              },
+              {
+                "id": "delegated-mgas-angle-5",
+                "rank": 5,
+                "text": "angle 5",
+                "confidence": "weak",
+                "channelFit": [
+                  "email"
+                ]
+              }
+            ],
+            "doDont": [
+              {
+                "use": "every call",
+                "avoid": "AI-powered"
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "delegated-mgas-verbatim-1",
+                "text": "delegated-mgas verbatim 1: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-51.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-51.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "delegated-mgas-verbatim-2",
+                "text": "delegated-mgas verbatim 2: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-52.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-52.example"
+                  ]
+                },
+                "confidence": "weak"
+              },
+              {
+                "id": "delegated-mgas-verbatim-3",
+                "text": "delegated-mgas verbatim 3: the backlog doubled",
+                "publishedAt": "2026-07-13",
+                "accessedAt": "2026-09-09",
+                "evidence": {
+                  "urls": [
+                    "https://source-53.example/page"
+                  ],
+                  "primary": false,
+                  "domains": [
+                    "source-53.example"
+                  ]
+                },
+                "confidence": "weak"
+              }
+            ],
+            "vocabulary": []
+          }
+        ]
+      },
+      "m10": {
+        "status": "complete",
+        "body": "Where buyers gather.",
+        "claims": [],
+        "entries": [
+          {
+            "id": "venue-paper-1",
+            "kind": "press",
+            "name": "Insurance paper 1",
+            "url": "https://press-1.example/",
+            "audience": "Claims leaders",
+            "why": "They read it."
+          },
+          {
+            "id": "venue-paper-2",
+            "kind": "press",
+            "name": "Insurance paper 2",
+            "url": "https://press-2.example/",
+            "audience": "Claims leaders",
+            "why": "They read it."
+          },
+          {
+            "id": "venue-paper-3",
+            "kind": "press",
+            "name": "Insurance paper 3",
+            "url": "https://press-3.example/",
+            "audience": "Claims leaders",
+            "why": "They read it."
+          },
+          {
+            "id": "venue-paper-4",
+            "kind": "press",
+            "name": "Insurance paper 4",
+            "url": "https://press-4.example/",
+            "audience": "Claims leaders",
+            "why": "They read it."
+          },
+          {
+            "id": "venue-paper-5",
+            "kind": "press",
+            "name": "Insurance paper 5",
+            "url": "https://press-5.example/",
+            "audience": "Claims leaders",
+            "why": "They read it."
+          }
+        ]
+      },
+      "m11": {
+        "status": "complete",
+        "body": "Objections.",
+        "claims": [],
+        "perArchetype": [
+          {
+            "archetypeId": "claims-teams",
+            "objections": [
+              {
+                "id": "claims-teams-objection-1",
+                "objection": "objection 1",
+                "factIds": []
+              },
+              {
+                "id": "claims-teams-objection-2",
+                "objection": "objection 2",
+                "factIds": []
+              },
+              {
+                "id": "claims-teams-objection-3",
+                "objection": "objection 3",
+                "factIds": []
+              }
+            ]
+          },
+          {
+            "archetypeId": "regional-brokers",
+            "objections": [
+              {
+                "id": "regional-brokers-objection-1",
+                "objection": "objection 1",
+                "factIds": []
+              },
+              {
+                "id": "regional-brokers-objection-2",
+                "objection": "objection 2",
+                "factIds": []
+              },
+              {
+                "id": "regional-brokers-objection-3",
+                "objection": "objection 3",
+                "factIds": []
+              }
+            ]
+          },
+          {
+            "archetypeId": "delegated-mgas",
+            "objections": [
+              {
+                "id": "delegated-mgas-objection-1",
+                "objection": "objection 1",
+                "factIds": []
+              },
+              {
+                "id": "delegated-mgas-objection-2",
+                "objection": "objection 2",
+                "factIds": []
+              },
+              {
+                "id": "delegated-mgas-objection-3",
+                "objection": "objection 3",
+                "factIds": []
+              }
+            ]
+          }
+        ]
+      },
+      "m12": {
+        "status": "complete",
+        "body": "Contact rules.",
+        "claims": [],
+        "rules": [
+          {
+            "id": "rule-email-1",
+            "channel": "email",
+            "region": "GB",
+            "rule": "PECR: corporate subscribers may be emailed.",
+            "source": "https://ico.org.uk/",
+            "bars": false
+          }
+        ]
+      },
+      "m13": {
+        "status": "complete",
+        "body": "Dated events.",
+        "claims": [],
+        "entries": [
+          {
+            "id": "event-1",
+            "date": "2026-07-13",
+            "what": "event 1",
+            "source": "https://events-1.example/",
+            "why": "Inside the campaign."
+          },
+          {
+            "id": "event-2",
+            "date": "2026-07-13",
+            "what": "event 2",
+            "source": "https://events-2.example/",
+            "why": "Inside the campaign."
+          },
+          {
+            "id": "event-3",
+            "date": "2026-07-13",
+            "what": "event 3",
+            "source": "https://events-3.example/",
+            "why": "Inside the campaign."
+          }
+        ],
+        "noneFound": false,
+        "queriesTried": []
+      },
+      "m14": {
+        "status": "complete",
+        "body": "No earlier pack.",
+        "claims": [],
+        "applicable": false,
+        "changes": []
+      },
+      "m15": {
+        "status": "complete",
+        "body": "Proof.",
+        "claims": [],
+        "proof": [
+          {
+            "factId": "i360.product.post-call-call-analytics",
+            "text": "What the facts file allows.",
+            "allowed": true
+          }
+        ]
+      },
+      "m16": {
+        "status": "complete",
+        "body": "Campaign candidates.",
+        "claims": [],
+        "candidates": [
+          {
+            "id": "candidate-claims-teams",
+            "rank": 1,
+            "archetypeId": "claims-teams",
+            "leadAngle": "Every call checked.",
+            "channelFit": [
+              "email"
+            ],
+            "whyNow": "The July guidance.",
+            "seedFirmIds": [
+              "claims-teams-firm-1"
+            ],
+            "wrongIf": "Complaints keep falling.",
+            "painIds": [
+              "claims-teams-pain-1"
+            ],
+            "angleIds": [
+              "claims-teams-angle-1"
+            ],
+            "objectionIds": [
+              "claims-teams-objection-1"
+            ],
+            "eventIds": [
+              "event-1"
+            ],
+            "venueIds": [
+              "venue-paper-1"
+            ],
+            "contactRuleIds": [
+              "rule-email-1"
+            ]
+          },
+          {
+            "id": "candidate-regional-brokers",
+            "rank": 2,
+            "archetypeId": "regional-brokers",
+            "leadAngle": "Every call checked.",
+            "channelFit": [
+              "email"
+            ],
+            "whyNow": "The July guidance.",
+            "seedFirmIds": [
+              "regional-brokers-firm-1"
+            ],
+            "wrongIf": "Complaints keep falling.",
+            "painIds": [
+              "regional-brokers-pain-1"
+            ],
+            "angleIds": [
+              "regional-brokers-angle-1"
+            ],
+            "objectionIds": [
+              "regional-brokers-objection-1"
+            ],
+            "eventIds": [
+              "event-1"
+            ],
+            "venueIds": [
+              "venue-paper-1"
+            ],
+            "contactRuleIds": [
+              "rule-email-1"
+            ]
+          },
+          {
+            "id": "candidate-delegated-mgas",
+            "rank": 3,
+            "archetypeId": "delegated-mgas",
+            "leadAngle": "Every call checked.",
+            "channelFit": [
+              "email"
+            ],
+            "whyNow": "The July guidance.",
+            "seedFirmIds": [
+              "delegated-mgas-firm-1"
+            ],
+            "wrongIf": "Complaints keep falling.",
+            "painIds": [
+              "delegated-mgas-pain-1"
+            ],
+            "angleIds": [
+              "delegated-mgas-angle-1"
+            ],
+            "objectionIds": [
+              "delegated-mgas-objection-1"
+            ],
+            "eventIds": [
+              "event-1"
+            ],
+            "venueIds": [
+              "venue-paper-1"
+            ],
+            "contactRuleIds": [
+              "rule-email-1"
+            ]
+          }
+        ]
+      },
+      "m17": {
+        "status": "complete",
+        "body": "What argues against.",
+        "claims": [],
+        "entries": [
+          {
+            "id": "against-1",
+            "text": "Complaints fell last year.",
+            "kind": "against",
+            "meaning": "Do not open with drowning."
+          }
+        ],
+        "noneFound": false
+      },
+      "m18": {
+        "status": "complete",
+        "body": "Unknowns.",
+        "claims": [],
+        "unknowns": [
+          {
+            "id": "unknown-seats",
+            "text": "Seat counts per firm.",
+            "kind": "not-found",
+            "whyItMatters": "Sizes the deal.",
+            "askOnFirstCall": "How many people take calls on your claims line?",
+            "queriesTried": [
+              "claims team size UK insurer"
+            ]
+          }
+        ]
+      },
+      "m19": {
+        "status": "complete",
+        "body": "Sources.",
+        "claims": [],
+        "sources": [
+          {
+            "url": "https://source-13.example/page",
+            "title": "Source 1",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-14.example/page",
+            "title": "Source 2",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-15.example/page",
+            "title": "Source 3",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-16.example/page",
+            "title": "Source 4",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-17.example/page",
+            "title": "Source 5",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-18.example/page",
+            "title": "Source 6",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-19.example/page",
+            "title": "Source 7",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-20.example/page",
+            "title": "Source 8",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-21.example/page",
+            "title": "Source 9",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-22.example/page",
+            "title": "Source 10",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-23.example/page",
+            "title": "Source 11",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-24.example/page",
+            "title": "Source 12",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-25.example/page",
+            "title": "Source 13",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-26.example/page",
+            "title": "Source 14",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-27.example/page",
+            "title": "Source 15",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-28.example/page",
+            "title": "Source 16",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-29.example/page",
+            "title": "Source 17",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-30.example/page",
+            "title": "Source 18",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-31.example/page",
+            "title": "Source 19",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-32.example/page",
+            "title": "Source 20",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-33.example/page",
+            "title": "Source 21",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-34.example/page",
+            "title": "Source 22",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-35.example/page",
+            "title": "Source 23",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-1.example/page",
+            "title": "Source 24",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-2.example/page",
+            "title": "Source 25",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-3.example/page",
+            "title": "Source 26",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-4.example/page",
+            "title": "Source 27",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-5.example/page",
+            "title": "Source 28",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-6.example/page",
+            "title": "Source 29",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-7.example/page",
+            "title": "Source 30",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-8.example/page",
+            "title": "Source 31",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-9.example/page",
+            "title": "Source 32",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-10.example/page",
+            "title": "Source 33",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-11.example/page",
+            "title": "Source 34",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-12.example/page",
+            "title": "Source 35",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-36.example/page",
+            "title": "Source 36",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-37.example/page",
+            "title": "Source 37",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-38.example/page",
+            "title": "Source 38",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-39.example/page",
+            "title": "Source 39",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-40.example/page",
+            "title": "Source 40",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-41.example/page",
+            "title": "Source 41",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-42.example/page",
+            "title": "Source 42",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-43.example/page",
+            "title": "Source 43",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-44.example/page",
+            "title": "Source 44",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-45.example/page",
+            "title": "Source 45",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-46.example/page",
+            "title": "Source 46",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-47.example/page",
+            "title": "Source 47",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-48.example/page",
+            "title": "Source 48",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-49.example/page",
+            "title": "Source 49",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-50.example/page",
+            "title": "Source 50",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-51.example/page",
+            "title": "Source 51",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-52.example/page",
+            "title": "Source 52",
+            "accessedAt": "2026-09-09"
+          },
+          {
+            "url": "https://source-53.example/page",
+            "title": "Source 53",
+            "accessedAt": "2026-09-09"
+          }
+        ],
+        "knowledgeArticles": [
+          "roadmap"
+        ],
+        "factsVersion": 1,
+        "priorPackIds": []
+      }
+    },
+    "partial": false,
+    "missingModules": [],
+    "scope": {
+      "countries": [
+        "GB"
+      ],
+      "supplied": [
+        "countries"
+      ]
+    },
+    "outcome": "complete"
+  },
+  "run": null,
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}

@@ -13,7 +13,7 @@ import { goodPack } from "./researchPack";
 /**
  * The research rubric (research v3 §8): its rows against a pack that meets
  * every floor and against copies broken one way each, then over the recorded
- * bench runs in `fixtures/agents/research/<brief>.json`.
+ * bench runs in `fixtures/research/<brief>.json`.
  *
  * Row 9 (replay) is its own test; row 12 is the product owner's. A brief that has not
  * been recorded, or was recorded under the v2 contract, is reported and
@@ -228,7 +228,7 @@ function stoppedAfterM01(): { pack: PackShape; record: Array<{ run: number; name
   return { pack, record };
 }
 
-const DIR = path.join(path.dirname(agentsDir()), "fixtures", "agents", "research");
+const DIR = path.join(path.dirname(agentsDir()), "fixtures", "research");
 
 type Fixture = {
   name: string;
@@ -246,7 +246,7 @@ const BRIEFS: Record<string, { expectInsufficient: boolean; priorFrom?: string; 
   "research-e-legal-direct": { expectInsufficient: false, required: [1, 2, 4, 5, 6, 7, 11, 13] },
   // The v3.2 sign-off runs (signoff-v3.2.manifest.json): their required rows as the manifest names them.
   ...Object.fromEntries(
-    (JSON.parse(readFileSync(path.join(path.dirname(agentsDir()), "fixtures", "agents", "research", "signoff-v3.2.manifest.json"), "utf8")) as { runs: Array<{ fixture: string; required: number[] }> }).runs.map((r) => [
+    (JSON.parse(readFileSync(path.join(path.dirname(agentsDir()), "fixtures", "research", "signoff-v3.2.manifest.json"), "utf8")) as { runs: Array<{ fixture: string; required: number[] }> }).runs.map((r) => [
       r.fixture.replace(/\.json$/, ""),
       { expectInsufficient: r.fixture.startsWith("research-c-"), required: r.required },
     ]),

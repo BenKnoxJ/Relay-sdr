@@ -18,6 +18,20 @@ import { mutate } from "@/lib/repo/mutate";
  * cannot disagree with the table that says it happened.
  */
 
+/**
+ * Whether an error is Postgres refusing a duplicate through a unique index.
+ *
+ * Exported because this table's unique key is now a guard for more than one
+ * caller: `recordSideEffect` below writes the row that says a send already
+ * happened, and `recordDraftReady` writes one purely so that "one draft per
+ * job" is a constraint rather than a hope. Both have to tell "somebody else
+ * won" apart from every other way an insert can fail, and a second hand-written
+ * copy of that test is how one of them ends up checking the wrong code.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
 export type RecordSideEffectInput = {
   orgId: string;
   /** What happened, named so a retry can recognise it. Unique per org. */
@@ -81,9 +95,7 @@ export async function recordSideEffect(
     // between the read above and this insert. Its row is the answer, and this
     // transaction rolled back — including its Event — so there is exactly one
     // of each.
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
-      throw error;
-    }
+    if (!isUniqueViolation(error)) throw error;
     const winner = await db.sideEffect.findUniqueOrThrow({
       where: { orgId_key: { orgId: input.orgId, key: input.key } },
     });

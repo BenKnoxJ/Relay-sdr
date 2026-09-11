@@ -388,7 +388,11 @@ function completeOnly(modules: Partial<Record<ModuleId, Record<string, unknown>>
   return Object.fromEntries(Object.entries(modules).filter(([, stored]) => stored?.status === "complete"));
 }
 
-/** A completion Event as the agent reads it (§4 `priorPacks`): module bodies only. */
+/**
+ * A completion Event as the agent reads it (§4 `priorPacks`): module bodies,
+ * and (§10 note 29) the seed firms the pack held, by name and domain — so a
+ * re-run knows what the earlier research contained, not what a note says it did.
+ */
 export function toPriorPack(id: string, at: Date, after: unknown): PriorPack {
   const modules: PriorPack["modules"] = [];
   const pack = (after as { pack?: { modules?: Record<string, { body?: unknown } | undefined> } } | null)?.pack;
@@ -396,7 +400,15 @@ export function toPriorPack(id: string, at: Date, after: unknown): PriorPack {
     const body = pack?.modules?.[moduleId]?.body;
     if (typeof body === "string") modules.push({ module: moduleId, title: moduleId, body });
   }
-  return { id, at: at.toISOString(), modules };
+  const m04 = pack?.modules?.m04 as { status?: unknown; perArchetype?: Array<{ seedFirms?: Array<{ name?: unknown; domain?: unknown }> }> } | undefined;
+  const seedFirms =
+    m04?.status === "complete"
+      ? (m04.perArchetype ?? [])
+          .flatMap((target) => target.seedFirms ?? [])
+          .filter((firm): firm is { name: string; domain?: unknown } => typeof firm.name === "string")
+          .map((firm) => ({ name: firm.name, ...(typeof firm.domain === "string" ? { domain: firm.domain } : {}) }))
+      : [];
+  return { id, at: at.toISOString(), modules, seedFirms };
 }
 
 /** The runtime's own unknowns (§4): one per unreadable URL the pack does not already account for, in m18. */

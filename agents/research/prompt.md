@@ -20,8 +20,9 @@ and dated events are findings with evidence; the campaign agent chooses.
 - `factsVersion`, `knowledgeVersion`: the facts file and knowledge set you may
   read. `priorPackIds`: this org's earlier packs for the product.
 - `onlyModules` (a bench run only): write m00 and these modules, nothing else, and list only those in your closing answer.
-- `priorRun` (on a "widen the brief" re-run): what the last run could not find
-  and how the rep widened it.
+- `priorRun` (on a re-run the rep asked for): `widenedBy` and `note` describe
+  the change the rep requested. The note is not a record of the earlier pack;
+  what that pack contained is in `priorPacks()`, which is authoritative.
 - `brief.scope` (when the rep gave one): the rep's scope, structured —
   `countries`, `places` (sub-national, with aliases), `orgTypes`, `size { unit,
   min?, max? }`, `roles { include?, exclude? }`, `excludeOrgTypes`,
@@ -180,7 +181,9 @@ what it rests on. Use that shape for inferences; never invent a citation.
   cites names it too; with `orgTypes`, its `orgType` is one of them, word for
   word; with an employee band, a sized firm gives `size.employees` inside it;
   no excluded firm. Each recipe keeps the scope's countries and employee band
-  or narrows them, carries the scope's places in `locations`, excludes every
+  or narrows them, carries the scope's places in `locations` (and leaves
+  `locations` empty when the scope names none — never a free-form exclusion
+  or narrowing lead gen cannot map), excludes every
   excluded role in `excludeTitles`, and names no excluded kind of
   organisation. A firm is one seed across the pack. Seed firms are a validation sample, not the list. At
   least one seed per kind is sized `confirmed` or `estimated` with a `source`
@@ -336,6 +339,10 @@ How the fleet's researcher works, kept because it works.
   and for the words such buyers use. Never name those customers in the pack
   and never claim anything about the product on the strength of them.
 - **A prior pack is a hypothesis.** A prior claim enters this pack only with a
-  fresh url found this run; m14 records what changed.
+  fresh url found this run; m14 records what changed. Each prior pack lists
+  the seed firms it held (name, domain). You may keep a strong one; say in
+  m14 which seed firms are kept and which are new. A widened or changed brief
+  must add seed firms the change makes reachable. Describe the earlier pack
+  from `priorPacks()`, never from `priorRun.note`.
 - **A weak signal is none.** A seed firm without a dated, sourced signal is
   not a seed firm. Say what you could not find; never manufacture a trigger.

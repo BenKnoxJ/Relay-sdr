@@ -35,14 +35,13 @@ describe("the research rubric, row by row", () => {
       actuals: { searches: 20, fetches: 30, fetchedChars: 200_000, seconds: 1200, modelSteps: 60, costUsd: 8 },
       budget: loadDefinition("research").budget,
       report: { provenance: [{ total: 60, failed: [] }] },
-      priorSeedFirms: ["A firm nobody found"],
     });
     expect(rows.map((r) => r.check)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
     const failed = rows.filter((r) => r.verdict === "fail");
     expect(failed, failed.map((r) => `${r.check} ${r.name}: ${r.detail}`).join("\n")).toEqual([]);
-    for (const check of [1, 2, 3, 4, 5, 6, 7, 10, 11, 13]) expect(row(rows, check).verdict, `row ${check}`).toBe("pass");
-    // Row 14 reads the locked scope; a pack built without one has none to hold.
-    for (const check of [8, 9, 12, 14]) expect(row(rows, check).verdict, `row ${check}`).toBe("n/a");
+    for (const check of [1, 2, 3, 4, 5, 6, 7, 11, 13]) expect(row(rows, check).verdict, `row ${check}`).toBe("pass");
+    // Row 10 is for a re-run; row 14 reads the locked scope, and a pack built without one has none to hold.
+    for (const check of [8, 9, 10, 12, 14]) expect(row(rows, check).verdict, `row ${check}`).toBe("n/a");
   });
 
   it("row 2 fails a partial pack and a pack with an insufficient module", () => {
@@ -83,10 +82,37 @@ describe("the research rubric, row by row", () => {
     expect(row(scoreRubric({ pack: fresh(), searches: [{ query: "claims backlog", purpose: "survey" }] }), 7).verdict).toBe("fail");
   });
 
-  it("row 10 fails a re-run that repeats a seed firm", () => {
-    const pack = fresh() as Loose;
-    const name = pack.modules.m04.perArchetype[0].seedFirms[0].name as string;
-    expect(row(scoreRubric({ pack: pack as PackShape, priorSeedFirms: [name] }), 10).verdict).toBe("fail");
+  it("row 10 reports prior seed firms as retained or new, and passes a widening that keeps good ones and adds coverage where the change reaches (§10 note 29)", () => {
+    const { pack, prior } = widenedToIreland();
+    const passed = row(scoreRubric({ pack, prior, widenedBy: "region" }), 10);
+    expect(passed).toMatchObject({ verdict: "pass", detail: expect.stringMatching(/^2 of 3 prior seed firm\(s\) retained \(claims-teams firm 1, claims-teams firm 2\); 4 new, 1 in IE$/) });
+  });
+
+  it("row 10 fails a re-run with no new seed firms, or a region widening with none in the added geography, or an m14 that records no change", () => {
+    const allRetained = widenedToIreland();
+    const firms = (allRetained.pack as Loose).modules.m04.perArchetype.flatMap((t: Loose) => t.seedFirms) as Loose[];
+    allRetained.prior.seedFirms = firms.map((f) => ({ name: f.name as string, ...(typeof f.domain === "string" ? { domain: f.domain } : {}) }));
+    expect(row(scoreRubric({ pack: allRetained.pack, prior: allRetained.prior, widenedBy: "region" }), 10).detail).toMatch(/no new seed firms: every seed firm was in the prior pack/);
+
+    const noIrish = widenedToIreland();
+    for (const t of (noIrish.pack as Loose).modules.m04.perArchetype) for (const f of t.seedFirms) f.country = "GB";
+    expect(row(scoreRubric({ pack: noIrish.pack, prior: noIrish.prior, widenedBy: "region" }), 10).detail).toMatch(/no new seed firm in the added geography \(IE\)/);
+
+    const silent = widenedToIreland();
+    (silent.pack as Loose).modules.m14 = { status: "complete", body: "Nothing changed.", claims: [], applicable: false, changes: [] };
+    expect(row(scoreRubric({ pack: silent.pack, prior: silent.prior, widenedBy: "region" }), 10).detail).toMatch(/m14 does not record what changed/);
+  });
+
+  it("judges a targeted --modules run only on what it wrote: coverage of its modules, buyer words and contradictions n/a without m06 and m17", () => {
+    const full = fresh() as Loose;
+    const modules = { m00: full.modules.m00, m04: full.modules.m04, m14: full.modules.m14, m19: full.modules.m19 };
+    const pack = { modules, partial: true, missingModules: Object.keys(full.modules).filter((id) => !(id in modules)) } as unknown as PackShape;
+    const rows = scoreRubric({ pack, onlyModules: ["m00", "m04", "m14"], searches: [{ query: "q", purpose: "survey" }] });
+    expect(row(rows, 2)).toMatchObject({ verdict: "pass", detail: "targeted run: m00, m04, m14 complete" });
+    expect(row(rows, 4)).toMatchObject({ verdict: "n/a", detail: "targeted run without m06" });
+    expect(row(rows, 7)).toMatchObject({ verdict: "n/a", detail: "targeted run without m17" });
+    const short = { ...pack, modules: { m00: full.modules.m00, m19: full.modules.m19 } } as unknown as PackShape;
+    expect(row(scoreRubric({ pack: short, onlyModules: ["m00", "m04", "m14"] }), 2)).toMatchObject({ verdict: "fail", detail: "targeted run: m04 missing, m14 missing" });
   });
 
   it("row 11 fails a run over the spend rail", () => {
@@ -147,6 +173,23 @@ describe("the research rubric, row by row", () => {
 
 const ORKNEY = { countries: ["GB"], places: [{ name: "Orkney", aliases: ["Kirkwall"] }], orgTypes: ["veterinary practice"], supplied: ["countries", "places", "orgTypes"] };
 const WIDEN_REGION = { dimension: "region", text: "The Highlands and Islands as well as Orkney.", scopePatch: { places: [{ name: "Orkney" }, { name: "Highlands and Islands" }] } };
+
+/**
+ * Brief D done right: the region widened from GB to GB and Ireland; two of the
+ * prior pack's three seed firms kept (one of them renamed, matched by domain),
+ * four new, one of them Irish; m14 records the change.
+ */
+function widenedToIreland(): { pack: PackShape; prior: { seedFirms: Array<{ name: string; domain?: string }>; countries: string[] } } {
+  const pack = fresh() as Loose;
+  pack.scope = { countries: ["GB", "IE"], supplied: ["countries"] };
+  const firms = pack.modules.m04.perArchetype.flatMap((t: Loose) => t.seedFirms) as Loose[];
+  firms[1]!.domain = "renamed.example";
+  firms[5]!.country = "IE";
+  firms[5]!.region = "Dublin";
+  pack.modules.m14 = { status: "complete", body: "What changed.", claims: [], applicable: true, changes: [{ kind: "other", text: "Ireland added; two firms kept.", priorPackId: "evt_a" }] };
+  const prior = { seedFirms: [{ name: firms[0]!.name as string }, { name: "Renamed Firm Ltd", domain: "https://www.renamed.example/" }, { name: "A firm this run dropped" }], countries: ["GB"] };
+  return { pack: pack as PackShape, prior };
+}
 
 /** A thin brief done right: m00 and m01 written, the scope decided `stop`, and nothing after it. */
 function stoppedAfterM01(): { pack: PackShape; record: Array<{ run: number; name: string; module?: string; verdict?: string; accepted?: boolean }> } {
@@ -220,8 +263,12 @@ describe("the research rubric over the recorded briefs", () => {
       const pack = fixture.output as PackShape;
       const priorPack = spec.priorFrom === undefined ? undefined : load(spec.priorFrom)?.output;
       const priorModules = priorPack?.modules as Loose | undefined;
-      const prior = priorModules === undefined ? undefined : ((priorModules.m04?.perArchetype ?? []) as Loose[]).flatMap((t) => (t.seedFirms as Loose[]).map((f) => f.name as string));
-      const rows = scoreRubric({ pack, expectInsufficient: spec.expectInsufficient, ...(prior === undefined ? {} : { priorSeedFirms: prior }) });
+      const targets = ((priorModules?.m04?.perArchetype ?? []) as Loose[]);
+      const prior =
+        priorModules === undefined
+          ? undefined
+          : { seedFirms: targets.flatMap((t) => (t.seedFirms as Loose[]).map((f) => ({ name: f.name as string, ...(typeof f.domain === "string" ? { domain: f.domain } : {}) }))), countries: [...new Set(targets.flatMap((t) => t.recipe.countries as string[]))] };
+      const rows = scoreRubric({ pack, expectInsufficient: spec.expectInsufficient, ...(prior === undefined ? {} : { prior }) });
       // The fixture's own rubric (scored with the run's steps, actuals and
       // report) is the fuller record; the pack-only rows here must agree with it.
       const stored = new Map(fixture.rubric.map((r) => [r.check, r]));

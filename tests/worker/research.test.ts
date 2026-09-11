@@ -18,6 +18,7 @@ import {
   SYNTHESIS_MODEL,
   SYNTHESIS_PHASE_MODULES,
   researchHandler,
+  toPriorPack,
   withUnreadableUnknowns,
   type ResearchHandlerDeps,
 } from "@/worker/handlers/research";
@@ -323,6 +324,18 @@ describe("the research job (v3.1, two phases)", () => {
     expect(await prisma.agentRun.count()).toBe(runs);
     expect(await prisma.agentRunStep.count({ where: { kind: "tool" } })).toBe(toolSteps);
     expect(d.attempts()).toBe(1);
+  });
+
+  it("hands a re-run the prior pack's seed firms by name and domain, beside its module bodies (§10 note 29)", () => {
+    const prior = toPriorPack("evt_a", new Date("2026-09-10T13:37:09Z"), { pack: PACK });
+    expect(prior.modules.map((m) => m.module)).toContain("m04");
+    expect(prior.seedFirms).toHaveLength(6);
+    expect(prior.seedFirms[0]).toEqual({ name: "claims-teams firm 1" });
+    const withDomain = structuredClone(PACK) as { modules: { m04: { perArchetype: Array<{ seedFirms: Array<{ domain?: string }> }> } } };
+    withDomain.modules.m04.perArchetype[0]!.seedFirms[0]!.domain = "claims-one.example";
+    expect(toPriorPack("evt_a", new Date(), { pack: withDomain }).seedFirms[0]).toEqual({ name: "claims-teams firm 1", domain: "claims-one.example" });
+    // A pack whose m04 was stored insufficient, or that has none, hands over no seed firms.
+    expect(toPriorPack("evt_b", new Date(), { pack: { modules: {} } }).seedFirms).toEqual([]);
   });
 
   it("names a page the cascade could not read as an unreadable unknown in m18, and keeps the model's own", () => {

@@ -134,6 +134,9 @@ export function recipeScopeIssues(recipe: Recipe, where: string, scope: LockedSc
     const locations = recipe.locations ?? [];
     if (locations.length === 0) say(`must carry the brief's places in locations (${(scope.places ?? []).map((p) => p.name).join(", ")}) so lead gen searches there`);
     for (const location of locations) if (!names.some((name) => same(name, location))) say(`locations names "${location}", which is not one of the brief's places`);
+  } else if ((recipe.locations ?? []).length > 0) {
+    // H1 (§10 note 29): locations carry the rep's places to lead gen, nothing else — no free-form exclusion or narrowing it cannot map.
+    say(`locations (${recipe.locations!.join("; ")}) are only for places the rep named; this brief names none, so leave locations empty`);
   }
 
   if (scope.size !== undefined && scope.size.unit === "employees") {

@@ -5,7 +5,11 @@ import {
   completeModule,
   domainCounts,
   m04ScopeIssues,
+  mentions,
   moduleItems,
+  normaliseWords,
+  placeNames,
+  seedFirmKey,
   planCards,
   planCardsSchema,
   researchRawSchema,
@@ -46,8 +50,16 @@ export type RubricInput = {
   /** The run's actuals; row 11 reads them against the rails. */
   actuals?: { searches: number; fetches: number; fetchedChars?: number; seconds: number; modelSteps: number; costUsd: number };
   budget?: AgentBudget;
-  /** For brief D: the seed firm names of the run it widens from. */
-  priorSeedFirms?: string[];
+  /**
+   * For a re-run (brief D; §10 note 29): the prior pack's seed firms by
+   * identity, and the geography it covered, so row 10 can report what was
+   * retained and what the change added.
+   */
+  prior?: { seedFirms: Array<{ name: string; domain?: string }>; countries: string[]; places?: string[] };
+  /** For a re-run: the dimension the rep widened (`priorRun.widenedBy`). */
+  widenedBy?: string;
+  /** A targeted bench run (`--modules`): the modules it was asked to write. Whole-pack rows judge only what it could write. */
+  onlyModules?: readonly ModuleId[];
   /** For brief C: the brief is thin and `insufficient` is the expected answer. */
   expectInsufficient?: boolean;
   /** The job's tool calls in order, across runs (row 8 reads it): which call, which module, the verdict, whether accepted. */
@@ -97,8 +109,13 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
   });
 
   // 2 — coverage: every module present and complete, floors met.
+  const targeted = input.onlyModules;
   if (stopped) {
     rows.push({ check: 2, name: "Coverage", verdict: "n/a", detail: "the pack stopped as insufficient" });
+  } else if (targeted !== undefined) {
+    // A targeted run (§10 notes 22, 29): every module it was asked to write, present and complete.
+    const short = targeted.filter((id) => state[id] !== "complete").map((id) => `${id} ${state[id]}`);
+    rows.push({ check: 2, name: "Coverage", verdict: short.length === 0 ? "pass" : "fail", detail: short.length === 0 ? `targeted run: ${targeted.join(", ")} complete` : `targeted run: ${short.join(", ")}` });
   } else {
     const missing = MODULE_IDS.filter((id) => state[id] === "missing");
     const thin = MODULE_IDS.filter((id) => state[id] === "insufficient");
@@ -120,7 +137,9 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
 
   // 4 — buyer words, over m06.
   const phrases = completeModule(pack, "m06")?.perArchetype.flatMap((p) => p.phrases) ?? [];
-  if (phrases.length === 0) {
+  if (targeted !== undefined && !targeted.includes("m06")) {
+    rows.push({ check: 4, name: "Buyer words", verdict: "n/a", detail: "targeted run without m06" });
+  } else if (phrases.length === 0) {
     rows.push({ check: 4, name: "Buyer words", verdict: stopped ? "n/a" : "fail", detail: "no buyer phrases" });
   } else {
     const buyer = phrases.filter((p) => p.notBuyer === false && p.role !== undefined).length;
@@ -162,6 +181,8 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
   // 7 — contradictions: one contradiction search per kind of buyer, and m17 written.
   if (input.searches === undefined) {
     rows.push({ check: 7, name: "Contradictions", verdict: "n/a", detail: "no step record supplied" });
+  } else if (targeted !== undefined && !targeted.includes("m17")) {
+    rows.push({ check: 7, name: "Contradictions", verdict: "n/a", detail: "targeted run without m17" });
   } else if (stopped) {
     rows.push({ check: 7, name: "Contradictions", verdict: "n/a", detail: "the pack stopped as insufficient" });
   } else {
@@ -192,14 +213,11 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
   // 9 — replay: its own test.
   rows.push({ check: 9, name: "Replay", verdict: "n/a", detail: "its own test: tests/worker/research.test.ts (a kill mid-run replays every stored call)" });
 
-  // 10 — widening.
-  if (input.priorSeedFirms === undefined) {
+  // 10 — widening (§10 note 29): awareness of the prior pack and new coverage, not zero overlap.
+  if (input.prior === undefined) {
     rows.push({ check: 10, name: "Widening", verdict: "n/a", detail: "not a re-run" });
   } else {
-    const prior = new Set(input.priorSeedFirms.map((n) => n.trim().toLowerCase()));
-    const firms = m04?.perArchetype.flatMap((t) => t.seedFirms) ?? [];
-    const repeated = firms.filter((f) => prior.has(f.name.trim().toLowerCase()));
-    rows.push({ check: 10, name: "Widening", verdict: repeated.length === 0 ? "pass" : "fail", detail: repeated.length === 0 ? `${firms.length} new firm(s)` : `repeats ${repeated.map((f) => f.name).join(", ")}` });
+    rows.push(wideningRow(input, m04));
   }
 
   // 11 — cost and time, inside every rail.
@@ -259,6 +277,50 @@ export function scoreRubric(input: RubricInput): RubricRow[] {
   }
 
   return rows.sort((x, y) => x.check - y.check);
+}
+
+/**
+ * Row 10 (§10 note 29). A widened or changed re-run may keep the prior pack's
+ * strong seed firms; it must add new ones, and for a region widening at least
+ * one new seed firm in the geography the change added, and m14 must record the
+ * changes. Seed firms are matched by identity — domain, else normalised name —
+ * so a renamed repeat counts as retained. Whether m14 describes the changes
+ * accurately is the product owner's read; this row checks it records them.
+ */
+function wideningRow(input: RubricInput, m04: ReturnType<typeof completeModule<"m04">>): RubricRow {
+  const prior = input.prior!;
+  const known = new Map(prior.seedFirms.map((firm) => [seedFirmKey(firm), firm.name]));
+  const firms = m04?.perArchetype.flatMap((t) => t.seedFirms) ?? [];
+  const retained = firms.filter((firm) => known.has(seedFirmKey(firm)));
+  const fresh = firms.filter((firm) => !known.has(seedFirmKey(firm)));
+  const problems: string[] = [];
+  if (firms.length === 0) problems.push("no seed firms written");
+  else if (fresh.length === 0) problems.push("no new seed firms: every seed firm was in the prior pack");
+
+  let added = "";
+  if (input.widenedBy === "region") {
+    const scope = input.scope ?? input.pack.scope;
+    const newCountries = (scope?.countries ?? []).filter((country) => !prior.countries.includes(country));
+    const priorPlaces = prior.places ?? [];
+    const newPlaces = scope === undefined ? [] : placeNames(scope).filter((name) => !priorPlaces.some((p) => normaliseWords(p) === normaliseWords(name)));
+    if (newCountries.length > 0) {
+      const there = fresh.filter((firm) => newCountries.includes(firm.country));
+      added = `, ${there.length} in ${newCountries.join(", ")}`;
+      if (there.length === 0) problems.push(`no new seed firm in the added geography (${newCountries.join(", ")})`);
+    } else if (newPlaces.length > 0) {
+      const there = fresh.filter((firm) => newPlaces.some((name) => mentions(firm.region, name)));
+      added = `, ${there.length} in ${newPlaces.join(", ")}`;
+      if (there.length === 0) problems.push(`no new seed firm in the added geography (${newPlaces.join(", ")})`);
+    } else {
+      problems.push("a region widening, but the locked scope adds no country or place to the prior pack's");
+    }
+  }
+
+  const m14 = completeModule(input.pack, "m14");
+  if (m14 !== undefined && (!m14.applicable || m14.changes.length === 0)) problems.push("m14 does not record what changed from the prior pack");
+
+  const summary = `${retained.length} of ${prior.seedFirms.length} prior seed firm(s) retained${retained.length > 0 ? ` (${retained.map((f) => f.name).join(", ")})` : ""}; ${fresh.length} new${added}`;
+  return { check: 10, name: "Widening", verdict: problems.length === 0 ? "pass" : "fail", detail: problems.length === 0 ? summary : `${problems.join("; ")} — ${summary}` };
 }
 
 /** The research calls a stop ends (v3.2). */

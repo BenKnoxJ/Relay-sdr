@@ -208,12 +208,18 @@ async function main(): Promise<number> {
   corpusFromSteps(corpus, toolSteps);
   const pageText = (url: string): string | undefined => (corpus.has(url) ? corpus.textFor(url) : undefined);
 
-  let priorSeedFirms: string[] | undefined;
+  // Row 10 (§10 note 29): the prior pack's seed firms by identity and the geography it covered.
+  let prior: { seedFirms: Array<{ name: string; domain?: string }>; countries: string[]; places: string[] } | undefined;
   if (args.priorFrom !== undefined) {
-    const prior = JSON.parse(readFileSync(path.join(root, "fixtures", "agents", "research", `${args.priorFrom}.json`), "utf8")) as Fixture;
-    const m04 = (prior.output?.modules as { m04?: { perArchetype?: Array<{ seedFirms: Array<{ name: string }> }> } } | undefined)?.m04;
-    if (prior.output != null && prior.output.modules === undefined) throw new Error(`--prior-from ${args.priorFrom} was recorded under research v2; re-record it first`);
-    priorSeedFirms = (m04?.perArchetype ?? []).flatMap((t) => t.seedFirms.map((f) => f.name));
+    const recorded = JSON.parse(readFileSync(path.join(root, "fixtures", "agents", "research", `${args.priorFrom}.json`), "utf8")) as Fixture;
+    if (recorded.output != null && recorded.output.modules === undefined) throw new Error(`--prior-from ${args.priorFrom} was recorded under research v2; re-record it first`);
+    const m04 = (recorded.output?.modules as { m04?: { perArchetype?: Array<{ recipe: { countries: string[] }; seedFirms: Array<{ name: string; domain?: string }> }> } } | undefined)?.m04;
+    const targets = m04?.perArchetype ?? [];
+    prior = {
+      seedFirms: targets.flatMap((t) => t.seedFirms.map((f) => ({ name: f.name, ...(f.domain === undefined ? {} : { domain: f.domain }) }))),
+      countries: [...new Set(targets.flatMap((t) => t.recipe.countries))],
+      places: (recorded.output?.scope?.places ?? []).map((p) => p.name),
+    };
   }
   const rubric =
     output === null
@@ -227,7 +233,9 @@ async function main(): Promise<number> {
           record,
           pageText,
           ...(report === undefined ? {} : { report }),
-          ...(priorSeedFirms === undefined ? {} : { priorSeedFirms }),
+          ...(prior === undefined ? {} : { prior }),
+          ...(jobInput.priorRun === undefined ? {} : { widenedBy: jobInput.priorRun.widenedBy }),
+          ...(args.modules === undefined ? {} : { onlyModules: args.modules }),
         });
 
   const fixture = {

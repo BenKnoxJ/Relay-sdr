@@ -151,7 +151,13 @@ export function planCards(pack: PackShape, options: { chosen?: string } = {}): P
   const hook = chosen === undefined ? undefined : deriveHook(pack, chosen);
   const recipe = chosen === undefined ? undefined : leadgenRecipe(pack, chosen);
   return {
-    summary: rep === undefined ? ["The research is not finished."] : [...rep.lines],
+    // v3.2: a stopped pack says so first; it is gathered evidence, not a campaign.
+    summary:
+      pack.insufficient !== undefined
+        ? ["Research stopped: evidence insufficient."]
+        : rep === undefined
+          ? ["The research is not finished."]
+          : [...rep.lines],
     archetypes,
     ...(hook === undefined ? {} : { hook }),
     seedFirms,

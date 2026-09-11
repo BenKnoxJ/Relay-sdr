@@ -197,6 +197,83 @@
       "path": "candidates.3.contactRuleIds",
       "message": "Required",
       "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
     }
   ],
   "notes": [

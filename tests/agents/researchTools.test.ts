@@ -11,7 +11,8 @@ import { toolKey } from "@/lib/agents/tools";
 import { prisma } from "@/lib/db";
 import { loadFacts } from "@/lib/facts/load";
 import { loadKnowledge } from "@/lib/knowledge/load";
-import { moduleWritesFromSteps } from "@/lib/research/assemble";
+import type { LockedScope } from "../../agents/research/output.schema";
+import { moduleWritesFromSteps, researchStateFromSteps } from "@/lib/research/assemble";
 import { createResearchBudget } from "@/lib/research/budget";
 import { createCorpus } from "@/lib/research/corpus";
 import { createFirecrawlService, createTavilyService, fetchDiscriminator, searchDiscriminator, writeRecording } from "@/lib/services";
@@ -96,6 +97,12 @@ function deps(over: Partial<ResearchToolDeps> = {}): TestDeps {
 const done: ScriptedCall = { text: JSON.stringify({ modulesWritten: [] }), usage: { in: 10, out: 5 } };
 const call = (name: string, args: unknown): ScriptedCall => ({ tool: { name, args }, usage: { in: 10, out: 5 } });
 const pack = goodPack({ liveFactId: LIVE_ID });
+/** v3.2 (§10 note 28): m00 and m01, then the scope decided. */
+const gate: ScriptedCall[] = [
+  call("writeModule", { module: "m00", content: moduleContent(pack, "m00") }),
+  call("writeModule", { module: "m01", content: moduleContent(pack, "m01") }),
+  call("decideScope", { verdict: "continue", reason: "The market inside the brief carries the rest of the pack." }),
+];
 
 async function run(script: ScriptedCall[], d: TestDeps, jobId?: string) {
   const job = jobId ?? (await seedJob("research", input));
@@ -215,12 +222,12 @@ describe("the research tools", () => {
     const d = deps();
     const thin = (n: number) => ({ ...moduleContent(pack, "m03"), body: `thin ${n}`, archetypes: (moduleContent(pack, "m03").archetypes as unknown[]).slice(0, 2) });
     const { result } = await run(
-      [call("facts", {}), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), call("writeModule", { module: "m03", content: thin(2) }), done],
+      [call("facts", {}), ...gate, call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), call("writeModule", { module: "m03", content: thin(2) }), done],
       d,
     );
     expect((result as { replayedToolCalls: number }).replayedToolCalls).toBe(1);
     const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } });
-    const writes = moduleWritesFromSteps(steps);
+    const writes = moduleWritesFromSteps(steps).filter((w) => w.module === "m03");
     expect(writes).toHaveLength(2);
     expect(writes[0]?.output).toMatchObject({ accepted: false, issues: [expect.stringMatching(/archetypes/)] });
     expect(writes[0]?.output).not.toHaveProperty("insufficient");
@@ -229,10 +236,10 @@ describe("the research tools", () => {
 
   it("keeps a complete module an earlier run wrote: two later refusals do not store it insufficient", async () => {
     const d = deps();
-    const { jobId } = await run([call("facts", {}), call("writeModule", { module: "m03", content: moduleContent(pack, "m03") }), done], d);
+    const { jobId } = await run([call("facts", {}), ...gate, call("writeModule", { module: "m03", content: moduleContent(pack, "m03") }), done], d);
     const earlier = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" } }));
     const thin = (n: number) => ({ ...moduleContent(pack, "m03"), body: `thin ${n}`, archetypes: [] });
-    await run([call("facts", {}), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), done], deps({ priorWrites: earlier }), jobId);
+    await run([call("facts", {}), call("writeModule", { module: "m03", content: thin(1) }), call("writeModule", { module: "m03", content: thin(2) }), done], deps({ priorWrites: earlier, priorState: { state: "gated" } }), jobId);
     const all = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: [{ createdAt: "asc" }, { index: "asc" }] }));
     expect(all.filter((w) => !w.output.accepted && w.output.insufficient !== undefined)).toHaveLength(0);
   });
@@ -244,6 +251,7 @@ describe("the research tools", () => {
     const { result } = await run(
       [
         call("facts", {}),
+        ...gate,
         call("writeModule", { module: "m03", fixes: [{ path: "body", value: "x" }] }),
         call("writeModule", { module: "m03", content: thin }),
         call("writeModule", { module: "m03", fixes: [{ path: "archetypes", value: full.archetypes }] }),
@@ -252,9 +260,95 @@ describe("the research tools", () => {
       d,
     );
     expect(result).not.toBeInstanceOf(AgentRunFailedError);
-    const writes = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } }));
+    const writes = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" }, orderBy: { index: "asc" } })).filter((w) => w.module === "m03");
     // The fixes with nothing to fix were refused outside the record; the thin write was refused; the fixes made it whole.
     expect(writes.map((w) => w.output.accepted)).toEqual([false, true]);
     expect(writes[1]?.output).toMatchObject({ accepted: true, stored: { archetypes: expect.arrayContaining([expect.objectContaining({ id: "claims-teams" })]) } });
   });
+
+  it("holds every module but m00 and m01 until the scope is decided, outside the record (§10 note 28)", async () => {
+    await run([call("facts", {}), call("writeModule", { module: "m03", content: moduleContent(pack, "m03") }), call("writeModule", { module: "m00", content: moduleContent(pack, "m00") }), done], deps());
+    const writes = moduleWritesFromSteps(await prisma.agentRunStep.findMany({ where: { kind: "tool", name: "writeModule" } }));
+    expect(writes.map((w) => w.module)).toEqual(["m00"]);
+  });
+
+  it("stops terminally: after a stop, search, fetch, module writes and further decisions are closed and nothing is recorded", async () => {
+    const stop = call("decideScope", { verdict: "stop", reason: "Too few firms.", evidenceIds: ["market-1"], widenings: [{ dimension: "region", text: "Ireland too.", scopePatch: { countries: ["GB", "IE"] } }] });
+    await run(
+      [
+        call("facts", {}),
+        ...gate.slice(0, 2),
+        stop,
+        call("search", { query: "claims backlog UK insurers", region: "GB" }),
+        call("fetch", { url: PAGE_URL }),
+        call("writeModule", { module: "m02", content: moduleContent(pack, "m02") }),
+        call("decideScope", { verdict: "continue", reason: "On second thoughts." }),
+        done,
+      ],
+      deps({ scope: GB }),
+    );
+    const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool" }, orderBy: { index: "asc" } });
+    expect(steps.map((s) => s.name)).toEqual(["facts", "writeModule", "writeModule", "decideScope"]);
+    expect(researchStateFromSteps(steps)).toMatchObject({ state: "stopped", stop: { evidenceIds: ["market-1"], widenings: [expect.objectContaining({ dimension: "region" })] } });
+  });
+
+  it("refuses a stop that is not a genuine one: no widening, evidence not in m00 or m01, an option that narrows, or two the same", async () => {
+    const widen = (scopePatch: Record<string, unknown>) => ({ dimension: "region", text: "Somewhere else.", scopePatch });
+    await run(
+      [
+        call("facts", {}),
+        ...gate.slice(0, 2),
+        call("decideScope", { verdict: "stop", reason: "r" }),
+        call("decideScope", { verdict: "stop", reason: "r", evidenceIds: ["nope"], widenings: [widen({ countries: ["GB", "IE"] })] }),
+        call("decideScope", { verdict: "stop", reason: "r", widenings: [widen({ countries: ["IE"] })] }),
+        call("decideScope", { verdict: "stop", reason: "r", widenings: [widen({ countries: ["GB", "IE"] }), widen({ countries: ["GB", "IE"] })] }),
+        done,
+      ],
+      deps({ scope: GB }),
+    );
+    const decisions = (await prisma.agentRunStep.findMany({ where: { name: "decideScope" }, orderBy: { index: "asc" } })).map((s) => s.output as { accepted: boolean; issues?: string[] });
+    expect(decisions.map((x) => x.accepted)).toEqual([false, false, false, false]);
+    expect(decisions[0]!.issues!.join(" ")).toMatch(/one to three genuine ways/);
+    expect(decisions[1]!.issues!.join(" ")).toMatch(/"nope" is not an item/);
+    expect(decisions[2]!.issues!.join(" ")).toMatch(/narrows the brief/);
+    expect(decisions[3]!.issues!.join(" ")).toMatch(/the same change/);
+  });
+
+  it("keeps the scope decision to the research phase: refused in synthesis and in a re-ask, outside the record", async () => {
+    await run([call("facts", {}), call("decideScope", { verdict: "continue", reason: "r" }), done], deps({ phase: "synthesis" }));
+    await run([call("facts", {}), call("decideScope", { verdict: "continue", reason: "r" }), done], deps({ reask: true }));
+    expect(await prisma.agentRunStep.count({ where: { name: "decideScope" } })).toBe(0);
+  });
+
+  it("after two scope refusals of m04 following a continue, a stop is the only action left, and m04 is never stored insufficient", async () => {
+    const m04 = moduleContent(pack, "m04");
+    await run(
+      [
+        call("facts", {}),
+        ...gate,
+        call("writeModule", { module: "m04", content: m04 }),
+        call("writeModule", { module: "m04", content: { ...m04, body: "Targeting, again." } }),
+        call("search", { query: "claims backlog UK insurers", region: "GB" }),
+        call("writeModule", { module: "m10", content: moduleContent(pack, "m10") }),
+        call("decideScope", { verdict: "continue", reason: "Try again." }),
+        call("decideScope", { verdict: "stop", reason: "Orkney cannot fill m04.", widenings: [{ dimension: "region", text: "All of Great Britain.", scopePatch: { places: null } }] }),
+        done,
+      ],
+      deps({ scope: ORKNEY }),
+    );
+    const steps = await prisma.agentRunStep.findMany({ where: { kind: "tool" }, orderBy: { index: "asc" } });
+    const m04Writes = moduleWritesFromSteps(steps).filter((w) => w.module === "m04");
+    expect(m04Writes).toHaveLength(2);
+    for (const w of m04Writes) {
+      expect(w.output.accepted).toBe(false);
+      expect(w.output).not.toHaveProperty("insufficient");
+    }
+    expect(m04Writes[0]!.output).toMatchObject({ issues: expect.arrayContaining([expect.stringMatching(/^outside the rep's scope: .*names none of the brief's places/)]) });
+    expect(steps.filter((s) => s.name === "search")).toHaveLength(0);
+    expect(moduleWritesFromSteps(steps).map((w) => w.module)).not.toContain("m10");
+    expect(researchStateFromSteps(steps).state).toBe("stopped");
+  });
 });
+
+const GB = { countries: ["GB"], supplied: ["countries"] } as LockedScope;
+const ORKNEY = { countries: ["GB"], places: [{ name: "Orkney", aliases: ["Kirkwall"] }], orgTypes: ["veterinary practice"], supplied: ["countries", "places", "orgTypes"] } as LockedScope;

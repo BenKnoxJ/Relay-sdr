@@ -70,8 +70,10 @@ and dated events are findings with evidence; the campaign agent chooses.
    and a `scopePatch` that changes that dimension only (e.g. region: `{
    places: [{ name: "Highlands and Islands" }] }`; `places: null` means the
    whole country). Aim for three where three genuinely exist; never invent
-   one to reach three. A stop ends research: no more searches, pages or
-   modules; close straight after it.
+   one to reach three. Be concise: the `reason` under 1,000 characters (4,000
+   at most), each option's `text` under 250 (400 at most), and `evidenceIds`
+   copied exactly from the item ids of m00 and m01. A stop ends research: no
+   more searches, pages or modules; close straight after it.
 3. **Wave 2, locate and read** (`purpose: "locate"`): specific queries; fetch
    the pages worth reading in full — buyers' own words (forums, reviews, job
    adverts, trade-press quotes with a name and role, regulator complaints,

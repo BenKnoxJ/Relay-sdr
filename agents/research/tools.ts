@@ -123,17 +123,51 @@ const writeArgs = z
 /** What the replayed inner call is keyed and stored on: always the whole module. */
 type ResolvedArgs = { module: ModuleId; content: Record<string, unknown> };
 const noArgs = z.object({}).strict();
+/**
+ * The stop's prose limits (§10 note 28): a target the model is asked to write
+ * to, and a hard maximum refused with the length it came to. The hard maxima
+ * are checked in code rather than in the argument schema, so an over-long
+ * answer gets a refusal that says how long it was and asks for a shorter
+ * rewrite, not the transport's generic validation error (brief C v3.2 lost
+ * three turns to that).
+ */
+export const REASON_TARGET = 1000;
+export const REASON_MAX = 4000;
+export const WIDENING_TEXT_TARGET = 250;
+export const WIDENING_TEXT_MAX = 400;
+/** A runaway rail on what the transport accepts; the real limits are the two above. */
+const PROSE_RAIL = 50_000;
+
 const decideArgs = z
   .object({
     verdict: z.enum(["continue", "stop"]),
-    /** Why the market inside the brief does, or does not, support the rest of the pack. */
-    reason: z.string().min(1).max(4000),
+    /** Why the market inside the brief does, or does not, support the rest of the pack. Under 1,000 characters; 4,000 at most. */
+    reason: z.string().min(1).max(PROSE_RAIL),
     /** Ids of accepted m00/m01 Items the decision rests on — the in-scope evidence, cited, not copied. */
     evidenceIds: z.array(z.string().min(1).max(200)).max(40).optional(),
-    /** On a stop: one to three genuine widening options, each a scope change for the rep to approve. Never padded. */
-    widenings: z.array(wideningSchema).min(1).max(3).optional(),
+    /** On a stop: one to three genuine widening options, each a scope change for the rep to approve. Never padded. Text under 250 characters; 400 at most. */
+    widenings: z.array(wideningSchema.extend({ text: z.string().min(1).max(PROSE_RAIL) })).min(1).max(3).optional(),
   })
   .strict();
+
+/** Literal `\n` a model sometimes sends inside a JSON string, as the line break it meant. */
+export function unescapeProse(text: string): string {
+  return text.replace(/\\r\\n|\\n/g, "\n").replace(/\\t/g, " ");
+}
+
+/** The over-limit refusals, each with the length it came to: shorter, the same points, nothing added. */
+function proseLimitIssues(args: z.infer<typeof decideArgs>): string[] {
+  const issues: string[] = [];
+  if (args.reason.length > REASON_MAX) {
+    issues.push(`reason is ${args.reason.length} characters; the limit is ${REASON_MAX} and the target is under ${REASON_TARGET}. Rewrite it shorter — the same points, no added detail.`);
+  }
+  (args.widenings ?? []).forEach((widening, i) => {
+    if (widening.text.length > WIDENING_TEXT_MAX) {
+      issues.push(`widenings.${i}.text is ${widening.text.length} characters; the limit is ${WIDENING_TEXT_MAX} and the target is under ${WIDENING_TEXT_TARGET}. Rewrite it shorter — the same option, no added detail.`);
+    }
+  });
+  return issues;
+}
 
 const searchOutput = z.object({ hits: z.array(z.object({ title: z.string(), url: z.string(), snippet: z.string(), publishedAt: z.string().optional() })) }).strict();
 const fetchOutput = z.union([
@@ -336,8 +370,11 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       if (accepted.m00 === undefined) issues.push("write m00 before deciding the scope");
       if (allowed("m01") && accepted.m01 === undefined) issues.push("write m01, the market landscape, before deciding the scope");
       const held = { modules: accepted, partial: false, missingModules: [] } as unknown as PackShape;
-      const known = new Set([...moduleItems(held, "m00"), ...moduleItems(held, "m01")].map((item) => item.id));
-      for (const id of args.evidenceIds ?? []) if (!known.has(id)) issues.push(`evidenceIds: ${JSON.stringify(id)} is not an item of the accepted m00 or m01`);
+      const known = [...new Set([...moduleItems(held, "m00"), ...moduleItems(held, "m01")].map((item) => item.id))];
+      const loose = (args.evidenceIds ?? []).filter((id) => !known.includes(id));
+      for (const id of loose) issues.push(`evidenceIds: ${JSON.stringify(id)} is not an item of the accepted m00 or m01`);
+      // Name the ids that are, exactly, so the model corrects them rather than dropping its evidence (brief C v3.2).
+      if (loose.length > 0) issues.push(`evidenceIds must be copied exactly from these m00/m01 item ids: ${known.length === 0 ? "(none — m00 and m01 hold no items)" : known.join(", ")}`);
       if (args.verdict === "continue" && args.widenings !== undefined) issues.push("widenings: a continue proposes no widening; widenings go with a stop");
       if (args.verdict === "stop") {
         if (args.widenings === undefined) issues.push("widenings: a stop names one to three genuine ways the rep could widen the brief");
@@ -461,7 +498,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
     }),
     decideScope: tool({
       description:
-        "Decide, after m01, whether the market inside the rep's brief supports the rest of the pack. continue: go on to m02 and the rest. stop: research ends here — no more searches, pages or modules — with the reason, the ids of the m00/m01 items it rests on, and one to three genuine ways the rep could widen the brief (region, size, sector or role), each as a scope change. Never widen the brief yourself; never invent an option to reach three.",
+        "Decide, after m01, whether the market inside the rep's brief supports the rest of the pack. continue: go on to m02 and the rest. stop: research ends here — no more searches, pages or modules — with the reason, the ids of the m00/m01 items it rests on, and one to three genuine ways the rep could widen the brief (region, size, sector or role), each as a scope change. Never widen the brief yourself; never invent an option to reach three. Be concise: the reason under 1,000 characters (4,000 at most), each option's text under 250 (400 at most); evidenceIds copied exactly from m00/m01 item ids.",
       inputSchema: decideArgs,
       execute: async (args) => {
         const closed = afterStop("decideScope");
@@ -469,7 +506,14 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
         if (deps.phase === "synthesis" || deps.reask === true) return { runtimeNote: "decideScope() is for the research phase; the scope is already decided." };
         if (args.verdict === "continue" && locked()) return whileLocked("decideScope(continue)");
         if (args.verdict === "continue" && state === "gated") return { accepted: true, verdict: "continue", note: "The scope is already decided: continue." };
-        const result = await decideScope(args);
+        // Too long: answered outside the record with the length, like any other malformed call.
+        const tooLong = proseLimitIssues(args);
+        if (tooLong.length > 0) return { accepted: false, issues: tooLong, note: "Shorten and decide again." };
+        const result = await decideScope({
+          ...args,
+          reason: unescapeProse(args.reason),
+          ...(args.widenings === undefined ? {} : { widenings: args.widenings.map((w) => ({ ...w, text: unescapeProse(w.text) })) }),
+        });
         if (!result.accepted) return { accepted: false, issues: result.issues, note: "Fix the issues and decide again." };
         state = result.verdict === "stop" ? "stopped" : "gated";
         return result.verdict === "stop"

@@ -4,7 +4,16 @@ import path from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { researchTools, RESEARCH_TOOL_NAMES, type ResearchToolDeps } from "../../agents/research/tools";
+import {
+  REASON_MAX,
+  REASON_TARGET,
+  researchTools,
+  RESEARCH_TOOL_NAMES,
+  unescapeProse,
+  WIDENING_TEXT_MAX,
+  WIDENING_TEXT_TARGET,
+  type ResearchToolDeps,
+} from "../../agents/research/tools";
 import { loadDefinition, type AgentBudget } from "@/lib/agents/definitions";
 import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
 import { toolKey } from "@/lib/agents/tools";
@@ -347,6 +356,76 @@ describe("the research tools", () => {
     expect(steps.filter((s) => s.name === "search")).toHaveLength(0);
     expect(moduleWritesFromSteps(steps).map((w) => w.module)).not.toContain("m10");
     expect(researchStateFromSteps(steps).state).toBe("stopped");
+  });
+
+  it("names the exact m00/m01 item ids when a stop cites ones that do not resolve (brief C v3.2)", async () => {
+    await run(
+      [
+        call("facts", {}),
+        ...gate.slice(0, 2),
+        call("decideScope", { verdict: "stop", reason: "r", evidenceIds: ["market-1", "m01-c1"], widenings: [{ dimension: "region", text: "Ireland too.", scopePatch: { countries: ["GB", "IE"] } }] }),
+        done,
+      ],
+      deps({ scope: GB }),
+    );
+    const [decision] = (await prisma.agentRunStep.findMany({ where: { name: "decideScope" } })).map((s) => s.output as { accepted: boolean; issues: string[] });
+    expect(decision!.accepted).toBe(false);
+    expect(decision!.issues).toContain('evidenceIds: "m01-c1" is not an item of the accepted m00 or m01');
+    const listed = decision!.issues.find((issue) => issue.startsWith("evidenceIds must be copied exactly from these m00/m01 item ids: "))!;
+    expect(listed).toContain("market-1, market-2, market-3, market-4, market-5, trigger-1, trigger-2, trigger-3");
+  });
+
+  it("refuses an over-long reason or option with the length it came to, outside the record, and accepts the shorter rewrite", async () => {
+    const option = (text: string) => [{ dimension: "region", text, scopePatch: { countries: ["GB", "IE"] } }];
+    const { result } = await run(
+      [
+        call("facts", {}),
+        ...gate.slice(0, 2),
+        call("decideScope", { verdict: "stop", reason: "x".repeat(4001), widenings: option("Ireland too.") }),
+        call("decideScope", { verdict: "stop", reason: "Too few firms.", widenings: option("y".repeat(401)) }),
+        call("decideScope", { verdict: "stop", reason: "Too few firms.", widenings: option("Ireland too.") }),
+        done,
+      ],
+      deps({ scope: GB }),
+    );
+    expect(result).not.toBeInstanceOf(AgentRunFailedError);
+    const decisions = await prisma.agentRunStep.findMany({ where: { name: "decideScope" } });
+    // The two over-long calls never reached the record; the rewrite did.
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]!.output).toMatchObject({ accepted: true, verdict: "stop" });
+  });
+
+  it("stores the stop's prose with literal escaped newlines turned into line breaks", async () => {
+    await run(
+      [
+        call("facts", {}),
+        ...gate.slice(0, 2),
+        call("decideScope", { verdict: "stop", reason: "Two firms.\\n\\nNone more.", widenings: [{ dimension: "region", text: "Ireland\\ntoo.", scopePatch: { countries: ["GB", "IE"] } }] }),
+        done,
+      ],
+      deps({ scope: GB }),
+    );
+    expect(researchStateFromSteps(await prisma.agentRunStep.findMany({ where: { name: "decideScope" } })).stop).toMatchObject({
+      reason: "Two firms.\n\nNone more.",
+      widenings: [expect.objectContaining({ text: "Ireland\ntoo." })],
+    });
+  });
+});
+
+describe("the stop's prose limits (brief C v3.2)", () => {
+  it("says how long an over-limit reason or option is, and asks for a shorter rewrite with nothing added", async () => {
+    const tools = researchTools(
+      { orgId: ORG_ID, jobId: "j", runId: "r", runKind: "research", replayed: 0, takeIndex: () => 0, key: () => "", beginCall: async () => ({ replayed: false, stepId: "s" }), endCall: async () => {}, failCall: async () => {}, releaseCall: async () => {}, noteReplay: () => {}, abortRun: () => {}, modelSteps: 0, spendUsd: 0 },
+      deps({ scope: GB, priorState: { state: "open" } }),
+    );
+    const decide = tools.decideScope!.execute! as (args: unknown, options: unknown) => Promise<{ accepted: boolean; issues: string[] }>;
+    const refused = await decide({ verdict: "stop", reason: "x".repeat(4321), widenings: [{ dimension: "region", text: "y".repeat(456), scopePatch: { countries: ["GB", "IE"] } }] }, {});
+    expect(refused.accepted).toBe(false);
+    expect(refused.issues).toEqual([
+      `reason is 4321 characters; the limit is ${REASON_MAX} and the target is under ${REASON_TARGET}. Rewrite it shorter — the same points, no added detail.`,
+      `widenings.0.text is 456 characters; the limit is ${WIDENING_TEXT_MAX} and the target is under ${WIDENING_TEXT_TARGET}. Rewrite it shorter — the same option, no added detail.`,
+    ]);
+    expect(unescapeProse("a\\nb\\r\\nc")).toBe("a\nb\nc");
   });
 });
 

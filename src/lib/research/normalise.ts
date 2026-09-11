@@ -107,6 +107,20 @@ export function normaliseModule(id: ModuleId, content: unknown, context: { plann
     });
   }
 
+  // m01: a sub-segment's count or size written as a number (brief C v3.2: `countEstimate: 3`).
+  if (id === "m01" && Array.isArray(copy.subSegments)) {
+    copy.subSegments.forEach((segment, i) => {
+      if (!isObject(segment)) return;
+      for (const field of ["countEstimate", "sizeRange"] as const) {
+        const value = segment[field];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          segment[field] = String(value);
+          notes.push(`m01.subSegments.${i}.${field}: the number ${value} written as text`);
+        }
+      }
+    });
+  }
+
   // m04: a size note written where the size's source url goes (brief E: "Headcount not verified this run").
   if (id === "m04" && Array.isArray(copy.perArchetype)) {
     copy.perArchetype.forEach((target, i) => {

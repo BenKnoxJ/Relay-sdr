@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MODULE_IDS, SCOPE_ISSUE, type LockedScope } from "../../agents/research/output.schema";
 import { loadFacts } from "@/lib/facts/load";
 import { liveFactIds } from "@/lib/facts/schema";
-import { checkModuleWrite, groupVoiceIssues } from "@/lib/research/moduleWrite";
+import { checkModuleWrite, groupVoiceIssues, repWordIssues } from "@/lib/research/moduleWrite";
 
 import { goodPack, moduleContent } from "../agents/researchPack";
 
@@ -167,6 +167,24 @@ describe("checkModuleWrite", () => {
     const m04 = content("m04") as { perArchetype: Array<{ recipe: { locations?: string[] } }> };
     for (const t of m04.perArchetype) t.recipe.locations = [];
     expect(checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+  });
+
+  it("names each banned word in a refused rep summary, with its line — brief A v3.2b (job 567ba84c) line 5, both versions", () => {
+    const rep = content("repSummary") as { lines: string[] };
+    // The first version: "job" is on the rep-words list.
+    rep.lines[4] = "Fifteen named companies across five kinds of buyer show a live, dated reason to talk this quarter — from a doubled complaint count to a new claims-quality job posting — at a price and size the rest of this market doesn't serve.";
+    const first = checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now });
+    if (first.ok) throw new Error("expected a refusal");
+    expect(first.issues).toEqual(['lines.4: "job" is a word a rep would not use — rewrite the line without it']);
+    // The rewrite that guessed and lost the module: "touch" is on the list too.
+    rep.lines[4] = "Fifteen real companies already show a solid, dated reason to get in touch now, from a doubled complaint count to a brand new claims-quality hire, at a price and size nothing else in this market matches.";
+    const second = checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now });
+    if (second.ok) throw new Error("expected a refusal");
+    expect(second.issues).toEqual(['lines.4: "touch" is a word a rep would not use — rewrite the line without it']);
+    // The rule itself is unchanged: the same line without either word passes.
+    rep.lines[4] = "Fifteen real companies already show a solid, dated reason to talk now, from a doubled complaint count to a new claims-quality hire, at a price and size nothing else in this market matches.";
+    expect(checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+    expect(repWordIssues(["The agent will start a job and get in touch."])).toEqual(['lines.0: "job", "touch" are words a rep would not use — rewrite the line without them']);
   });
 
   it("names a group-level m06 voice as a structural slip, where it belongs, and never copies it down (brief A v3.2)", () => {

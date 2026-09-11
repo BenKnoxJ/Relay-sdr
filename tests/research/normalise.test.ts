@@ -75,6 +75,15 @@ describe("normaliseModule", () => {
 });
 
 describe("applyFixes", () => {
+  it("drops a leading module id from a path, as the refusals print it (brief A v3.2b: m09.perArchetype…, m11.body)", () => {
+    const base = { body: "old", perArchetype: [{ angles: [{ text: "every call your team handles" }] }] };
+    const { content: fixed, errors } = applyFixes(base, [{ path: "m09.perArchetype.0.angles.0.text", value: "every call we ingest" }, { path: "m09.body", value: "new" }], "m09");
+    expect(errors).toEqual([]);
+    expect(fixed).toEqual({ body: "new", perArchetype: [{ angles: [{ text: "every call we ingest" }] }] });
+    // Another module's id is not this module's prefix: still a path that does not exist.
+    expect(applyFixes(base, [{ path: "m11.body", value: "x" }], "m09").errors).toEqual(["m11.body: no m11 to fix"]);
+  });
+
   it("reads a bracketed path as the dotted one: claims[1].text is claims.1.text (brief D v3.2 rerun)", () => {
     const base = { claims: [{ text: "first" }, { text: "second" }] };
     const { content: fixed, errors } = applyFixes(base, [{ path: "claims[1].text", value: "fixed" }]);

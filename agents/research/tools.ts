@@ -58,8 +58,8 @@ const BEFORE_THE_GATE: readonly ModuleId[] = ["m00", "m01"];
 /** Scope refusals of m04 after which a stop is the only action left. */
 const M04_SCOPE_LOCK = 2;
 
-/** A prior pack as the agent reads it: module bodies, advisory (§4). */
-export type PriorPack = { id: string; at: string; modules: Array<{ module: string; title: string; body: string }> };
+/** A prior pack as the agent reads it: module bodies, advisory (§4), and the seed firms it held by identity (§10 note 29). */
+export type PriorPack = { id: string; at: string; modules: Array<{ module: string; title: string; body: string }>; seedFirms: Array<{ name: string; domain?: string }> };
 
 export type ResearchToolDeps = {
   facts: ProductFacts;
@@ -408,7 +408,8 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       execute: async (args) => requireFacts("knowledge") ?? knowledge(args),
     }),
     priorPacks: tool({
-      description: "This org's earlier packs for the product, module bodies included. Advisory: a prior claim enters this pack only with a fresh URL found this run.",
+      description:
+        "This org's earlier packs for the product: module bodies and the seed firms each held (name, domain). The authority on what the earlier research contained. Advisory: a prior claim enters this pack only with a fresh URL found this run.",
       inputSchema: noArgs,
       execute: async () => requireFacts("priorPacks") ?? priorPacks({} as Record<string, never>),
     }),

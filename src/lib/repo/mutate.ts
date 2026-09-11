@@ -47,7 +47,17 @@ export type EventKind =
   /// A research job produced a validated pack; `after` carries the pack, the
   /// provenance report and what the run ran under. Until Task 6d's table,
   /// this Event *is* where the pack lives.
-  | "research.completed";
+  | "research.completed"
+  /// A run reached drafts ready: there is something for a rep to approve, and
+  /// the run that produced it has ended. §24's approval hand-off is these three
+  /// kinds and nothing else — no suspended run, no in-process state, just the
+  /// record that the work stopped here.
+  | "draft.ready"
+  /// A rep approved a draft. Written in the same transaction as the job that
+  /// acts on it, which is what makes "approved" and "will be sent" one fact.
+  | "draft.approved"
+  /// The send half ran and recorded what it sent.
+  | "send.recorded";
 
 /**
  * Who caused the change. `system` is the worker acting on its own — a poll, a

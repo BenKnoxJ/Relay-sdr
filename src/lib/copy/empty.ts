@@ -9,13 +9,11 @@
  * not one sentence.
  */
 export const emptyCopy = {
-  inbox: {
-    title: "Inbox",
-    /** The mono note beside the page title, from the signed mock, section 2c. */
-    note: "nothing waiting",
-    heading: "All clear",
-    body: "Nothing waiting until your first campaign.",
-  },
+  /**
+   * Inbox is not here any more: Task 9d gave it a queue, and its empty state
+   * ("All clear. Next drafts Thursday 09:00.") lives with the rest of its
+   * words in `copy/inbox.ts`.
+   */
   campaigns: {
     title: "Campaigns",
     note: "none yet",

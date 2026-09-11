@@ -44,6 +44,10 @@ export const MODULE_IDS = [
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
+/** The modules each phase writes (§10 note 17). m19 is the runtime's. */
+export const RESEARCH_PHASE_MODULES: readonly ModuleId[] = ["m00", "m01", "m02", "m03", "m05", "m06", "m04", "m10", "m12", "m13", "m17"];
+export const SYNTHESIS_PHASE_MODULES: readonly ModuleId[] = ["m07", "m08", "m09", "m11", "m14", "m15", "m16", "m18", "execSummary", "repSummary"];
+
 /** The order the method writes them in (§5); the same as `MODULE_IDS`. */
 export const MODULE_TITLES: Record<ModuleId, string> = {
   m00: "Steering note and hard filters",
@@ -276,6 +280,12 @@ export const recipeSchema = z
     countries: z.array(z.string().regex(/^[A-Z]{2}$/, "a country is an ISO-3166 alpha-2 code, e.g. GB")).min(1).max(20),
     industries: z.array(label).min(1).max(30),
     triggers: z.array(label).max(30),
+    /**
+     * v3.2 (§10 note 28; lead gen note 1): sub-national places, e.g. "Orkney",
+     * carried through from the rep's locked scope. Lead gen translates each
+     * through Lusha's location filter or halts `unmappable`; it never drops one.
+     */
+    locations: z.array(label).min(1).max(20).optional(),
   })
   .strict();
 
@@ -289,11 +299,17 @@ export const seedFirmSchema = z
     name: label,
     domain: z.string().min(1).max(253).optional(),
     region: label,
+    /** v3.2 (§10 note 28): where the firm is, as lead gen searches it. */
+    country: z.string().regex(/^[A-Z]{2}$/, "a country is an ISO-3166 alpha-2 code, e.g. GB"),
+    /** v3.2: what kind of organisation it is, in the scope's own words; required when the rep set org types. */
+    orgType: label.optional(),
     size: z
       .object({
         status: z.enum(["confirmed", "estimated", "unknown"]),
         value: label.optional(),
         source: urlSchema.optional(),
+        /** v3.2: the head count as numbers, required when the rep set an employee band and the size is known. */
+        employees: z.object({ min: z.number().int().nonnegative().optional(), max: z.number().int().positive().optional() }).strict().optional(),
       })
       .strict()
       .refine((s) => s.status === "unknown" || s.value !== undefined, { message: "a confirmed or estimated size needs a value", path: ["value"] }),
@@ -330,7 +346,34 @@ export const m04Schema = complete({
     return pages.length < 4 || Math.max(...counts.values()) <= pages.length / 2;
   },
   { message: "no more than half the seed firms may come from one list page; filter the list to fit, never take its default order", path: ["perArchetype"] },
-);
+).superRefine((m, ctx) => {
+  // v3.2 (§10 note 28): a firm is one seed. The same firm under three kinds of
+  // buyer is a thin market dressed as depth.
+  const seen = new Map<string, string>();
+  m.perArchetype.forEach((t, i) =>
+    t.seedFirms.forEach((f, j) => {
+      const key = seedFirmKey(f);
+      const first = seen.get(key);
+      if (first !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${f.name} is already a seed firm (${first}); a firm is seeded once across the pack`, path: ["perArchetype", i, "seedFirms", j] });
+      else seen.set(key, f.id);
+    }),
+  );
+});
+
+/** Which firm a seed is: its domain when it has one, else its name without punctuation or a legal suffix. */
+export function seedFirmKey(firm: { name: string; domain?: string }): string {
+  if (firm.domain !== undefined && firm.domain.trim().length > 0) {
+    return `domain:${firm.domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "")}`;
+  }
+  const name = firm.name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(ltd|limited|llp|plc|inc|llc|the)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `name:${name}`;
+}
 
 // ---------------------------------------------------------------------------
 // m05 — pains by archetype

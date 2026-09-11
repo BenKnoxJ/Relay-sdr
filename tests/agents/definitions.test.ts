@@ -246,7 +246,7 @@ describe("research v3: the pack's rules, on a complete pack built in code", () =
 
   it("closes a run with a manifest, not the pack: the modules are written as the run goes", () => {
     const definition = loadDefinition("research");
-    expect(definition.tools).toEqual(["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule"]);
+    expect(definition.tools).toEqual(["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule", "decideScope"]);
     expect(definition.output.safeParse({ modulesWritten: ["m00", "m01"] }).success).toBe(true);
     expect(definition.output.safeParse(good()).success).toBe(false);
   });

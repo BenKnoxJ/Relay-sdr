@@ -222,7 +222,11 @@ export function applyFixes(base: Loose, fixes: ReadonlyArray<{ path: string; val
   const content = structuredClone(base);
   const errors: string[] = [];
   for (const { path, value } of fixes) {
-    const parts = path.split(".").filter((part) => part.length > 0);
+    // `claims[3].text` and `claims.3.text` are the same path (brief D v3.2: a re-ask sent brackets twice).
+    const parts = path
+      .replace(/\[(\d+)\]/g, ".$1")
+      .split(".")
+      .filter((part) => part.length > 0);
     // A path may start with the module id, as the issues sometimes do.
     let cursor: unknown = content;
     for (let i = 0; i < parts.length - 1; i += 1) {

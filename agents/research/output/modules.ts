@@ -285,7 +285,8 @@ export const recipeSchema = z
      * carried through from the rep's locked scope. Lead gen translates each
      * through Lusha's location filter or halts `unmappable`; it never drops one.
      */
-    locations: z.array(label).min(1).max(20).optional(),
+    // Empty means none: "leave locations empty" must not be refused (brief D v3.2 rerun).
+    locations: z.array(label).max(20).optional(),
   })
   .strict();
 

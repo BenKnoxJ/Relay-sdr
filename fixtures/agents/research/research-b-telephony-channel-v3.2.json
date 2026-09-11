@@ -1,0 +1,2119 @@
+{
+  "kind": "research",
+  "contract": "v3.2",
+  "name": "research-b-telephony-channel-v3.2",
+  "source": "run",
+  "recordedAt": "2026-09-11T11:38:58.640Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v2.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "channel",
+      "who": "UK telephony resellers and 3CX partners who sell and support phone systems for small and mid-sized businesses and could resell call analytics to them",
+      "region": "GB",
+      "scope": {
+        "countries": [
+          "GB"
+        ],
+        "orgTypes": [
+          "telephony reseller",
+          "3CX partner"
+        ]
+      },
+      "howMany": 15,
+      "weeks": 4,
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    }
+  },
+  "output": {
+    "scope": {
+      "orgTypes": [
+        "telephony reseller",
+        "3CX partner"
+      ],
+      "supplied": [
+        "countries",
+        "orgTypes"
+      ],
+      "countries": [
+        "GB"
+      ]
+    },
+    "modules": {
+      "m00": {
+        "body": "## What this pack is for\n\nThe motion is **channel**, not direct. The people to reach are UK telephony resellers and 3CX partners — firms that already sell, install and support phone systems for small and mid-sized businesses. They are not the user of Insights360; their *customers* are. So every judgement in this pack is made twice: does the reseller's own business get better, and can the reseller sell it into the base they already own.\n\nThat means the pack leads with partner economics, portfolio fit and margin — not with contact-centre QA pain. The QA pain (manual review covering a sliver of calls) is the reseller's *sales story*, not their own wound. Their wound is that the thing they sell — seats, SIP trunks, handsets, hosted PBX — is a commodity with thinning margin and near-zero differentiation at renewal, and they are hunting for recurring revenue that attaches to an install base they already have. That is the spine below.\n\n## Why this product, for this channel, now\n\nOne fact does the load-bearing work: **3CX is one of only two telephony platforms with a wired automated feed** (`i360.integration.3cx-automated-feed`); OAK/ClarifyGo is the other. Everything else on the compatibility list — Teams, Cisco, Avaya, Mitel, 8x8, Five9 — is scoped per customer at onboarding and must never be described as an integration (`i360.integration.other-platforms-scoped-per-customer`). RingCentral now ships a working ingestion connector (`i360.integration.ringcentral-ingestion-in-code`) and this fact overrides the knowledge set's integrations and roadmap articles, which still list only 3CX and OAK.\n\nSo the rep's `who` and the product's wired reality coincide almost exactly. A 3CX partner is the one reseller type for whom this is a plug-in attach rather than a project. That coincidence is the spine of the pack, and the research below has to test whether enough such firms exist inside GB to carry a campaign.\n\nThe second load-bearing fact is price shape: £4.99–£9.99 per seat per month, no seat minimum, no annual commitment, month to month (`i360.price.per-seat-plans`, `i360.price.no-seat-minimum-no-annual-lock-in`). A reseller's SMB base is mostly under 50 seats. Every mid-market QA tool the knowledge set catalogues has an economic floor around 25–50 agents, which makes that base unsellable to them. An attach with no seat floor is the only shape that fits a book of 10-to-40-seat customers.\n\n## The displacement\n\nWhat is being displaced is not a rival product. It is the reseller's current answer to \"can you do anything with our call recordings?\" — which today is either the recording archive they already resell (storage, retention, search), or nothing at all. Recordings sit in the customer's phone system and no one reads them. The displacement is therefore *inside the reseller's own catalogue*: a line item that turns an existing recording estate into a monthly per-seat service. Named rival vendors are for internal positioning only and are never named in outreach (knowledge set, competitors article, outbound naming policy).\n\n## What must not lead, and why it matters more in channel\n\nIn a direct pack an over-claim costs one deal. In a channel pack an over-claim costs a partner's trust across their whole base, and the partner finds out in front of their own customer. The boundaries below are therefore commercial, not legal fine print — and two of them will decide whether a reseller can build a practice on this at all:\n\n- **There is no group or cross-tenant dashboard** (`i360.boundary.no-group-or-cross-tenant-dashboard`). A reseller cannot see all their customers in one view. Each tenant sees only itself, though the same QA rule set can be applied to each. This is not on the roadmap. Any pack claim that implies a partner console is false, and a partner will ask about it in the first ten minutes.\n- **No SSO, no SCIM, no PII redaction, no CRM connectors** (`i360.boundary.no-sso-scim-no-pii-redaction-no-crm`). Login is Clerk.\n- **Post-call only, never real-time** (`i360.product.post-call-call-analytics`, `i360.boundary.not-real-time`), **does not record calls** (`i360.boundary.does-not-record-calls`), **no in-app audio playback** (`i360.boundary.no-audio-playback-in-app`), **no agent logins** (`i360.boundary.no-agent-self-service`), **no regulator-ready evidence packs** (`i360.boundary.no-compliance-evidence-packs`), **no automated retention or deletion** (`i360.boundary.no-automated-retention-or-deletion`).\n- **Hosting is EU (Frankfurt), not UK** (`i360.product.hosted-eu-frankfurt`). The brand-voice article's example line \"never leaves UK Vercel + AWS\" is wrong and must never be repeated. For a reseller selling to UK public-sector-adjacent or regulated SMBs this is a real question, and the honest answer is EU (Frankfurt), no US processing.\n- **Latency is same-day, not minutes** (`i360.product.results-lag-up-to-about-an-hour`). The knowledge overview's \"typically within minutes\" is wrong.\n- **Coverage wording is \"every call we ingest\"**, never \"every call you make\" (`i360.product.every-ingested-call-analysed`).\n- **Say \"internally audited\", never \"pen-tested\"** (`i360.proof.tenant-isolation-internally-audited`). Say \"Conversant is ISO 27001 certified\" and name no certification body (`i360.compliance.iso27001-certified-group`).\n- **Never say \"get started in seconds\" or \"free to start\"** — there is a £1,280 setup fee and a £640 configuration review (`i360.price.setup-and-config-review-fees`). In a channel pack this fee is the single most consequential number: it is what the partner has to explain, absorb or mark up on every customer.\n- **No customer may be named, no customer count quoted, no case-study numbers exist** (`i360.proof.paying-customers-in-production`).\n\n## What is genuinely unknown before research starts\n\nThe facts file says nothing about partner terms: no reseller discount, no margin band, no white-label or rebrand capability, no partner portal, no NFR/demo tenant, no deal registration, no who-owns-the-tenant answer, no who-pays-the-setup-fee answer. These are the first four questions any reseller asks. They are not in the facts file and therefore cannot be claimed anywhere in this pack — they belong in m18 as unknowns for the owner to answer, and the campaign agent must not assume them. *(Inference from the absence of any `i360.partner.*` or discount fact in facts v2.)*\n\n## How prior packs bear on this\n\nThere are none. `priorPacks()` returned an empty list, so nothing in this pack is inherited and m14 will record that there was no prior pack to compare against.",
+        "spine": "UK telephony resellers and 3CX partners sell a commoditising product — seats, trunks, handsets, hosted PBX — into an SMB base they already own, and are hunting recurring per-seat revenue that attaches to that base without a new install. Insights360 is the one call-analytics attach whose wired 3CX feed, no-seat-minimum price and month-to-month terms fit a book of 10-to-40-seat customers that every mid-market QA vendor's economic floor prices out.",
+        "claims": [
+          {
+            "id": "m00-c-3cx-wired",
+            "text": "3CX (cloud and self-hosted) has a wired automated feed into Insights360 — recordings are pulled on a schedule with no manual upload — and it is one of only two telephony platforms with that automated feed, the other being OAK/ClarifyGo; a RingCentral ingestion connector also ships and is working in production.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, ids i360.integration.3cx-automated-feed, i360.integration.oak-clarifygo-automated-feed, i360.integration.ringcentral-ingestion-in-code and i360.integration.other-platforms-scoped-per-customer; corroborated by the knowledge set's integrations article (compatible-vs-wired section), which the RingCentral fact supersedes."
+          },
+          {
+            "id": "m00-c-price-shape",
+            "text": "Insights360 is priced per seat per month on three plans — Starter GBP 4.99 with 40 pooled hours, Professional GBP 7.99 with 70, Enterprise GBP 9.99 with 100 — with GBP 0.50 per hour overage, no seat minimum and no annual commitment, plus a one-off GBP 1,280 setup fee and a one-off GBP 640 configuration review around month one.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, ids i360.price.per-seat-plans, i360.price.overage-per-hour, i360.price.no-seat-minimum-no-annual-lock-in and i360.price.setup-and-config-review-fees, all marked confirmed by the product owner on 2026-09-10."
+          },
+          {
+            "id": "m00-c-no-partner-console",
+            "text": "Insights360 has no group-level or cross-tenant dashboard: a reseller cannot view several customer tenants in one place, each entity sees only its own tenant, and this is not on the roadmap — though the same QA rule set can be applied to each tenant.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, id i360.boundary.no-group-or-cross-tenant-dashboard (status planned, campaign note: use the Angle 11 reframe wording only)."
+          },
+          {
+            "id": "m00-c-hosting-eu",
+            "text": "Insights360 runs in Vercel's Frankfurt region with the pipeline, storage and database in AWS eu-central-1 (Frankfurt), so call data is processed and stored in the EU (Germany), not the UK; there is no US processing.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, id i360.product.hosted-eu-frankfurt, whose note explicitly corrects the brand-voice article's 'never leaves UK Vercel + AWS' example."
+          },
+          {
+            "id": "m00-c-no-partner-terms-in-facts",
+            "text": "The facts file contains no statement about reseller or partner commercial terms — no partner discount or margin band, no white-label or rebranding capability, no partner portal, no demo or not-for-resale tenant, no deal registration, and no statement of who holds the tenant contract or pays the setup fee.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Absence check across all 40 entries of facts v2 and all nine knowledge articles; no entry addresses partner terms, margin, white-label or deal registration."
+          }
+        ],
+        "status": "complete",
+        "readyNow": [
+          "3CX (cloud and self-hosted) is wired with an automated feed: recordings are pulled on a schedule, no manual upload — the only platform on the rep's `who` that is a plug-in attach rather than a scoped project (i360.integration.3cx-automated-feed).",
+          "OAK / ClarifyGo is the second wired automated feed, relevant to resellers whose base includes ClarifyGo recording (i360.integration.oak-clarifygo-automated-feed).",
+          "A RingCentral ingestion connector (RingCX and RingEX) ships in the pipeline and is working in production, confirmed 2026-09-10 — this supersedes the knowledge set's integrations and roadmap articles, which still list only 3CX and OAK (i360.integration.ringcentral-ingestion-in-code).",
+          "Per-seat pricing from GBP 4.99 with no seat minimum and no annual commitment, month to month — the only shape that fits a partner's sub-50-seat book (i360.price.per-seat-plans, i360.price.no-seat-minimum-no-annual-lock-in).",
+          "Every call the pipeline ingests is transcribed and scored against the customer's own QA rules, which admins edit themselves in Settings without a support ticket — so a partner can configure a tenant without escalating to the vendor (i360.product.every-ingested-call-analysed, i360.feature.auto-qa-scoring-against-tenant-rules, i360.feature.qa-rules-self-serve-editor).",
+          "Conversant is ISO/IEC 27001 certified at group level and tenant isolation across all API routes was internally audited on 12 July 2026 with no cross-tenant leaks found — the two answers a partner needs before putting their own name beside it (i360.compliance.iso27001-certified-group, i360.proof.tenant-isolation-internally-audited)."
+        ],
+        "offerHook": [
+          "i360.integration.3cx-automated-feed",
+          "i360.integration.oak-clarifygo-automated-feed",
+          "i360.integration.ringcentral-ingestion-in-code",
+          "i360.price.per-seat-plans",
+          "i360.price.no-seat-minimum-no-annual-lock-in",
+          "i360.price.overage-per-hour",
+          "i360.price.setup-and-config-review-fees",
+          "i360.product.every-ingested-call-analysed",
+          "i360.feature.auto-qa-scoring-against-tenant-rules",
+          "i360.feature.qa-rules-self-serve-editor",
+          "i360.feature.risk-flagging-configurable-types",
+          "i360.feature.agent-performance-pages",
+          "i360.compliance.iso27001-certified-group",
+          "i360.proof.tenant-isolation-internally-audited",
+          "i360.proof.paying-customers-in-production"
+        ],
+        "hypotheses": [
+          "No prior pack exists for this product and org — priorPacks() returned an empty list — so nothing here is inherited and m14 will record 'no prior pack'.",
+          "Hypothesis to test: enough GB firms publicly identify as 3CX partners (the 3CX partner directory lists partner tiers) to carry a campaign of this size inside the scope.",
+          "Hypothesis to test: the reseller's felt pain is margin erosion on seats and trunks plus the search for recurring 'value-add' revenue, rather than the end-customer's QA coverage gap.",
+          "Hypothesis to test: the absence of a partner console and of any stated margin term is the first objection a reseller raises, ahead of price or accuracy.",
+          "Hypothesis to test: resellers' own words about attach services appear in UK channel trade press (Comms Business, Comms Dealer, Channel Futures) and in 3CX's own community forum, rather than on review sites."
+        ],
+        "hardFilters": {
+          "other": [
+            "Motion is channel: partner economics, portfolio fit and margin lead; end-buyer QA pain is supporting material, not the opening.",
+            "Channels on the card are email and LinkedIn only — contact rules must cover both.",
+            "No individual may be named as a target anywhere in the pack; people appear only as the author or speaker of a cited source.",
+            "Never name a competitor in outreach (knowledge set, competitors article, outbound naming policy); differentiate against the status quo.",
+            "No customer of Insights360 may be named and no customer count quoted."
+          ],
+          "sizeCap": "No employee band is set by the rep's scope, so none is enforced on partner firms. The relevant size test is the partner's customer base, not the partner: Insights360's ICP is end-customers of 5 to 250 contact-centre seats (knowledge set, icp article), so a partner whose book is entirely sub-5-seat key-system installs or entirely 250+ seat enterprise contact centres is a poor fit.",
+          "firmsOut": [],
+          "geography": [
+            "United Kingdom (GB). GB is Great Britain — England, Scotland and Wales. Northern Ireland is not in GB and is out of scope.",
+            "Firm must be headquartered or trading in GB, with GB as the country recorded for every seed firm."
+          ],
+          "subSectorsIn": [
+            "telephony reseller",
+            "3CX partner"
+          ],
+          "subSectorsOut": [
+            "Direct end-user contact centres — this is a channel pack; buying-side contact centres are not the audience.",
+            "Marketing-attribution and call-tracking resellers (call tracking, DNI, ad attribution) — different category, referred elsewhere per the knowledge set's icp article.",
+            "Pure call-recording-compliance resellers selling voice retention alone (for example MiFID II retention) with no analytics interest.",
+            "Hardware-only or cabling-only installers with no recurring hosted-voice base.",
+            "Firms whose telephony book is entirely platforms with no wired feed and no appetite for a per-customer scoped connector."
+          ]
+        },
+        "mustNotLead": [
+          "Any implication of a partner console, multi-customer view or group dashboard — there is none and it is not on the roadmap (i360.boundary.no-group-or-cross-tenant-dashboard).",
+          "Any partner commercial term — margin, discount, white-label, deal registration, NFR tenant, who owns the contract — none is in the facts file and none may be stated.",
+          "Real-time, live agent assist, whisper or in-call alerting; Insights360 does nothing during a live call (i360.boundary.not-real-time).",
+          "Call recording. Insights360 does not record; it analyses recordings the customer's phone system already makes (i360.boundary.does-not-record-calls). Not a MiFID or voice-retention product.",
+          "'Listen to the evidence', in-app audio playback or synchronised transcript — playback is switched off (i360.boundary.no-audio-playback-in-app).",
+          "Agent-facing pitches or agent logins; agents are not users (i360.boundary.no-agent-self-service).",
+          "Regulator-ready evidence packs, including FCA Consumer Duty packs (i360.boundary.no-compliance-evidence-packs).",
+          "SSO, SAML, SCIM, PII or card redaction, CRM connectors (i360.boundary.no-sso-scim-no-pii-redaction-no-crm).",
+          "A retention period. There is no automated retention or deletion; retention is agreed per contract and applied manually (i360.boundary.no-automated-retention-or-deletion).",
+          "'UK hosting' or 'never leaves the UK' — hosting is EU (Frankfurt) (i360.product.hosted-eu-frankfurt).",
+          "'Within minutes' — say same day or within a couple of hours (i360.product.results-lag-up-to-about-an-hour).",
+          "'Every call you make' or a literal 100% completeness promise in writing — say 'every call we ingest' (i360.product.every-ingested-call-analysed).",
+          "'Get started in seconds' or 'free to start' — there is a GBP 1,280 setup fee (i360.price.setup-and-config-review-fees).",
+          "'Pen-tested', a named certification body, or a certification scope beyond the group certificate (i360.proof.tenant-isolation-internally-audited, i360.compliance.iso27001-certified-group).",
+          "Team-level scorecards, per-team comparison or a team filter; teams are not a first-class entity in the interface (i360.boundary.no-team-entities-in-ui, i360.feature.auto-qa-scoring-against-tenant-rules).",
+          "Fine-grained roles such as team lead, QA evaluator or risk officer — only admin, supervisor and viewer are enforced (i360.product.roles-admin-supervisor-viewer).",
+          "A named customer, a customer count, or any case-study number such as time saved or uplift (i360.proof.paying-customers-in-production).",
+          "A purpose-built vulnerability-detection module — it is configurable risk types that can flag vulnerability-related calls (i360.feature.risk-flagging-configurable-types).",
+          "Transcription accuracy figures for non-English audio; the language setting is output language only (i360.feature.analysis-output-language-selectable).",
+          "A bulk or scheduled export; export is a single call's PDF from the call page (i360.feature.transcript-pdf-export)."
+        ],
+        "displacement": "Not a rival vendor, but the reseller's own current answer to 'can you do anything with our recordings?' — the call-recording archive they already resell (storage, retention, search) or nothing at all. Recordings sit in the customer's phone system unread; the displacement is a new line item in the partner's existing catalogue that turns that dormant recording estate into a monthly per-seat service.",
+        "priorPacksRead": []
+      },
+      "m03": {
+        "body": "## How these five kinds of buyer were cut\n\nThis is a channel pack, so a \"kind of buyer\" here is a *reseller business in a particular commercial situation*, not a job title and not an end-customer. The cut that matters is **where the firm's recurring revenue comes from today, and what it is about to lose**. Five situations came out of the research, and they behave very differently in a first conversation.\n\nThe first three are defined by the partner's own P&L. The 3CX-centred partner earns a tier-based percentage on an annual licence and has to keep hitting a revenue threshold to hold that percentage — a transactional margin that resets every year and rewards new sales, not depth in the base. The IT MSP that bolted voice on for monthly recurring revenue has the opposite problem: the recurring revenue is there, but it is undifferentiated seats, and the firm is being told by its own trade press that the job now is to make AI mean something concrete to an SME. The legacy dealer is running against a hard external clock — the copper network stops carrying voice at the end of 31 January 2027 — and is spending 2026 on migration projects that generate one-off work and then stop.\n\nThe last two are defined by what the partner already sells alongside the phone system. One already attaches a call-analytics product and has trained its customers to look at dashboards; its problem is that those dashboards count calls and do not read them. The other has built a practice around small customer-facing teams — what the analytics vendors call the informal contact centre, roughly five to thirty seats — where the customer has service-level expectations but no QA function at all.\n\n## Why the situations, not the titles, drive everything\n\nIn every one of these firms the buying committee is small and the same three functions recur: someone who owns the number and signs, someone who owns the portfolio and champions a new line, and someone who owns delivery and has to make it work without adding headcount. The third person is the one who kills channel deals, because a partner's real constraint is engineering and support time, not enthusiasm. That is why each kind of buyer below carries a \"runs it\" role explicitly. *(Inference from the structure of the partner firms found in this run — owner-managed regional MSPs and telecoms dealers with a single technical leadership layer — rather than from a page that states it.)*\n\nA second cross-cutting observation, again an inference: the moment a partner will actually engage is a *contract event in their base* — a renewal, a migration, a platform change — not a quarterly marketing beat. Two independent sources in this run point the same way: an analytics vendor's marketing VP naming contract renewal as the moment to introduce analytics, and a distribution MD urging partners to have the bulk of their legacy base migrated by September 2026. Both are claims below.\n\n## What the deal economics in the fields do and do not say\n\nThe `dealEconomics` blocks carry the product's published list prices from the facts file and nothing else. **No partner margin, discount, white-label right or deal-registration term exists in the facts file**, so none is stated. Every partner-facing money figure a rep might want — what the partner keeps, who pays the GBP 1,280 setup fee, whether the partner or the end customer holds the tenant — is unknown and must be treated as an open question, not an assumption.\n\nThe illustrative values in those blocks are arithmetic on the published list, and are marked derived: a 20-seat end customer on the Professional plan at GBP 7.99 per seat per month is GBP 1,917.60 of subscription over twelve months (derived), plus the one-off GBP 1,280 setup and GBP 640 configuration review, so about GBP 3,837.60 of first-year list value per customer (derived). A 10-seat customer on Starter at GBP 4.99 is GBP 598.80 over twelve months (derived) against the same GBP 1,920 of one-off fees (derived) — which is the single most important shape in this pack: **at the small end of a reseller's base, the one-off fees dominate year one**, and that is the objection the campaign agent should expect first from every kind of buyer below.\n\n## The two structural mismatches that cut across all five\n\nBoth are product boundaries from the facts file, and both are more acute here than in a direct pack.\n\nFirst, **there is no cross-tenant or group dashboard**: a partner cannot see their customers in one view, and each tenant sees only itself, though the same QA rule set can be applied to each. The research found that partners in this space are actively sold multi-tenant, white-label analytics by at least one competing vendor, and partner testimonials on that vendor's page are about being able to offer analytics under their own proposition. So the gap is not theoretical — it is the shape of the category the partner already knows.\n\nSecond, **there is no white-label or rebranding capability stated anywhere in the facts file**. Silence is not permission; nothing about branding may be claimed.\n\nThese two constrain the opening angles below, which is why none of them promises a partner console, a branded portal or a multi-customer view.",
+        "claims": [
+          {
+            "id": "m03-c-3cx-tier-margins",
+            "text": "The 3CX channel partner programme is tiered into five levels — Bronze, Silver, Gold, Platinum and Titanium — with partner margin rising by tier, published by a UK 3CX distributor as 15% at Bronze, 20% Silver, 25% Gold, 30% Platinum and 35% Titanium, against annual sales thresholds of GBP 2,500, GBP 5,000, GBP 12,500, GBP 25,000 and GBP 100,000; partner level is re-evaluated every six months, at which point 50% of the required annual revenue must have been achieved to retain status, and a partner who does not reach Bronze within the first 90 days is demoted to Affiliate status at 10% margin.",
+            "evidence": {
+              "urls": [
+                "https://ucreseller.co.uk/3cx-partner-levels",
+                "https://www.3cx.com/partners/channel-partner-program"
+              ],
+              "domains": [
+                "ucreseller.co.uk",
+                "www.3cx.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          },
+          {
+            "id": "m03-c-3cx-licence-model",
+            "text": "3CX licensing is an annual subscription based on simultaneous calls rather than extensions, renewed annually through the 3CX Partner Account, and 3CX states that beyond software margins partners generate revenue from hardware, SIP trunking, hosting, configuration services, training and management contracts.",
+            "evidence": {
+              "urls": [
+                "https://www.3cx.com/partners"
+              ],
+              "domains": [
+                "www.3cx.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-partner-tier-pressure",
+            "text": "Partners discussing 3CX's requirements in the r/3CX community report that Gold, Platinum and Titanium partners must derive 10% of annual revenue from new 16SC-or-larger licences, and that a partner making no new 16SC sales in twelve months is demoted to Silver.",
+            "evidence": {
+              "urls": [
+                "https://www.reddit.com/r/3CX/comments/1o5oxfk/new_partner_requirements"
+              ],
+              "domains": [
+                "www.reddit.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-analytics-attach-rate",
+            "role": "Head of Product, Nebula",
+            "text": "A UK channel product head told a Comms Dealer Channel Forecast panel published on 26 February 2026 that his company is seeing a 15–20 per cent attach rate from its analytics products to its VoIP services, that this is growing, and that some partners now attach analytics as part of the proposition to everything they sell.",
+            "quote": "The obvious place for MSPs to start is getting the basics right around any analytics that unlock call data.",
+            "speaker": "James Lockhart",
+            "evidence": {
+              "urls": [
+                "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+              ],
+              "domains": [
+                "www.comms-dealer.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-02-26"
+          },
+          {
+            "id": "m03-c-renewal-is-the-moment",
+            "role": "VP Marketing, Akixi",
+            "text": "On the same Comms Dealer panel, an analytics vendor's marketing VP argued that the time to position initial AI and analytics opportunities is at the signing of a new contract, and that using contract renewal to introduce AI and analytics makes the partner more integrated into the customer's business and less likely to be replaced.",
+            "quote": "By using contract renewal to introduce AI and analytics, you can become much more integrated into their business and the ways that they add value to their customers.",
+            "speaker": "John Christian",
+            "evidence": {
+              "urls": [
+                "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+              ],
+              "domains": [
+                "www.comms-dealer.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-02-26"
+          },
+          {
+            "id": "m03-c-sme-roi-not-innovation",
+            "role": "Head of Business Development, Tollring",
+            "text": "Channel leaders on the February 2026 Comms Dealer Channel Forecast panel said SMEs have the appetite for AI but not the budget to innovate for innovation's sake, that there must be a clear business need and clear return on investment, and that MSPs must move from product selling to outcome-driven solution selling.",
+            "quote": "We are seeing SMEs have the appetite for AI but not the budget to innovate for innovation's sake. There must be a clear business need and clear RoI.",
+            "speaker": "Greg Easton",
+            "evidence": {
+              "urls": [
+                "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+              ],
+              "domains": [
+                "www.comms-dealer.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-02-26"
+          },
+          {
+            "id": "m03-c-pstn-clock",
+            "text": "Openreach stops carrying voice traffic on the PSTN at the end of 31 January 2027, after a national stop-sell of PSTN and ISDN products that took effect on 5 September 2023; UK government guidance confirms most customers are expected to have moved to digital landline technology by the end of January 2027.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.uk/guidance/uk-transition-from-analogue-to-digital-landlines",
+                "https://www.safeonlinebilling.com/blog/pstn-switch-off-resellers-guide"
+              ],
+              "domains": [
+                "www.gov.uk",
+                "www.safeonlinebilling.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2027-01-31"
+          },
+          {
+            "id": "m03-c-wlr-cost-squeeze",
+            "role": "MD of Connectivity, Giacom",
+            "text": "A distributor's connectivity managing director told Comms Dealer on 27 May 2026 that Openreach has been increasing WLR prices regularly and that by late 2026 the price of WLR will be roughly double what it was in late 2025, that base migrations take at least two months on average even for smaller estates, that partners should have the bulk of their legacy base on All-IP by September 2026, and that the biggest post-switch-off margin risk is a race to the bottom on price.",
+            "quote": "The biggest risk is falling into a race to the bottom on price. Broadband on its own is becoming easier to compare and switch, and providers who rely only on connectivity margins will find it harder to grow and retain customers.",
+            "speaker": "Dale Parkinson",
+            "evidence": {
+              "urls": [
+                "https://www.comms-dealer.com/pstn-switch/pstn-switch-act-now"
+              ],
+              "domains": [
+                "www.comms-dealer.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-05-27"
+          },
+          {
+            "id": "m03-c-smb-readiness-gap",
+            "text": "A UK telecoms reseller's guide to the switch-off, published 12 August 2025, states that the UK has more than 5.5 million SMEs, many still reliant on legacy systems exposed to the switch-off, and that only 18% of smaller businesses report having a solution ready; it also notes Openreach staged WLR rental rises in April, July and October 2026.",
+            "speaker": "Dr Paul Barrass",
+            "evidence": {
+              "urls": [
+                "https://www.safeonlinebilling.com/blog/pstn-switch-off-resellers-guide"
+              ],
+              "domains": [
+                "www.safeonlinebilling.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2025-08-12"
+          },
+          {
+            "id": "m03-c-attach-economics-proof",
+            "role": "Group Sales & Marketing Director, Redcentric",
+            "text": "An analytics vendor's case study dated 15 February 2024 describes attaching call analytics to approximately 80% of a UK partner's hosted telephony base, with a joint programme against the remaining 20% raising that partner's annual recurring call-analytics revenues by approximately 15% and surfacing third-party product opportunities of over one hundred thousand pounds each.",
+            "quote": "The Akixi go-to-market program and Intelligence Hub have broadened our understanding of the customer, enabling Redcentric to increase sales and pull-through opportunities for additional products.",
+            "speaker": "Kieran Brady",
+            "evidence": {
+              "urls": [
+                "https://akixi.com/call-analytics-provide-customer-insight-and-increased-revenue"
+              ],
+              "domains": [
+                "akixi.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2024-02-15"
+          },
+          {
+            "id": "m03-c-partner-expects-white-label-multitenant",
+            "role": "Channel Partner",
+            "text": "A competing analytics vendor markets a 3CX integration specifically to partners as a fully white-label analytics platform that supports multi-tenant environments and is scalable across multiple customers, positioning it as a way for 3CX resellers and MSPs to add value without changing how customers use the platform; its published partner testimonials frame the benefit as being able to offer customers analytics that drive decisions rather than display data.",
+            "quote": "Dimensions means we can finally offer our customers analytics that actually drive decisions, not just display data.",
+            "speaker": "Virtual PBX",
+            "evidence": {
+              "urls": [
+                "https://dimensionstechnologies.com/integrations/3cx"
+              ],
+              "domains": [
+                "dimensionstechnologies.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-standard-3cx-reporting-gap",
+            "text": "The same vendor's 3CX page frames the post-deployment problem for partners as customers asking how many calls they are missing, when they are busiest, whether customers are waiting too long and how teams are performing, and states that standard 3CX reporting provides some answers but lacks the clarity needed to act with confidence, creating a gap between what the platform delivers and what the customer expects.",
+            "evidence": {
+              "urls": [
+                "https://dimensionstechnologies.com/integrations/3cx"
+              ],
+              "domains": [
+                "dimensionstechnologies.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-informal-contact-centre-definition",
+            "text": "An established UK communications-analytics vendor defines the informal contact centre SME space as 5–30 seats across multiple departments or contact points — customer-facing sales, service, finance and support teams that take and make calls alongside other work, need to meet service-level or performance targets, and require the same management information as a formal contact centre — and calls it a large untapped market for resellers.",
+            "evidence": {
+              "urls": [
+                "https://tollring.com/news/selling-informal-contact-centres-solutions-to-smes-with-customer-facing-teams"
+              ],
+              "domains": [
+                "tollring.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-manual-monitoring-impossible",
+            "text": "A UK contact-centre decision-maker's guide states that in operations using manual quality processes, listening to 100% of calls is clearly impossible, and that quality monitoring with one-to-one training is more popular with cost-sensitive small and medium operations.",
+            "evidence": {
+              "urls": [
+                "https://info.enghouseinteractive.com/rs/547-FBA-390/images/enghouse-contactbabel-uk-contact-centre-dmg-2019-20.pdf"
+              ],
+              "domains": [
+                "info.enghouseinteractive.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m03-c-gb-3cx-partner-population",
+            "text": "Named GB firms publicly identify as 3CX partners across England: a third-party MSP directory lists af-it (Crewkerne), RTP Solutions (London), Birmingham Telecom (Birmingham), Akita (Sevenoaks), B2B Business Technology Group (Wigan), Microbyte Solutions (Peterborough), Adept Communications (Newcastle upon Tyne), Active8 Managed Technologies (Newark), Spitfire Network Services (London) and Aztek (Camborne); Croft states it is a 3CX Titanium Partner and one of only eight, and Spitfire describes itself as the only London-based Platinum Partner listed on the 3CX website.",
+            "evidence": {
+              "urls": [
+                "https://www.cloudtango.net/3cx/uk",
+                "https://www.croftmsp.com/partners/3cx",
+                "https://www.spitfire.co.uk/about/newsletters"
+              ],
+              "domains": [
+                "www.cloudtango.net",
+                "www.croftmsp.com",
+                "www.spitfire.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "strong"
+          },
+          {
+            "id": "m03-c-channel-consolidation",
+            "text": "The GB comms channel is consolidating around acquirers: LDC-backed Onecom acquired Gradwell Communications — whose portfolio included unified communications built on 3CX and Microsoft Teams plus its own hosted voice platform and SIP network — on 22 July 2025, in Onecom's thirteenth acquisition since 2020.",
+            "evidence": {
+              "urls": [
+                "https://www.ldc.co.uk/news/ldc-backed-communications-technology-provider-onecom-acquires-highly-respected-hosted-voice-sip-and-connectivity-company-gradwell-communications",
+                "https://gradwell.com/press-release-onecom-acquires-gradwell"
+              ],
+              "domains": [
+                "www.ldc.co.uk",
+                "gradwell.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2025-07-22"
+          }
+        ],
+        "status": "complete",
+        "archetypes": [
+          {
+            "id": "arch-3cx-licence-partner",
+            "name": "The 3CX licence partner defending a tier",
+            "roles": [
+              {
+                "part": "signs",
+                "needs": "To know what the partner actually keeps and on what terms, whether the contract sits with them or with the end customer, and who carries the one-off setup fee. None of that is answered in the facts file, so expect it as the first question and treat it as unanswered.",
+                "title": "Managing Director / Owner",
+                "seniority": "owner or board"
+              },
+              {
+                "part": "champions",
+                "needs": "A line item the existing account managers can raise inside a base they already own, with a per-seat price that works at 10–40 extensions and no seat minimum, and a reason to open the conversation that is not another platform migration.",
+                "title": "Sales Director / Head of Sales",
+                "seniority": "senior"
+              },
+              {
+                "part": "runs",
+                "needs": "Proof the recording feed is automated and scheduled rather than a manual upload, that QA rules and risk types can be configured per customer by an admin in Settings without raising a support ticket, and an honest account of what the engineering team has to do per tenant.",
+                "title": "Technical Director / Head of Service Delivery",
+                "seniority": "senior"
+              }
+            ],
+            "situation": "A GB reseller whose telephony practice is built on 3CX — typically Gold, Platinum or Titanium in the five-tier programme — selling and supporting the platform for SMB customers, often alongside SIP trunks and hosting. Its software income is a tier-based percentage of an annual licence that must be re-earned: tier is re-evaluated every six months against a revenue threshold, and community reports say the upper tiers now also require a share of revenue from new larger licences. So the firm is structurally pushed towards hunting new logos rather than deepening the base it already owns, and it has very little monthly recurring software revenue of its own between renewals. It is the one kind of buyer for whom Insights360 is a wired attach rather than a scoped project, because 3CX cloud and self-hosted both have an automated recording feed.",
+            "sizeRange": "Typically 10–150 employees; a 3CX install base in the tens to low hundreds of SMB customers, most of them well under 50 extensions",
+            "dominantPain": {
+              "id": "pain-3cx-margin-resets-annually",
+              "text": "The partner's 3CX software margin is a tier-based percentage of an annual licence — published by a UK distributor as 15% at Bronze rising to 35% at Titanium — and the tier itself has to be defended twice a year against a revenue threshold, with Affiliate status at 10% as the floor for anyone who slips. That makes the core product a transactional, once-a-year margin rather than a monthly recurring one, and 3CX's own guidance is that partners make their other money from hardware, trunks, hosting, configuration, training and management contracts — all of which are either commodity or labour. The partner therefore needs a per-seat monthly line it can attach to customers it already supports, without buying a licence forward to defend a tier.",
+              "evidence": {
+                "urls": [
+                  "https://ucreseller.co.uk/3cx-partner-levels",
+                  "https://www.3cx.com/partners",
+                  "https://www.reddit.com/r/3CX/comments/1o5oxfk/new_partner_requirements"
+                ],
+                "domains": [
+                  "ucreseller.co.uk",
+                  "www.3cx.com",
+                  "www.reddit.com"
+                ],
+                "primary": false
+              },
+              "accessedAt": "2026-09-11",
+              "confidence": "strong"
+            },
+            "openingAngle": "Lead on the shape of the revenue, not the technology: an attach that bills monthly per seat against a base they already support, on the one platform where the recording feed is already wired. Name the boundaries in the same breath — post-call only, analysis of recordings their customer's 3CX already makes, results the same day rather than in minutes, and no multi-customer view — because this buyer will test all four.",
+            "dealEconomics": {
+              "note": "List prices are taken from the facts file and are current. The year-one figures are derived arithmetic on that list, not quoted from any page. No partner margin, discount, deal-registration or white-label term exists in the facts file, so no partner economics are asserted here; the sales cycle is genuinely unknown.",
+              "plan": "Starter GBP 4.99 or Professional GBP 7.99 per seat per month, with 40 or 70 pooled analysed-call hours",
+              "factIds": [
+                "i360.price.per-seat-plans",
+                "i360.price.overage-per-hour",
+                "i360.price.setup-and-config-review-fees",
+                "i360.price.no-seat-minimum-no-annual-lock-in"
+              ],
+              "seatRange": "10–40 seats at a typical SMB end customer; no seat minimum applies",
+              "budgetLine": "Not a budget line for the partner — a resold service billed on to the end customer; the partner's own cost exposure is the setup and configuration-review fees, whose treatment in a channel deal is not stated anywhere in the facts file",
+              "confidence": "speculative",
+              "salesCycle": "Unknown. No source in this run establishes a partner recruitment-to-first-tenant cycle for this product; ask on the first call",
+              "yearOneValue": "Illustrative and derived from the published list: a 20-seat customer on Professional is about GBP 1,917.60 of subscription over twelve months plus GBP 1,280 setup and GBP 640 configuration review, so roughly GBP 3,837.60 of first-year list value per end customer; overage beyond the pooled allowance is GBP 0.50 per hour"
+            }
+          },
+          {
+            "id": "arch-msp-voice-mrr",
+            "name": "The IT MSP that added voice for recurring revenue",
+            "roles": [
+              {
+                "part": "signs",
+                "needs": "A proposition that survives contact with an SME finance director: a named business problem, a per-seat price that can be quoted openly, and no annual lock-in on the partner's side.",
+                "title": "Managing Director / Founder",
+                "seniority": "owner or board"
+              },
+              {
+                "part": "champions",
+                "needs": "To know which telephony platforms have a real automated feed today versus which are scoped per customer, because their base is mixed; and to know what cannot be promised — no real-time, no agent logins, no evidence packs — before it reaches a customer.",
+                "title": "Head of Product / Vendor Alliances",
+                "seniority": "senior"
+              },
+              {
+                "part": "runs",
+                "needs": "An attach that does not become a support queue: self-serve QA rules and categories the customer's own admin can edit, clear role behaviour (admin, supervisor, viewer only), and a truthful statement of when analysed calls actually appear.",
+                "title": "Service Desk Manager / Head of Managed Services",
+                "seniority": "middle"
+              }
+            ],
+            "situation": "A GB managed service provider whose core business is IT support and whose telephony line — 3CX, hosted PBX or a wholesale UCaaS platform — was added to grow monthly recurring revenue and stickiness. It has the recurring revenue it wanted, but the seats are undifferentiated, and its own trade press is telling it that the next job is to make AI concrete for SME customers rather than sell technology for its own sake. Panellists on the February 2026 Comms Dealer Channel Forecast put analytics that unlock call data at the top of the list of practical starting points, with attach rates already running in the mid-teens, and framed the shift required as moving from product selling to outcome selling.",
+            "sizeRange": "Typically 15–200 employees; a mixed IT and voice base of roughly 50–500 SMB customers, voice attached to a minority of them",
+            "dominantPain": {
+              "id": "pain-msp-ai-relevance-gap",
+              "role": "Business Support, KubeNet",
+              "text": "The MSP's customers are seeing a new AI product enter the market every week and are asking what actually adds value, while having, in the panel's words, the appetite for AI but not the budget to innovate for innovation's sake. The MSP has no packaged, outcome-shaped AI line it can put in front of a 20-person SME with a clear business need and a clear return, and the cultural shift required — from deploying systems to being measured on outcomes — is described by its peers as an enormous mindset change, sometimes requiring different skills. Meanwhile the analytics attach that peers report is growing at a 15–20 per cent attach rate to VoIP services is happening with or without them.",
+              "quote": "Our customers are seeing a new AI product enter the market each week to address a different business operation, and they want to know how these can really add value.",
+              "speaker": "Ross Ferguson",
+              "evidence": {
+                "urls": [
+                  "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector",
+                  "https://dimensionstechnologies.com/integrations/3cx"
+                ],
+                "domains": [
+                  "www.comms-dealer.com",
+                  "dimensionstechnologies.com"
+                ],
+                "primary": false
+              },
+              "accessedAt": "2026-09-11",
+              "confidence": "moderate",
+              "publishedAt": "2026-02-26"
+            },
+            "openingAngle": "Answer the question their own trade press is asking them: what is the concrete, outcome-shaped AI line for a 20-person SME. The answer is every ingested call transcribed and scored against the customer's own rules, with risk flags and coaching points, on a price a small customer can carry. Do not lead with AI as a category — the panel's own complaint is AI for AI's sake — and do not imply it works on any platform: name 3CX, OAK/ClarifyGo and RingCentral as wired and everything else as scoped per customer.",
+            "dealEconomics": {
+              "note": "Prices are from the facts file; the year-one comparison is derived arithmetic, not a quoted figure. Partner margin and who bears the setup fee are not stated in the facts file and are not assumed here.",
+              "plan": "Starter GBP 4.99 to Professional GBP 7.99 per seat per month with 40–70 pooled analysed-call hours",
+              "factIds": [
+                "i360.price.per-seat-plans",
+                "i360.price.setup-and-config-review-fees",
+                "i360.price.no-seat-minimum-no-annual-lock-in",
+                "i360.price.overage-per-hour"
+              ],
+              "seatRange": "10–50 seats per end customer across a mixed IT-and-voice base",
+              "budgetLine": "Resold service; for the MSP it sits alongside existing per-seat managed-service lines rather than in a capital budget",
+              "confidence": "speculative",
+              "salesCycle": "Unknown for this product and motion; not established by any source in this run",
+              "yearOneValue": "Illustrative and derived from the published list: a 10-seat customer on Starter is about GBP 598.80 of subscription over twelve months against GBP 1,920 of one-off setup and configuration-review fees, so year one is dominated by the one-offs at the small end of the base"
+            }
+          },
+          {
+            "id": "arch-pstn-migration-dealer",
+            "name": "The legacy dealer working a base against the 2027 clock",
+            "roles": [
+              {
+                "part": "signs",
+                "needs": "Revenue per customer that survives the switch-off, and confidence that adding a line now will not slow the migration they are already behind on.",
+                "title": "Managing Director / Commercial Director",
+                "seniority": "owner or board"
+              },
+              {
+                "part": "champions",
+                "needs": "Something to say at the migration conversation that is not price — a reason the new bill is worth more than the old one — and a per-seat figure small enough to sit beside seats and channels without derailing the upgrade.",
+                "title": "Head of Customer Base / Base Migration Manager",
+                "seniority": "senior"
+              },
+              {
+                "part": "runs",
+                "needs": "To know exactly what tenant provisioning and telephony wiring involve, what the configuration review at about month one is for, and that nothing in it competes for the engineering resource already committed to migration before January 2027.",
+                "title": "Provisioning / Project Manager",
+                "seniority": "middle"
+              },
+              {
+                "part": "champions",
+                "needs": "A one-sentence reason to raise it at the renewal or migration call, and a clear answer on where the customer's call data is processed — which is the EU (Frankfurt), not the UK.",
+                "title": "Account Manager",
+                "seniority": "junior to middle"
+              }
+            ],
+            "situation": "A GB telecoms dealer or reseller with a legacy WLR, ISDN or on-premise base it is migrating to All-IP before Openreach stops carrying voice on the PSTN at the end of 31 January 2027. Through 2026 this firm is consumed by migration: identifying services, contacting customers, arranging upgrades — work that its distributors say takes at least two months per base even for small estates, and that is being pulled forward by staged WLR price rises that will roughly double the cost of a legacy line between late 2025 and late 2026. The migration generates project revenue that stops, and the destination — SIP channels and hosted seats — is more comparable and easier to switch than what it replaced. This is the kind of buyer with the sharpest dated clock and the least free attention.",
+            "sizeRange": "Typically 10–100 employees; a base of 100–1,000 small-business customers, a shrinking share still on legacy lines",
+            "dominantPain": {
+              "id": "pain-dealer-race-to-the-bottom",
+              "role": "MD of Connectivity, Giacom",
+              "text": "Once the base is on All-IP, the dealer is selling a product that is easy to compare and easy to switch, and the margin it lived on for twenty years goes with the copper. Its own distribution is telling it plainly that the biggest risk after the switch-off is a race to the bottom on price, that providers relying only on connectivity margins will find it harder to grow and retain customers, and that the firms protecting margin are building value around the connection so the offer is harder to replace. The migration itself is one-off revenue against a hard deadline; what the dealer does not have is a recurring, differentiated line to put on the new bill — and the migration is itself the contract event at which such a line would naturally be introduced.",
+              "quote": "The biggest risk is falling into a race to the bottom on price.",
+              "speaker": "Dale Parkinson",
+              "evidence": {
+                "urls": [
+                  "https://www.comms-dealer.com/pstn-switch/pstn-switch-act-now",
+                  "https://www.safeonlinebilling.com/blog/pstn-switch-off-resellers-guide",
+                  "https://www.gov.uk/guidance/uk-transition-from-analogue-to-digital-landlines"
+                ],
+                "domains": [
+                  "www.comms-dealer.com",
+                  "www.safeonlinebilling.com",
+                  "www.gov.uk"
+                ],
+                "primary": true
+              },
+              "accessedAt": "2026-09-11",
+              "confidence": "strong",
+              "publishedAt": "2026-05-27"
+            },
+            "openingAngle": "Attach to the migration conversation rather than competing with it: when the customer's bill is being rebuilt anyway, that is the moment a per-seat analysis line is easiest to add. Be explicit that this is post-call analysis of recordings their new platform already makes — not recording, not retention, not a compliance evidence pack — because this buyer has spent twenty years selling line rental and will hear 'call recording' unless told otherwise.",
+            "dealEconomics": {
+              "note": "Prices from the facts file; year-one figures are derived arithmetic. Whether a partner can mark up, bundle or waive the setup fee is unknown and must not be implied.",
+              "plan": "Starter GBP 4.99 per seat per month with 40 pooled hours, moving to Professional GBP 7.99 with 70 hours where call volume is higher",
+              "factIds": [
+                "i360.price.per-seat-plans",
+                "i360.price.setup-and-config-review-fees",
+                "i360.price.no-seat-minimum-no-annual-lock-in"
+              ],
+              "seatRange": "8–30 seats per migrated end customer",
+              "budgetLine": "Resold monthly service on the customer's comms bill; for the dealer the exposure is the one-off fees, whose channel treatment is not stated in the facts file",
+              "confidence": "speculative",
+              "salesCycle": "Unknown; the only dated external constraint found is the 31 January 2027 switch-off and the distributor's recommendation that partners have the bulk of their legacy base on All-IP by September 2026",
+              "yearOneValue": "Illustrative and derived from the published list: a 15-seat customer on Starter is about GBP 898.20 of subscription over twelve months plus GBP 1,280 setup and GBP 640 configuration review; the month-to-month terms and absence of any seat minimum mean nothing is committed beyond the current month"
+            }
+          },
+          {
+            "id": "arch-analytics-attach-incumbent",
+            "name": "The reseller already selling call analytics",
+            "roles": [
+              {
+                "part": "champions",
+                "needs": "A clear statement of where this sits relative to the call-reporting product they already sell — transcript, QA score against the customer's own rules, sentiment, risk flags and coaching points, after the call — and an equally clear statement of what it is not: no real-time, no in-app playback, no recording.",
+                "title": "Product Manager / Head of Portfolio",
+                "seniority": "middle to senior"
+              },
+              {
+                "part": "signs",
+                "needs": "Evidence the attach can be repeated across the base rather than sold one deal at a time, and a frank answer on branding and multi-customer visibility, neither of which the facts file supports.",
+                "title": "Group Sales & Marketing Director",
+                "seniority": "senior"
+              },
+              {
+                "part": "runs",
+                "needs": "The per-tenant setup reality: one scorecard per tenant, categories and risk types configured in Settings, no team-level scorecards, and a truthful latency expectation of the same day rather than minutes.",
+                "title": "Head of Professional Services / Presales",
+                "seniority": "senior"
+              }
+            ],
+            "situation": "A GB reseller or service provider that already attaches a call-analytics or call-reporting product to its telephony base — wallboards, queue statistics, missed-call reporting — and has proven the attach motion works commercially. One vendor case study describes attaching analytics to roughly 80% of a UK partner's hosted base and lifting that partner's recurring analytics revenue by about 15% through a joint programme against the remainder. This firm has already trained its customers to look at call data and has a product manager who owns the attach. Its problem is one layer up: everything it sells counts calls and none of it reads them, and the same customers are now asking quality and AI questions the incumbent dashboard cannot answer.",
+            "sizeRange": "Typically 20–250 employees; a hosted or 3CX base of several hundred to a few thousand seats with an existing analytics attach",
+            "dominantPain": {
+              "id": "pain-analytics-counts-not-content",
+              "text": "The incumbent analytics answers how many calls, when the peaks are, how long people waited and who missed what — activity, not content. Partners are told by vendors in this space that standard platform reporting gives some answers but lacks the clarity to act, and their own partner testimonials frame the ambition as analytics that drive decisions rather than display data. When the end customer asks what was actually said on the calls that went wrong, whether agents followed the process, or which conversations carry risk, the partner has nothing to sell and no evidence to point at — and the alternatives marketed to them in this space are pitched as white-label, multi-tenant platforms, which is the shape this buyer expects any new attach to take.",
+              "evidence": {
+                "urls": [
+                  "https://dimensionstechnologies.com/integrations/3cx",
+                  "https://akixi.com/call-analytics-provide-customer-insight-and-increased-revenue",
+                  "https://tollring.com/news/selling-informal-contact-centres-solutions-to-smes-with-customer-facing-teams"
+                ],
+                "domains": [
+                  "dimensionstechnologies.com",
+                  "akixi.com",
+                  "tollring.com"
+                ],
+                "primary": false
+              },
+              "accessedAt": "2026-09-11",
+              "confidence": "strong"
+            },
+            "openingAngle": "Position against the ceiling of their current product, never against a named vendor: they can already tell a customer how many calls were missed; they cannot tell them what happened inside the calls that were answered. Insights360 scores every ingested call against the customer's own QA rules and flags risk types the customer defines. Concede the two gaps immediately — no white-label capability is stated in the facts file, and there is no group or cross-tenant view — because this buyer knows the category and will ask within minutes.",
+            "dealEconomics": {
+              "note": "Prices from the facts file; the year-one and overage arithmetic is derived. The 80% attach and 15% revenue uplift figures belong to another vendor's case study and are evidence about the motion, not about Insights360 — they must never be presented as this product's results.",
+              "plan": "Professional GBP 7.99 or Enterprise GBP 9.99 per seat per month, with 70 or 100 pooled analysed-call hours",
+              "factIds": [
+                "i360.price.per-seat-plans",
+                "i360.price.overage-per-hour",
+                "i360.price.setup-and-config-review-fees"
+              ],
+              "seatRange": "20–100 seats per end customer, concentrated in the customers where the existing analytics attach already landed",
+              "budgetLine": "Replaces or sits above an existing per-seat analytics line on the partner's own price list",
+              "confidence": "speculative",
+              "salesCycle": "Unknown for this product; the comparable attach programme described in the case study ran as a joint go-to-market programme rather than a single sale",
+              "yearOneValue": "Illustrative and derived from the published list: a 40-seat customer on Professional is about GBP 3,835.20 of subscription over twelve months plus GBP 1,280 setup and GBP 640 configuration review; pooled hours matter most for this kind of buyer because their customers are the highest-volume in the base, and analysis beyond the allowance is GBP 0.50 per hour"
+            }
+          },
+          {
+            "id": "arch-informal-contact-centre-specialist",
+            "name": "The reseller specialising in small customer-facing teams",
+            "roles": [
+              {
+                "part": "signs",
+                "needs": "A proposition that fits customers of 5–30 seats commercially — no seat minimum, no annual commitment — and does not require them to become a contact-centre specialist to sell it.",
+                "title": "Managing Director / Owner",
+                "seniority": "owner or board"
+              },
+              {
+                "part": "champions",
+                "needs": "To be able to demonstrate a scorecard built from the customer's own rules and a risk-type list the customer defines, and to know the honest boundary: the flagged calls appear on a list, there is no reviewer assignment, no open or resolved status and no SLA tracking.",
+                "title": "Solutions Consultant / Presales",
+                "seniority": "middle to senior"
+              },
+              {
+                "part": "runs",
+                "needs": "A short, concrete opening for accounts they speak to about handsets, and confidence that agents will not be asked to log in — because agents are not users of this product at all.",
+                "title": "Account Manager",
+                "seniority": "junior to middle"
+              }
+            ],
+            "situation": "A GB reseller whose practice has grown around SMB customers with customer-facing teams — what the analytics vendors call the informal contact centre, defined by one as 5–30 seats across sales, service, finance and support, where staff take and make calls alongside other work but still carry service-level or performance targets. These customers need the same management information as a formal contact centre and have none of the apparatus: no QA function, no scorecards, no reviewer. The reseller sells them queues, IVR, call recording and reporting, and is the trusted adviser when something goes wrong on a call. It is the kind of buyer whose end customers sit squarely in the 5–250-seat band the product is built for.",
+            "sizeRange": "Typically 10–120 employees; a base of 50–400 SMB customers, a meaningful minority running customer-facing teams of 5–30 seats",
+            "dominantPain": {
+              "id": "pain-no-qa-apparatus-at-smb-scale",
+              "text": "The customer has service-level expectations and recordings, and no way to use either. In operations relying on manual quality processes, listening to every call is impossible, and small cost-sensitive operations are exactly where one-to-one monitoring and training is expected but unfunded — so review, where it happens at all, is the odd recording pulled after a complaint rather than anything systematic. For the reseller that means the recurring conversation with these accounts is about handsets and queues, and the higher-value conversation about how calls are actually handled belongs to nobody, because every product that does it is built and priced for contact centres far larger than 30 seats.",
+              "evidence": {
+                "urls": [
+                  "https://tollring.com/news/selling-informal-contact-centres-solutions-to-smes-with-customer-facing-teams",
+                  "https://info.enghouseinteractive.com/rs/547-FBA-390/images/enghouse-contactbabel-uk-contact-centre-dmg-2019-20.pdf"
+                ],
+                "domains": [
+                  "tollring.com",
+                  "info.enghouseinteractive.com"
+                ],
+                "primary": false
+              },
+              "accessedAt": "2026-09-11",
+              "confidence": "moderate"
+            },
+            "openingAngle": "Speak in the language these customers already use — customer-facing teams with targets and no QA function — and put the coverage claim carefully: every call the pipeline ingests is transcribed and scored against the customer's own rules, rather than the handful someone pulls after a complaint. Pair it with what is not there: no listening inside the product, no agent portal, no reviewer workflow. For this buyer the credibility of the boundary is what makes the coverage claim believable.",
+            "dealEconomics": {
+              "note": "Prices from the facts file; all year-one and break-even figures are derived arithmetic, not quoted from any page. The product's own ICP guidance treats sub-5-seat operations as out of scope, and the derived arithmetic above is consistent with that.",
+              "plan": "Starter GBP 4.99 with 40 pooled hours for the smallest teams; Professional GBP 7.99 with 70 hours where call handling is the main job",
+              "factIds": [
+                "i360.price.per-seat-plans",
+                "i360.price.setup-and-config-review-fees",
+                "i360.price.no-seat-minimum-no-annual-lock-in",
+                "i360.price.overage-per-hour"
+              ],
+              "seatRange": "5–30 seats per end customer, matching the informal contact-centre band",
+              "budgetLine": "Sits on the end customer's monthly comms bill alongside seats and call recording, not in a contact-centre software budget",
+              "confidence": "speculative",
+              "salesCycle": "Unknown; no source in this run establishes a cycle for SMB customer-facing-team deals via a partner",
+              "yearOneValue": "Illustrative and derived from the published list: a 25-seat customer on Professional is about GBP 2,397 of subscription over twelve months plus GBP 1,280 setup and GBP 640 configuration review; below roughly 10 seats the GBP 1,920 of one-off fees exceeds the first year's subscription, which is the practical floor for this kind of buyer"
+            }
+          }
+        ]
+      },
+      "m09": {
+        "body": "## How to read this module\n\nThis is a channel pack, so the angles below sell the attach, not the product in the abstract. Every archetype's opening line has to survive being said by a reseller's own account manager, about their own margin, before it ever reaches an end customer. The five kinds of buyer differ mainly in what event triggers the conversation - a tier review, a renewal, a migration deadline, a portfolio gap, or a customer who has outgrown ad-hoc call spot-checks - and the angles below are ordered to that event.\n\nThree constraints cut across every archetype and are fixed, not negotiable by campaign or content:\n\n1. Coverage is stated as \"every call we ingest\", never \"100% of calls\" or \"every call you make\". The pipeline can silently drop calls on failure paths, so a literal completeness promise is not one the facts support. The comparison still lands: whatever share of calls a reseller's customer reviews manually today, the rest goes unread - this reads it.\n2. The boundary is the trust move, not the caveat. Naming what the product does not do matters more in a channel pack than a direct one, because the partner repeats these claims to their own customer under their own name. Every archetype below carries at least one angle built entirely from a boundary: post-call not real-time, analyses recordings rather than records them, no partner console.\n3. No partner commercial term may be implied. Margin, discount, white-label rights, deal registration and who holds the tenant are all absent from the facts file. Angles are written so only the product's list price and shape are asserted, never the reseller's own margin on top of it.\n\n## Why the angle sets differ by kind of buyer\n\nThe 3CX licence partner and the PSTN migration dealer both work against a dated external clock - a six-monthly tier review and the 31 January 2027 switch-off respectively - so their strongest angles are timing angles: attach at the moment the base is already being touched. The IT MSP and the informal-contact-centre specialist are answering a portfolio question their own trade press is putting to them - what is the concrete, funded thing to sell a 20-person SME - so their strongest angles name the gap in what they currently sell rather than a date. The analytics-attach incumbent already has the commercial motion proven by a peer (one case study describes an 80% attach rate across a partner's hosted base); their angle set leads with the ceiling of what they sell today rather than with attach economics from scratch.\n\nAcross all five, the angle that appears lowest-ranked but is never optional is the boundary-led one: what a partner cannot yet tell their customer (no group view, no white-label, no real-time, no branded portal). Ranking it last reflects sequencing in a conversation, not importance - a reseller who is not told this early will surface it themselves mid-deal, in front of their own customer, which is the more expensive place to learn it.\n\n## What the do/don't tables protect against\n\nMost entries below exist because a nearby but wrong phrase is one word away from the right one: \"compatible with\" versus \"automated feed with\"; \"post-call\" versus \"near-real-time\"; \"internally audited\" versus \"pen-tested\"; \"EU (Frankfurt)\" versus \"UK hosting\". In a channel pack these substitutions are worse than in direct outreach, because the partner's own sales collateral will often copy the rep's wording verbatim into a customer-facing deck.\n\n## Verbatim sources\n\nThe quotes below are drawn from UK channel trade press (a February 2026 Comms Dealer panel and a May 2026 Comms Dealer feature), one analytics vendor's published case study and one competing vendor's partner-testimonial page. None are Insights360 customers or a live pricing source; they are evidence of how resellers and their channel peers talk about the attach motion, the AI-relevance question and margin risk - used to calibrate tone and vocabulary, never as claims about this product.",
+        "claims": [
+          {
+            "id": "m09-c-coverage-wording",
+            "text": "Product wording must say \"every call we ingest\" rather than \"100% of calls\" or \"every call you make\", because the pipeline can silently lose calls on failure paths and a literal completeness promise is not supported.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, id i360.product.every-ingested-call-analysed, whose note instructs exactly this wording and bars a literal 100% promise."
+          },
+          {
+            "id": "m09-c-no-competitor-naming",
+            "text": "Outreach and content never name a competitor; the product differentiates against the status quo (the reseller's current answer of a recording archive or nothing), not against a named rival.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Knowledge set, brand-voice article, 'Notes for the campaign team': competitors are never named; differentiate against the status quo."
+          },
+          {
+            "id": "m09-c-cta-fixed-set",
+            "text": "Calls to action are drawn from a fixed set - Book a demo, Set up a free trial, Arrange a demo, Try interactive demo - with no exclamation marks and no consumer-SaaS phrasing such as 'Start for free!' or 'Sign up now'.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Knowledge set, brand-voice article, 'Conversion conventions' section."
+          },
+          {
+            "id": "m09-c-hosting-wording",
+            "text": "Hosting must be described as EU (Frankfurt), never as UK hosting or 'never leaves the UK'; the brand-voice document's own example line to that effect is superseded by the facts file.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, id i360.product.hosted-eu-frankfurt, whose note explicitly corrects the brand-voice article's example."
+          },
+          {
+            "id": "m09-c-no-partner-console-wording",
+            "text": "No partner-facing message may imply a group or cross-tenant dashboard, a branded or white-label portal, or a multi-customer view; none exists and none is on the roadmap.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file v2, id i360.boundary.no-group-or-cross-tenant-dashboard, and absence of any white-label fact across facts v2."
+          },
+          {
+            "id": "m09-c-no-transformation-language",
+            "text": "Transformation and empty-adjective language - leverage, synergy, holistic, end-to-end solution, ecosystem, best-in-class, revolutionise, unlock, empower, cutting-edge, innovative, disruptive, and decorative use of 'AI-powered' - is not used in outbound copy.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Knowledge set, brand-voice article, 'Words we never use' section."
+          }
+        ],
+        "status": "complete",
+        "perArchetype": [
+          {
+            "angles": [
+              {
+                "id": "a-3cx-1-monthly-not-annual",
+                "rank": 1,
+                "text": "Your 3CX margin resets every six months and pays out once a year; this is a per-seat line that bills every month against a base you already support - no licence to buy forward to defend a tier.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-3cx-2-plug-in-not-project",
+                "rank": 2,
+                "text": "3CX is one of only two platforms with a wired, scheduled recording feed - no manual upload, no per-customer integration project. For your 3CX base this is an attach, not a build.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-3cx-3-no-seat-floor",
+                "rank": 3,
+                "text": "No seat minimum and no annual commitment, from GBP 4.99 a seat a month - the one shape that prices onto a 10-to-40-extension SMB customer rather than pricing them out.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-3cx-4-renewal-moment",
+                "rank": 4,
+                "text": "The extension renewal call is the natural place to introduce this: it makes the account harder to walk away from without reopening the whole conversation about your value beyond the licence.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "speculative"
+              },
+              {
+                "id": "a-3cx-5-what-we-cannot-promise",
+                "rank": 5,
+                "text": "Before you take this to a customer: it is post-call, not real-time; it does not record calls, it analyses what 3CX already records; and there is no cross-tenant view for you to manage several customers from one screen.",
+                "channelFit": [
+                  "linkedin",
+                  "email"
+                ],
+                "confidence": "moderate"
+              }
+            ],
+            "doDont": [
+              {
+                "use": "\"the same automated 3CX feed you already rely on\"",
+                "why": "only 3CX, OAK/ClarifyGo and RingCentral have a wired, automated feed; every other platform is scoped per customer at onboarding.",
+                "avoid": "\"integrates with 3CX\" applied loosely across platforms, or any claim of an automated feed for Teams, Cisco, Avaya, Mitel or 8x8"
+              },
+              {
+                "use": "\"a monthly per-seat line that adds to what you already support\"",
+                "why": "no partner margin, discount or white-label term exists in the facts file.",
+                "avoid": "any figure for what the partner keeps, any discount tier, or 'white-label this under your own brand'"
+              },
+              {
+                "use": "\"results the same day, sometimes within a couple of hours\"",
+                "why": "the dashboard sync runs hourly and ingestion polls roughly every 15 minutes; nothing appears during a live call.",
+                "avoid": "\"real-time\" or \"instant\" results"
+              },
+              {
+                "use": "\"see it against a single tenant, with the same QA rules applied to each customer you configure\"",
+                "why": "there is no group or cross-tenant view; each tenant is separate.",
+                "avoid": "\"manage all your customers from one dashboard\""
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "v-3cx-lockhart",
+                "role": "Head of Product, Nebula",
+                "text": "A UK channel product head told a February 2026 Comms Dealer panel that his company sees a 15-20 per cent attach rate from analytics to VoIP services and that it is growing.",
+                "quote": "The obvious place for MSPs to start is getting the basics right around any analytics that unlock call data.",
+                "speaker": "James Lockhart",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-3cx-christian",
+                "role": "VP Marketing, Akixi",
+                "text": "An analytics vendor's marketing VP told the same panel that contract renewal is the moment to introduce analytics, because it makes the partner more integrated into the customer's business.",
+                "quote": "By using contract renewal to introduce AI and analytics, you can become much more integrated into their business and the ways that they add value to their customers.",
+                "speaker": "John Christian",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-3cx-brady",
+                "role": "Group Sales & Marketing Director, Redcentric",
+                "text": "A distribution partner's sales and marketing director described a joint analytics go-to-market programme that broadened understanding of the customer and increased pull-through of additional products across the hosted telephony base.",
+                "quote": "The Akixi go-to-market program and Intelligence Hub have broadened our understanding of the customer, enabling Redcentric to increase sales and pull-through opportunities for additional products.",
+                "speaker": "Kieran Brady",
+                "evidence": {
+                  "urls": [
+                    "https://akixi.com/call-analytics-provide-customer-insight-and-increased-revenue"
+                  ],
+                  "domains": [
+                    "akixi.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2024-02-15"
+              }
+            ],
+            "vocabulary": [
+              "automated feed",
+              "wired",
+              "per seat per month",
+              "no seat minimum",
+              "month to month",
+              "pooled hours",
+              "attach",
+              "renewal",
+              "tier",
+              "every call we ingest",
+              "QA rules",
+              "risk flags",
+              "post-call"
+            ],
+            "archetypeId": "arch-3cx-licence-partner"
+          },
+          {
+            "angles": [
+              {
+                "id": "a-msp-1-concrete-ai-line",
+                "rank": 1,
+                "text": "Your customers are asking what actually adds value from the new AI product every week; this is a concrete answer - every ingested call transcribed and scored against the customer's own rules, priced to carry a 20-seat SME.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-msp-2-outcome-not-feature",
+                "rank": 2,
+                "text": "Not another platform to sell on features - a line with a stated price and a stated outcome: fewer unread calls, a scorecard the customer can point to.",
+                "channelFit": [
+                  "linkedin"
+                ],
+                "confidence": "speculative"
+              },
+              {
+                "id": "a-msp-3-fits-the-mixed-base",
+                "rank": 3,
+                "text": "Works as a real attach on 3CX, OAK/ClarifyGo and RingCentral today; on everything else in your base it is a scoped connector at onboarding, not a plug-and-play claim.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-msp-4-no-lock-in-to-pilot",
+                "rank": 4,
+                "text": "No annual commitment and no seat minimum - low enough risk to pilot with one customer in your base before deciding whether to make it a standard line.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-msp-5-name-the-limits",
+                "rank": 5,
+                "text": "It is not real-time coaching and there is no agent-facing app - it is a supervisor and admin tool, so the sale is to whoever owns quality, not to the floor.",
+                "channelFit": [
+                  "linkedin",
+                  "email"
+                ],
+                "confidence": "moderate"
+              }
+            ],
+            "doDont": [
+              {
+                "use": "\"a concrete, priced answer to the AI question your customers keep asking\"",
+                "why": "the same channel panel that names this opportunity also warns SMEs have appetite for AI but not budget for innovation for its own sake; lead with the business need, not the technology label.",
+                "avoid": "leading with \"AI-powered\" as the sell"
+              },
+              {
+                "use": "\"scored against the customer's own QA rules, editable by their admin in Settings\"",
+                "why": "there is no agent self-service or agent login; only admin, supervisor and viewer roles exist.",
+                "avoid": "implying agents log in or see their own scores directly"
+              },
+              {
+                "use": "\"works as a wired attach on 3CX, OAK/ClarifyGo and RingCentral\"",
+                "why": "those platforms have no automated feed; any connector for them is scoped and built per customer.",
+                "avoid": "\"works with any phone system\" or naming Teams, Cisco, Avaya, Mitel or 8x8 as integrated"
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "v-msp-ferguson",
+                "role": "Business Support, KubeNet",
+                "text": "An MSP's own business-support lead described customers facing a new AI product every week and asking what genuinely adds value.",
+                "quote": "Our customers are seeing a new AI product enter the market each week to address a different business operation, and they want to know how these can really add value.",
+                "speaker": "Ross Ferguson",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-msp-easton",
+                "role": "Head of Business Development, Tollring",
+                "text": "A channel leader on the same panel said SMEs want a clear business need and a clear return, not innovation for its own sake.",
+                "quote": "We are seeing SMEs have the appetite for AI but not the budget to innovate for innovation's sake. There must be a clear business need and clear RoI.",
+                "speaker": "Greg Easton",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-msp-lockhart",
+                "role": "Head of Product, Nebula",
+                "text": "The same product head noted some partners now attach analytics as part of the proposition to everything they sell.",
+                "quote": "The obvious place for MSPs to start is getting the basics right around any analytics that unlock call data.",
+                "speaker": "James Lockhart",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              }
+            ],
+            "vocabulary": [
+              "outcome-driven",
+              "concrete",
+              "business need",
+              "clear return",
+              "every call we ingest",
+              "QA rules",
+              "risk flags",
+              "supervisor",
+              "admin",
+              "month to month",
+              "scoped per customer"
+            ],
+            "archetypeId": "arch-msp-voice-mrr"
+          },
+          {
+            "angles": [
+              {
+                "id": "a-pstn-1-attach-at-migration",
+                "rank": 1,
+                "text": "When you rebuild a customer's bill for All-IP, that is the moment to add a line, not compete with the migration - a per-seat analysis service that rides the same conversation.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "speculative"
+              },
+              {
+                "id": "a-pstn-2-avoid-race-to-bottom",
+                "rank": 2,
+                "text": "Your own distribution is warning that connectivity-only margin is a race to the bottom after the switch-off; this is a differentiated line on the new bill, not another commodity SIP channel.",
+                "channelFit": [
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-pstn-3-not-recording",
+                "rank": 3,
+                "text": "This is not call recording and not retention - it analyses the recordings the new platform already makes. Worth saying plainly, because 'recording' is the word this base has heard for twenty years.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-pstn-4-small-per-seat-add",
+                "rank": 4,
+                "text": "From GBP 4.99 a seat a month with no annual lock-in - small enough to sit beside the new seats and channels without derailing the upgrade decision.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-pstn-5-data-location",
+                "rank": 5,
+                "text": "If asked where the data sits: EU (Frankfurt), not the UK, and not the US - worth having the honest answer ready before the customer asks.",
+                "channelFit": [
+                  "linkedin",
+                  "email"
+                ],
+                "confidence": "moderate"
+              }
+            ],
+            "doDont": [
+              {
+                "use": "\"analyses the calls your new platform already records\"",
+                "why": "Insights360 does not record calls and is not a MiFID or retention product; this base has sold line rental and recording for two decades and will default to that word unless corrected.",
+                "avoid": "\"call recording service\" or \"voice retention\""
+              },
+              {
+                "use": "\"a differentiated line on the rebuilt bill\"",
+                "why": "the migration itself is project work against the 31 January 2027 deadline; this is an addition to the post-migration bill, not part of the migration project.",
+                "avoid": "positioning this as competing for the same migration budget or timeline"
+              },
+              {
+                "use": "\"EU (Frankfurt)\"",
+                "why": "the application and pipeline run in AWS eu-central-1 and Vercel's Frankfurt region; there is no UK hosting claim to make.",
+                "avoid": "\"UK hosting\" or \"never leaves the UK\""
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "v-pstn-parkinson",
+                "role": "MD of Connectivity, Giacom",
+                "text": "A distributor's connectivity managing director warned that after the switch-off, partners relying only on connectivity margin will find it harder to grow and retain customers.",
+                "quote": "The biggest risk is falling into a race to the bottom on price. Broadband on its own is becoming easier to compare and switch, and providers who rely only on connectivity margins will find it harder to grow and retain customers.",
+                "speaker": "Dale Parkinson",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/pstn-switch/pstn-switch-act-now"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-05-27"
+              },
+              {
+                "id": "v-pstn-christian",
+                "role": "VP Marketing, Akixi",
+                "text": "A vendor marketing VP argued contract-touch moments - which for this kind of buyer means the migration itself - are the natural point to introduce analytics.",
+                "quote": "By using contract renewal to introduce AI and analytics, you can become much more integrated into their business and the ways that they add value to their customers.",
+                "speaker": "John Christian",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-pstn-easton",
+                "role": "Head of Business Development, Tollring",
+                "text": "A channel leader's reminder that SME budget follows clear business need applies as much to a migrated customer's post-switch bill as to a new AI pitch.",
+                "quote": "We are seeing SMEs have the appetite for AI but not the budget to innovate for innovation's sake. There must be a clear business need and clear RoI.",
+                "speaker": "Greg Easton",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              }
+            ],
+            "vocabulary": [
+              "All-IP",
+              "migration",
+              "the new bill",
+              "per seat per month",
+              "no annual lock-in",
+              "analyses recordings",
+              "EU (Frankfurt)",
+              "differentiated line",
+              "month to month"
+            ],
+            "archetypeId": "arch-pstn-migration-dealer"
+          },
+          {
+            "angles": [
+              {
+                "id": "a-inc-1-beyond-counting",
+                "rank": 1,
+                "text": "You can already tell a customer how many calls were missed and when the peaks were. This tells them what happened inside the calls that were answered.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-inc-2-scores-not-just-volume",
+                "rank": 2,
+                "text": "Every ingested call scored against the customer's own QA rules, with configurable risk flags and coaching points - content analysis to sit above activity reporting, not replace it.",
+                "channelFit": [
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-inc-3-concede-the-gap",
+                "rank": 3,
+                "text": "Two things to know before you position this against what you already sell: there is no white-label capability stated anywhere, and there is no group or cross-tenant view - so this adds a layer, it does not become your branded platform.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-inc-4-repeatable-attach",
+                "rank": 4,
+                "text": "Peers report analytics attach running at 15-20 per cent of a VoIP base and growing; the commercial motion of adding a second, deeper analytics line to an already-analytics-literate base is proven, even if the results here are not.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "speculative"
+              },
+              {
+                "id": "a-inc-5-same-day-not-instant",
+                "rank": 5,
+                "text": "Results land the same day, typically within a couple of hours of the call ending - this product is post-call, not real-time, so worth setting that expectation once alongside your existing reporting.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              }
+            ],
+            "doDont": [
+              {
+                "use": "\"a layer above the call-volume reporting you already sell\"",
+                "why": "no white-label or rebranding capability is stated in the facts file; positioning it as a replacement risks the partner's existing revenue line.",
+                "avoid": "\"replaces your existing analytics\" or any implication this becomes a white-label platform"
+              },
+              {
+                "use": "\"the 15-20 per cent attach rate other partners report on VoIP services\" (attributed to the source, not claimed as this product's result)",
+                "why": "the attach-rate and case-study figures found in this run belong to other vendors' programmes; no case-study numbers exist for this product.",
+                "avoid": "presenting another vendor's attach-rate or revenue-uplift figures as Insights360's own results"
+              },
+              {
+                "use": "\"one QA rule set per tenant, configured by the customer's admin\"",
+                "why": "teams are not a first-class entity in the interface and there is no cross-tenant view.",
+                "avoid": "\"per-team scorecards\" or \"cross-customer comparison\""
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "v-inc-brady",
+                "role": "Group Sales & Marketing Director, Redcentric",
+                "text": "A partner's sales and marketing director credited a joint analytics go-to-market programme with broadening customer understanding and increasing pull-through revenue.",
+                "quote": "The Akixi go-to-market program and Intelligence Hub have broadened our understanding of the customer, enabling Redcentric to increase sales and pull-through opportunities for additional products.",
+                "speaker": "Kieran Brady",
+                "evidence": {
+                  "urls": [
+                    "https://akixi.com/call-analytics-provide-customer-insight-and-increased-revenue"
+                  ],
+                  "domains": [
+                    "akixi.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2024-02-15"
+              },
+              {
+                "id": "v-inc-virtualpbx",
+                "role": "Channel Partner",
+                "text": "A reseller using a competing white-label analytics platform framed the value as analytics that drive decisions rather than display data - the exact ceiling this kind of buyer is up against with volume-only reporting.",
+                "quote": "Dimensions means we can finally offer our customers analytics that actually drive decisions, not just display data.",
+                "speaker": "Virtual PBX",
+                "evidence": {
+                  "urls": [
+                    "https://dimensionstechnologies.com/integrations/3cx"
+                  ],
+                  "domains": [
+                    "dimensionstechnologies.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak"
+              },
+              {
+                "id": "v-inc-christian",
+                "role": "VP Marketing, Akixi",
+                "text": "A vendor marketing VP's argument that analytics deepens account integration applies directly to a partner already selling one analytics layer and considering a second.",
+                "quote": "By using contract renewal to introduce AI and analytics, you can become much more integrated into their business and the ways that they add value to their customers.",
+                "speaker": "John Christian",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              }
+            ],
+            "vocabulary": [
+              "content analysis",
+              "activity reporting",
+              "QA rules",
+              "risk flags",
+              "coaching points",
+              "same day",
+              "a couple of hours",
+              "layer",
+              "attach"
+            ],
+            "archetypeId": "arch-analytics-attach-incumbent"
+          },
+          {
+            "angles": [
+              {
+                "id": "a-icc-1-name-the-gap",
+                "rank": 1,
+                "text": "Customer-facing teams of five to thirty with service targets and no QA function - the customers you already know best have this gap, and nothing built for a 250-seat contact centre prices onto them.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-icc-2-no-floor",
+                "rank": 2,
+                "text": "No seat minimum, from GBP 4.99 a seat a month - it prices onto a 10-seat team the same way it would a 100-seat one.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-icc-3-every-call-not-the-complaint-pull",
+                "rank": 3,
+                "text": "Instead of pulling the odd recording after a complaint, every call the pipeline ingests is transcribed and scored against rules the customer sets themselves.",
+                "channelFit": [
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-icc-4-simple-roles",
+                "rank": 4,
+                "text": "Nothing for the team to log into - admin, supervisor and viewer only. This is a management tool for the person who already owns quality, not a new system for the whole team to learn.",
+                "channelFit": [
+                  "email",
+                  "linkedin"
+                ],
+                "confidence": "moderate"
+              },
+              {
+                "id": "a-icc-5-first-year-honest",
+                "rank": 5,
+                "text": "Worth setting expectations on the one-off setup and configuration-review fees before the seat count makes the case on its own - at the smallest team sizes the one-offs are the larger number in year one.",
+                "channelFit": [
+                  "email"
+                ],
+                "confidence": "speculative"
+              }
+            ],
+            "doDont": [
+              {
+                "use": "\"customer-facing teams with service targets and no QA function\"",
+                "why": "this buyer's customers do not think of themselves as running a contact centre; the situation, not the category label, is what lands.",
+                "avoid": "\"contact centre\" as the default label for a 10-seat sales-and-service team"
+              },
+              {
+                "use": "\"a scorecard built from the customer's own rules\"",
+                "why": "the product is post-call only; nothing happens during a live call.",
+                "avoid": "implying live monitoring, whisper coaching or in-call alerts"
+              },
+              {
+                "use": "\"a list of calls that need review\"",
+                "why": "the needs-review list has no reviewer assignment, no open/resolved status and no SLA tracking - it is a list, not a workflow.",
+                "avoid": "\"a review workflow\" with assignment, status or SLA tracking"
+              }
+            ],
+            "verbatim": [
+              {
+                "id": "v-icc-easton",
+                "role": "Head of Business Development, Tollring",
+                "text": "A channel leader's observation that SMEs need a clear business case applies directly to a customer who has never funded a QA function before.",
+                "quote": "We are seeing SMEs have the appetite for AI but not the budget to innovate for innovation's sake. There must be a clear business need and clear RoI.",
+                "speaker": "Greg Easton",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-icc-ferguson",
+                "role": "Business Support, KubeNet",
+                "text": "An MSP's own team described customers wanting to know what a new tool really adds - the same question a 15-seat customer-facing team asks before funding a QA function for the first time.",
+                "quote": "Our customers are seeing a new AI product enter the market each week to address a different business operation, and they want to know how these can really add value.",
+                "speaker": "Ross Ferguson",
+                "evidence": {
+                  "urls": [
+                    "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector"
+                  ],
+                  "domains": [
+                    "www.comms-dealer.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak",
+                "publishedAt": "2026-02-26"
+              },
+              {
+                "id": "v-icc-virtualpbx",
+                "role": "Channel Partner",
+                "text": "The same framing a competing vendor uses with its partners - analytics that drive decisions rather than display data - is exactly the promise an informal-contact-centre customer needs made concrete at their scale.",
+                "quote": "Dimensions means we can finally offer our customers analytics that actually drive decisions, not just display data.",
+                "speaker": "Virtual PBX",
+                "evidence": {
+                  "urls": [
+                    "https://dimensionstechnologies.com/integrations/3cx"
+                  ],
+                  "domains": [
+                    "dimensionstechnologies.com"
+                  ],
+                  "primary": false
+                },
+                "accessedAt": "2026-09-11",
+                "confidence": "weak"
+              }
+            ],
+            "vocabulary": [
+              "customer-facing teams",
+              "service targets",
+              "no QA function",
+              "every call we ingest",
+              "own rules",
+              "admin",
+              "supervisor",
+              "viewer",
+              "no seat minimum",
+              "review list"
+            ],
+            "archetypeId": "arch-informal-contact-centre-specialist"
+          }
+        ],
+        "brandConstraints": [
+          "Lead with the operational problem or the reseller's commercial situation before any product feature (brand-voice rule 1), adapted here to lead with the attach economics, not the QA feature list.",
+          "Quote the product's price and units of work openly - GBP 4.99 to GBP 9.99 per seat per month, pooled hours, GBP 0.50 per hour overage - but never state a partner margin, discount or deal-registration term; none exists in the facts file.",
+          "Name the boundary before the buyer asks: post-call not real-time, analyses recordings rather than records them, no agent self-service, no group or cross-tenant dashboard. Boundaries build trust, especially where the partner repeats the claim to their own customer.",
+          "No transformation language: never 'leverage', 'seamlessly' (reserved only for a Microsoft Teams claim, which does not apply here since Teams has no wired feed), 'revolutionise', 'empower', 'unlock', 'ecosystem', 'holistic', 'best-in-class', or decorative 'AI-powered' outside a headline.",
+          "Coverage claims say 'every call we ingest', never '100% of calls' or 'every call you make' - the literal completeness promise is not supported.",
+          "Hosting is described as EU (Frankfurt); never 'UK hosting' or 'never leaves the UK'.",
+          "Say 'internally audited', never 'pen-tested'; say 'Conversant is ISO 27001 certified' and name no certification body or wider scope.",
+          "Never say 'get started in seconds' or 'free to start' - there is a GBP 1,280 setup fee and a GBP 640 configuration review.",
+          "Never name a competitor in outreach or content; differentiate against the status quo (the reseller's current answer: a recording archive, or nothing).",
+          "Never name an Insights360 customer, quote a customer count, or state a case-study number (time saved, uplift) - none exists.",
+          "CTAs are drawn from the fixed set (Book a demo, Set up a free trial, Arrange a demo, Try interactive demo); no exclamation marks; no 'Sign up now' or 'Start for free!'.",
+          "Never imply a partner console, white-label capability, rebranding, or a multi-customer view - none is stated in the facts file and none is on the roadmap."
+        ]
+      },
+      "m19": {
+        "body": "Every source this pack cites (17), assembled by the runtime from the modules' claims and url fields and the pages this run read.",
+        "claims": [],
+        "status": "complete",
+        "sources": [
+          {
+            "url": "https://ucreseller.co.uk/3cx-partner-levels",
+            "title": "3CX Partner Levels - UC Reseller",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.3cx.com/partners/channel-partner-program",
+            "title": "The 3CX Channel Partner Program Explained: A quick guide",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.3cx.com/partners",
+            "title": "Join 3CX's Channel Partner Program | 3CX",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.reddit.com/r/3CX/comments/1o5oxfk/new_partner_requirements",
+            "title": "New partner requirements : r/3CX - Reddit",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.comms-dealer.com/channel-forecast/channel-forecast-msps-urged-drive-ai-relevancy-sme-sector",
+            "title": "Channel Forecast: MSPs urged to drive AI relevancy in SME sector",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.uk/guidance/uk-transition-from-analogue-to-digital-landlines",
+            "title": "UK transition from analogue to digital landlines - GOV.UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.safeonlinebilling.com/blog/pstn-switch-off-resellers-guide",
+            "title": "The 2027 PSTN Switch-Off: A UK Telecoms Reseller's Guide",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.comms-dealer.com/pstn-switch/pstn-switch-act-now",
+            "title": "PSTN switch‑off: Act now - Comms Dealer",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://akixi.com/call-analytics-provide-customer-insight-and-increased-revenue",
+            "title": "Call Analytics Provide Customer Insight and Increased Revenue - AKIXI",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://dimensionstechnologies.com/integrations/3cx",
+            "title": "3CX Analytics Integration | Dimensions for 3CX Partners",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://tollring.com/news/selling-informal-contact-centres-solutions-to-smes-with-customer-facing-teams",
+            "title": "Selling Informal Contact Centres Solutions to SMEs with Customer ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://info.enghouseinteractive.com/rs/547-FBA-390/images/enghouse-contactbabel-uk-contact-centre-dmg-2019-20.pdf",
+            "title": "The UK Contact Centre Decision-Maker's Guide 2019-20",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.cloudtango.net/3cx/uk",
+            "title": "List of 3CX Partners in the UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.croftmsp.com/partners/3cx",
+            "title": "Trusted 3CX Titanium Partner and Reseller - Croft MSP",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.spitfire.co.uk/about/newsletters",
+            "title": "Newsletters - Spitfire Network Services Ltd",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.ldc.co.uk/news/ldc-backed-communications-technology-provider-onecom-acquires-highly-respected-hosted-voice-sip-and-connectivity-company-gradwell-communications",
+            "title": "Onecom Acquires Gradwell Communications | LDC",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://gradwell.com/press-release-onecom-acquires-gradwell",
+            "title": "Press Release: LDC-Backed Onecom Acquires Gradwell Communications - Gradwell",
+            "accessedAt": "2026-09-11"
+          }
+        ],
+        "factsVersion": 2,
+        "priorPackIds": [],
+        "knowledgeArticles": [
+          "overview",
+          "roadmap",
+          "architecture",
+          "integrations",
+          "icp",
+          "competitors",
+          "brand-voice",
+          "decisions",
+          "known-issues"
+        ]
+      }
+    },
+    "outcome": "partial",
+    "partial": true,
+    "missingModules": [
+      "repSummary",
+      "execSummary",
+      "m01",
+      "m02",
+      "m04",
+      "m05",
+      "m06",
+      "m07",
+      "m08",
+      "m10",
+      "m11",
+      "m12",
+      "m13",
+      "m14",
+      "m15",
+      "m16",
+      "m17",
+      "m18"
+    ]
+  },
+  "report": {
+    "rails": {
+      "maxFetches": 60,
+      "maxSeconds": 5400,
+      "maxSearches": 120,
+      "maxSpendUsd": 50,
+      "maxModelSteps": 200,
+      "maxFetchedChars": 400000
+    },
+    "models": {
+      "research": "claude-opus-5",
+      "synthesis": "claude-sonnet-5"
+    },
+    "actuals": {
+      "runs": 2,
+      "costUsd": 3.880584,
+      "fetches": 11,
+      "searches": 22,
+      "tokensIn": 1397179,
+      "tokensOut": 84173,
+      "modelSteps": 21,
+      "fetchedChars": 72074,
+      "tokensCached": 1115815,
+      "activeSeconds": 903,
+      "elapsedSeconds": 904,
+      "unfinishedRuns": []
+    },
+    "demoted": [],
+    "endings": [
+      {
+        "phase": "research",
+        "ending": "answer"
+      },
+      {
+        "phase": "synthesis",
+        "ending": "answer"
+      }
+    ],
+    "reasked": [],
+    "attempts": 2,
+    "provenance": [
+      {
+        "total": 36,
+        "failed": [],
+        "passed": 36,
+        "modules": [
+          {
+            "total": 21,
+            "failed": [],
+            "module": "m03",
+            "passed": 21,
+            "fraction": 0,
+            "rejected": false
+          },
+          {
+            "total": 15,
+            "failed": [],
+            "module": "m09",
+            "passed": 15,
+            "fraction": 0,
+            "rejected": false
+          }
+        ],
+        "fraction": 0,
+        "rejected": false
+      }
+    ],
+    "firstIngestIssues": [],
+    "insufficientModules": []
+  },
+  "run": {
+    "steps": 70,
+    "modelSteps": 21,
+    "toolSteps": 49,
+    "moduleWrites": 4,
+    "attempts": 2,
+    "cost": "3.880584",
+    "runsCostTotal": "3.880584",
+    "durationMs": 903690,
+    "jobId": "744c265b-243d-4418-ae8f-ff8afd249ac3",
+    "eventId": "cmtwvv6oe0043kww65zr7qc49",
+    "actuals": {
+      "runs": 2,
+      "searches": 22,
+      "fetches": 11,
+      "fetchedChars": 72074,
+      "modelSteps": 21,
+      "tokensIn": 1397179,
+      "tokensOut": 84173,
+      "tokensCached": 1115815,
+      "costUsd": 3.880584,
+      "elapsedSeconds": 904,
+      "activeSeconds": 903,
+      "unfinishedRuns": []
+    }
+  },
+  "record": [
+    {
+      "run": 0,
+      "name": "facts"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "priorPacks"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m00",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "decideScope",
+      "verdict": "continue",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m03",
+      "accepted": true
+    },
+    {
+      "run": 1,
+      "name": "writeModule",
+      "module": "m09",
+      "accepted": false
+    },
+    {
+      "run": 1,
+      "name": "writeModule",
+      "module": "m09",
+      "accepted": true
+    }
+  ],
+  "error": null,
+  "rejectedIssues": null,
+  "rubric": [
+    {
+      "check": 1,
+      "name": "Schema and derived confidence",
+      "verdict": "pass",
+      "detail": "47 items parsed; none above its ceiling"
+    },
+    {
+      "check": 2,
+      "name": "Coverage",
+      "verdict": "fail",
+      "detail": "partial; missing repSummary, execSummary, m01, m02, m04, m05, m06, m07, m08, m10, m11, m12, m13, m14, m15, m16, m17, m18"
+    },
+    {
+      "check": 3,
+      "name": "Provenance",
+      "verdict": "pass",
+      "detail": "0 of 36 claims demoted (0%); the cap is 10%"
+    },
+    {
+      "check": 4,
+      "name": "Buyer words",
+      "verdict": "fail",
+      "detail": "no buyer phrases"
+    },
+    {
+      "check": 5,
+      "name": "Recency",
+      "verdict": "pass",
+      "detail": "no strong dated claim older than twelve months (0 checked)"
+    },
+    {
+      "check": 6,
+      "name": "Domain spread",
+      "verdict": "pass",
+      "detail": "every module inside the cap; seed firms from two or more sources"
+    },
+    {
+      "check": 7,
+      "name": "Contradictions",
+      "verdict": "fail",
+      "detail": "0 contradiction search(es) for 5 kind(s) of buyer; m17 missing"
+    },
+    {
+      "check": 8,
+      "name": "Insufficient path",
+      "verdict": "n/a",
+      "detail": "not a thin brief"
+    },
+    {
+      "check": 9,
+      "name": "Replay",
+      "verdict": "n/a",
+      "detail": "its own test: tests/worker/research.test.ts (a kill mid-run replays every stored call)"
+    },
+    {
+      "check": 10,
+      "name": "Widening",
+      "verdict": "n/a",
+      "detail": "not a re-run"
+    },
+    {
+      "check": 11,
+      "name": "Cost and time",
+      "verdict": "pass",
+      "detail": "22 searches, 11 fetches, 72k chars, 21 steps, 904s, $3.8806"
+    },
+    {
+      "check": 12,
+      "name": "Depth against the bar",
+      "verdict": "n/a",
+      "detail": "The product owner reads brief A against Signal's May insurance pack and brief E against the legal exemplar"
+    },
+    {
+      "check": 13,
+      "name": "Plan-card view",
+      "verdict": "pass",
+      "detail": "5 kind(s) of buyer, 0 firm(s) on the cards"
+    },
+    {
+      "check": 14,
+      "name": "Scope held",
+      "verdict": "pass",
+      "detail": "0 seed firm(s) and 0 recipe(s) inside the scope (countries, orgTypes)"
+    }
+  ]
+}

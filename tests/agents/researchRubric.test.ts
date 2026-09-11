@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { PackShape } from "../../agents/research/output.schema";
 import { agentsDir, loadDefinition } from "@/lib/agents/definitions";
 import { loadFacts } from "@/lib/facts/load";
-import { scoreRubric, type RubricRow } from "@/lib/research/rubric";
+import { sameSeedFirm, scoreRubric, type RubricRow } from "@/lib/research/rubric";
 
 import { goodPack } from "./researchPack";
 
@@ -86,6 +86,21 @@ describe("the research rubric, row by row", () => {
     const { pack, prior } = widenedToIreland();
     const passed = row(scoreRubric({ pack, prior, widenedBy: "region" }), 10);
     expect(passed).toMatchObject({ verdict: "pass", detail: expect.stringMatching(/^2 of 3 prior seed firm\(s\) retained \(claims-teams firm 1, claims-teams firm 2\); 4 new, 1 in IE$/) });
+  });
+
+  it("row 10 counts a firm the prior pack named without a domain as retained when its bracketed name matches (brief D v3.2 rerun)", () => {
+    expect(sameSeedFirm({ name: "Commercial Express" }, { name: "Commercial Express Quotes Ltd (Commercial Express)", domain: "commercialexpress.co.uk" })).toBe(true);
+    expect(sameSeedFirm({ name: "Sabre Insurance Group", domain: "sabreplc.co.uk" }, { name: "Sabre Insurance Group plc", domain: "https://www.sabreplc.co.uk/" })).toBe(true);
+    // Both with domains: the domain decides, even when the names agree.
+    expect(sameSeedFirm({ name: "Hood Group", domain: "hoodgroup.co.uk" }, { name: "Hood Group", domain: "hood-other.example" })).toBe(false);
+    expect(sameSeedFirm({ name: "Healix International" }, { name: "Collinson Insurance (Collinson Insurance Services)" })).toBe(false);
+
+    const { pack, prior } = widenedToIreland();
+    const firms = (pack as Loose).modules.m04.perArchetype.flatMap((t: Loose) => t.seedFirms) as Loose[];
+    firms[2]!.name = "Regional Brokers Quotes Ltd (Regional Brokers)";
+    firms[2]!.domain = "regional.example";
+    prior.seedFirms.push({ name: "Regional Brokers" });
+    expect(row(scoreRubric({ pack, prior, widenedBy: "region" }), 10).detail).toMatch(/^3 of 4 prior seed firm\(s\) retained \(claims-teams firm 1, claims-teams firm 2, Regional Brokers Quotes Ltd \(Regional Brokers\)\); 3 new, 1 in IE$/);
   });
 
   it("row 10 fails a re-run with no new seed firms, or a region widening with none in the added geography, or an m14 that records no change", () => {
@@ -229,6 +244,13 @@ const BRIEFS: Record<string, { expectInsufficient: boolean; priorFrom?: string; 
   "research-c-thin-vets": { expectInsufficient: true, required: [1, 8, 11] },
   "research-d-insurance-rerun": { expectInsufficient: false, priorFrom: "research-a-insurance-direct", required: [1, 2, 5, 6, 10, 11, 13] },
   "research-e-legal-direct": { expectInsufficient: false, required: [1, 2, 4, 5, 6, 7, 11, 13] },
+  // The v3.2 sign-off runs (signoff-v3.2.manifest.json): their required rows as the manifest names them.
+  ...Object.fromEntries(
+    (JSON.parse(readFileSync(path.join(path.dirname(agentsDir()), "fixtures", "agents", "research", "signoff-v3.2.manifest.json"), "utf8")) as { runs: Array<{ fixture: string; required: number[] }> }).runs.map((r) => [
+      r.fixture.replace(/\.json$/, ""),
+      { expectInsufficient: r.fixture.startsWith("research-c-"), required: r.required },
+    ]),
+  ),
 };
 
 function load(name: string): Fixture | null {

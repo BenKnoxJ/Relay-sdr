@@ -218,7 +218,7 @@ export function normaliseModule(id: ModuleId, content: unknown, context: { plann
  * so a refusal is answered with the fields that were wrong instead of the
  * whole module again. `value: null` removes the field or the list entry.
  */
-export function applyFixes(base: Loose, fixes: ReadonlyArray<{ path: string; value?: unknown }>): { content: Loose; errors: string[] } {
+export function applyFixes(base: Loose, fixes: ReadonlyArray<{ path: string; value?: unknown }>, moduleId?: string): { content: Loose; errors: string[] } {
   const content = structuredClone(base);
   const errors: string[] = [];
   for (const { path, value } of fixes) {
@@ -227,7 +227,8 @@ export function applyFixes(base: Loose, fixes: ReadonlyArray<{ path: string; val
       .replace(/\[(\d+)\]/g, ".$1")
       .split(".")
       .filter((part) => part.length > 0);
-    // A path may start with the module id, as the issues sometimes do.
+    // A path may start with the module id, as the issues sometimes do (m09.perArchetype…): it is dropped.
+    if (moduleId !== undefined && parts[0] === moduleId) parts.shift();
     let cursor: unknown = content;
     for (let i = 0; i < parts.length - 1; i += 1) {
       const key = parts[i]!;

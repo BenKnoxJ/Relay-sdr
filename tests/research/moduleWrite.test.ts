@@ -163,6 +163,12 @@ describe("checkModuleWrite", () => {
     expect(checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
   });
 
+  it("accepts an empty recipe locations list as none, as the scope rule asks when the rep named no places (brief D v3.2 rerun)", () => {
+    const m04 = content("m04") as { perArchetype: Array<{ recipe: { locations?: string[] } }> };
+    for (const t of m04.perArchetype) t.recipe.locations = [];
+    expect(checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+  });
+
   it("seeds a firm once across the pack: the same domain under two kinds of buyer is refused (§10 note 28)", () => {
     const m04 = content("m04") as { perArchetype: Array<{ seedFirms: Array<{ name: string; domain?: string }> }> };
     m04.perArchetype[0]!.seedFirms[0]!.domain = "northvet.co.uk";

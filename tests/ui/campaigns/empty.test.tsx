@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { campaignsCopy } from "@/lib/copy/campaigns";
 import { emptyCopy } from "@/lib/copy/empty";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns" }));
@@ -25,5 +26,14 @@ describe("Campaigns before the first campaign", () => {
     expect(screen.getByText(emptyCopy.campaigns.note)).toBeDefined();
     expect(screen.getByText(emptyCopy.campaigns.heading)).toBeDefined();
     expect(screen.getByText(emptyCopy.campaigns.body)).toBeDefined();
+  });
+
+  it("offers New campaign straight to Start, since the nav has none yet", async () => {
+    const { default: CampaignsPage } = await import("@/app/(app)/campaigns/page");
+    render(await CampaignsPage());
+
+    const links = screen.getAllByRole("link", { name: campaignsCopy.newCampaign });
+    expect(links).toHaveLength(1);
+    expect(links[0]?.getAttribute("href")).toBe("/campaigns/new");
   });
 });

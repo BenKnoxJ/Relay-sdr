@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card } from "@/components/Card";
 import { CampaignRow } from "@/components/campaigns/CampaignRow";
 import { EmptyState } from "@/components/EmptyState";
@@ -23,7 +25,19 @@ export default async function CampaignsPage() {
       <>
         <PageHeader title={emptyCopy.campaigns.title} note={emptyCopy.campaigns.note} />
         <Card className="p-0">
-          <EmptyState heading={emptyCopy.campaigns.heading} body={emptyCopy.campaigns.body} />
+          <EmptyState heading={emptyCopy.campaigns.heading} body={emptyCopy.campaigns.body} className="pb-6" />
+          {/*
+            The one way in for a rep with no campaigns: the nav carries none
+            until they have one. The primary pill's classes, as on the nav.
+          */}
+          <div className="pb-12 text-center">
+            <Link
+              href="/campaigns/new"
+              className="inline-flex items-center justify-center rounded-pill border-control border-transparent bg-action px-4 py-2 text-13 font-semibold text-on-action transition-opacity duration-micro ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+            >
+              {campaignsCopy.newCampaign}
+            </Link>
+          </div>
         </Card>
       </>
     );

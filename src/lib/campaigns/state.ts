@@ -64,32 +64,41 @@ export function stepIndexFor(state: CampaignState): number {
   return CAMPAIGN_STEPS.indexOf(state);
 }
 
-export type CampaignAction = { label: string; next: CampaignState; disabled?: boolean; note?: string };
+export type CampaignAction = {
+  kind: "confirm" | "pause" | "resume" | "widen" | "retry";
+  label: string;
+  next: CampaignState;
+  disabled?: boolean;
+  note?: string;
+};
 
 /**
- * The one action a state carries, and what it moves to. Null for the rest.
+ * The header's one action for a state, and what it moves to. Null for the rest.
  *
  * A live campaign offers only what is built. Confirm plan is drawn but cannot
- * be pressed, because what it starts (finding people) does not exist yet;
- * widening a stop and trying again after a failure arrive with the next
- * change. A sample campaign keeps every signed action, because the component
- * tests that draw the later states need them.
+ * be pressed, because what it starts (finding people) does not exist yet. Try
+ * again is the header's action when research itself failed (`retryable`); a
+ * stop's action is on the option the rep chooses, in the stop's own card, so
+ * the header carries none. A sample campaign keeps every signed action,
+ * because the component tests that draw the later states need them.
  */
-export function actionFor(state: CampaignState, live = false): CampaignAction | null {
+export function actionFor(state: CampaignState, live = false, retryable = false): CampaignAction | null {
   if (live) {
-    return state === "planReady"
-      ? { label: campaignsCopy.actionConfirm, next: "findingPeople", disabled: true, note: campaignsCopy.confirmLater }
-      : null;
+    if (state === "planReady") {
+      return { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople", disabled: true, note: campaignsCopy.confirmLater };
+    }
+    if (state === "failed" && retryable) return { kind: "retry", label: campaignsCopy.actionTryAgain, next: "researching" };
+    return null;
   }
   switch (state) {
     case "planReady":
-      return { label: campaignsCopy.actionConfirm, next: "findingPeople" };
+      return { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople" };
     case "running":
-      return { label: campaignsCopy.actionPause, next: "paused" };
+      return { kind: "pause", label: campaignsCopy.actionPause, next: "paused" };
     case "paused":
-      return { label: campaignsCopy.actionResume, next: "running" };
+      return { kind: "resume", label: campaignsCopy.actionResume, next: "running" };
     case "stopped":
-      return { label: campaignsCopy.actionWiden, next: "researching" };
+      return { kind: "widen", label: campaignsCopy.actionWiden, next: "researching" };
     default:
       return null;
   }
@@ -111,6 +120,8 @@ export type CampaignCounts = {
   credits: { used: number; left: number } | null;
   live?: boolean;
   failure?: ResearchFailure | null;
+  /** Research itself failed, so Try again is offered (orchestrator A1, item 6). */
+  retryable?: boolean;
 };
 
 /** The line that says why research did not finish (orchestrator §7, amended A1). */
@@ -144,9 +155,7 @@ export function nextFor(
     case "failed":
       return { next: campaignsCopy.nextFailed, nextIsAction: true };
     case "stopped":
-      return live
-        ? { next: campaignsCopy.nextStoppedLive, nextIsAction: false }
-        : { next: campaignsCopy.nextStopped, nextIsAction: true };
+      return { next: campaignsCopy.nextStopped, nextIsAction: true };
     case "planReady":
       return live
         ? { next: campaignsCopy.nextPlanReadyLive, nextIsAction: false }
@@ -199,15 +208,15 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
 
   const waiting =
     state === "failed"
-      ? c.answerWaitingFailed
+      ? counts.retryable === true
+        ? c.answerWaitingFailed
+        : c.answerWaitingFailedEdit
       : state === "planReady"
         ? live
           ? c.answerWaitingPlanLive
           : c.answerWaitingConfirm
         : state === "stopped"
-          ? live
-            ? c.answerWaitingStoppedLive
-            : c.answerWaitingWiden
+          ? c.answerWaitingWiden
           : counts.draftsDueToday > 0 && state !== "paused"
             ? `${counts.draftsDueToday} ${c.answerWaitingDrafts}`
             : c.answerWaitingNothing;

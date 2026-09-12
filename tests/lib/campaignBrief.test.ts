@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { lockScope } from "../../agents/research/output.schema";
-import { briefFieldsFrom, briefFieldsSchema, nameFrom, toResearchBrief, type ResearchBrief } from "@/lib/campaigns/brief";
+import { applyScopePatch, briefFieldsFrom, briefFieldsSchema, nameFrom, sameBrief, toResearchBrief, widenedBrief, type ResearchBrief } from "@/lib/campaigns/brief";
+import { becomesLine, widenHeadings } from "@/lib/campaigns/briefLines";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
+import { campaignsCopy } from "@/lib/copy/campaigns";
 
-import { briefFields, stoppedBrief } from "./campaignPacks";
+import { briefFields, stoppedBrief, stoppedPack } from "./campaignPacks";
 
 /**
  * Start's card as research's brief (research v3 §2, v3.2 note 28).
@@ -108,5 +110,101 @@ describe("nameFrom", () => {
     expect(name.length).toBeLessThanOrEqual(40);
     expect(name).toBe("Practice owners at independent vets in");
     expect(nameFrom("x".repeat(60))).toBe("x".repeat(40));
+  });
+});
+
+/**
+ * A widening applied to a brief (research v3.2 note 28; orchestrator A1,
+ * item 4), over the three real options of the signed brief C stop.
+ */
+describe("applyScopePatch and widenedBrief", () => {
+  const C = () => stoppedBrief() as ResearchBrief;
+  const options = () => stoppedPack().insufficient!.widenings;
+
+  it("leaves a field the patch does not name, removes one it sets to null, and replaces the rest", () => {
+    const [drop, islands, sector] = options();
+    expect(applyScopePatch(C(), drop!.scopePatch).scope).toEqual({ countries: ["GB"], orgTypes: ["veterinary practice"] });
+    expect(applyScopePatch(C(), islands!.scopePatch).scope).toEqual({ countries: ["GB"], places: islands!.scopePatch.places, orgTypes: ["veterinary practice"] });
+    expect(applyScopePatch(C(), sector!.scopePatch).scope).toEqual({ countries: ["GB"], places: C().scope!.places });
+    // Nothing else about the brief moves.
+    const unscoped = (brief: ResearchBrief) => {
+      const copy = { ...brief };
+      delete copy.scope;
+      return copy;
+    };
+    expect(unscoped(applyScopePatch(C(), drop!.scopePatch))).toEqual(unscoped(C()));
+  });
+
+  it("drops a scope left with nothing in it, as Start does", () => {
+    const brief = toResearchBrief(briefFields({ scope: { ...EMPTY_SCOPE, orgTypes: ["veterinary practice"] } }));
+    expect(applyScopePatch(brief, { orgTypes: null })).not.toHaveProperty("scope");
+  });
+
+  it("accepts each real option against the brief it was made for, and the result locks", () => {
+    for (const option of options()) {
+      const result = widenedBrief(C(), option);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(lockScope(result.brief).ok).toBe(true);
+    }
+  });
+
+  it("refuses an option that narrows, touches another dimension, changes nothing, or is not an option at all", () => {
+    const narrows = { dimension: "region", text: "Only Kirkwall", scopePatch: { places: [{ name: "Kirkwall" }] } };
+    const stray = { dimension: "region", text: "Bigger firms", scopePatch: { size: null } };
+    const nothing = { dimension: "region", text: "Great Britain", scopePatch: { countries: ["GB"] } };
+    for (const option of [narrows, stray, nothing, { dimension: "pain" }, null]) {
+      expect(widenedBrief(C(), option).ok).toBe(false);
+    }
+    // And a real option over a brief it no longer widens: no places to drop.
+    const { scope, ...rest } = C();
+    expect(widenedBrief({ ...rest, scope: { countries: scope!.countries } }, options()[0]).ok).toBe(false);
+  });
+
+  it("tells briefs apart by what they say, not the order their keys were written in", () => {
+    const reorder = (value: unknown): unknown =>
+      Array.isArray(value)
+        ? value.map(reorder)
+        : value !== null && typeof value === "object"
+          ? Object.fromEntries(Object.entries(value).reverse().map(([key, inner]) => [key, reorder(inner)]))
+          : value;
+    const reordered = reorder(C()) as ResearchBrief;
+    expect(Object.keys(reordered)).not.toEqual(Object.keys(C()));
+    expect(sameBrief(C(), reordered)).toBe(true);
+    expect(sameBrief(C(), { ...C(), howMany: 20 })).toBe(false);
+  });
+});
+
+describe("the widening options on screen", () => {
+  it("numbers two options that widen the same thing, and leaves a lone one as it is", () => {
+    expect(widenHeadings(["region", "region", "sector"])).toEqual([
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 1`,
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 2`,
+      campaignsCopy.widenSector,
+    ]);
+  });
+
+  it("says what the brief would read after each of brief C's options", () => {
+    const lines = stoppedPack().insufficient!.widenings.map((option) => {
+      const result = widenedBrief(stoppedBrief() as ResearchBrief, option);
+      if (!result.ok) throw new Error(result.issue);
+      return becomesLine(option.dimension, briefFieldsFrom(stoppedBrief() as ResearchBrief), briefFieldsFrom(result.brief));
+    });
+    expect(lines).toEqual([
+      `${campaignsCopy.fieldWhere} ${campaignsCopy.widenBecomes} United Kingdom`,
+      `${campaignsCopy.fieldWhere} ${campaignsCopy.widenBecomes} United Kingdom, Orkney, Shetland, Western Isles, Highland, Argyll and Bute`,
+      campaignsCopy.orgTypesLimitRemoved,
+    ]);
+  });
+
+  it("says a constraint an option takes off was removed, and one the rep never set was not set", () => {
+    const sized = briefFields({ scope: { ...EMPTY_SCOPE, size: { unit: "employees", min: 5, max: 50 }, rolesExclude: ["receptionist"] } });
+    const bare = briefFields();
+    expect(becomesLine("size", sized, bare)).toBe(campaignsCopy.sizeLimitRemoved);
+    expect(becomesLine("size", bare, bare)).toBe(campaignsCopy.sizeLimitNone);
+    expect(becomesLine("size", sized, briefFields({ scope: { ...EMPTY_SCOPE, size: { unit: "employees", max: 50 } } }))).toBe(
+      `${campaignsCopy.fieldSize} ${campaignsCopy.widenBecomes} ${campaignsCopy.sizeAtMost} 50 ${campaignsCopy.sizeUnits.employees}`,
+    );
+    expect(becomesLine("sector", bare, bare)).toBe(campaignsCopy.orgTypesLimitNone);
+    expect(becomesLine("role", sized, bare)).toBe(`${campaignsCopy.rolesIncludeLimitNone}${campaignsCopy.noteJoin}${campaignsCopy.rolesExcludeLimitRemoved}`);
   });
 });

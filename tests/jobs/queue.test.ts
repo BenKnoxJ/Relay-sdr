@@ -12,6 +12,7 @@ import {
   requeue,
   reapExpired,
   release,
+  reopenFailed,
 } from "@/lib/jobs/queue";
 import { mutate } from "@/lib/repo/mutate";
 
@@ -656,6 +657,69 @@ describe("enqueue and the job's campaign", () => {
     await expect(research({ campaignId: "camp_three", briefVersion: 3 })).rejects.toThrow("ahead of the campaign's own");
     await expect(research({ campaignId: "camp_three", briefVersion: 0 })).rejects.toThrow("positive whole number");
     await expect(research({ campaignId: "camp_three", briefVersion: 2 })).resolves.toMatchObject({ deduped: false });
+  });
+
+  it("@proof refuses a brief version the campaign has moved on from, and writes nothing", async () => {
+    await makeCampaign(ORG_ID, "camp_four", 3);
+    await expect(research({ campaignId: "camp_four", briefVersion: 2 })).rejects.toThrow("behind the campaign's own");
+    await expect(research({ campaignId: "camp_four", briefVersion: 1, key: "research-old" })).rejects.toThrow("behind the campaign's own");
+    expect(await prisma.job.count()).toBe(0);
+  });
+});
+
+describe("reopenFailed", () => {
+  it("@proof puts a failed job back on the queue: same row, key and input, attempts carried, the error kept", async () => {
+    await add("reopen");
+    const claim = await claimNext(prisma, "worker-one");
+    if (claim === null) throw new Error("tests: the claim returned nothing");
+    await fail(prisma, claim, "research: took_too_long — x");
+
+    const reopened = await reopenFailed(prisma, { orgId: ORG_ID, jobId: claim.id });
+
+    expect(reopened).toMatchObject({
+      id: claim.id,
+      idempotencyKey: "reopen",
+      input: { key: "reopen" },
+      status: "queued",
+      attempts: 1,
+      maxAttempts: MAX_ATTEMPTS,
+      error: "research: took_too_long — x",
+      workerId: null,
+      leaseUntil: null,
+    });
+    // Due now, by the database's clock.
+    expect(reopened!.nextAt.getTime()).toBeLessThanOrEqual((await databaseNow()).getTime());
+    expect(await prisma.job.count()).toBe(1);
+  });
+
+  it("gives a job that spent every attempt one more, and keeps the attempt number the fence reads", async () => {
+    await prisma.job.create({
+      data: { orgId: ORG_ID, kind: "noop", idempotencyKey: "spent", input: {}, status: "failed", attempts: MAX_ATTEMPTS, maxAttempts: MAX_ATTEMPTS },
+    });
+    const job = await prisma.job.findFirstOrThrow({ where: { idempotencyKey: "spent" } });
+    const stale = { id: job.id, workerId: "worker-one", attempts: MAX_ATTEMPTS };
+
+    expect(await reopenFailed(prisma, { orgId: ORG_ID, jobId: job.id })).toMatchObject({ attempts: MAX_ATTEMPTS, maxAttempts: MAX_ATTEMPTS + 1 });
+    const claim = await claimNext(prisma, "worker-one");
+    expect(claim?.attempts).toBe(MAX_ATTEMPTS + 1);
+    // The same worker's write from the attempt before the reopen matches nothing.
+    expect(await complete(prisma, stale)).toEqual({ ok: false, fenced: true });
+  });
+
+  it("@proof changes only a failed job of this org, once: a second call, a live job and another org's get null", async () => {
+    await add("once");
+    const claim = await claimNext(prisma, "worker-one");
+    await fail(prisma, claim!, "boom");
+
+    expect(await reopenFailed(prisma, { orgId: OTHER_ORG_ID, jobId: claim!.id })).toBeNull();
+    expect(await reopenFailed(prisma, { orgId: ORG_ID, jobId: claim!.id })).not.toBeNull();
+    expect(await reopenFailed(prisma, { orgId: ORG_ID, jobId: claim!.id })).toBeNull();
+
+    await add("done");
+    const done = await claimNext(prisma, "worker-two");
+    await complete(prisma, done!);
+    expect(await reopenFailed(prisma, { orgId: ORG_ID, jobId: done!.id })).toBeNull();
+    expect((await prisma.job.findUniqueOrThrow({ where: { id: done!.id } })).status).toBe("done");
   });
 });
 

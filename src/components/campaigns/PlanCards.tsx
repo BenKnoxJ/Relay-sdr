@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { Card } from "@/components/Card";
-import { PillButton } from "@/components/PillButton";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
 import type { PlanCards as PlanView } from "../../../agents/research/output.schema";
@@ -75,14 +75,14 @@ function PlanCard({
   summary,
   meta,
   dashed = false,
-  onChangeAbout,
+  editHref,
   children,
 }: {
   title: string;
   summary: string;
   meta: string;
   dashed?: boolean;
-  onChangeAbout?: (about: string) => void;
+  editHref?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -120,14 +120,13 @@ function PlanCard({
       {open ? (
         <div data-testid="plan-card-body" className="mt-2.5 border-t border-line pt-2.5">
           {children}
-          {onChangeAbout === undefined ? null : (
-            <PillButton
-              variant="text"
-              className="mt-2 text-action"
-              onClick={() => onChangeAbout(title)}
+          {editHref === undefined ? null : (
+            <Link
+              href={editHref}
+              className="mt-2 inline-flex min-h-6 items-center rounded-pill text-13 font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
             >
-              {campaignsCopy.changeFromCard}
-            </PillButton>
+              {campaignsCopy.editBrief}
+            </Link>
           )}
         </div>
       ) : null}
@@ -137,11 +136,11 @@ function PlanCard({
 
 export function PlanCards({
   pack,
-  onChangeAbout,
+  editHref,
 }: {
   pack: PlanView;
-  /** Absent after confirm: the plan is read only from then on (§23.1c). */
-  onChangeAbout?: (about: string) => void;
+  /** Where Edit brief goes from an open card. Absent once there is no new brief to give (§23.1c). */
+  editHref?: string;
 }) {
   const c = campaignsCopy;
   const sources = sourceCount(pack);
@@ -165,7 +164,7 @@ export function PlanCards({
         title={c.cardWho}
         summary={second}
         meta={`${counted(pack.archetypes.length, c.countGroup, c.countGroups)}${c.noteJoin}${counted(sources, c.countSource, c.fromSources)}`}
-        onChangeAbout={onChangeAbout}
+        editHref={editHref}
       >
         {pack.archetypes.map((group) => (
           <div key={group.id} data-testid="plan-group" className="mb-3">
@@ -185,7 +184,7 @@ export function PlanCards({
         title={c.cardHook}
         summary={pack.hook?.text ?? ""}
         meta={`${pack.hook === undefined ? 0 : 1} ${c.countWhyNow}`}
-        onChangeAbout={onChangeAbout}
+        editHref={editHref}
       >
         {pack.hook === undefined ? null : (
           <>
@@ -201,7 +200,7 @@ export function PlanCards({
         title={c.cardPain}
         summary={lead}
         meta={`${quoted.length + phrases.length} ${c.shownOf}`}
-        onChangeAbout={onChangeAbout}
+        editHref={editHref}
       >
         {quoted.map((pain) => (
           <PackItem key={`quote-${pain.id}`} item={pain} quoteFirst />
@@ -215,7 +214,7 @@ export function PlanCards({
         title={c.cardFirms}
         summary={pack.seedFirms.map((firm) => firm.name).join(", ")}
         meta={counted(pack.seedFirms.length, c.countFirm, c.countFirms)}
-        onChangeAbout={onChangeAbout}
+        editHref={editHref}
       >
         {pack.seedFirms.map((firm) => (
           <div key={firm.id} data-testid="plan-firm" className="mb-2">
@@ -312,12 +311,12 @@ function PartialNote({ pack }: { pack: PlanView }) {
 export function PlanSection({
   pack,
   collapsed = false,
-  onChangeAbout,
+  editHref,
   children,
 }: {
   pack: PlanView;
   collapsed?: boolean;
-  onChangeAbout?: (about: string) => void;
+  editHref?: string;
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(!collapsed);
@@ -326,7 +325,7 @@ export function PlanSection({
     return (
       <Card label={campaignsCopy.planLabel}>
         <PartialNote pack={pack} />
-        <PlanCards pack={pack} onChangeAbout={onChangeAbout} />
+        <PlanCards pack={pack} editHref={editHref} />
         {children}
       </Card>
     );
@@ -349,7 +348,7 @@ export function PlanSection({
       {open ? (
         <div className="mt-2.5">
           <PartialNote pack={pack} />
-          <PlanCards pack={pack} onChangeAbout={onChangeAbout} />
+          <PlanCards pack={pack} editHref={editHref} />
           {children}
         </div>
       ) : null}

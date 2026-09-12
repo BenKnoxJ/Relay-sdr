@@ -165,6 +165,24 @@ describe("mutate", () => {
     expect(event.campaignId).toBe(`campaign-for-${created.state}`);
   });
 
+  it("can take before and after from what apply read and wrote", async () => {
+    await mutate(prisma, {
+      orgId: ORG_ID,
+      actor: { kind: "system" },
+      kind: "account.connected",
+      before: (row: { state: string }) => ({ was: `before-${row.state}` }),
+      after: (row: { state: string }) => ({ now: `after-${row.state}` }),
+      apply: (tx) =>
+        tx.oAuthState.create({
+          data: { orgId: ORG_ID, userId: USER_ID, provider: "zoho", state: "read", expiresAt: new Date(Date.now() + 60_000) },
+        }),
+    });
+
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "account.connected" } });
+    expect(event.before).toEqual({ was: "before-read" });
+    expect(event.after).toEqual({ now: "after-read" });
+  });
+
   it("@proof rolls the Event back when apply throws", async () => {
     const eventsBefore = await prisma.event.count();
 

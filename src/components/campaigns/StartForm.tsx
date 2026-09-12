@@ -36,6 +36,11 @@ import { cn } from "@/lib/utils";
  *
  * Nothing is spent here. "Start research" makes the campaign and asks for its
  * research, then moves the rep to the campaign page.
+ *
+ * **Edit brief** is this same card (orchestrator A1, item 5), opened on a
+ * campaign's current brief with `edit` set: there is no sentence step, since
+ * the card is the brief, and nothing is guessed. The rep changes the fields
+ * themselves, and the button asks for research on the new brief version.
  */
 
 const MOTIONS: [BriefFields["motion"], string][] = [
@@ -251,6 +256,7 @@ export function StartForm({
   howLong,
   mailboxConnected,
   onStart,
+  edit,
 }: {
   /** What the rep typed on Home. Empty when they came straight to this page. */
   sentence: string;
@@ -274,6 +280,12 @@ export function StartForm({
   mailboxConnected: boolean;
   /** Makes the campaign and asks for its research; comes back with where to go or a line to show. */
   onStart: (submission: StartSubmission) => Promise<StartResult>;
+  /**
+   * Edit brief: the campaign whose brief this is, and where Cancel goes. The
+   * mailbox is not asked for here: a new brief version asks for research,
+   * which sends nothing.
+   */
+  edit?: { campaignName: string; cancelHref: string };
 }) {
   const router = useRouter();
   const [said, setSaid] = useState(sentence);
@@ -283,7 +295,8 @@ export function StartForm({
   const [sizeMin, setSizeMin] = useState(prefilled.scope.size?.min?.toString() ?? "");
   const [sizeMax, setSizeMax] = useState(prefilled.scope.size?.max?.toString() ?? "");
   // Minted once per card: a second press of Start sends the same id, and the
-  // server answers it with the campaign the first press made.
+  // server answers it with the campaign the first press made. Edit brief's
+  // press is made the same change again the same way.
   const [startRequestId] = useState(() => crypto.randomUUID());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -342,7 +355,8 @@ export function StartForm({
     try {
       const result = await onStart({ startRequestId, brief });
       if ("id" in result) {
-        router.push(`/campaigns/${result.id}?started=1`);
+        router.push(`/campaigns/${result.id}${edit === undefined ? "?started=1" : "?again=1"}`);
+        if (edit !== undefined) router.refresh();
         return;
       }
       setError(result.error);
@@ -354,49 +368,61 @@ export function StartForm({
 
   return (
     <>
-      <PageHeader title={startCopy.title} note={startCopy.note} />
+      {edit === undefined ? (
+        <PageHeader title={startCopy.title} note={startCopy.note} />
+      ) : (
+        <PageHeader title={startCopy.editTitle} note={edit.campaignName} />
+      )}
 
       <Card className="mx-auto max-w-[760px]">
-        <p className="type-label mb-1">{startCopy.question}</p>
-        {/* Step 1: the sentence, and one way back into it (mock 3d). */}
-        <div className="mb-4 flex items-center gap-2 rounded-pill border-control border-line bg-ground py-1.5 pl-4 pr-1.5">
-          {editing ? (
-            <input
-              aria-label={startCopy.question}
-              value={said}
-              autoFocus
-              placeholder={startCopy.placeholder}
-              onChange={(event) => setSaid(event.target.value)}
-              className="type-small flex-1 bg-transparent focus-visible:outline-none"
-            />
-          ) : (
-            <span className="type-small flex-1">{said}</span>
-          )}
-          <PillButton
-            variant="text"
-            className="px-2.5"
-            onClick={() => {
-              // Re-reading the sentence re-pre-fills the card, which is the
-              // only moment §23.1d lets the pre-fill run. It happens where the
-              // pre-fill lives, on the server, so this is a navigation.
-              if (!editing) {
-                setEditing(true);
-                return;
-              }
-              // An unchanged sentence would push the same url, leave `key`
-              // alone, and so leave this component mounted in edit mode for
-              // ever. Nothing to re-read, so just close it.
-              if (said === sentence) {
-                setEditing(false);
-                return;
-              }
-              router.push(`/campaigns/new?said=${encodeURIComponent(said)}`);
-            }}
-          >
-            {editing ? startCopy.readIt : startCopy.edit}
-          </PillButton>
-        </div>
-        <p className="type-small mb-3 text-muted">{startCopy.understood}</p>
+        {edit === undefined ? (
+          <>
+            <p className="type-label mb-1">{startCopy.question}</p>
+            {/* Step 1: the sentence, and one way back into it (mock 3d). */}
+            <div className="mb-4 flex items-center gap-2 rounded-pill border-control border-line bg-ground py-1.5 pl-4 pr-1.5">
+              {editing ? (
+                <input
+                  aria-label={startCopy.question}
+                  value={said}
+                  autoFocus
+                  placeholder={startCopy.placeholder}
+                  onChange={(event) => setSaid(event.target.value)}
+                  className="type-small flex-1 bg-transparent focus-visible:outline-none"
+                />
+              ) : (
+                <span className="type-small flex-1">{said}</span>
+              )}
+              <PillButton
+                variant="text"
+                className="px-2.5"
+                onClick={() => {
+                  // Re-reading the sentence re-pre-fills the card, which is the
+                  // only moment §23.1d lets the pre-fill run. It happens where the
+                  // pre-fill lives, on the server, so this is a navigation.
+                  if (!editing) {
+                    setEditing(true);
+                    return;
+                  }
+                  // An unchanged sentence would push the same url, leave `key`
+                  // alone, and so leave this component mounted in edit mode for
+                  // ever. Nothing to re-read, so just close it.
+                  if (said === sentence) {
+                    setEditing(false);
+                    return;
+                  }
+                  router.push(`/campaigns/new?said=${encodeURIComponent(said)}`);
+                }}
+              >
+                {editing ? startCopy.readIt : startCopy.edit}
+              </PillButton>
+            </div>
+            <p className="type-small mb-3 text-muted">{startCopy.understood}</p>
+          </>
+        ) : (
+          <p data-testid="edit-intro" className="type-small mb-3 text-muted">
+            {startCopy.editIntro}
+          </p>
+        )}
 
         <div className="grid gap-grid wide:grid-cols-2">
           <Field
@@ -630,12 +656,28 @@ export function StartForm({
 
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
           <PillButton
-            disabled={!mailboxConnected || pending || sizeBackwards || draft.who.trim() === ""}
+            disabled={(edit === undefined && !mailboxConnected) || pending || sizeBackwards || draft.who.trim() === ""}
             onClick={() => void start()}
           >
-            {pending ? startCopy.starting : startCopy.start}
+            {edit === undefined
+              ? pending
+                ? startCopy.starting
+                : startCopy.start
+              : pending
+                ? startCopy.editSubmitting
+                : startCopy.editSubmit}
           </PillButton>
-          {mailboxConnected ? (
+          {edit !== undefined ? (
+            <>
+              <span className="type-small text-muted">{startCopy.editNote}</span>
+              <Link
+                href={edit.cancelHref}
+                className="inline-flex min-h-6 items-center rounded-pill text-13 font-semibold text-muted focus-visible:outline-none focus-visible:ring-2"
+              >
+                {startCopy.editCancel}
+              </Link>
+            </>
+          ) : mailboxConnected ? (
             <span className="type-small text-muted">{startCopy.startNote}</span>
           ) : (
             <span data-testid="connect-first" className="type-small text-muted">

@@ -5,7 +5,8 @@ import samplePack from "./research-plan.json";
 
 import { answersFor, chipFor, nextFor, type CampaignState } from "@/lib/campaigns/state";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
-import type { Campaign, CampaignPack, CampaignSummary } from "@/lib/campaigns/types";
+import { widenHeadings } from "@/lib/campaigns/briefLines";
+import type { Campaign, CampaignPack, CampaignSummary, WidenChoice } from "@/lib/campaigns/types";
 
 export type { BriefFields, Campaign, CampaignPack, CampaignSummary } from "@/lib/campaigns/types";
 
@@ -17,7 +18,7 @@ export type { BriefFields, Campaign, CampaignPack, CampaignSummary } from "@/lib
  * campaign page has states no real campaign can reach yet (Running, Paused,
  * Done need lead gen and outreach), and the components that draw them still
  * need a campaign to be drawn from. Every sample is `live: false`, which is
- * also what keeps the signed actions (Confirm, Pause, Widen, Change something)
+ * also what keeps the signed actions (Confirm, Pause, Widen)
  * working on them and off a real campaign.
  *
  * The research each sample shows is the signed contract's own plan-card view
@@ -124,6 +125,13 @@ function stoppedPack(): CampaignPack {
 const PLAN_PACK = planPack();
 const STOPPED_PACK = stoppedPack();
 
+/** The stopped sample's options as the card draws them: research's words, and no real brief for them to change. */
+function sampleWidenings(): WidenChoice[] {
+  const options = STOPPED_PACK.insufficient?.widenings ?? [];
+  const headings = widenHeadings(options.map((option) => option.dimension));
+  return options.map((option, index) => ({ index, dimension: option.dimension, heading: headings[index] ?? "", text: option.text, becomes: null, usable: true }));
+}
+
 type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask">;
 
 function complete(row: Row): Campaign {
@@ -141,7 +149,8 @@ function isRunning(state: CampaignState): boolean {
 
 const NO_PROGRESS = { found: 0, drafted: 0, approved: 0, sent: 0, replied: 0 };
 const NO_OUTCOMES = { warm: 0, meetings: 0 };
-const SAMPLE = { live: false, failure: null } as const;
+/** A sample's actions are its own (Confirm, Pause, Widen change the screen and nothing else), so none of the real ones is offered. */
+const SAMPLE = { live: false, failure: null, briefVersion: 1, can: { widen: false, edit: false, retry: false }, widenings: null };
 
 /**
  * The samples, newest first. `inList` is the signed list's three rows (mock
@@ -245,6 +254,7 @@ const ROWS: (Row & { inList: boolean })[] = [
       existingCustomers: "",
     },
     pack: STOPPED_PACK,
+    widenings: sampleWidenings(),
     plan: null,
     progress: NO_PROGRESS,
     people: null,

@@ -3,10 +3,11 @@ import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
-import { briefFieldsFrom } from "./brief";
+import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
+import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveResearch } from "./derive";
 import { answersFor, chipFor, nextFor, type CampaignCounts, type CampaignState } from "./state";
-import type { BriefFields, Campaign, CampaignSummary } from "./types";
+import type { BriefFields, Campaign, CampaignSummary, ResearchActions, WidenChoice } from "./types";
 
 /**
  * A stored campaign as its screens draw it.
@@ -42,13 +43,24 @@ export function motionLine(brief: BriefFields): string {
 export function toCampaign(record: CampaignRecord): Campaign {
   // Written by `createCampaign` from a brief research's schema accepted, so a
   // row that no longer parses is a defect worth failing on, not one to draw.
-  const brief = briefFieldsFrom(researchBriefSchema.parse(record.campaign.brief));
+  const researchBrief = researchBriefSchema.parse(record.campaign.brief);
+  const brief = briefFieldsFrom(researchBrief);
   const research = deriveResearch(
     record.job === null ? null : { status: record.job.status, error: record.job.error },
     record.event === null ? null : { after: record.event.after },
   );
   const state: CampaignState = research.state;
   const failure = research.state === "failed" ? research.failure : null;
+  // Try again puts the failed job back on the queue, so it is offered only
+  // when there is a failed job to put back: not for a result Relay could not
+  // read, which Edit brief is for.
+  const retryable = state === "failed" && record.job?.status === "failed" && record.event === null;
+  const widenings = research.state === "stopped" ? widenChoices(researchBrief, research.pack.insufficient?.widenings ?? []) : null;
+  const can: ResearchActions = {
+    widen: widenings !== null && widenings.some((choice) => choice.usable),
+    edit: state === "planReady" || state === "stopped" || state === "failed",
+    retry: retryable,
+  };
   const counts: CampaignCounts = {
     progress: null,
     outcomes: null,
@@ -57,6 +69,7 @@ export function toCampaign(record: CampaignRecord): Campaign {
     credits: null,
     live: true,
     failure,
+    retryable,
   };
 
   return {
@@ -80,7 +93,32 @@ export function toCampaign(record: CampaignRecord): Campaign {
     ask: answersFor(state, counts),
     live: true,
     failure,
+    briefVersion: record.campaign.briefVersion,
+    can,
+    widenings,
   };
+}
+
+/**
+ * A stop's widening options as the rep chooses between them.
+ *
+ * Each is checked against the brief as it stands, with the same rule the
+ * widening itself applies (`widenedBrief`), so an option that could no longer
+ * be acted on is drawn but cannot be chosen. What it would change is read off
+ * the brief it would make.
+ */
+export function widenChoices(brief: ResearchBrief, options: readonly unknown[]): WidenChoice[] {
+  const checked = options.map((option) => ({ option: option as { dimension: WidenChoice["dimension"]; text: string }, widened: widenedBrief(brief, option) }));
+  const headings = widenHeadings(checked.map(({ option }) => option.dimension));
+  const before = briefFieldsFrom(brief);
+  return checked.map(({ option, widened }, index) => ({
+    index,
+    dimension: option.dimension,
+    heading: headings[index] ?? "",
+    text: option.text,
+    becomes: widened.ok ? becomesLine(option.dimension, before, briefFieldsFrom(widened.brief)) : null,
+    usable: widened.ok,
+  }));
 }
 
 export function toSummary(campaign: Campaign): CampaignSummary {

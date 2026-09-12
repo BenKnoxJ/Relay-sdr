@@ -17,7 +17,8 @@ import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { getProfile, resetProfile, saveProfile } from "@/lib/fixtures/repProfile";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 const SENTENCE =
   "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users";
@@ -432,5 +433,87 @@ describe("The rep's Calls default", () => {
 
     expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
     expect(getProfile().callByDefault).toBe(true);
+  });
+});
+
+/** Edit brief (orchestrator A1, item 5): Start's card on a campaign's current brief. */
+describe("Edit brief", () => {
+  const current = {
+    product: "Insights360",
+    motion: "direct" as const,
+    who: "veterinary practices in Orkney",
+    region: "GB",
+    howMany: 10,
+    weeks: 3,
+    channels: ["email" as const],
+    scope: {
+      extraCountries: [],
+      places: [{ name: "Orkney", aliases: ["Kirkwall"] }],
+      orgTypes: ["veterinary practice"],
+      size: null,
+      rolesInclude: [],
+      rolesExclude: [],
+    },
+    existingCustomers: "",
+  };
+
+  function editing(connected = false) {
+    push.mockClear();
+    refresh.mockClear();
+    onStart.mockReset();
+    onStart.mockResolvedValue({ id: "camp_1" });
+    return render(
+      <StartForm
+        sentence=""
+        prefilled={{ ...current, guessed: [] }}
+        products={PRODUCTS}
+        regions={REGIONS}
+        howMany={HOW_MANY}
+        howLong={HOW_LONG}
+        mailboxConnected={connected}
+        onStart={onStart}
+        edit={{ campaignName: "Vets in Orkney", cancelHref: "/campaigns/camp_1" }}
+      />,
+    );
+  }
+
+  it("opens on the current brief, with no sentence step and nothing guessed", () => {
+    editing();
+
+    expect(screen.getByRole("heading", { name: startCopy.editTitle })).toBeDefined();
+    expect(screen.getByText("Vets in Orkney")).toBeDefined();
+    expect(screen.getByTestId("edit-intro").textContent).toBe(startCopy.editIntro);
+    expect(screen.queryByText(startCopy.understood)).toBeNull();
+    expect(screen.queryByRole("button", { name: startCopy.readIt })).toBeNull();
+    expect((screen.getByLabelText(startCopy.fieldWho) as HTMLTextAreaElement).value).toBe(current.who);
+    // The rep's own terms, as chips: the place (with its other names) and the kind of organisation.
+    const chips = screen.getAllByTestId("term-chip").map((chip) => chip.firstChild?.textContent ?? "");
+    expect(chips.some((chip) => chip.startsWith("Orkney") && chip.includes("Kirkwall"))).toBe(true);
+    expect(chips).toContain("veterinary practice");
+    expect(screen.getByRole("link", { name: startCopy.editCancel }).getAttribute("href")).toBe("/campaigns/camp_1");
+  });
+
+  it("sends the rep's changed fields, without waiting on a mailbox, and goes back to the campaign", async () => {
+    editing(false);
+
+    fireEvent.change(screen.getByLabelText(startCopy.fieldWho), { target: { value: "vets and pet clinics in Orkney" } });
+    fireEvent.click(screen.getByRole("button", { name: startCopy.editSubmit }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?again=1"));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    const { brief, startRequestId } = onStart.mock.calls[0]![0];
+    expect(brief).toEqual({ ...current, who: "vets and pet clinics in Orkney" });
+    expect(startRequestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(screen.queryByTestId("connect-first")).toBeNull();
+  });
+
+  it("shows the line the server sends back, such as nothing having changed", async () => {
+    editing();
+    onStart.mockResolvedValue({ error: campaignsCopy.briefUnchanged });
+
+    fireEvent.click(screen.getByRole("button", { name: startCopy.editSubmit }));
+
+    expect((await screen.findByTestId("start-error")).textContent).toBe(campaignsCopy.briefUnchanged);
+    expect(push).not.toHaveBeenCalled();
   });
 });

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
+import type { RetrySubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
 import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
@@ -26,36 +28,50 @@ import { WidenCard } from "./WidenCard";
  * section says so in as many words: Plan ready leads with the plan, and Running
  * leads with progress and folds the plan away.
  *
- * A real campaign (`live`) is drawn from the database and offers only what is
- * built: Confirm plan is shown and cannot be pressed until finding people
- * exists, and widening a stop or changing the brief arrive with the next
- * change. Nothing downstream is drawn as a number before it has happened.
- * The sample campaigns the component tests use keep the signed actions, which
- * change this component's state and nothing else.
+ * A real campaign (`live`) is drawn from the database and offers what is
+ * built (orchestrator A1, items 4 to 6): a stop's options can be chosen, Edit
+ * brief opens Start on the brief, and Try again puts failed research back on
+ * the queue. Confirm plan is shown and cannot be pressed until finding people
+ * exists. Each change goes to the server and the page comes back drawn from
+ * what the server then holds; nothing here moves a real campaign's state on
+ * its own. The sample campaigns the component tests use keep the signed
+ * actions, which change this component's state and nothing else.
  */
 
 export function CampaignPage({
   campaign,
   banner = null,
+  onWiden,
+  onRetry,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
   banner?: string | null;
+  /** Asks for a stop's chosen option (a server action). */
+  onWiden?: (submission: WidenSubmission) => Promise<StartResult>;
+  /** Puts failed research back on the queue (a server action). */
+  onRetry?: (submission: RetrySubmission) => Promise<StartResult>;
 }) {
+  const router = useRouter();
   const [state, setState] = useState<CampaignState>(campaign.state);
   const [toast, setToast] = useState<string | null>(banner);
-  const [about, setAbout] = useState<string | null>(null);
-  const [changing, setChanging] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // Minted once per page: a second press of the same action sends the same
+  // id, and the server answers it as the press that already landed.
+  const [requestId] = useState(() => crypto.randomUUID());
   const live = campaign.live;
+  const target = { campaignId: campaign.id, briefVersion: campaign.briefVersion };
+  const editHref = live && campaign.can.edit ? `/campaigns/${campaign.id}/edit` : undefined;
 
-  const action = actionFor(state, live);
+  const action = actionFor(state, live, campaign.can.retry);
   /*
     Recomputed from the state the SCREEN is in, not from the state the campaign
     arrived in. Pause moves the page and the six answers together, and an Ask
     Relay that still said "nothing is paused" the moment after the rep paused it
     would be the one thing on this page a rep could catch lying.
   */
-  const answers = answersFor(state, campaign);
+  const answers = answersFor(state, { ...campaign, retryable: campaign.can.retry });
   /** Answers by id, never by position: `answersFor` is free to reorder them. */
   const answerTo = (...ids: string[]) =>
     ids
@@ -63,26 +79,38 @@ export function CampaignPage({
       .filter((line) => line !== undefined)
       .join(" ");
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
-  // Read only after confirm (§23.1c): the plan stops being a Confirm screen the
-  // moment it has been confirmed, and "Change something" is the only edit left.
-  // A real campaign has no change path yet, so its plan offers none.
-  const planIsConfirmScreen = state === "planReady" && !live;
 
-  /*
-    The note is kept word for word, as the dialog promises. On a sample there
-    is nowhere to keep it but the screen, so the screen is where it is kept.
-  */
-  const changeSomething = (reason: string, note: string) => {
-    const said = note.trim() === "" ? reason : `${reason}${campaignsCopy.noteJoin}${note.trim()}`;
-    setState("researching");
-    setAbout(null);
-    setChanging(false);
-    setToast(`${said}${campaignsCopy.noteJoin}${campaignsCopy.toastConfirmed}`);
+  /** A change landed: come back to the campaign as the server now has it. */
+  const lookingAgain = (id: string) => {
+    router.push(`/campaigns/${id}?again=1`);
+    router.refresh();
   };
 
-  const askToChange = (title: string) => {
-    setAbout(title);
-    setChanging(true);
+  const widen =
+    live && campaign.can.widen && onWiden !== undefined
+      ? async (optionIndex: number): Promise<string | null> => {
+          const result = await onWiden({ ...target, optionIndex, requestId });
+          if ("error" in result) return result.error;
+          lookingAgain(result.id);
+          return null;
+        }
+      : undefined;
+
+  const retry = async () => {
+    if (onRetry === undefined || pending) return;
+    setPending(true);
+    setActionError(null);
+    try {
+      const result = await onRetry({ ...target, requestId });
+      if ("id" in result) {
+        lookingAgain(result.id);
+        return;
+      }
+      setActionError(result.error);
+    } catch {
+      setActionError(campaignsCopy.cannotChange);
+    }
+    setPending(false);
   };
 
   const progress = (
@@ -115,7 +143,9 @@ export function CampaignPage({
       <PlanSection
         pack={campaign.pack}
         collapsed={leadsWithProgress}
-        onChangeAbout={planIsConfirmScreen ? askToChange : undefined}
+        // Only while the plan is the thing being decided on: once it is
+        // confirmed it is read only (§23.1c).
+        editHref={state === "planReady" ? editHref : undefined}
       >
         {campaign.plan === null ? null : (
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3">
@@ -176,17 +206,7 @@ export function CampaignPage({
   );
 
   const brief = (
-    <BriefCard
-      brief={campaign.brief}
-      summary={leadsWithProgress ? campaign.motionLine : undefined}
-      open={changing}
-      about={about}
-      onOpenChange={(isOpen) => {
-        setChanging(isOpen);
-        if (!isOpen) setAbout(null);
-      }}
-      onChange={live ? undefined : changeSomething}
-    />
+    <BriefCard brief={campaign.brief} summary={leadsWithProgress ? campaign.motionLine : undefined} editHref={editHref} />
   );
 
   const ask = <AskRelay questions={answers} />;
@@ -224,18 +244,27 @@ export function CampaignPage({
           <div className="flex flex-col items-end gap-1.5">
             <PillButton
               variant={state === "running" ? "outline" : "primary"}
-              disabled={action.disabled === true}
+              disabled={action.disabled === true || pending}
               onClick={() => {
                 if (action.disabled === true) return;
+                if (action.kind === "retry") {
+                  void retry();
+                  return;
+                }
                 setState(action.next);
                 setToast(campaignsCopy.toastConfirmed);
               }}
             >
-              {action.label}
+              {action.kind === "retry" && pending ? campaignsCopy.actionTrying : action.label}
             </PillButton>
             {action.note === undefined ? null : (
               <p data-testid="action-note" className="type-small text-muted">
                 {action.note}
+              </p>
+            )}
+            {actionError === null ? null : (
+              <p role="alert" data-testid="action-error" className="type-small text-warn">
+                {actionError}
               </p>
             )}
           </div>
@@ -256,16 +285,18 @@ export function CampaignPage({
 
       {state === "failed" ? (
         <p data-testid="failed-note" className="type-small mb-grid rounded-input bg-warn-bg px-3 py-2.5 text-warn">
-          {failureLine(campaign.failure)} {campaignsCopy.failedNothingSpent} {campaignsCopy.failedNext}
+          {failureLine(campaign.failure)} {campaignsCopy.failedNothingSpent}{" "}
+          {campaign.can.retry ? campaignsCopy.failedNextRetry : campaignsCopy.failedNextEdit}
         </p>
       ) : null}
 
       {state === "stopped" && campaign.pack?.insufficient !== undefined ? (
         <div className="mb-grid">
           <WidenCard
-            insufficient={campaign.pack.insufficient}
+            reason={campaign.pack.insufficient.reason}
             found={campaign.pack.stopEvidence ?? []}
-            canChoose={!live}
+            choices={campaign.widenings ?? []}
+            onWiden={widen}
           />
         </div>
       ) : null}

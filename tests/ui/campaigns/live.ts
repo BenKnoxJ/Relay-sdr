@@ -15,7 +15,8 @@ import { briefFields, completePack, partialBrief, partialPack, stoppedBrief, sto
  * `tests/lib/campaignPacks.ts`.
  */
 
-export type LiveKind = "researching" | "complete" | "partial" | "stopped" | "failed";
+/** `unreadable` is research that finished with nothing Relay could read: needs you, and no Try again. */
+export type LiveKind = "researching" | "complete" | "partial" | "stopped" | "failed" | "unreadable";
 
 const AT = new Date("2026-09-12T12:00:00Z");
 

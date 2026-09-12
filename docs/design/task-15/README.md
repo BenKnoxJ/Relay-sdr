@@ -41,8 +41,10 @@ exists. The component snapshots keep their markup.
    people, credits and sending lines are absent or words until lead gen: the
    mock's zeros read like work done.
 5. **Confirm plan is drawn and cannot be pressed**, with the line saying
-   finding people comes next. Widen, Change something and Your people are
-   absent on a real campaign until they are built.
+   finding people comes next. Your people is absent on a real campaign until
+   it is built. (Since the research loop: a stop's options are chosen in its
+   own card, Edit brief opens Start on the brief and replaces Change
+   something, and Try again appears on research that failed.)
 6. **The stop shows research's own reason and evidence at length.** The mock's
    two-line summary was drawn before v3.2; the evidence items are the pack's
    m00/m01 items as written, each with its source and confidence word.

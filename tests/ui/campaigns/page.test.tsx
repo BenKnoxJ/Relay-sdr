@@ -1,13 +1,23 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CampaignPage } from "@/components/campaigns/CampaignPage";
+import type { RetrySubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign, type Campaign } from "@/lib/fixtures/campaigns";
 
 import { liveCampaign } from "./live";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns" }));
+const push = vi.fn();
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns", useRouter: () => ({ push, refresh }) }));
+
+beforeEach(() => {
+  push.mockClear();
+  refresh.mockClear();
+});
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** A fixture campaign, or a failure that names the id rather than a null deref. */
 function campaign(id: string): Campaign {
@@ -114,62 +124,20 @@ describe("arriving from Start", () => {
   });
 });
 
-describe("Change something", () => {
-  it("asks a reason, then shows the campaign reading around the brief again", () => {
-    render(<CampaignPage campaign={campaign("managed-print-partners-midlands")} />);
-
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeSomething }));
-
-    const dialog = screen.getByTestId("change-dialog");
-    expect(dialog).toBeDefined();
-    // The reason is required: nothing is asked for until one is picked.
-    const submit = screen.getByRole("button", { name: campaignsCopy.changeSubmit });
-    expect(submit.hasAttribute("disabled")).toBe(true);
-
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeReasonPain }));
-    fireEvent.change(screen.getByLabelText(campaignsCopy.changeNoteLabel), {
-      target: { value: "they are dealers, not end users" },
-    });
-    fireEvent.click(submit);
-
-    expect(screen.getByTestId("researching-note")).toBeDefined();
-    expect(screen.getByTestId("campaign-toast").textContent).toContain(campaignsCopy.changeReasonPain);
-    // The note is kept word for word, as the box under it promises.
-    expect(screen.getByTestId("campaign-toast").textContent).toContain(
-      "they are dealers, not end users",
-    );
-    // The rejected plan goes with it: there is no research behind the campaign
-    // again until the new reading lands.
-    expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
+describe("Edit brief replaces Change something", () => {
+  it("has no reason picker anywhere, on a sample or a real campaign", () => {
+    for (const shown of [campaign("managed-print-partners-midlands"), liveCampaign("complete")]) {
+      const { unmount } = render(<CampaignPage campaign={shown} />);
+      expect(screen.queryByTestId("change-dialog")).toBeNull();
+      expect(screen.queryByTestId("change-reason")).toBeNull();
+      expect(screen.queryByText("Change something…")).toBeNull();
+      unmount();
+    }
   });
 
-  it("opens the same dialog from a plan card, with that card named", () => {
+  it("a sample offers no Edit brief: there is no real brief behind it", () => {
     render(<CampaignPage campaign={campaign("managed-print-partners-midlands")} />);
-
-    const painCard = screen
-      .getAllByTestId("plan-card")
-      .find((card) => card.textContent?.startsWith(campaignsCopy.cardPain));
-    expect(painCard).toBeDefined();
-    fireEvent.click(painCard!.querySelectorAll("button")[0]!);
-    fireEvent.click(
-      screen.getAllByRole("button", { name: campaignsCopy.changeFromCard })[0]!,
-    );
-
-    const dialog = screen.getByTestId("change-dialog");
-    expect(dialog.textContent).toContain(campaignsCopy.cardPain);
-  });
-
-  it("forgets a reason that was cancelled, rather than arming the next open", () => {
-    render(<CampaignPage campaign={campaign("managed-print-partners-midlands")} />);
-
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeSomething }));
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeReasonWho }));
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeCancel }));
-
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.changeSomething }));
-    expect(
-      screen.getByRole("button", { name: campaignsCopy.changeSubmit }).hasAttribute("disabled"),
-    ).toBe(true);
+    expect(screen.queryByTestId("edit-brief")).toBeNull();
   });
 });
 
@@ -188,7 +156,9 @@ describe("a real campaign", () => {
     expect(screen.getByTestId("researching-note").textContent).toBe(campaignsCopy.researchingNote);
     expect(screen.getByTestId("progress-none").textContent).toBe(campaignsCopy.progressNone);
     expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: campaignsCopy.changeSomething })).toBeNull();
+    // Nothing to change while research reads: no Edit brief, and no Try again.
+    expect(screen.queryByTestId("edit-brief")).toBeNull();
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
     expect(screen.queryByRole("link", { name: campaignsCopy.peopleLink })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askCost }));
@@ -219,8 +189,18 @@ describe("a real campaign", () => {
     const labels = screen.getAllByTestId("plan-for").map((line) => line.textContent);
     expect(labels.length).toBeGreaterThanOrEqual(1);
     expect(new Set(labels)).toEqual(new Set([`${campaignsCopy.forGroup} ${chosen?.name}`]));
-    // No change from a card on a real campaign: Edit brief is the next change.
-    expect(screen.queryByRole("button", { name: campaignsCopy.changeFromCard })).toBeNull();
+    // Each open card offers Edit brief, to the same page the brief card does.
+    const fromCards = screen.getAllByRole("link", { name: campaignsCopy.editBrief });
+    expect(fromCards.length).toBeGreaterThan(1);
+    expect(new Set(fromCards.map((link) => link.getAttribute("href")))).toEqual(new Set([`/campaigns/${live.id}/edit`]));
+  });
+
+  it("on Plan ready, offers Edit brief on the brief card, and keeps finding people out of reach", () => {
+    render(<CampaignPage campaign={liveCampaign("partial")} />);
+
+    expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe("/campaigns/camp-partial/edit");
+    expect(screen.getByRole("button", { name: campaignsCopy.actionConfirm }).hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
   });
 
   it("on a partial plan, says which parts are missing, in a rep's words", () => {
@@ -232,29 +212,110 @@ describe("a real campaign", () => {
     expect(note).not.toMatch(/\bm\d\d\b|repSummary|execSummary/);
   });
 
-  it("on a stop, shows research's own options and the evidence it cites, and offers no choice yet", () => {
+  it("on a stop, shows research's own options as a choice, with the evidence it cites", () => {
     const live = liveCampaign("stopped");
-    render(<CampaignPage campaign={live} />);
+    render(<CampaignPage campaign={live} onWiden={vi.fn()} />);
 
     expect(screen.getAllByTestId("widening")).toHaveLength(3);
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
     expect(screen.getByTestId("stop-reason").textContent).toBe(live.pack?.insufficient?.reason);
-    expect(screen.getByTestId("widen-note").textContent).toBe(campaignsCopy.stopChooseLater);
+    // Research's text, word for word, under each heading.
+    for (const option of live.pack!.insufficient!.widenings) expect(screen.getByText(option.text)).toBeDefined();
+    expect(screen.getByTestId("widen-note").textContent).toBe(campaignsCopy.stopChooseOne);
+    expect(screen.getByTestId("edit-brief")).toBeDefined();
+    // The stop's action is on the option, not in the header.
     expect(screen.queryByRole("button", { name: campaignsCopy.actionWiden })).toBeNull();
     expect(screen.getAllByTestId("pack-item")).toHaveLength(live.pack?.stopEvidence?.length ?? -1);
     expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
     expect(currentStep()).toBe(campaignsCopy.stepStopped);
+    // Nothing downstream is offered: no Confirm.
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
   });
 
-  it("when research failed, says why in words and that nothing was spent, and offers nothing to press", () => {
-    render(<CampaignPage campaign={liveCampaign("failed")} />);
+  it("tells two options that widen the same thing apart, without rewriting research's words", () => {
+    render(<CampaignPage campaign={liveCampaign("stopped")} />);
+
+    const headings = screen.getAllByTestId("widen-heading").map((heading) => heading.textContent);
+    expect(new Set(headings).size).toBe(3);
+    expect(headings.slice(0, 2)).toEqual([
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 1`,
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 2`,
+    ]);
+    const becomes = screen.getAllByTestId("widen-becomes").map((line) => line.textContent);
+    expect(new Set(becomes).size).toBe(3);
+  });
+
+  it("asks for the chosen option once, from the version on screen, then comes back to the campaign", async () => {
+    const live = liveCampaign("stopped");
+    const onWiden = vi.fn<(submission: WidenSubmission) => Promise<StartResult>>().mockResolvedValue({ id: live.id });
+    render(<CampaignPage campaign={live} onWiden={onWiden} />);
+
+    const submit = screen.getByTestId("widen-submit");
+    expect(submit.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getAllByRole("radio")[1]!);
+    expect(submit.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/campaigns/${live.id}?again=1`));
+    expect(onWiden).toHaveBeenCalledTimes(1);
+    const sent = onWiden.mock.calls[0]![0];
+    expect(sent).toMatchObject({ campaignId: live.id, briefVersion: 1, optionIndex: 1 });
+    expect(sent.requestId).toMatch(UUID);
+  });
+
+  it("shows the line the server sends back when a choice is refused, and keeps the choice", async () => {
+    const live = liveCampaign("stopped");
+    const onWiden = vi.fn<(submission: WidenSubmission) => Promise<StartResult>>().mockResolvedValue({ error: campaignsCopy.changedSince });
+    render(<CampaignPage campaign={live} onWiden={onWiden} />);
+
+    fireEvent.click(screen.getAllByRole("radio")[0]!);
+    fireEvent.click(screen.getByTestId("widen-submit"));
+
+    expect((await screen.findByTestId("widen-error")).textContent).toBe(campaignsCopy.changedSince);
+    expect((screen.getAllByRole("radio")[0] as HTMLInputElement).checked).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("when research failed, says why in words, that nothing was spent, and offers Try again and Edit brief", async () => {
+    const live = liveCampaign("failed");
+    const onRetry = vi.fn<(submission: RetrySubmission) => Promise<StartResult>>().mockResolvedValue({ id: live.id });
+    render(<CampaignPage campaign={live} onRetry={onRetry} />);
 
     const note = screen.getByTestId("failed-note").textContent ?? "";
     expect(note).toContain(campaignsCopy.failedTookTooLong);
     expect(note).toContain(campaignsCopy.failedNothingSpent);
+    expect(note).toContain(campaignsCopy.failedNextRetry);
     expect(note).not.toContain("rail");
     expect(currentStep()).toBe(campaignsCopy.stepNeedsYou);
+    expect(screen.getByTestId("edit-brief")).toBeDefined();
     for (const label of [campaignsCopy.actionConfirm, campaignsCopy.actionWiden]) {
       expect(screen.queryByRole("button", { name: label })).toBeNull();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionTryAgain }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/campaigns/${live.id}?again=1`));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry.mock.calls[0]![0]).toMatchObject({ campaignId: live.id, briefVersion: 1 });
+    expect(onRetry.mock.calls[0]![0].requestId).toMatch(UUID);
+  });
+
+  it("offers Try again only when the research itself failed", () => {
+    for (const kind of ["researching", "complete", "partial", "stopped", "unreadable"] as const) {
+      const { unmount } = render(<CampaignPage campaign={liveCampaign(kind)} />);
+      expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
+      unmount();
+    }
+    // Nothing Relay could read came back: the rep edits the brief instead.
+    render(<CampaignPage campaign={liveCampaign("unreadable")} />);
+    expect(screen.getByTestId("failed-note").textContent).toContain(campaignsCopy.failedNextEdit);
+    expect(screen.getByTestId("edit-brief")).toBeDefined();
+  });
+
+  it("never says an action arrives next, now that each one is real", () => {
+    for (const kind of ["researching", "complete", "partial", "stopped", "failed", "unreadable"] as const) {
+      const { container, unmount } = render(<CampaignPage campaign={liveCampaign(kind)} />);
+      expect(container.textContent).not.toMatch(/able to .* next|arrives? (next|with)/i);
+      unmount();
     }
   });
 

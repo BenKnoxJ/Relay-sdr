@@ -244,6 +244,12 @@ export async function enqueue(
     if (input.briefVersion! > campaign.briefVersion) {
       throw new Error("enqueue: briefVersion is ahead of the campaign's own");
     }
+    // Behind is refused too: research for a brief the campaign has already
+    // moved on from is work no screen would ever show, and a job for it would
+    // run and spend all the same.
+    if (input.briefVersion! < campaign.briefVersion) {
+      throw new Error("enqueue: briefVersion is behind the campaign's own");
+    }
   }
 
   const rows = await db.$queryRaw<JobRow[]>`
@@ -535,6 +541,49 @@ export async function release(
     RETURNING id
   `;
   return rows.length === 1 ? LANDED : FENCED;
+}
+
+/**
+ * Put a failed job back on the queue, because someone decided it should run
+ * again: a rep's Try again (orchestrator amendment A1, item 6).
+ *
+ * The same row, not a new one. The idempotency key names the work, and the
+ * work has not changed, so a second job under a second key would be the thing
+ * `enqueue`'s comment warns about: re-running failed work quietly becoming new
+ * work. The input is left exactly as it was, and so is `error`, for the reason
+ * `requeue` keeps it: the next attempt can read what went wrong. Everything
+ * else the queue needs to know is already the queue's own:
+ *
+ *   * `attempts` is untouched. It is the fencing token and it only ever goes
+ *     up, so the next claim is attempt `attempts + 1`, and no write from an
+ *     earlier attempt can match it;
+ *   * `max_attempts` is raised just enough that the next claim is inside it.
+ *     A job that failed terminally on its first attempt still has the rest of
+ *     its allowance and keeps it; one that spent every attempt gets one more.
+ *     A rep pressing Try again once asks for one more try, not three.
+ *
+ * Only from `failed`, in one statement, so it is its own guard: a second call
+ * finds the row `queued` and changes nothing, and says so by returning null.
+ * `db` is a `TransactionClient` for the reason `enqueue`'s is: the rep's Event
+ * and the job going back on the queue commit together.
+ */
+export async function reopenFailed(
+  db: Prisma.TransactionClient,
+  where: { orgId: string; jobId: string },
+): Promise<Job | null> {
+  const rows = await db.$queryRaw<JobRow[]>`
+    UPDATE jobs
+       SET status = 'queued'::"job_status",
+           max_attempts = GREATEST(max_attempts, attempts + 1),
+           next_at = (now() AT TIME ZONE 'UTC'),
+           updated_at = (now() AT TIME ZONE 'UTC')
+     WHERE id = ${where.jobId}
+       AND org_id = ${where.orgId}
+       AND status = 'failed'::"job_status"
+    RETURNING *
+  `;
+  const row = rows[0];
+  return row === undefined ? null : toJob(row);
 }
 
 export type ReapResult = { requeued: string[]; failed: string[] };

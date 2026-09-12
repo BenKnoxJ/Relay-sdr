@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { researchBriefSchema } from "../../../agents/research/input.schema";
-import { lockScope } from "../../../agents/research/output.schema";
+import { priorRunSchema, researchBriefSchema } from "../../../agents/research/input.schema";
+import { lockScope, wideningIssue, wideningSchema, type Widening } from "../../../agents/research/output.schema";
 
 import { CHANNELS, HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, SIZE_UNITS } from "./start";
 import type { BriefFields, Channel } from "./types";
@@ -135,7 +135,86 @@ export function toResearchBrief(fields: BriefFields): ResearchBrief {
   return brief;
 }
 
-/** Research's brief back as the card's fields, for the brief card and, later, Edit brief. */
+/**
+ * A research job's input as research reads it (A1, item 1): the brief, and on
+ * a re-run the earlier packs and, for a widening only, `priorRun`.
+ *
+ * The same shape the research handler parses (`researchJobInputSchema` in
+ * `src/worker/handlers/research.ts`), built from research's own pieces rather
+ * than imported, because `src/lib` does not reach into the worker.
+ * `tests/repo/campaignChanges.test.ts` parses what this builds with the
+ * handler's own schema, so the two cannot drift apart unnoticed.
+ */
+export const researchJobInputSchema = z
+  .object({
+    brief: researchBriefSchema,
+    priorRun: priorRunSchema.optional(),
+    priorPackIds: z.array(z.string().min(1).max(80)).max(20).optional(),
+  })
+  .strict();
+export type ResearchJobInput = z.infer<typeof researchJobInputSchema>;
+
+type ScopePatch = Widening["scopePatch"];
+
+/**
+ * A widening's `scopePatch` applied to a brief's scope (research v3.2, note
+ * 28): a field left out is unchanged, `null` removes that constraint, and
+ * anything else replaces it. A scope left with nothing in it is dropped, as
+ * `toResearchBrief` drops one.
+ */
+export function applyScopePatch(brief: ResearchBrief, patch: ScopePatch): ResearchBrief {
+  const scope: Record<string, unknown> = { ...(brief.scope ?? {}) };
+  for (const [field, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (value === null) delete scope[field];
+    else scope[field] = value;
+  }
+  const next: ResearchBrief = { ...brief, scope: scope as ResearchBrief["scope"] };
+  if (Object.keys(scope).length === 0) delete next.scope;
+  return next;
+}
+
+/**
+ * The brief a widening option would make, or why it cannot be used.
+ *
+ * Defensive, because the option comes from a stored Event and is applied to
+ * the brief as it is now: ingest checked it against the scope research was
+ * held to, and this checks it again against the current brief, with
+ * research's own rule (`wideningIssue`), before a rep's choice is acted on.
+ * The widened brief must still be one research accepts.
+ */
+export function widenedBrief(brief: ResearchBrief, option: unknown): { ok: true; brief: ResearchBrief; widening: Widening } | { ok: false; issue: string } {
+  const widening = wideningSchema.safeParse(option);
+  if (!widening.success) return { ok: false, issue: "the option is not a widening" };
+  const locked = lockScope(brief);
+  if (!locked.ok) return { ok: false, issue: locked.issue };
+  const issue = wideningIssue(locked.scope, widening.data);
+  if (issue !== null) return { ok: false, issue };
+  const parsed = researchBriefSchema.safeParse(applyScopePatch(brief, widening.data.scopePatch));
+  if (!parsed.success) return { ok: false, issue: "the widened brief is not one research accepts" };
+  const relocked = lockScope(parsed.data);
+  if (!relocked.ok) return { ok: false, issue: relocked.issue };
+  return { ok: true, brief: parsed.data, widening: widening.data };
+}
+
+/** Whether two briefs say the same thing, whatever order their keys were written in. */
+export function sameBrief(a: ResearchBrief, b: ResearchBrief): boolean {
+  return canonical(a) === canonical(b);
+}
+
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** Research's brief back as the card's fields, for the brief card and Edit brief. */
 export function briefFieldsFrom(brief: ResearchBrief): BriefFields {
   const scope = brief.scope ?? {};
   const channels = brief.channels.filter((channel): channel is Channel => (CHANNELS as readonly string[]).includes(channel));

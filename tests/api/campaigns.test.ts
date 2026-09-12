@@ -12,6 +12,8 @@ import { type Session } from "@/server/auth/session";
 import { ensureUser, type Actor } from "@/server/auth/upsertUser";
 
 import { emptyAll, resetDatabase } from "../db/harness";
+import { EMPTY_SCOPE } from "@/lib/campaigns/start";
+
 import { completePack, partialPack, startInput, stoppedPack } from "../lib/campaignPacks";
 
 /**
@@ -216,5 +218,110 @@ describe("campaigns.get and campaigns.list", () => {
     const why = campaign.ask.find((a) => a.id === "why-stopped")?.answer;
     expect(why).toBe(campaignsCopy.failedTookTooLong);
     expect(JSON.stringify(campaign)).not.toContain("rail was reached");
+  });
+});
+
+/**
+ * Widen, Edit brief and Try again through the router (orchestrator A1, items
+ * 4 to 6): the codes and lines a page can show, and what the page is drawn
+ * from afterwards. The transactions themselves are `tests/repo/campaignChanges.test.ts`.
+ */
+describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
+  /** Start's card for brief C: veterinary practices in Orkney, the scope the signed stop was made for. */
+  const vetsInOrkney = () =>
+    startInput({
+      who: "veterinary practices in Orkney",
+      scope: { ...EMPTY_SCOPE, places: [{ name: "Orkney", aliases: ["Orkney Islands", "Kirkwall", "Stromness"] }], orgTypes: ["veterinary practice"] },
+    });
+
+  async function stoppedCampaign() {
+    const { id } = await caller(rep()).campaigns.create(vetsInOrkney());
+    const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id } });
+    await finish(job, stoppedPack(), "insufficient");
+    return id;
+  }
+
+  const uuid = () => crypto.randomUUID();
+
+  it("draws a stop's options as a choice: research's words, numbered headings, and what each would change", async () => {
+    const id = await stoppedCampaign();
+    const campaign = await caller(rep()).campaigns.get({ id });
+    const options = stoppedPack().insufficient!.widenings;
+
+    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false });
+    expect(campaign.briefVersion).toBe(1);
+    expect(campaign.widenings?.map((choice) => choice.text)).toEqual(options.map((option) => option.text));
+    expect(campaign.widenings?.map((choice) => choice.heading)).toEqual([
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 1`,
+      `${campaignsCopy.widenRegion}${campaignsCopy.noteJoin}${campaignsCopy.widenOption} 2`,
+      campaignsCopy.widenSector,
+    ]);
+    expect(new Set(campaign.widenings?.map((choice) => choice.becomes)).size).toBe(3);
+    expect(campaign.widenings?.every((choice) => choice.usable)).toBe(true);
+    expect(campaign.next).toBe(campaignsCopy.nextStopped);
+  });
+
+  it("@proof widens by the option chosen, and refuses a stale page, a future version and another rep", async () => {
+    const id = await stoppedCampaign();
+
+    expect(await caller(rep()).campaigns.widen({ campaignId: id, fromBriefVersion: 1, optionIndex: 1, requestId: uuid() })).toEqual({ id });
+    const after = await caller(rep()).campaigns.get({ id });
+    expect(after).toMatchObject({ state: "researching", briefVersion: 2, can: { widen: false, edit: false, retry: false }, widenings: null });
+    expect(after.brief.scope.places.map((place) => place.name)).toEqual(["Orkney", "Shetland", "Western Isles", "Highland", "Argyll and Bute"]);
+
+    await expect(caller(rep()).campaigns.widen({ campaignId: id, fromBriefVersion: 1, optionIndex: 0, requestId: uuid() })).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: campaignsCopy.changedSince,
+    });
+    await expect(caller(rep()).campaigns.widen({ campaignId: id, fromBriefVersion: 7, optionIndex: 0, requestId: uuid() })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: campaignsCopy.cannotChange,
+    });
+    expect(await codeOf(caller(boss()).campaigns.widen({ campaignId: id, fromBriefVersion: 2, optionIndex: 0, requestId: uuid() }))).toBe("NOT_FOUND");
+    expect(await codeOf(caller(stranger()).campaigns.widen({ campaignId: id, fromBriefVersion: 2, optionIndex: 0, requestId: uuid() }))).toBe("NOT_FOUND");
+    expect(await codeOf(caller(null).campaigns.widen({ campaignId: id, fromBriefVersion: 2, optionIndex: 0, requestId: uuid() }))).toBe("UNAUTHORIZED");
+  });
+
+  it("edits the brief from Plan ready, and refuses an unchanged brief and research still reading", async () => {
+    const { id, job } = await started();
+    await finish(job, completePack(), "complete");
+    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false });
+
+    await expect(caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 1, requestId: uuid(), brief: startInput().brief })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: campaignsCopy.briefUnchanged,
+    });
+    const brief = { ...startInput().brief, howMany: 30 };
+    expect(await caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 1, requestId: uuid(), brief })).toEqual({ id });
+    const after = await caller(rep()).campaigns.get({ id });
+    expect(after).toMatchObject({ state: "researching", briefVersion: 2, brief: { howMany: 30 } });
+
+    await expect(caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 2, requestId: uuid(), brief: startInput().brief })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    // A brief Start would refuse is refused here in Start's words.
+    await expect(
+      caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 2, requestId: uuid(), brief: { ...startInput().brief, howMany: 15 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("offers Try again only when the research itself failed, and puts that job back on the queue", async () => {
+    const { id, job } = await started();
+    await prisma.job.update({ where: { id: job.id }, data: { status: "failed", error: "research: bad_output — x", attempts: 1 } });
+    const before = await caller(rep()).campaigns.get({ id });
+    expect(before.can).toEqual({ widen: false, edit: true, retry: true });
+    expect(before.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailed);
+
+    expect(await caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).toEqual({ id });
+    expect(await caller(rep()).campaigns.get({ id })).toMatchObject({ state: "researching", briefVersion: 1 });
+    expect(await prisma.job.findMany({ where: { campaignId: id } })).toMatchObject([{ id: job.id, status: "queued" }]);
+    await expect(caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).rejects.toMatchObject({ code: "CONFLICT" });
+
+    // Research that finished with nothing Relay could read needs the rep too, but there is no failed job to put back.
+    const other = await started();
+    await prisma.job.update({ where: { id: other.job.id }, data: { status: "done" } });
+    const unreadable = await caller(rep()).campaigns.get({ id: other.id });
+    expect(unreadable).toMatchObject({ state: "failed", can: { widen: false, edit: true, retry: false } });
+    expect(unreadable.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailedEdit);
   });
 });

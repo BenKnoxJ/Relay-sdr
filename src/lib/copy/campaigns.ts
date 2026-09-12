@@ -43,8 +43,6 @@ export const campaignsCopy = {
    */
   nextResearching: "reading around the brief",
   nextStopped: "widen the brief",
-  /** A real stop, before choosing a way to widen can be pressed. */
-  nextStoppedLive: "read what research found",
   nextPlanReady: "confirm the plan",
   /** A real plan, before Confirm can be pressed. */
   nextPlanReadyLive: "read the plan",
@@ -85,6 +83,9 @@ export const campaignsCopy = {
   actionPause: "Pause",
   actionResume: "Resume",
   actionWiden: "Widen the brief",
+  /** Research that failed runs again, on the same brief (orchestrator A1, item 6). */
+  actionTryAgain: "Try again",
+  actionTrying: "Trying again",
 
   /** Researching: a line, and no spinner (§23.1c; research v3 runs 20 to 45 minutes). */
   researchingNote: "Reading around the brief now. This usually takes 20 to 45 minutes.",
@@ -98,7 +99,9 @@ export const campaignsCopy = {
   failedOther: "Relay's research did not finish.",
   failedNotStarted: "Relay's research has not started.",
   failedNothingSpent: "Nothing was bought or sent.",
-  failedNext: "You'll be able to try this research again next.",
+  /** What the rep can do about it: Try again when the research itself failed, and Edit brief always. */
+  failedNextRetry: "Try again, or edit the brief.",
+  failedNextEdit: "Edit the brief, and Relay looks again.",
 
   /** Confirm plan is drawn and cannot be pressed until finding people exists. */
   confirmLater: "Finding people comes next. Nothing will be bought or sent yet.",
@@ -123,21 +126,13 @@ export const campaignsCopy = {
   sizeTo: "to",
   sizeUnits: { employees: "people employed", seats: "seats", sites: "sites" },
   over: "over",
-  changeSomething: "Change something…",
-  changeFromCard: "Change something about this…",
+  /** Opens Start on the current brief (orchestrator A1, item 5: Edit brief replaces the reason picker). */
+  editBrief: "Edit brief",
 
-  /** The reason dialog behind "Change something" (§23.1c: it asks a reason). */
-  changeTitle: "What should change?",
-  changeHint: "Pick a reason. Relay reads around the brief again and writes a new plan.",
-  changeReasonWho: "Wrong people",
-  changeReasonPain: "Wrong pain",
-  changeReasonRegion: "Wrong region",
-  changeReasonSize: "Wrong size of firm",
-  changeReasonOther: "Something else",
-  changeNoteLabel: "Anything to add",
-  changeNotePlaceholder: "Optional. Kept word for word.",
-  changeSubmit: "Ask for new research",
-  changeCancel: "Cancel",
+  /** Why a change to a campaign was refused. Each is a line a rep can act on. */
+  changedSince: "This campaign changed after the page was opened. Reload it to see where it is now.",
+  cannotChange: "Relay could not make that change. Reload the page and try again.",
+  briefUnchanged: "Nothing in the brief has changed.",
 
   /** Ask Relay: six chips, no free text (§23.1c, orchestrator §8). */
   askLabel: "Ask Relay",
@@ -159,8 +154,8 @@ export const campaignsCopy = {
   answerWaitingConfirm: "You. Confirm the plan and Relay finds your people.",
   answerWaitingWiden: "You. Widen the brief and Relay reads around it again.",
   answerWaitingPlanLive: "Nothing yet. Read the plan first. Finding people comes next.",
-  answerWaitingStoppedLive: "Nothing yet. Research stopped here. You’ll be able to choose a wider brief next.",
-  answerWaitingFailed: "Nothing you can do here yet. The reason is at the top of the page.",
+  answerWaitingFailed: "You. Try again, or edit the brief. The reason is at the top of the page.",
+  answerWaitingFailedEdit: "You. Edit the brief, and Relay looks again. The reason is at the top of the page.",
   answerWaitingDrafts: "drafts due today in Inbox.",
   answerWaitingNothing: "Nothing right now.",
   answerRepliesNone: "Nobody has replied yet.",
@@ -308,16 +303,25 @@ export const campaignsCopy = {
   stopFound: "What it did find",
   stopHelp: "What would help",
   stopChooseOne: "Choose one, and Relay looks again",
-  /** A real stop, before choosing an option can be pressed. */
-  stopChooseLater: "You'll be able to choose one of these next. Nothing has been spent.",
   widenRegion: "Widen the region",
   widenSize: "Widen the size",
   widenSector: "Widen the kind of organisation",
   widenRole: "Widen the roles",
+  /** Two options that widen the same thing: "Widen the region · option 2". Research's own text is never changed. */
+  widenOption: "option",
+  /** What the brief would read after an option: "Where becomes United Kingdom". */
+  widenBecomes: "becomes",
+  widenAny: "open, for Relay to decide",
+  widenNone: "none",
+  widenUnusable: "This option no longer fits the brief, so it cannot be chosen.",
+  widenSubmit: "Look again with this",
+  widenSubmitting: "Asking",
 
   /** Nothing on these pages sends or spends (§23.1c, last line). */
   toastConfirmed: "Nothing was bought or sent. These campaigns are samples while the real ones are built.",
   toastStarted: "Research has started. Nothing was bought or sent.",
+  /** After a widening, an edit or Try again. */
+  toastLookingAgain: "Relay is looking again. Nothing was bought or sent.",
 } as const;
 
 /** Start (§23.1d), as drawn in section 3d of the signed mock. */
@@ -381,6 +385,14 @@ export const startCopy = {
   starting: "Starting",
   startNote: "Usually 20 to 45 minutes. Nothing is bought or sent until you confirm the plan.",
   cannotStart: "Relay could not start this campaign. Check the brief and try again.",
+
+  /** Edit brief: the same card, on the brief research last read (orchestrator A1, item 5). */
+  editTitle: "Edit brief",
+  editIntro: "This is the brief Relay last read around. Change what you need, then look again.",
+  editSubmit: "Look again with this brief",
+  editSubmitting: "Asking",
+  editNote: "Usually 20 to 45 minutes. Nothing is bought or sent.",
+  editCancel: "Cancel",
   connectFirst: "Connect your mailbox first",
   connectLink: "Settings",
 } as const;

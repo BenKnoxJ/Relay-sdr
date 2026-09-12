@@ -51,6 +51,27 @@ export type BriefFields = {
 /** What the campaign page draws from research: the plan-card view, and on a stop the items the stop cites. */
 export type CampaignPack = PlanCards & { stopEvidence?: Item[] };
 
+/** The scope dimension a widening option widens (research v3.2, note 28). */
+export type WidenDimension = "region" | "size" | "sector" | "role";
+
+/** One of a stop's widening options, as the rep chooses between them. */
+export type WidenChoice = {
+  /** The option's place in research's list: what choosing it names. */
+  index: number;
+  dimension: WidenDimension;
+  /** "Widen the region", numbered when two options widen the same thing. */
+  heading: string;
+  /** Research's own words for the option, unchanged. */
+  text: string;
+  /** What the brief would read after it ("Where becomes United Kingdom"); null on a sample, which has no real brief to change. */
+  becomes: string | null;
+  /** False when the option no longer widens the brief as it stands, so it cannot be chosen. */
+  usable: boolean;
+};
+
+/** What the rep can ask of research from where the campaign is (orchestrator A1, items 4 to 6). */
+export type ResearchActions = { widen: boolean; edit: boolean; retry: boolean };
+
 /** Why research did not finish, in the words of orchestrator §7 (amended A1). */
 export type ResearchFailure = "took_too_long" | "bad_output" | "failed" | "not_started";
 
@@ -105,4 +126,10 @@ export type Campaign = CampaignSummary & {
   live: boolean;
   /** Set when research did not finish. */
   failure: ResearchFailure | null;
+  /** The brief version the page was drawn from: every change the page asks for names it. */
+  briefVersion: number;
+  /** What the rep can ask of research from here. All false on a sample: its actions are its own. */
+  can: ResearchActions;
+  /** On a stop, research's widening options as the rep chooses between them. Null in every other state. */
+  widenings: WidenChoice[] | null;
 };

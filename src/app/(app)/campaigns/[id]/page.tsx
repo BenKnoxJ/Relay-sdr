@@ -4,6 +4,8 @@ import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign } from "@/server/campaigns";
 
+import { retryResearch, widenResearch } from "./actions";
+
 /**
  * One campaign (master doc §23.1c, mock 3b and 3c).
  *
@@ -24,8 +26,19 @@ export default async function CampaignDetailPage({
   if (campaign === null) notFound();
 
   // Start sends the rep here and says research has started and nothing was
-  // bought or sent (§23.1d). The line is shown on arrival.
-  const justStarted = (await searchParams).started === "1";
+  // bought or sent (§23.1d); a widening, an edit and Try again say Relay is
+  // looking again. The line is shown on arrival.
+  const query = await searchParams;
+  const banner = query.started === "1" ? campaignsCopy.toastStarted : query.again === "1" ? campaignsCopy.toastLookingAgain : null;
 
-  return <CampaignPage campaign={campaign} banner={justStarted ? campaignsCopy.toastStarted : null} />;
+  return (
+    <CampaignPage
+      // The page holds the state it draws; a new version or state is a new page.
+      key={`${campaign.briefVersion}:${campaign.state}`}
+      campaign={campaign}
+      banner={banner}
+      onWiden={widenResearch}
+      onRetry={retryResearch}
+    />
+  );
 }

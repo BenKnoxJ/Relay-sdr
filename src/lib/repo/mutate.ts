@@ -52,6 +52,14 @@ export type EventKind =
   /// the brief. Written in the same transaction as the campaign row and its
   /// first research job, so "started" and "research asked for" are one fact.
   | "campaign.created"
+  /// A rep changed a campaign's brief: a chosen widening or an edit. `before`
+  /// and `after` carry the brief and its version either side, `after.cause`
+  /// says which, and the research job for the new version is enqueued in the
+  /// same transaction.
+  | "campaign.brief_changed"
+  /// A rep pressed Try again on research that failed: the failed job went
+  /// back on the queue, at the same brief version with the same input.
+  | "campaign.research_retried"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the
@@ -92,9 +100,14 @@ export type Mutation<T> = {
   // own parameter is contextually typed, so it cannot be the only source of `T`.
   campaignId?: string | null | ((result: T) => string | null);
   personId?: string | null;
-  /** The edit diff §25 asks for. Omit both for a change that has no shape. */
-  before?: Prisma.InputJsonValue;
-  after?: Prisma.InputJsonValue;
+  /**
+   * The edit diff §25 asks for. Omit both for a change that has no shape.
+   *
+   * Either may also be read off what `apply` returned, for a change whose
+   * before and after are only known once `apply` has read the row it locked.
+   */
+  before?: Prisma.InputJsonValue | ((result: T) => Prisma.InputJsonValue);
+  after?: Prisma.InputJsonValue | ((result: T) => Prisma.InputJsonValue);
   /**
    * When the thing happened, if that is not now — a provider's timestamp on a
    * polled reply, a backfill. Left out, the Event is stamped at insert, which
@@ -131,6 +144,8 @@ export async function mutate<T>(db: PrismaClient, mutation: Mutation<T>): Promis
   return db.$transaction(async (tx) => {
     const result = await apply(tx);
     const eventCampaignId = typeof campaignId === "function" ? campaignId(result) : (campaignId ?? null);
+    const eventBefore = typeof before === "function" ? before(result) : before;
+    const eventAfter = typeof after === "function" ? after(result) : after;
 
     // After the change, not before: the Event is the record of something that
     // happened, and on this ordering a constraint violation in `apply` never
@@ -150,8 +165,8 @@ export async function mutate<T>(db: PrismaClient, mutation: Mutation<T>): Promis
         // `DbNull` writes SQL NULL. Prisma's other null, `JsonNull`, writes the
         // JSON value `null`, which would make "no diff recorded" and "the diff
         // was null" the same row.
-        before: before ?? Prisma.DbNull,
-        after: after ?? Prisma.DbNull,
+        before: eventBefore ?? Prisma.DbNull,
+        after: eventAfter ?? Prisma.DbNull,
       },
     });
 

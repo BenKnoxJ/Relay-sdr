@@ -73,6 +73,20 @@ export type StartSubmission = { startRequestId: string; brief: BriefFields };
 export type StartResult = { id: string } | { error: string };
 
 /**
+ * The campaign and the brief version a change is made from (orchestrator A1,
+ * items 4 to 6). Every change names the version the rep was looking at, so a
+ * page opened before someone else's change cannot stack one on a brief it has
+ * not seen.
+ */
+export type ChangeTarget = { campaignId: string; briefVersion: number };
+
+/** A chosen widening: which of the stop's options, and the id that makes a second press the same choice. */
+export type WidenSubmission = ChangeTarget & { optionIndex: number; requestId: string };
+
+/** Try again: the id that makes a second press the same retry. */
+export type RetrySubmission = ChangeTarget & { requestId: string };
+
+/**
  * Start's pre-fill, as a keyword mapping.
  *
  * §23.1d has the orchestrator pre-fill this card from the sentence, which is

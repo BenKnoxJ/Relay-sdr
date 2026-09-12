@@ -110,7 +110,12 @@ function TermChip({ text, onRemove, removeName }: { text: string; onRemove: () =
         type="button"
         aria-label={removeName}
         onClick={onRemove}
-        className="rounded-pill px-1 text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2"
+        /*
+          A 24px square to press (WCAG 2.5.8), drawn inside the chip as the
+          mark was: the negative margins give back the extra size, so the chip
+          keeps its height and nearly its width.
+        */
+        className="-my-1 -mr-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-pill text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2"
       >
         {startCopy.removeMark}
       </button>

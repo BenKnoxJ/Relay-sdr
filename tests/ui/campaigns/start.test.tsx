@@ -277,7 +277,10 @@ describe("Pressing Start", () => {
     addTerm(startCopy.fieldOrgTypes, "veterinary practice");
     expect(screen.getAllByTestId("term-chip")).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: `${startCopy.remove} veterinary practice` }));
+    const remove = screen.getByRole("button", { name: `${startCopy.remove} veterinary practice` });
+    // A 24px square to press (WCAG 2.5.8); jsdom has no layout, so the classes are what is checked here.
+    expect(remove.className.split(" ")).toEqual(expect.arrayContaining(["h-6", "w-6"]));
+    fireEvent.click(remove);
     expect(screen.queryAllByTestId("term-chip")).toHaveLength(0);
   });
 

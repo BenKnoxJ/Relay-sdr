@@ -25,10 +25,11 @@ exists. The component snapshots keep their markup.
 
 ## Known divergences from the mock
 
-1. **"New campaign" is in the nav only**, as the mock draws it, now that
-   `me.hasCampaign` is real (Task 9c's note). The page-header copy of it is
-   gone; a rep with no campaigns still has the empty state's way in, Home's
-   brief box.
+1. **"New campaign" is in the nav once a rep has a campaign**, as the mock
+   draws it, now that `me.hasCampaign` is real (Task 9c's note); the list page
+   carries no second copy of it. A rep with no campaigns, who has no nav CTA
+   yet, gets a direct New campaign button on `/campaigns`' empty state that
+   goes straight to Start, rather than being sent back to Home's brief box.
 2. **Plan ready is drawn from the runtime's synthetic complete pack.** No
    committed live pack passes today's v3.2 rules whole (brief A v3.1 predates
    note 25), so `campaign-plan-ready.jpg` shows `goodPack()` content

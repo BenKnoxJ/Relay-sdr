@@ -14,9 +14,11 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
  * (§23.1a).
  *
  * `hasCampaign` is whether the rep has started a campaign of their own: the
- * nav's "New campaign" and Home's day-one state turn on it. `connections.mailbox` became
- * real in Task 10b; Zoho is org-level and admin-owned, so it stays false until
- * slice 3 gives an admin somewhere to connect it.
+ * nav's "New campaign" and Home's day-one state turn on it.
+ *
+ * `connections.mailbox` became real in Task 10b. Zoho is org-level and
+ * admin-owned, so it stays false until slice 3 gives an admin somewhere to
+ * connect it.
  */
 export const meRouter = createTRPCRouter({
   get: repProcedure.query(async ({ ctx }) => {

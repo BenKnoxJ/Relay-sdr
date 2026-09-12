@@ -372,6 +372,8 @@ export const startCopy = {
   rolePlaceholder: "practice manager",
   add: "Add",
   remove: "Remove",
+  /** The mark on a chip's remove button; the button's name is `remove` and the term. */
+  removeMark: "×",
   fieldCustomers: "Do you already have customers like this? Who, and what did they buy it for?",
   customersHint: "Optional. Relay looks for more like them and never names them.",
 

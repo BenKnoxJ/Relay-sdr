@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { Chip } from "@/components/Chip";
+import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
-import type { CampaignSummary } from "@/lib/fixtures/campaigns";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
  *
  * Name, the one grey line, the state chip, contacted of total, and the "next"
  * line, which is the same sentence the campaign page's action button uses. The
- * whole row is the link: the mock draws no separate "open" control, and a link
- * around only the name would leave four fifths of the row dead.
+ * whole row is the link: the mock draws no separate "open" control.
+ *
+ * Before anyone has been contacted the count is words, not "0 of 20": a
+ * fraction reads as progress, and there has been none.
  */
 export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
   return (
@@ -29,13 +31,27 @@ export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
         <span className="type-small block text-muted">{campaign.motionLine}</span>
       </span>
 
-      <Chip tone={campaign.state === "running" ? "ok" : campaign.state === "stopped" ? "warn" : "default"}>
+      <Chip
+        tone={
+          campaign.state === "running"
+            ? "ok"
+            : campaign.state === "stopped" || campaign.state === "failed"
+              ? "warn"
+              : "default"
+        }
+      >
         {campaign.chip}
       </Chip>
 
       <span className="type-mono w-[120px] text-right text-13 text-muted">
-        {campaign.contacted} {campaignsCopy.of} {campaign.total}
-        {campaign.state === "running" ? ` ${campaignsCopy.contacted}` : null}
+        {campaign.contacted === null ? (
+          <span className="type-small">{campaignsCopy.nothingSentYet}</span>
+        ) : (
+          <>
+            {campaign.contacted} {campaignsCopy.of} {campaign.total}
+            {campaign.state === "running" ? ` ${campaignsCopy.contacted}` : null}
+          </>
+        )}
       </span>
 
       <span

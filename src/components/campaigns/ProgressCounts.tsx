@@ -1,18 +1,19 @@
+import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
-import type { Campaign } from "@/lib/fixtures/campaigns";
 
 /**
  * Progress: five counts and nothing else (§23.1c, "counts only").
  *
  * No bar, no percentage, no rate. The signed mock draws five numbers with a
  * word under each, and a progress bar over them would be Relay claiming to
- * know how far through the campaign is, which it does not.
+ * know how far through the campaign is, which it does not. Drawn only once
+ * people have been found; before that the page says so in words.
  */
 export function ProgressCounts({
   progress,
   note,
 }: {
-  progress: Campaign["progress"];
+  progress: NonNullable<Campaign["progress"]>;
   note?: string;
 }) {
   const counts: [string, number][] = [

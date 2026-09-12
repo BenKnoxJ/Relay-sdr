@@ -6,23 +6,19 @@ import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { emptyCopy } from "@/lib/copy/empty";
-import { listCampaigns, listCounts } from "@/lib/fixtures/campaigns";
+import { listCampaigns } from "@/server/campaigns";
 
 /**
  * The Campaigns list (master doc §23.1c, mock 3a).
  *
  * One row per campaign, newest first, and nothing else: no search, no folders,
  * no archive, and Done campaigns stay in the list. The day-one empty state
- * built in 9b is still here and still the truth when there are no campaigns —
- * it is a branch, not a page that was replaced.
+ * built in 9b is still here and still the truth when there are no campaigns.
  *
- * The rows come from `src/lib/fixtures/campaigns.ts`, which is the seam this
- * page is written against: when the campaigns router lands, this file changes
- * by one import.
+ * The rows are the rep's own campaigns, read through `src/server/campaigns.ts`.
  */
-export default function CampaignsPage() {
-  const campaigns = listCampaigns();
-  const counts = listCounts();
+export default async function CampaignsPage() {
+  const { campaigns, counts } = await listCampaigns();
 
   if (campaigns.length === 0) {
     return (

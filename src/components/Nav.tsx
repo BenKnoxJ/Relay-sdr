@@ -7,8 +7,6 @@ import { usePathname } from "next/navigation";
 import { navCopy } from "@/lib/copy/nav";
 import { cn } from "@/lib/utils";
 
-import { PillButton } from "./PillButton";
-
 /**
  * The floating nav pill: the whole app map in one row (master doc §23.0).
  *
@@ -126,7 +124,18 @@ export function Nav({
             {navCopy.admin}
           </span>
         ) : null}
-        {hasCampaign ? <PillButton>{navCopy.newCampaign}</PillButton> : null}
+        {/*
+          A link, because it navigates: to Start. It wears the primary pill's
+          classes so it reads as the one control it is.
+        */}
+        {hasCampaign ? (
+          <Link
+            href="/campaigns/new"
+            className="inline-flex items-center justify-center rounded-pill border-control border-transparent bg-action px-4 py-2 text-13 font-semibold text-on-action transition-opacity duration-micro ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+          >
+            {navCopy.newCampaign}
+          </Link>
+        ) : null}
         {/*
           `role="img"`, because an `aria-label` on a bare span is dropped: the
           implicit role is generic, and a generic element takes no accessible

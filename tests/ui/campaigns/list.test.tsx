@@ -2,10 +2,27 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import CampaignsPage from "@/app/(app)/campaigns/page";
+import { CampaignRow } from "@/components/campaigns/CampaignRow";
+import { toSummary } from "@/lib/campaigns/view";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { listCampaigns } from "@/lib/fixtures/campaigns";
 
+import { liveCampaign } from "./live";
+
 vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns" }));
+
+/**
+ * The page reads the rep's campaigns through `src/server/campaigns.ts`; here
+ * that seam hands it the signed list's three sample rows, which is what mock
+ * 3a draws. What a real row carries is checked on its own below.
+ */
+vi.mock("@/server/campaigns", async () => {
+  const samples = await import("@/lib/fixtures/campaigns");
+  return {
+    listCampaigns: async () => ({ campaigns: samples.listCampaigns(), counts: samples.listCounts() }),
+    getCampaign: async () => null,
+  };
+});
 
 /**
  * The Campaigns list (§23.1c, mock 3a).
@@ -15,8 +32,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns" }));
  * name would still contain all three.
  */
 describe("the Campaigns list", () => {
-  it("is one row per campaign, in the adapter's order", () => {
-    render(<CampaignsPage />);
+  it("is one row per campaign, in the adapter's order", async () => {
+    render(await CampaignsPage());
 
     const rows = screen.getAllByTestId("campaign-row");
     expect(rows.map((row) => row.getAttribute("href"))).toEqual(
@@ -25,8 +42,8 @@ describe("the Campaigns list", () => {
     expect(rows).toHaveLength(3);
   });
 
-  it("carries the name, the one line, the chip, the count and the next line", () => {
-    render(<CampaignsPage />);
+  it("carries the name, the one line, the chip, the count and the next line", async () => {
+    render(await CampaignsPage());
 
     const [running, planReady, done] = screen.getAllByTestId("campaign-row");
 
@@ -47,8 +64,8 @@ describe("the Campaigns list", () => {
     expect(done?.textContent).toContain(`2 ${campaignsCopy.doneMeetings}`);
   });
 
-  it("says how many are running and how many are done, and offers one door", () => {
-    render(<CampaignsPage />);
+  it("says how many are running and how many are done, and offers one door", async () => {
+    render(await CampaignsPage());
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(campaignsCopy.title);
     expect(screen.getByText(`2 ${campaignsCopy.noteRunning} · 1 ${campaignsCopy.noteDone}`)).toBeDefined();
@@ -57,10 +74,29 @@ describe("the Campaigns list", () => {
     expect(newCampaign.getAttribute("href")).toBe("/campaigns/new");
   });
 
-  it("has no search, no folders and no archive", () => {
-    render(<CampaignsPage />);
+  it("has no search, no folders and no archive", async () => {
+    render(await CampaignsPage());
 
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+});
+
+describe("a real campaign's row", () => {
+  it("says nothing has been sent rather than drawing 0 of 10", () => {
+    render(<CampaignRow campaign={toSummary(liveCampaign("researching"))} />);
+
+    const row = screen.getByTestId("campaign-row");
+    expect(row.textContent).toContain(campaignsCopy.nothingSentYet);
+    expect(row.textContent).not.toContain(`0 ${campaignsCopy.of}`);
+    expect(row.textContent).toContain(`${campaignsCopy.nextPrefix} ${campaignsCopy.nextResearching}`);
+  });
+
+  it("is in the warn tone and asks for the rep when research failed", () => {
+    render(<CampaignRow campaign={toSummary(liveCampaign("failed"))} />);
+
+    const row = screen.getByTestId("campaign-row");
+    expect(row.textContent).toContain(campaignsCopy.chipNeedsYou);
+    expect(screen.getByTestId("campaign-next").textContent).toBe(`${campaignsCopy.nextPrefix} ${campaignsCopy.nextFailed}`);
   });
 });

@@ -13,7 +13,11 @@ import { PackItem } from "./PackItem";
  * 28). They are not written here and they are not a fixed list: research
  * names them, and a screen that hard-coded them would be guessing on behalf of
  * a run that already decided. `found` is the evidence the stop cites, resolved
- * from the pack by the caller: the stop names it by id, not by copy.
+ * from the pack's m00 and m01 items by the caller: the stop names it by id.
+ *
+ * `canChoose` is false on a real campaign until choosing an option is built:
+ * the options are shown as research wrote them, and the card says choosing
+ * one arrives next rather than inviting a choice nothing acts on.
  */
 
 const HEADINGS: Record<Widening["dimension"], string> = {
@@ -23,7 +27,15 @@ const HEADINGS: Record<Widening["dimension"], string> = {
   role: campaignsCopy.widenRole,
 };
 
-export function WidenCard({ insufficient, found }: { insufficient: NonNullable<PlanCards["insufficient"]>; found: Item[] }) {
+export function WidenCard({
+  insufficient,
+  found,
+  canChoose = true,
+}: {
+  insufficient: NonNullable<PlanCards["insufficient"]>;
+  found: Item[];
+  canChoose?: boolean;
+}) {
   return (
     <Card className="max-w-[760px]">
       <p className="type-small mb-4 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
@@ -42,8 +54,8 @@ export function WidenCard({ insufficient, found }: { insufficient: NonNullable<P
           <h3 className="type-label mb-1.5">{campaignsCopy.stopHelp}</h3>
           <ul>
             {/*
-              Keyed by position, not by dimension: nothing says two options
-              cannot widen the same dimension two ways.
+              Keyed by position, not by dimension: two options can widen the
+              same dimension two ways (brief C's stop offers two regions).
             */}
             {insufficient.widenings.map((widening, index) => (
               <li key={index} data-testid="widening" className="py-1.5">
@@ -52,7 +64,9 @@ export function WidenCard({ insufficient, found }: { insufficient: NonNullable<P
               </li>
             ))}
           </ul>
-          <p className="type-small mt-2 text-muted">{campaignsCopy.stopChooseOne}</p>
+          <p data-testid="widen-note" className="type-small mt-2 text-muted">
+            {canChoose ? campaignsCopy.stopChooseOne : campaignsCopy.stopChooseLater}
+          </p>
         </div>
       </div>
     </Card>

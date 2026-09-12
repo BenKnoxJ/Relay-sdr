@@ -425,7 +425,7 @@ export function researchTools(recorder: ToolRecorder, deps: ResearchToolDeps): T
       },
     }),
     fetch: tool({
-      description: "Read one page's main content as markdown (about 12,000 characters at most). If it cannot be read, say so as an unknown rather than guessing.",
+      description: "Read one page's main content as markdown (8,000 characters at most). If it cannot be read, say so as an unknown rather than guessing.",
       inputSchema: fetchArgs,
       execute: async (args) => {
         const refusedNote = requireFacts("fetch") ?? closedInSynthesis("fetch") ?? afterStop("fetch") ?? whileLocked("fetch");

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "FCA complaints data insurance claims handling delays",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Reporting Complaints Data to the FCA | NFU Mutual",
+        "url": "https://www.nfumutual.co.uk/complaints/complaints-data",
+        "snippet": "Under FCA complaint handling rules we have 8 weeks from the date we receive a complaint to provide a final response or explain why we are not yet in a position"
+      },
+      {
+        "title": "FCA proposes Complaint Reporting overhaul: Key impacts for the UK Insurance Sector",
+        "url": "https://www.cliffordchance.com/insights/resources/blogs/insurance-insights/2025/07/fca-proposes-complaint-reporting-overhaul-key-impacts-for-uk-insurance-sector.html",
+        "snippet": "All regulated firms would be required to submit complaints data twice a year – covering periods ending 30 June and 31 December and which align with key insurance renewal peaks – with submissions due within 30 business days of the close of each period.\n\nThis change is intended to enhance the FCA’s ability to detect sector-specific harms and respond more swiftly by aligning all firms to the same reporting timetable, improving its oversight and supervisory interventions. [...] fields (e.g., claims delays, non-renewal disputes), staff training on claims data categorisation, and internal policy updates. These are costs the FCA’s cost-benefit analysis may underestimate given the complexity of insurance product lines. [...] The FCA’s proposed changes to the complaints reporting process are designed not only to enhance regulatory oversight but also to deliver tangible benefits to firms. By enabling earlier identification of consumer harm, the proposals could reduce the severity and scale of consumer-related issues like claims mishandling before they escalate – minimising reputational damage and potentially lowering compensation costs. Timely and targeted FCA intervention, supported by more consistent and granular"
+      },
+      {
+        "title": "FCA DISP Complaints Rules: Deadlines, DISP 1.6, Root Cause, FOS | SwiftCase",
+        "url": "https://swiftcase.co.uk/guides/fca-compliance/disp-complaints-framework",
+        "snippet": "Automated deadline monitoring ensures every complaint receives a final response within the FCA's mandatory 8-week timeframe, reducing FOS referral risk and regulatory exposure.complaints handling\n\n### Root Cause Analysis Framework for Insurance Complaints\n\nMove beyond individual complaint resolution to identify and address the systemic issues driving complaint volumes across your insurance operations.fca compliance [...] Financial Ombudsman Service Annual Review 2023/24\n\nThe FCA's Dispute Resolution sourcebook (DISP) sets out detailed requirements for how regulated firms must handle complaints. For insurance firms, the stakes are significant: missed deadlines trigger automatic Financial Ombudsman Service (FOS) referral rights, poor complaint outcomes attract supervisory attention, and complaints data feeds directly into the FCA's risk assessment of your firm. [...] Despite this, many insurance firms still rely on fragmented processes (emails, spreadsheets, and manual diary entries) to track complaints through DISP timelines. This creates real risk: a single missed 8-week deadline can result in a FOS referral, an upheld decision, and reputational damage. At scale, systemic failures in complaints handling have led to multi-million pound redress exercises."
+      },
+      {
+        "title": "Home and travel claims handling arrangements: good practice and areas for improvement | FCA",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+        "snippet": "Our value measures data returns showed that in 2022 and 2023, claims complaints as a percentage of claims increased across both products, with home complaints continuing to increase into 2024. In addition, the data provided to us by firms in our sample showed that the primary root cause for claims complaints across both products was claims service and delivery. We were concerned that this indicated that customers were receiving poorer outcomes when making a claim. [...] These issues often resulted in unnecessarily long claims handling times and complaints. Over a quarter of firms upheld a high percentage of service-related complaints with some uphold rates over 70%. We often saw the most extreme examples in firms that materially outsourced claims handling activity to a third party. We also saw systemic issues relating to specific third-party claims handlers across the sample. While issues were often identified through MI, consistent with our findings under [...] Between 2022 and 2024, based on our REP019 value measures data (an annual report provided by firms to help us monitor whether insurance products deliver value to customers), there were over 2.5m home claims and over 1.5m travel claims, with 73% and 79% of those claims accepted respectively. Over £9bn was paid to customers in response to those claims.\n\nWe analysed information from 15 home insurance providers and 8 travel insurance providers."
+      },
+      {
+        "title": "FCA warns insurers about customer claims handling",
+        "url": "https://www.moneymarketing.co.uk/news/fca-warns-insurers-about-customer-claims-handling",
+        "snippet": "The Financial Conduct Authority has warned insurers about their claims handling process after seeing an increase in customer complaints."
+      },
+      {
+        "title": "FCA home and travel insurance claims handling review report | UKGI - Aviva",
+        "url": "https://abc.ukgigroup.com/fca-home-and-travel-insurance-claims-handling-review-report",
+        "snippet": "a lack of oversight of outsourced services, resulting in poor customer outcomes, delays in settling claims and high complaint volumes;\n insufficient management information resulting in failures to promptly identify and resolve claims handling issues and delays;\n high rejection rates for storm damage claims (only 32% of storm damage claims made to the sample of firms in 2024 resulted in a payment); and [...] Well-established claims governance supported by a range of robust claims management information (MI) covering customer outcomes, the MI and data including full heads of claim data, claims costs, forecasts and repudiation rates, complaints data, tracking of customers’ vulnerabilities, customer service ratings, and results from quality assurance checks and audits. [...] ## Context\n\nThe FCA has published a review report from a review of the claims handling arrangements of fifteen home insurance providers and eight travel insurance providers, which outlines examples of good practice and areas for improvement.  Whilst the good practice is acknowledged, and examples are included in the review report, the review uncovered concerning evidence of poor claims handling practices.\n\n## Key points to note and next actions\n\nExamples of good practice included:"
+      },
+      {
+        "title": "Complaints data | FCA",
+        "url": "https://www.fca.org.uk/data/complaints-data",
+        "snippet": "Firm specific complaints data\n\nOur firm-specific complaints data set is composed of submissions from approximately 290 individual firms reporting either 500 or more complaints within a 6-month period, or 1,000 or more complaints annually. The data is available in 2 formats via 8 sortable tables that can be searched and filtered on at firm-level and a downloadable Excel file that can be filtered by 5 product groups.\n\nAggregate (total) complaints data [...] We publish our complaints data every 6 months, around April and October. We provide firm-specific data for individual firms and aggregate, or total, data at market-level. These data sets include submissions from firms reporting 500 or more complaints within a 6-month period, or firms reporting 1,000 or more complaints in a year. Firms that meet these thresholds are obligated to publish complaints data on their websites. These complaints account for around 98% of all complaints that firms report [...] Our aggregate (total) market-level complaints data includes 1 or more complaints reported by over 3,000 regulated firms. The data set includes details on the total number of opened complaints, closed complaints, complaints upheld, and the total redress paid by firms for a 6-month period.\n\n## Latest findings\n\n## What is included in the data\n\nIn addition to the latest key findings, we also publish interactive dashboards containing tables and data visualisations exploring trends involving:"
+      },
+      {
+        "title": "Annual complaints data and insight 2024/25 – Financial Ombudsman service",
+        "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/annual-complaints-data-insight-2024-25",
+        "snippet": "| Insurance | Household and Commercial Property Insurance | Building Guarantees | 398 | 41% |\n| Insurance | Household and Commercial Property Insurance | Buildings Insurance | 7,321 | 41% |\n| Insurance | Household and Commercial Property Insurance | Commercial Property Insurance | 1,582 | 41% |\n| Insurance | Household and Commercial Property Insurance | Contents Insurance | 1,671 | 34% |\n| Insurance | Household and Commercial Property Insurance | Home Emergency Insurance | 1,481 | 39% | [...] | Insurance | Household and Commercial Property Insurance | Household Warranties | 1,070 | 36% |\n| Insurance | Household and Commercial Property Insurance | Marine Insurance | 68 | 29% |\n| Insurance | Legal Expenses and Monetary Loss Insurance | Being categorised | <10 |  |\n| Insurance | Legal Expenses and Monetary Loss Insurance | Business Protection Insurance | 418 | 35% |\n| Insurance | Legal Expenses and Monetary Loss Insurance | Card Protection Insurance | 12 | <30 | [...] Overall uphold rate: 32%\n\nMost complained-about product: Hire purchase (motor) – 76,160\n\n### Complaints about mortgages\n\nTotal new complaints: 6,895\n\nMost complained-about product: First charge mortgage – 5,086\n\nOverall uphold rate:32%\n\n### Complaints about insurance\n\nTotal new complaints: 45,606\n\nMost complained-about product: Car or motorcycle insurance – 14,082\n\nOverall uphold rate: 38%\n\n### Complaints about investments\n\nTotal new complaints: 5,032"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:24:52.549Z"
+}

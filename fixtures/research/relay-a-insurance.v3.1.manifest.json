@@ -1,0 +1,282 @@
+{
+  "source": "brief A v3.1 (UK insurance, direct), job 64ffeccc-6f26-4ea3-9c90-1b3817ec712c; row 12 PASS 2026-09-11",
+  "role": "research regression fixture (definition §10 note 24): every later version of the rules must accept this pack, apart from the fields named below that were added after it was recorded",
+  "exemptions": [
+    {
+      "rule": "v3.2-addition",
+      "module": "m07",
+      "path": "mappings.6.mustNotImply",
+      "message": "a partial mapping says in mustNotImply what the capability does not change",
+      "reason": "Named partial in the 2026-09-11 review; the run predates the rule that a partial mapping states its limit (definition §10 note 25)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m07",
+      "path": "mappings.9.mustNotImply",
+      "message": "a partial mapping says in mustNotImply what the capability does not change",
+      "reason": "Named partial in the 2026-09-11 review; the run predates the rule that a partial mapping states its limit (definition §10 note 25)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m07",
+      "path": "mappings.14.mustNotImply",
+      "message": "a partial mapping says in mustNotImply what the capability does not change",
+      "reason": "Named partial in the 2026-09-11 review; the run predates the rule that a partial mapping states its limit (definition §10 note 25)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m07",
+      "path": "mappings.15.mustNotImply",
+      "message": "a partial mapping says in mustNotImply what the capability does not change",
+      "reason": "Named partial in the 2026-09-11 review; the run predates the rule that a partial mapping states its limit (definition §10 note 25)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.painIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.angleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.objectionIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.eventIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.venueIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.0.contactRuleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.painIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.angleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.objectionIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.eventIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.venueIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.1.contactRuleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.painIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.angleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.objectionIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.eventIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.venueIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.2.contactRuleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.painIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.angleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.objectionIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.eventIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.venueIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m16",
+      "path": "candidates.3.contactRuleIds",
+      "message": "Required",
+      "reason": "The run predates the m16 references (definition §10 note 26)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.0.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.1.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.2.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.0.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.1.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    },
+    {
+      "rule": "v3.2-addition",
+      "module": "m04",
+      "path": "perArchetype.3.seedFirms.2.country",
+      "message": "Required",
+      "reason": "Seed firm country (ISO code) added by v3.2, definition §10 note 28, after this pack was recorded; every seed in it is in GB (the recipe's countries)."
+    }
+  ],
+  "notes": [
+    "The write-time corrections (normaliseModule) run before the check, as they do on a live write; they assign ids to angles, venues, objections, contact rules and dated events."
+  ]
+}

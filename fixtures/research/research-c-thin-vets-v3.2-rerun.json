@@ -1,0 +1,1276 @@
+{
+  "kind": "research",
+  "contract": "v3.2",
+  "name": "research-c-thin-vets-v3.2-rerun",
+  "source": "run",
+  "recordedAt": "2026-09-11T11:06:07.867Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v2.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "veterinary practices in Orkney",
+      "region": "GB",
+      "scope": {
+        "countries": [
+          "GB"
+        ],
+        "places": [
+          {
+            "name": "Orkney",
+            "aliases": [
+              "Orkney Islands",
+              "Kirkwall",
+              "Stromness"
+            ]
+          }
+        ],
+        "orgTypes": [
+          "veterinary practice"
+        ]
+      },
+      "howMany": 10,
+      "weeks": 3,
+      "channels": [
+        "email"
+      ]
+    }
+  },
+  "output": {
+    "scope": {
+      "places": [
+        {
+          "name": "Orkney",
+          "aliases": [
+            "Orkney Islands",
+            "Kirkwall",
+            "Stromness"
+          ]
+        }
+      ],
+      "orgTypes": [
+        "veterinary practice"
+      ],
+      "supplied": [
+        "countries",
+        "places",
+        "orgTypes"
+      ],
+      "countries": [
+        "GB"
+      ]
+    },
+    "modules": {
+      "m00": {
+        "body": "## What this pack is steering\n\nThe rep's brief is narrow and locked: **veterinary practices in Orkney** (GB), direct motion, email only, ten targets wanted, three weeks. Everything below is set before a single search, from the facts file and the knowledge set only.\n\n### The spine\n\nInsights360 is a post-call contact-centre intelligence product: it takes recordings the customer's own phone system already made, transcribes them, scores every ingested call against the customer's own QA rules, flags risk types the customer defines, and shows it all in a web app within a couple of hours. It does not record calls, does nothing during a live call, and has no agent login. The commercial spine is coverage plus price: the enterprise QA tools the knowledge set names sit at £36–£160 per seat per month with 50–400 seat minimums and multi-year commitments, while Insights360 is £4.99–£9.99 per seat per month with no seat minimum and no annual lock-in — against a one-off £1,280 setup fee and a £640 configuration review at about month one.\n\n### What is being displaced\n\nThe incumbent is not a rival product. It is the practice's own ears: whoever happens to overhear the front desk, plus a complaint that arrives after the fact. In the knowledge set's own framing, manual QA reaches 2–5% of calls and the rest is invisible. In a veterinary practice the equivalent is that nobody reviews reception calls at all, and the first signal that a call went wrong is a client leaving, a review appearing, or a complaint reaching the practice principal.\n\n### The tension this brief has to survive\n\nTwo product-level constraints sit directly across the brief, and the campaign agent must see them before it reads anything else. First, the knowledge set's explicit exclusion: sub-five-seat operations are not the ICP, because £4.99 a seat against a £1,280 setup fee does not work for either side. Second, the setup fee itself: there is no free or instant start, so a very small practice has to find over £1,900 of one-off cost before the per-seat price becomes the conversation. Orkney is a small archipelago. Whether ten veterinary practices of viable size exist there at all is the first thing this research must establish, and it is the question the scope decision turns on.\n\n### What must not lead\n\nThe facts file's notes are binding wording. Several of the most attractive-sounding lines are barred outright: real-time anything, listening to a recording inside the app, regulator-ready evidence packs, per-team scorecards, a group view across several practices, SSO, PII redaction, a retention policy, and any promise that Insights360 catches literally every call a practice makes. The honest coverage claim is 'every call we ingest'. Hosting is EU (Frankfurt), not UK — the brand-voice article's 'never leaves UK Vercel + AWS' example is wrong and must not be repeated. Sentiment comes from Bedrock, not Comprehend, whatever the overview and integrations articles say.\n\n### Hypotheses carried in\n\nNo prior packs exist for this product and org, so nothing is inherited. The knowledge set's ICP baseline offers three shapes worth testing against what Orkney actually contains: a priced-out small operation, a manual-QA floor manager whose sampling has stopped meaning anything, and a buyer locked into a platform whose QA module they cannot unbundle. All three assume a contact centre. A veterinary practice has a reception desk, not a contact centre, and that gap is the central risk in the brief.",
+        "spine": "Post-call scoring of every ingested recording from the phone system a practice already has, at £4.99–£9.99 per seat per month with no seat minimum and no annual lock-in, against a one-off £1,280 setup fee and a £640 configuration review at about month one.",
+        "claims": [
+          {
+            "id": "m00-c-post-call-spine",
+            "text": "Insights360 analyses recordings after the call ends and does nothing during a live call; it does not record calls itself.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Facts file ids i360.product.post-call-call-analytics, i360.boundary.does-not-record-calls and i360.boundary.not-real-time, read this run."
+          },
+          {
+            "id": "m00-c-icp-floor",
+            "text": "The product knowledge set names sub-five-seat operations as an explicit exclusion from the ideal customer profile, on the grounds that per-seat price against the one-off setup fee is not commercially viable for either side.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Knowledge article 'icp', section 'Not our ICP (explicit exclusions)', read this run."
+          },
+          {
+            "id": "m00-c-seat-band",
+            "text": "The product is built for operations running between 5 and 250 contact-centre seats.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Knowledge articles 'overview' and 'icp', read this run."
+          }
+        ],
+        "status": "complete",
+        "readyNow": [
+          "Automated feed from 3CX (cloud and self-hosted) and from OAK / ClarifyGo — recordings pulled on a schedule with no manual upload.",
+          "RingCentral ingestion (RingCX and RingEX) ships in the pipeline and is working in production, confirmed 2026-09-10.",
+          "Every ingested call transcribed and scored against the customer's own QA rules, with a score, a grade and a per-rule pass/fail list.",
+          "Risk flagging against risk types the customer defines, listed on a Risks page and counted on the dashboard.",
+          "Published per-seat pricing with no seat minimum and no annual commitment — month to month.",
+          "Admins edit QA rules, weights and pass thresholds themselves in Settings without raising a support request."
+        ],
+        "offerHook": [
+          "i360.price.per-seat-plans",
+          "i360.price.no-seat-minimum-no-annual-lock-in",
+          "i360.product.every-ingested-call-analysed",
+          "i360.feature.auto-qa-scoring-against-tenant-rules",
+          "i360.feature.risk-flagging-configurable-types",
+          "i360.integration.3cx-automated-feed"
+        ],
+        "hypotheses": [
+          "An Orkney veterinary practice runs a reception desk of a handful of people, not a contact centre, and will fall below the product's five-seat floor. This is the brief's central risk and the scope decision turns on it.",
+          "Veterinary practices in GB face client-communication pressure from RCVS practice standards and from complaint handling, which may create a quality-of-call motive independent of seat count. Untested.",
+          "The number of distinct veterinary practices in Orkney is likely to be in low single figures, against a brief asking for ten targets. Untested.",
+          "The knowledge set's priced-out-small-operation shape is the closest baseline archetype to this brief, but it was drawn from UK legal work and assumes a contact centre exists."
+        ],
+        "hardFilters": {
+          "other": [
+            "Direct motion: no partner or reseller framing.",
+            "Email is the only channel on the card; every contact rule in m12 must cover email in GB.",
+            "Ten targets wanted inside a three-week window.",
+            "Never name a competitor in outreach (knowledge set: Gate C denylist) — differentiate against the practice's status quo.",
+            "Never target or name an individual; agents are not users of the product."
+          ],
+          "sizeCap": "5–250 contact-centre seats; the knowledge set excludes sub-5-seat operations outright",
+          "firmsOut": [],
+          "geography": [
+            "Orkney (Orkney Islands), Scotland, Great Britain — including Kirkwall and Stromness and the outer isles"
+          ],
+          "subSectorsIn": [
+            "veterinary practice"
+          ],
+          "subSectorsOut": [
+            "human healthcare / GP practices",
+            "agricultural merchants and feed suppliers",
+            "animal charities that are not veterinary practices",
+            "any organisation outside Orkney",
+            "pet retail"
+          ]
+        },
+        "mustNotLead": [
+          "Any real-time, live-assist, whisper or in-call alerting claim.",
+          "'Listen to the evidence' or in-app audio playback — playback is switched off.",
+          "Regulator-ready or audit-ready evidence packs — not built.",
+          "A group or multi-practice dashboard across several tenants — not built and not on the roadmap.",
+          "Per-team scorecards or team filters — teams are not first-class in the interface.",
+          "SSO, SCIM, PII or card redaction, CRM connectors — none exist.",
+          "Any stated data retention or automatic deletion period — retention is manual and agreed per contract.",
+          "'100% of every call you make' — say 'every call we ingest'; the pipeline can lose calls silently on failure paths.",
+          "'UK hosting' — it is EU (Frankfurt).",
+          "'Get started in seconds' or 'free to start' — there is a £1,280 setup fee.",
+          "Naming any customer, quoting a customer count, or citing case-study numbers — none exist.",
+          "Agent-facing framing — agents have no login and must not be the audience.",
+          "Naming any competitor in outreach."
+        ],
+        "displacement": "Displaces nobody reviewing reception calls at all: the practice's current quality signal is an overheard conversation, a client who quietly leaves, or a complaint that arrives after the damage. The knowledge set's equivalent framing is manual QA reaching 2–5% of calls with the remainder invisible.",
+        "priorPacksRead": []
+      },
+      "m01": {
+        "body": "## The whole market, counted\n\nOrkney's veterinary market is two businesses. Not two dozen, not ten — two. Orkney.com, the islands' official destination and business site, tells dog owners plainly that \"Orkney has two veterinary practices, both of which offer an out of hours emergency service\", and names them: Flett & Carmichael and Northvet. The Scottish Government's own Highlands and Islands Veterinary Services Scheme register, last updated 31 July 2026, lists three Orkney entries, but two of them are Northvet premises (Kirkwall and Harray) and the third is Flett & Carmichael. Two commercial directories put the Orkney number at four — that count is premises, not organisations: it splits Northvet's Kirkwall, Harray and Stromness surgeries into three rows and adds Flett & Carmichael.\n\nSo the campaign agent should read every \"four practices in Orkney\" figure it meets as four registered veterinary premises operated by two firms. That distinction decides the brief. Ten targets were asked for. Two organisations exist.\n\n## What the two look like\n\nThe two are not the same shape, and the difference matters more than their number.\n\nNorthvet Veterinary Group Ltd is the larger by a wide margin. Its own listing describes seven veterinary surgeons, three veterinary nurses, an animal nursing assistant, a practice manager and eight reception and administration staff; its current recruitment describes a twelve-vet team; and when its director spoke to Orkney Islands Council's planning committee about a proposed new Kirkwall building she put the business at around 32 full- and part-time employees. It runs three premises, covers the outer isles, and provides 24-hour emergency cover 365 days a year. It is the only organisation in the scope with a reception function large enough to be recognisable as the thing Insights360 was built for — and even then, eight reception and administration staff sits at the very bottom of the product's stated 5–250 seat band, and the knowledge set's own exclusion list treats operations that small as marginal (an inference from the m00 steering note, not from any page read this run).\n\nFlett & Carmichael Veterinary Surgeons is a single-premises independent practice at Hatston Industrial Estate, Kirkwall, trading from Hatston Veterinary Centre Limited, an active Scottish company. Its website publishes opening hours, a 24-hour emergency line, and small-animal, farm and equine services. No staff count is published anywhere I could read this run. Nothing suggests a contact-centre-shaped reception; a single-site island practice of this kind would ordinarily be one or two people answering the phone (inference, not sourced).\n\n## The clock that is actually ticking\n\nThe live regulatory event in this sector is not local. On 24 March 2026 the Competition and Markets Authority published the final decision report of its market investigation into veterinary services for household pets, and the CMA's own announcement says the legally binding Orders and undertakings must be in place by 23 September 2026. The British Veterinary Association's summary adds that businesses will have until early 2027 to comply. The remedies bite on client communication: written estimates where treatment is likely to cost £500 or more including VAT, itemised bills, comprehensive published price lists, and written policies and processes. Almost all of that is a front-desk conversation before it is a document — which is the only genuinely strong reason a veterinary practice anywhere in GB might care about what is said on its phone lines in the next six months.\n\nThat clock applies to both Orkney practices, and to every other veterinary practice in Great Britain. It is a sector trigger, not an Orkney trigger. Nothing found this run makes Orkney more exposed to it than Aberdeen or Inverness; if anything the island practices sit inside a Scottish Government support scheme that the rest of GB has no equivalent of.\n\n## What this means for the pack\n\nThe rest of this pack has to be built on two firms. Three kinds of buyer with two seed firms each cannot be assembled from two organisations without either inventing firms or reusing one under two headings, both of which are barred. The honest reading of the landscape is that the brief's geography is smaller than the smallest viable campaign, not that the sector is wrong. That judgement goes to the scope decision, not to me to fix.",
+        "bodies": [
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/accredited-practices",
+            "name": "Royal College of Veterinary Surgeons (RCVS)",
+            "role": "Statutory regulator of veterinary surgeons and veterinary nurses; operates the Practice Standards Scheme and the Find a Vet practice register",
+            "relevance": "The register is the authoritative source for which premises exist in Orkney and what they are accredited for. The RCVS is also giving undertakings to the CMA as part of the March 2026 remedies package, so it is the body that will police the new client-communication rules."
+          },
+          {
+            "url": "https://www.gov.uk/government/news/cma-concludes-market-investigation-with-major-reforms-to-veterinary-sector",
+            "name": "Competition and Markets Authority (CMA)",
+            "role": "Competition regulator; ran the market investigation into veterinary services for household pets",
+            "relevance": "Its final decision report of 24 March 2026 sets the only dated, sector-wide compliance clock in this market. Orders due in place by 23 September 2026, compliance into early 2027. The remedies land on written estimates, itemised bills and published price lists — all of them front-desk conversations first."
+          },
+          {
+            "url": "https://www.gov.uk/guidance/registration-and-inspection-of-veterinary-practice-premises",
+            "name": "Veterinary Medicines Directorate (VMD)",
+            "role": "Regulator of veterinary medicines; inspects veterinary practice premises",
+            "relevance": "Requires every premises supplying veterinary medicines to be registered with the RCVS (£38 annually each April) and runs risk-based inspections. Relevant as a compliance surface a practice already carries, not as a call-quality driver."
+          },
+          {
+            "url": "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-hivss",
+            "name": "Scottish Government — Highlands and Islands Veterinary Services Scheme (HIVSS)",
+            "role": "Funding scheme ensuring adequate veterinary provision to crofters and similar in the crofting counties, including Orkney",
+            "relevance": "Both Orkney firms are participating practices. The scheme is the reason island practices carry farm work that would otherwise be uneconomic, and it is administered from Saughton House, Edinburgh. It also marks the Orkney practices as SMEs under the UK Companies Act 2006 definition."
+          },
+          {
+            "url": "https://www.bva.co.uk/resources-support/competition-and-markets-authority",
+            "name": "British Veterinary Association (BVA) and its Scottish Branch",
+            "role": "Representative body for the veterinary profession; Scottish Branch represents members in Scotland and includes a HIVSS representative on its council",
+            "relevance": "The BVA is the clearest published interpreter of what the CMA remedies mean for practices and when, and its Scottish Branch is where island-practice concerns are aired. A venue and a voice, not a buyer."
+          },
+          {
+            "url": "https://www.orkney.gov.uk/our-services/environmental-health-and-trading-standards/trading-standards/animal-welfare",
+            "name": "Orkney Islands Council — Animal Welfare section, Environmental Health and Trading Standards",
+            "role": "Local authority enforcement of animal health and welfare legislation and animal-business licensing in Orkney",
+            "relevance": "The local regulatory counterpart to the practices, and — as its planning committee's refusal of Northvet's new surgery shows — the body whose decisions shape the practices' operating constraints. Not a veterinary practice, so out of scope as a target."
+          },
+          {
+            "url": "https://www.xlvets.co.uk/experienced-veterinary-surgeon-vacancy-northvet-orkney",
+            "name": "XLVets",
+            "role": "Membership community of independent veterinary practices; runs a shared vacancies board",
+            "relevance": "Northvet advertises through it, which makes XLVets a route by which independent island practices see supplier and peer information. Useful as a discovery surface; it is not a regulator and carries no compliance weight."
+          }
+        ],
+        "claims": [
+          {
+            "id": "m01-c-two-practices",
+            "text": "Orkney has two veterinary practices, both offering an out-of-hours emergency service: Flett & Carmichael and Northvet.",
+            "quote": "Orkney has two veterinary practices, both of which offer an out of hours emergency service.",
+            "evidence": {
+              "urls": [
+                "https://www.orkney.com/news/dog-friendly-orkney"
+              ],
+              "domains": [
+                "www.orkney.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-c-hivss-orkney-entries",
+            "text": "The Scottish Government's Highlands and Islands Veterinary Services Scheme list of participating island practices shows three Orkney entries — Northvet Veterinary Group at Lamaquoy, Harray; Flett and Carmichael Veterinary Surgeons at Garrison Road, Hatston Industrial Estate, Kirkwall; and Northvet Veterinary Group at 33 Junction Road, Kirkwall.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-participating-island-practices"
+              ],
+              "domains": [
+                "www.gov.scot"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-07-31"
+          },
+          {
+            "id": "m01-c-four-premises-directories",
+            "text": "Commercial veterinary directories list four veterinary premises in Orkney: Northvet's Junction Road (Kirkwall), Lammaquoy (Harray) and North End Road (Stromness) sites, plus Flett & Carmichael at Hatston Veterinary Centre Ltd, Kirkwall.",
+            "evidence": {
+              "urls": [
+                "https://vetpricecomparisonsite.co.uk/vets-in/kirkwall",
+                "https://vetverified.com/vets-near/united-kingdom-scotland-orkney-islands",
+                "https://petsandvets.co.uk/practices/areas/orkney-islands"
+              ],
+              "domains": [
+                "vetpricecomparisonsite.co.uk",
+                "vetverified.com",
+                "petsandvets.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "publishedAt": "2026-08-30",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (commercial, plus, lammaquoy)"
+          },
+          {
+            "id": "m01-c-northvet-staff-mix",
+            "text": "Northvet Veterinary Group's own business listing states it has 7 veterinary surgeons, 3 veterinary nurses, an animal nursing assistant, a practice manager and 8 reception/administration staff, across three branch surgeries covering all of Orkney including the outer isles.",
+            "quote": "We have 7 Veterinary Surgeons, 3 Veterinary Nurses, an Animal Nursing Assistant, a Practice Manager and 8 Reception/Administration staff.",
+            "evidence": {
+              "urls": [
+                "https://www.orkney.com/listings/northvet-veterinary-group"
+              ],
+              "domains": [
+                "www.orkney.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-northvet-32-employees",
+            "text": "Northvet told Orkney Islands Council's planning committee that the firm has three surgeries in Orkney and now has around 32 full-time or part-time employees, having seen significant growth over the past 15 years.",
+            "quote": "The firm, which has three surgeries in Orkney, said it has seen significant growth over the past 15 years. It now has around 32 full-time or part-time employees.",
+            "evidence": {
+              "urls": [
+                "https://www.pressandjournal.co.uk/fp/news/highlands-islands/7093495/northvet-plans-kirkwall-refused"
+              ],
+              "domains": [
+                "www.pressandjournal.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-c-flett-single-site",
+            "text": "Flett & Carmichael Veterinary Surgeons operates from a single Kirkwall address at Garrison Road, Hatston Industrial Estate, KW15 1GN, open Monday to Friday 8.45am–6pm and Saturday 9am–12 noon, with a 24-hour emergency service, covering small animal, farm and equine work.",
+            "evidence": {
+              "urls": [
+                "https://www.flettandcarmichael.co.uk",
+                "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices/flett-carmichael-veterinary-surgeons-kirkwallkw15-1gn"
+              ],
+              "domains": [
+                "www.flettandcarmichael.co.uk",
+                "www.rcvs.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          },
+          {
+            "id": "m01-c-hatston-company",
+            "text": "Hatston Veterinary Centre Limited (company number SC340215), registered at Hatston Veterinary Centre, Garrison Road, Hatston Industrial Estate, Kirkwall, Orkney KW15 1GN, is an active company.",
+            "evidence": {
+              "urls": [
+                "https://find-and-update.company-information.service.gov.uk/company/SC340215"
+              ],
+              "domains": [
+                "find-and-update.company-information.service.gov.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-northvet-rcvs-accredited",
+            "text": "Northvet Veterinary Group Ltd's Kirkwall premises is accredited under the RCVS Practice Standards Scheme at Core Standards (Equine), Core Standards (Farm Animal) and Small Animal General Practice, and is an RCVS Approved Graduate Development Practice.",
+            "evidence": {
+              "urls": [
+                "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices/northvet-veterinary-group-ltd-orkneykw15-1ag"
+              ],
+              "domains": [
+                "www.rcvs.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-pss-uptake",
+            "text": "The RCVS states that 65% of UK practices have earned Practice Standards Scheme accreditation, and that accredited practices are assessed every four years with spot checks possible at any time.",
+            "evidence": {
+              "urls": [
+                "https://www.rcvs.org.uk/animal-owners/accredited-practices"
+              ],
+              "domains": [
+                "www.rcvs.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-cma-remedies-content",
+            "text": "Under the CMA's final remedies package, veterinary businesses must provide a written estimate of the cost of treatment where it is likely to be £500 or more including VAT, provide itemised bills, and have written policies and processes; the CMA narrowed 21 proposed recommendations to 14 remedies to be implemented through a CMA Order and undertakings from the RCVS.",
+            "evidence": {
+              "urls": [
+                "https://www.twobirds.com/en/insights/2026/uk/paws-and-reflect-the-cma's-final-report-confirms-major-reforms-for-the-uk-veterinary-sector"
+              ],
+              "domains": [
+                "www.twobirds.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-c-hivss-purpose",
+            "text": "The Highlands and Islands Veterinary Services Scheme is funded by the Scottish Government to ensure provision of an adequate veterinary service for animals kept for agricultural purposes belonging to crofters and others of like economic status, and covers the former counties including Orkney; it is open to small and medium enterprises as defined in the UK Companies Act 2006.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-hivss"
+              ],
+              "domains": [
+                "www.gov.scot"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-vpp-registration",
+            "text": "Anyone operating a veterinary practice premises from which to supply veterinary medicines must first register that premises with the RCVS; the registration fee is £38 payable on first application and annually each April, and the Veterinary Medicines Directorate conducts risk-based inspections.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.uk/guidance/registration-and-inspection-of-veterinary-practice-premises"
+              ],
+              "domains": [
+                "www.gov.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m01-c-orkney-business-size",
+            "text": "There are around 1,500 businesses based in Orkney, with more than 90% employing fewer than 10 people.",
+            "evidence": {
+              "urls": [
+                "https://www.orkney.com/life/live/start-a-business"
+              ],
+              "domains": [
+                "www.orkney.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          }
+        ],
+        "status": "complete",
+        "triggers": [
+          {
+            "id": "m01-t-cma-final-report",
+            "text": "The CMA concluded its market investigation into veterinary services for household pets with a final decision report published 24 March 2026; the next stage gives the CMA six months to put legally binding Orders on businesses in place and to accept undertakings from the RCVS, so these will be in place by 23 September 2026.",
+            "quote": "The next stage gives the CMA 6 months to put in place legally binding Orders on businesses and to accept undertakings from the RCVS or impose an Order, to implement these remedies. These will therefore be in place by 23 September 2026.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.uk/government/news/cma-concludes-market-investigation-with-major-reforms-to-veterinary-sector",
+                "https://www.gov.uk/government/publications/veterinary-services-for-household-pets-final-decision-report"
+              ],
+              "domains": [
+                "www.gov.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-03-24"
+          },
+          {
+            "id": "m01-t-bva-compliance-window",
+            "text": "The BVA states that the CMA concluded its investigation with a final decision report on 25 March 2026, that the remedies are expected to come into force in September 2026, and that businesses will have until early 2027 to comply with the orders.",
+            "quote": "It is expected that the CMA's remedies will come into force in September 2026, although business will have until early 2027 to comply with the orders.",
+            "evidence": {
+              "urls": [
+                "https://www.bva.co.uk/resources-support/competition-and-markets-authority"
+              ],
+              "domains": [
+                "www.bva.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-t-rcvs-response-cma",
+            "text": "The RCVS publicly responded to the CMA's final report of Tuesday 24 March 2026, broadly welcoming many remedies and its own future role in monitoring compliance by veterinary businesses, while voicing concern over certain recommendations.",
+            "evidence": {
+              "urls": [
+                "https://www.rcvs.org.uk/about-us/news-and-views/news/rcvs-broadly-welcomes-cma-remedies-but-voices-concern-over-certain-recommendations"
+              ],
+              "domains": [
+                "www.rcvs.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-03-24"
+          },
+          {
+            "id": "m01-t-northvet-planning-refused",
+            "role": "Director, Northvet Veterinary Group",
+            "text": "Orkney Islands Council's planning committee refused Northvet's application for a new veterinary surgery between Hatston Brae and Grainbank, west Kirkwall, after 39 objections; eight councillors voted against, two in favour and one abstained, despite a planning-department recommendation for approval. Northvet's director told the committee the firm had been looking for new premises for ten years and that its Junction Road surgery has only six parking spaces.",
+            "quote": "She said Northvet has been looking for a new premises for 10 years. “We aren’t looking to do anything different, we just need a bigger place to do it,” she said.",
+            "speaker": "Leona Leslie",
+            "evidence": {
+              "urls": [
+                "https://www.pressandjournal.co.uk/fp/news/highlands-islands/7093495/northvet-plans-kirkwall-refused",
+                "https://news.stv.tv/highlands-islands/locals-object-to-plans-to-build-vet-surgery-in-orkney-over-unsuitable-location"
+              ],
+              "domains": [
+                "www.pressandjournal.co.uk",
+                "news.stv.tv"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-t-northvet-vet-vacancy",
+            "text": "Northvet is recruiting an experienced veterinary surgeon to join its 12-vet team as a colleague heads overseas, with a closing date of 25 September 2026; enquiries go to the practice manager.",
+            "quote": "Join our independent, progressive mixed practice in Orkney. We are seeking an experienced veterinary surgeon to become part of our 12-vet team as one of our colleagues head off to travel overseas.",
+            "evidence": {
+              "urls": [
+                "https://www.xlvets.co.uk/experienced-veterinary-surgeon-vacancy-northvet-orkney",
+                "https://www.jobleads.com/za/job/experienced-veterinary-surgeon-vacancy-northvet-orkney--orkney--eff56df255f720e95dd983792e7cafb30"
+              ],
+              "domains": [
+                "www.xlvets.co.uk",
+                "www.jobleads.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026"
+          },
+          {
+            "id": "m01-t-hivss-list-updated",
+            "text": "The Scottish Government updated its list of practices participating in the Highlands and Islands Veterinary Services Scheme on 31 July 2026; Orkney's entries are unchanged in substance — two Northvet premises and Flett and Carmichael.",
+            "evidence": {
+              "urls": [
+                "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-participating-island-practices"
+              ],
+              "domains": [
+                "www.gov.scot"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-07-31"
+          },
+          {
+            "id": "m01-t-rcvs-findavet-degraded",
+            "text": "On 25 August 2026 the RCVS notified users that technical updates to its Find a Vet service mean some practice information will not be available in the short term.",
+            "quote": "We are making some technical updates to Find a Vet which means some information will not be available in the short term.",
+            "evidence": {
+              "urls": [
+                "https://www.rcvs.org.uk/animal-owners/find-a-vet",
+                "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices"
+              ],
+              "domains": [
+                "www.rcvs.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-08-25"
+          },
+          {
+            "id": "m01-t-directory-refresh",
+            "text": "A veterinary directory last updated on 30 August 2026 lists four veterinary practices in Orkney, with phone, website and email contact recorded for all four and Google reviews imported for three of them.",
+            "evidence": {
+              "urls": [
+                "https://vetverified.com/vets-near/united-kingdom-scotland-orkney-islands"
+              ],
+              "domains": [
+                "vetverified.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak",
+            "publishedAt": "2026-08-30"
+          }
+        ],
+        "marketSize": [
+          "Two veterinary businesses operate in Orkney: Northvet Veterinary Group Ltd and Flett & Carmichael Veterinary Surgeons (trading from Hatston Veterinary Centre Limited). Source: orkney.com's own dog-friendly guidance, corroborated by the Scottish Government's HIVSS participating-practices list.",
+          "Four registered veterinary premises across those two businesses: Northvet at 33 Junction Road, Kirkwall (KW15 1AG), Lamaquoy/Lammaquoy, Harray (KW17 2LQ) and 1 North End Road, Stromness (KW16 3AG); Flett & Carmichael at Garrison Road, Hatston Industrial Estate, Kirkwall (KW15 1GN).",
+          "Largest employer of the two: Northvet, at around 32 full- and part-time employees in total, of which 8 are reception/administration staff by the firm's own listing — the only reception function in the scope that approaches the product's stated 5-seat floor.",
+          "Whole-scope addressable seat count is therefore in the region of 8–12 reception and administration seats across both firms combined (derived: Northvet's stated 8 reception/administration staff plus an unsourced allowance for Flett & Carmichael, whose staff count is not published — treat as an estimate, not a figure from any page).",
+          "Context for scale: Orkney has around 1,500 businesses in total, more than 90% of them employing fewer than ten people."
+        ],
+        "subSegments": [
+          {
+            "fit": "MEDIUM",
+            "why": "The only organisation inside the scope with a reception function of a size the product recognises — and it sits at the very bottom of the 5–250 seat band. It has 24-hour emergency phone cover, outer-isles coverage and a practice manager, so a call-quality conversation is at least coherent. Against it: eight admin seats at £4.99–£9.99 a month against a £1,280 setup fee and a £640 configuration review is a hard commercial case, and nothing found this run shows what telephony it runs.",
+            "name": "Multi-site independent mixed practice with a dedicated reception and admin team (Northvet)",
+            "sizeRange": "~32 employees total; 8 reception/administration staff; 12 vets; 3 premises",
+            "countEstimate": "1"
+          },
+          {
+            "fit": "LOW",
+            "why": "A genuine veterinary practice inside the scope, RCVS-listed and HIVSS-participating, but no published evidence of a reception team of five or more. On the published shape — one site, one phone number, weekday hours plus Saturday morning — it is likely to fall under the product's five-seat floor, which the knowledge set excludes outright.",
+            "name": "Single-site independent practice with small-animal, farm and equine work (Flett & Carmichael)",
+            "sizeRange": "Staff count not published; single premises; 24-hour emergency line",
+            "countEstimate": "1"
+          },
+          {
+            "fit": "OUT",
+            "why": "These are premises of an organisation already counted, not separate buyers. Directories list them as distinct practices, which is how the 'four practices in Orkney' figure arises. Counting them as targets would mean selling the same tenant twice; a firm is one seed across the pack.",
+            "name": "Branch surgeries operating part-week (Northvet Stromness, Northvet Harray)",
+            "sizeRange": "Stromness open for small animal consultations three times per week; Harray is the large-animal and equine site",
+            "countEstimate": "2"
+          },
+          {
+            "fit": "OUT",
+            "why": "In much of GB, out-of-hours cover is a separate business with its own call-handling operation, which would be a natural fit. In Orkney both practices state they run their own 24-hour emergency service; there is no third-party out-of-hours provider on the islands to sell to.",
+            "name": "Out-of-hours and emergency veterinary cover provision in Orkney",
+            "sizeRange": "n/a — provided in-house by the same two firms",
+            "countEstimate": "0"
+          },
+          {
+            "fit": "OUT",
+            "why": "Both Orkney practices describe themselves as independent; Northvet's recruitment says 'independent, progressive mixed practice' and the directories list both as independently owned. A corporate group's central client-contact centre would be the strongest fit for this product anywhere in GB, but no corporate group operates a practice inside the scope.",
+            "name": "Corporate veterinary group practices (IVC, Linnaeus, CVS and similar) with an Orkney site",
+            "sizeRange": "n/a",
+            "countEstimate": "0"
+          },
+          {
+            "fit": "OUT",
+            "why": "The council's Animal Welfare Officer enforces animal health and welfare legislation and handles stray animals, so it appears in searches for Orkney veterinary work. It is not a veterinary practice and the scope names 'veterinary practice' as the only organisation type. Excluded by the hard filters.",
+            "name": "Animal-health and welfare functions at Orkney Islands Council",
+            "sizeRange": "Council animal welfare section within environmental health and trading standards",
+            "countEstimate": "1"
+          },
+          {
+            "fit": "OUT",
+            "why": "Structurally the closest analogues to the Orkney two, sharing the same Scottish Government scheme, the same 24/7 island obligation and the same CMA deadline. Every one of them is outside the rep's locked scope, which names Orkney only. Listed here so the campaign agent can see what a widening would reach, not as targets.",
+            "name": "Island veterinary practices elsewhere in the Northern Isles and Highlands (Shetland Vets, Old Mill Stornoway, Southern Isles, Mull & Iona and others on the HIVSS list)",
+            "sizeRange": "Mostly single-premises island practices; sizes not established this run",
+            "countEstimate": "9"
+          }
+        ],
+        "nextSixMonths": [
+          "23 September 2026: CMA Orders on veterinary businesses and undertakings from the RCVS due to be in place, per the CMA's own announcement. Every GB veterinary practice, both Orkney firms included, is in scope.",
+          "25 September 2026: Northvet's advertised closing date for an experienced veterinary surgeon; a departure and a replacement in a 12-vet team is a live operational change.",
+          "Into early 2027: the compliance window the BVA describes, during which veterinary businesses must meet the CMA orders — written estimates above £500 including VAT, itemised bills, published comprehensive price lists and written policies.",
+          "Northvet's premises problem is unresolved: its planning application was refused, its director says the firm has searched for ten years, and its current Kirkwall site has six parking spaces for around 32 staff. A fresh application or an alternative site is the likely next move, but no date for one was found this run.",
+          "RCVS Find a Vet is mid-rebuild as of 25 August 2026; practice information there may be incomplete for a period, which affects any list built from it."
+        ],
+        "activityMetrics": [
+          "Distinct veterinary organisations inside the scope: 2.",
+          "Registered veterinary premises inside the scope: 4 (three Northvet, one Flett & Carmichael).",
+          "Reception/administration seats published inside the scope: 8, all at Northvet. Flett & Carmichael publishes none.",
+          "Total employees at the larger of the two firms: around 32 full- or part-time.",
+          "Vets at the larger firm: 12 by its current recruitment advert; 7 veterinary surgeons by its older business listing — the two figures are from different dates and should not be reconciled.",
+          "Objections to Northvet's refused planning application: 39. Committee vote: 8 against, 2 for, 1 abstention.",
+          "Days from this pack's date to the CMA Orders deadline of 23 September 2026: 12 (derived).",
+          "Practices in the whole HIVSS island list, all islands: 12 rows covering Shetland, Orkney, Lewis and Harris, Uist, Skye, Islay, Mull and Tiree."
+        ]
+      },
+      "m19": {
+        "body": "Every source this pack cites (26), assembled by the runtime from the modules' claims and url fields and the pages this run read.",
+        "claims": [],
+        "status": "complete",
+        "sources": [
+          {
+            "url": "https://www.orkney.com/news/dog-friendly-orkney",
+            "title": "Dog-friendly Orkney | Orkney.com",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-participating-island-practices",
+            "title": "Highlands and Islands Veterinary Services Scheme: participating island practices - gov.scot",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://vetpricecomparisonsite.co.uk/vets-in/kirkwall",
+            "title": "Vets in Kirkwall – Compare 3 Practices & 2026 Prices",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://vetverified.com/vets-near/united-kingdom-scotland-orkney-islands",
+            "title": "4 vet practices in Orkney - Vet Verified",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://petsandvets.co.uk/practices/areas/orkney-islands",
+            "title": "Veterinary Practices in Orkney Islands - Pets and Vets",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.orkney.com/listings/northvet-veterinary-group",
+            "title": "Northvet Veterinary Group | Orkney.com",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.pressandjournal.co.uk/fp/news/highlands-islands/7093495/northvet-plans-kirkwall-refused",
+            "title": "Orkney: New Northvet surgery plans in Kirkwall refused",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.flettandcarmichael.co.uk",
+            "title": "Dedicated to our clients and the care of their animals - Flett & Carmichael",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices/flett-carmichael-veterinary-surgeons-kirkwallkw15-1gn",
+            "title": "Flett & Carmichael Veterinary Surgeons",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://find-and-update.company-information.service.gov.uk/company/SC340215",
+            "title": "hatston veterinary centre limited - Companies House - GOV.UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices/northvet-veterinary-group-ltd-orkneykw15-1ag",
+            "title": "Northvet Veterinary Group Ltd | Royal College of Veterinary Surgeons",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/accredited-practices",
+            "title": "Accredited practices | Royal College of Veterinary Surgeons",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.twobirds.com/en/insights/2026/uk/paws-and-reflect-the-cma's-final-report-confirms-major-reforms-for-the-uk-veterinary-sector",
+            "title": "Paws and Reflect The CMA's Final Report Confirms Major Reforms ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.scot/publications/highlands-and-islands-veterinary-services-scheme-hivss",
+            "title": "Highlands and Islands Veterinary Services Scheme - gov.scot",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.uk/guidance/registration-and-inspection-of-veterinary-practice-premises",
+            "title": "Registration and inspection of veterinary practice premises - GOV.UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.orkney.com/life/live/start-a-business",
+            "title": "Start a business in Orkney",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.uk/government/news/cma-concludes-market-investigation-with-major-reforms-to-veterinary-sector",
+            "title": "CMA concludes market investigation with major reforms to veterinary ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.gov.uk/government/publications/veterinary-services-for-household-pets-final-decision-report",
+            "title": "Veterinary services for household pets: Final decision report - GOV.UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.bva.co.uk/resources-support/competition-and-markets-authority",
+            "title": "Competition and Markets Authority | British Veterinary Association",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/about-us/news-and-views/news/rcvs-broadly-welcomes-cma-remedies-but-voices-concern-over-certain-recommendations",
+            "title": "RCVS broadly welcomes CMA remedies but voices concern over ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://news.stv.tv/highlands-islands/locals-object-to-plans-to-build-vet-surgery-in-orkney-over-unsuitable-location",
+            "title": "Locals object to plans to build vet surgery in Orkney over 'unsuitable ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.xlvets.co.uk/experienced-veterinary-surgeon-vacancy-northvet-orkney",
+            "title": "Experienced veterinary surgeon vacancy, Northvet, Orkney - XLVets",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.jobleads.com/za/job/experienced-veterinary-surgeon-vacancy-northvet-orkney--orkney--eff56df255f720e95dd983792e7cafb30",
+            "title": "Experienced veterinary surgeon vacancy, Northvet, Orkney - JobLeads",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/find-a-vet",
+            "title": "Find a Vet - Royal College of Veterinary Surgeons",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rcvs.org.uk/animal-owners/find-a-vet/practices",
+            "title": "Practices - Royal College of Veterinary Surgeons",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.orkney.gov.uk/our-services/environmental-health-and-trading-standards/trading-standards/animal-welfare",
+            "title": "Animal Welfare",
+            "accessedAt": "2026-09-11"
+          }
+        ],
+        "factsVersion": 2,
+        "priorPackIds": [],
+        "knowledgeArticles": [
+          "overview",
+          "roadmap",
+          "architecture",
+          "integrations",
+          "icp",
+          "competitors",
+          "brand-voice",
+          "decisions",
+          "known-issues"
+        ]
+      }
+    },
+    "outcome": "insufficient",
+    "partial": true,
+    "insufficient": {
+      "reason": "Orkney contains two veterinary organisations, not ten. Orkney.com's own guidance says \"Orkney has two veterinary practices\"; the Scottish Government's HIVSS list shows the same two; directories' \"four practices\" figure counts Northvet's three premises separately. The floor is three kinds of buyer with two seed firms each inside the scope — six distinct firms. Two exist, and a firm may be one seed only.\n\nSize compounds it. Northvet, the larger, publishes 8 reception/administration staff out of ~32 employees; Flett & Carmichael is single-site and publishes no staff count. The product is built for 5–250 contact-centre seats and the knowledge set excludes sub-5-seat operations outright, so at best one of the two clears the floor, and only just, against a £1,280 setup fee plus a £640 configuration review.\n\nThe sector is not wrong — the CMA's 23 September 2026 Orders deadline is a real GB-wide clock on veterinary client communication. The geography is smaller than the smallest viable campaign.",
+      "decidedAt": "2026-09-11T11:05:58.615Z",
+      "widenings": [
+        {
+          "text": "Keep veterinary practices, drop Orkney, and run the brief across Great Britain. The CMA's 23 September 2026 Orders on client communication apply to every GB veterinary business, and the corporate veterinary groups run central client-contact teams at the seat sizes the product is built for.",
+          "dimension": "region",
+          "scopePatch": {
+            "places": null,
+            "countries": [
+              "GB"
+            ]
+          }
+        },
+        {
+          "text": "Keep Orkney and add the rest of the Scottish islands and Highlands. The Scottish Government's HIVSS list names practices in Shetland, Lewis and Harris, Uist, Skye, Islay, Mull and Tiree alongside the Orkney two — same 24/7 island obligation, same scheme, same CMA deadline, roughly ten organisations instead of two.",
+          "dimension": "region",
+          "scopePatch": {
+            "places": [
+              {
+                "name": "Orkney",
+                "aliases": [
+                  "Orkney Islands",
+                  "Kirkwall",
+                  "Stromness"
+                ]
+              },
+              {
+                "name": "Shetland",
+                "aliases": [
+                  "Shetland Islands",
+                  "Lerwick",
+                  "Bixter"
+                ]
+              },
+              {
+                "name": "Western Isles",
+                "aliases": [
+                  "Outer Hebrides",
+                  "Lewis",
+                  "Harris",
+                  "Stornoway",
+                  "Uist",
+                  "Benbecula",
+                  "Barra"
+                ]
+              },
+              {
+                "name": "Highland",
+                "aliases": [
+                  "Isle of Skye",
+                  "Portree",
+                  "Broadford",
+                  "Caithness",
+                  "Sutherland",
+                  "Inverness"
+                ]
+              },
+              {
+                "name": "Argyll and Bute",
+                "aliases": [
+                  "Islay",
+                  "Jura",
+                  "Mull",
+                  "Iona",
+                  "Tiree",
+                  "Bowmore"
+                ]
+              }
+            ],
+            "countries": [
+              "GB"
+            ]
+          }
+        },
+        {
+          "text": "Stay in Orkney and drop the veterinary-only filter. Orkney has around 1,500 businesses and a council employing over a thousand people; the question becomes which Orkney employers run a multi-seat phone desk with recorded calls, rather than which vets do. Expect a short list either way.",
+          "dimension": "sector",
+          "scopePatch": {
+            "orgTypes": null
+          }
+        }
+      ],
+      "evidenceIds": [
+        "m00-c-icp-floor",
+        "m00-c-seat-band",
+        "m01-c-two-practices",
+        "m01-c-four-premises-directories",
+        "m01-c-northvet-staff-mix",
+        "m01-c-flett-single-site",
+        "m01-c-hivss-orkney-entries",
+        "m01-t-cma-final-report",
+        "m01-c-orkney-business-size"
+      ]
+    },
+    "missingModules": [
+      "repSummary",
+      "execSummary",
+      "m02",
+      "m03",
+      "m04",
+      "m05",
+      "m06",
+      "m07",
+      "m08",
+      "m09",
+      "m10",
+      "m11",
+      "m12",
+      "m13",
+      "m14",
+      "m15",
+      "m16",
+      "m17",
+      "m18"
+    ]
+  },
+  "report": {
+    "rails": {
+      "maxFetches": 60,
+      "maxSeconds": 5400,
+      "maxSearches": 120,
+      "maxSpendUsd": 50,
+      "maxModelSteps": 200,
+      "maxFetchedChars": 400000
+    },
+    "models": {
+      "research": "claude-opus-5",
+      "synthesis": "claude-sonnet-5"
+    },
+    "actuals": {
+      "runs": 1,
+      "costUsd": 2.635434,
+      "fetches": 7,
+      "searches": 17,
+      "tokensIn": 1139831,
+      "tokensOut": 27473,
+      "modelSteps": 14,
+      "fetchedChars": 31000,
+      "tokensCached": 987224,
+      "activeSeconds": 384,
+      "elapsedSeconds": 385,
+      "unfinishedRuns": []
+    },
+    "demoted": [],
+    "endings": [
+      {
+        "phase": "research",
+        "ending": "answer"
+      }
+    ],
+    "reasked": [],
+    "attempts": 1,
+    "provenance": [
+      {
+        "total": 28,
+        "failed": [
+          {
+            "id": "m01-c-four-premises-directories",
+            "text": "Commercial veterinary directories list four veterinary premises in Orkney: Northvet's Junction Road (Kirkwall), Lammaquoy (Harray) and North End Road (Stromness) sites, plus Flett & Carmichael at Hatston Veterinary Centre Ltd, Kirkwall.",
+            "module": "m01",
+            "reason": "fewer than two of its distinctive words on the page (commercial, plus, lammaquoy)"
+          }
+        ],
+        "passed": 27,
+        "modules": [
+          {
+            "total": 28,
+            "failed": [
+              {
+                "id": "m01-c-four-premises-directories",
+                "text": "Commercial veterinary directories list four veterinary premises in Orkney: Northvet's Junction Road (Kirkwall), Lammaquoy (Harray) and North End Road (Stromness) sites, plus Flett & Carmichael at Hatston Veterinary Centre Ltd, Kirkwall.",
+                "module": "m01",
+                "reason": "fewer than two of its distinctive words on the page (commercial, plus, lammaquoy)"
+              }
+            ],
+            "module": "m01",
+            "passed": 27,
+            "fraction": 0.03571428571428571,
+            "rejected": false
+          }
+        ],
+        "fraction": 0.03571428571428571,
+        "rejected": false
+      }
+    ],
+    "firstIngestIssues": [],
+    "insufficientModules": []
+  },
+  "run": {
+    "steps": 54,
+    "modelSteps": 14,
+    "toolSteps": 40,
+    "moduleWrites": 2,
+    "attempts": 1,
+    "cost": "2.635434",
+    "runsCostTotal": "2.635434",
+    "durationMs": 384927,
+    "jobId": "ec569bf1-8d2f-4ec3-a489-8e728eac9082",
+    "eventId": "cmtwuoy140035kw1swb2hvgp8",
+    "actuals": {
+      "runs": 1,
+      "searches": 17,
+      "fetches": 7,
+      "fetchedChars": 31000,
+      "modelSteps": 14,
+      "tokensIn": 1139831,
+      "tokensOut": 27473,
+      "tokensCached": 987224,
+      "costUsd": 2.635434,
+      "elapsedSeconds": 385,
+      "activeSeconds": 384,
+      "unfinishedRuns": []
+    }
+  },
+  "record": [
+    {
+      "run": 0,
+      "name": "facts"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "priorPacks"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m00",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m01",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "decideScope",
+      "accepted": false
+    },
+    {
+      "run": 0,
+      "name": "decideScope",
+      "accepted": false
+    },
+    {
+      "run": 0,
+      "name": "decideScope",
+      "verdict": "stop",
+      "accepted": true
+    }
+  ],
+  "error": null,
+  "rejectedIssues": null,
+  "rubric": [
+    {
+      "check": 1,
+      "name": "Schema and derived confidence",
+      "verdict": "pass",
+      "detail": "24 items parsed; none above its ceiling"
+    },
+    {
+      "check": 2,
+      "name": "Coverage",
+      "verdict": "n/a",
+      "detail": "the pack stopped as insufficient"
+    },
+    {
+      "check": 3,
+      "name": "Provenance",
+      "verdict": "pass",
+      "detail": "1 of 28 claims demoted (4%); the cap is 10%"
+    },
+    {
+      "check": 4,
+      "name": "Buyer words",
+      "verdict": "n/a",
+      "detail": "no buyer phrases"
+    },
+    {
+      "check": 5,
+      "name": "Recency",
+      "verdict": "pass",
+      "detail": "no strong dated claim older than twelve months (8 checked)"
+    },
+    {
+      "check": 6,
+      "name": "Domain spread",
+      "verdict": "pass",
+      "detail": "every module inside the cap; seed firms from two or more sources"
+    },
+    {
+      "check": 7,
+      "name": "Contradictions",
+      "verdict": "n/a",
+      "detail": "the pack stopped as insufficient"
+    },
+    {
+      "check": 8,
+      "name": "Insufficient path",
+      "verdict": "pass",
+      "detail": "stopped; widen by region, region, sector; 9 piece(s) of in-scope evidence"
+    },
+    {
+      "check": 9,
+      "name": "Replay",
+      "verdict": "n/a",
+      "detail": "its own test: tests/worker/research.test.ts (a kill mid-run replays every stored call)"
+    },
+    {
+      "check": 10,
+      "name": "Widening",
+      "verdict": "n/a",
+      "detail": "not a re-run"
+    },
+    {
+      "check": 11,
+      "name": "Cost and time",
+      "verdict": "pass",
+      "detail": "17 searches, 7 fetches, 31k chars, 14 steps, 385s, $2.6354"
+    },
+    {
+      "check": 12,
+      "name": "Depth against the bar",
+      "verdict": "n/a",
+      "detail": "The product owner reads brief A against Signal's May insurance pack and brief E against the legal exemplar"
+    },
+    {
+      "check": 13,
+      "name": "Plan-card view",
+      "verdict": "pass",
+      "detail": "0 kind(s) of buyer, 0 firm(s) on the cards"
+    },
+    {
+      "check": 14,
+      "name": "Scope held",
+      "verdict": "pass",
+      "detail": "0 seed firm(s) and 0 recipe(s) inside the scope (countries, places, orgTypes)"
+    }
+  ]
+}

@@ -1,0 +1,227 @@
+import { describe, expect, it } from "vitest";
+
+import { MODULE_IDS, SCOPE_ISSUE, type LockedScope } from "../../agents/research/output.schema";
+import { loadFacts } from "@/lib/facts/load";
+import { liveFactIds } from "@/lib/facts/schema";
+import { checkModuleWrite, groupVoiceIssues, repWordIssues } from "@/lib/research/moduleWrite";
+
+import { goodPack, moduleContent } from "../agents/researchPack";
+
+/**
+ * The check `writeModule` runs on each module as it is written (research v3
+ * §7 "On write"): schema and floors, demotion, the per-module domain cap and
+ * its primary-source carve-out, live fact ids, ids unique against what is
+ * already accepted, rep words on the rep summary.
+ */
+
+const facts = loadFacts("insights360", 1).facts;
+const live = liveFactIds(facts);
+const liveId = [...live][0]!;
+const plannedId = facts.facts.find((fact) => fact.status === "planned")!.id;
+const now = new Date();
+
+const content = (id: (typeof MODULE_IDS)[number]): Record<string, unknown> => structuredClone(moduleContent(goodPack({ liveFactId: liveId }), id));
+
+describe("checkModuleWrite", () => {
+  it("accepts every module of the complete pack, written in order, and sets the status itself", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of MODULE_IDS) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      expect(check.module.status).toBe("complete");
+      accepted[id] = check.module;
+    }
+  });
+
+  it("refuses a module under its floor, with the issue named", () => {
+    const m03 = content("m03") as { archetypes: unknown[] };
+    m03.archetypes = m03.archetypes.slice(0, 2);
+    const check = checkModuleWrite("m03", m03, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/archetypes/);
+  });
+
+  it("refuses a fourth page from one domain in a module, and exempts a primary source", () => {
+    const m05 = content("m05") as { perArchetype: Array<{ pains: Array<{ evidence: { urls: string[]; domains: string[]; primary: boolean } }> }> };
+    m05.perArchetype[0]!.pains.forEach((pain, i) => {
+      pain.evidence = { urls: [`https://onedomain.test/page-${i}`], domains: ["onedomain.test"], primary: false };
+    });
+    const refused = checkModuleWrite("m05", m05, { accepted: {}, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/4 pages from onedomain\.test in this module; the cap is 3/);
+
+    for (const pain of m05.perArchetype[0]!.pains) pain.evidence.primary = true;
+    expect(checkModuleWrite("m05", m05, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("exempts the regulator m01 names as a primary source for later modules", () => {
+    const accepted: Record<string, unknown> = {};
+    const m01 = content("m01") as { bodies: Array<{ url?: string }> };
+    m01.bodies = [{ ...m01.bodies[0], url: "https://onedomain.test/" } as { url?: string }];
+    const first = checkModuleWrite("m01", m01, { accepted, liveFactIds: live, now });
+    if (!first.ok) throw new Error(first.issues.join("; "));
+    accepted.m01 = first.module;
+    const m05 = content("m05") as { perArchetype: Array<{ pains: Array<{ evidence: { urls: string[]; domains: string[]; primary: boolean } }> }> };
+    m05.perArchetype[0]!.pains.forEach((pain, i) => {
+      pain.evidence = { urls: [`https://onedomain.test/page-${i}`], domains: ["onedomain.test"], primary: false };
+    });
+    expect(checkModuleWrite("m05", m05, { accepted, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("refuses an id another accepted module already uses", () => {
+    const accepted: Record<string, unknown> = {};
+    const m01 = checkModuleWrite("m01", content("m01"), { accepted, liveFactIds: live, now });
+    if (!m01.ok) throw new Error(m01.issues.join("; "));
+    accepted.m01 = m01.module;
+    const exec = content("execSummary") as { claims: Array<{ id: string }> };
+    exec.claims[0]!.id = "market-1";
+    const check = checkModuleWrite("execSummary", exec, { accepted, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/"market-1" is already used by another module/);
+  });
+
+  it("refuses a fact id that is not live", () => {
+    const m15 = content("m15") as { proof: Array<{ factId: string }> };
+    m15.proof[0]!.factId = plannedId;
+    const check = checkModuleWrite("m15", m15, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toContain(plannedId);
+  });
+
+  it("checks rep words on the rep summary, and not on a module body the campaign agent reads", () => {
+    const rep = content("repSummary") as { lines: string[] };
+    rep.lines[0] = "The orchestrator will start an agent run for this persona.";
+    expect(checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now }).ok).toBe(false);
+    const m01 = content("m01") as { body: string };
+    m01.body = "The persona and ICP analysis the orchestrator reads.";
+    expect(checkModuleWrite("m01", m01, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("demotes a stale strong trigger on write and accepts it", () => {
+    const m01 = content("m01") as { triggers: Array<{ publishedAt: string; confidence: string; evidence: { primary: boolean } }> };
+    m01.triggers[0]!.publishedAt = "2024-01-15";
+    m01.triggers[0]!.confidence = "strong";
+    m01.triggers[0]!.evidence.primary = true;
+    const check = checkModuleWrite("m01", m01, { accepted: {}, liveFactIds: live, now });
+    if (!check.ok) throw new Error(check.issues.join("; "));
+    expect(check.demoted).toHaveLength(1);
+    expect((check.module as { triggers: Array<{ confidence: string }> }).triggers[0]!.confidence).toBe("weak");
+  });
+
+  it("lets an objection cite a planned fact as the reason it is not available, and never in factIds (§10 note 9)", () => {
+    const known = new Set(facts.facts.filter((fact) => fact.status !== "retired").map((fact) => fact.id));
+    const m11 = content("m11") as { perArchetype: Array<{ objections: Array<{ factIds: string[]; notYetFactIds?: string[] }> }> };
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = [plannedId];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(true);
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = ["i360.boundary.not-a-real-fact"];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(false);
+    m11.perArchetype[0]!.objections[0]!.notYetFactIds = [];
+    m11.perArchetype[0]!.objections[0]!.factIds = [plannedId];
+    expect(checkModuleWrite("m11", m11, { accepted: {}, liveFactIds: live, knownFactIds: known, now }).ok).toBe(false);
+  });
+
+  it("checks references to modules already accepted on write: archetype ids and pain ids (§10 note 12)", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of ["m00", "repSummary", "execSummary", "m01", "m02", "m03", "m04", "m05"] as const) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      accepted[id] = check.module;
+    }
+    const m11 = content("m11") as { perArchetype: Array<{ archetypeId: string }> };
+    m11.perArchetype[0]!.archetypeId = "conveyancing-volume-practice";
+    const wrongKind = checkModuleWrite("m11", m11, { accepted, liveFactIds: live, now });
+    if (wrongKind.ok) throw new Error("expected a refusal");
+    expect(wrongKind.issues.join(" ")).toMatch(/m11 names archetype "conveyancing-volume-practice" which m03 does not define/);
+
+    const m07 = content("m07") as { mappings: Array<{ painId: string }> };
+    m07.mappings[0]!.painId = "p-invented";
+    const wrongPain = checkModuleWrite("m07", m07, { accepted, liveFactIds: live, now });
+    if (wrongPain.ok) throw new Error("expected a refusal");
+    expect(wrongPain.issues.join(" ")).toMatch(/m07 neither maps nor lists as unmatched the pain/);
+
+  });
+
+  it("needs a partial mapping to say what it does not change (§10 note 25)", () => {
+    const m07 = content("m07") as { mappings: Array<{ strength: string; mustNotImply?: string }> };
+    m07.mappings[0]!.strength = "partial";
+    delete m07.mappings[0]!.mustNotImply;
+    const refused = checkModuleWrite("m07", m07, { accepted: {}, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/a partial mapping says in mustNotImply/);
+    m07.mappings[0]!.mustNotImply = "Earlier visibility; it does not lower the complaint count.";
+    expect(checkModuleWrite("m07", m07, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("holds m04's seed firms and recipes to the rep's locked scope on write, and only when a scope is given (§10 note 28)", () => {
+    const orkney = { countries: ["GB"], places: [{ name: "Orkney" }], supplied: ["countries", "places"] } as LockedScope;
+    const refused = checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now, scope: orkney });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.filter((i) => i.startsWith(SCOPE_ISSUE)).length).toBeGreaterThanOrEqual(6);
+    expect(refused.issues.join(" ")).toMatch(/names none of the brief's places \(Orkney\)/);
+    expect(refused.issues.join(" ")).toMatch(/must carry the brief's places in locations/);
+    expect(checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+    expect(checkModuleWrite("m04", content("m04"), { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+  });
+
+  it("accepts an empty recipe locations list as none, as the scope rule asks when the rep named no places (brief D v3.2 rerun)", () => {
+    const m04 = content("m04") as { perArchetype: Array<{ recipe: { locations?: string[] } }> };
+    for (const t of m04.perArchetype) t.recipe.locations = [];
+    expect(checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now, scope: { countries: ["GB"], supplied: ["countries"] } as LockedScope }).ok).toBe(true);
+  });
+
+  it("names each banned word in a refused rep summary, with its line — brief A v3.2b (job 567ba84c) line 5, both versions", () => {
+    const rep = content("repSummary") as { lines: string[] };
+    // The first version: "job" is on the rep-words list.
+    rep.lines[4] = "Fifteen named companies across five kinds of buyer show a live, dated reason to talk this quarter — from a doubled complaint count to a new claims-quality job posting — at a price and size the rest of this market doesn't serve.";
+    const first = checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now });
+    if (first.ok) throw new Error("expected a refusal");
+    expect(first.issues).toEqual(['lines.4: "job" is a word a rep would not use — rewrite the line without it']);
+    // The rewrite that guessed and lost the module: "touch" is on the list too.
+    rep.lines[4] = "Fifteen real companies already show a solid, dated reason to get in touch now, from a doubled complaint count to a brand new claims-quality hire, at a price and size nothing else in this market matches.";
+    const second = checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now });
+    if (second.ok) throw new Error("expected a refusal");
+    expect(second.issues).toEqual(['lines.4: "touch" is a word a rep would not use — rewrite the line without it']);
+    // The rule itself is unchanged: the same line without either word passes.
+    rep.lines[4] = "Fifteen real companies already show a solid, dated reason to talk now, from a doubled complaint count to a new claims-quality hire, at a price and size nothing else in this market matches.";
+    expect(checkModuleWrite("repSummary", rep, { accepted: {}, liveFactIds: live, now }).ok).toBe(true);
+    expect(repWordIssues(["The agent will start a job and get in touch."])).toEqual(['lines.0: "job", "touch" are words a rep would not use — rewrite the line without them']);
+  });
+
+  it("names a group-level m06 voice as a structural slip, where it belongs, and never copies it down (brief A v3.2)", () => {
+    const m06 = content("m06") as { perArchetype: Array<Record<string, unknown>> };
+    m06.perArchetype[0]!.voice = "practitioner";
+    m06.perArchetype[2]!.voice = "practitioner";
+    expect(groupVoiceIssues("m06", m06)).toEqual([
+      "perArchetype.0.voice: voice belongs on each phrase, not on the kind of buyer — one group can hold words from different voices. Remove perArchetype.0.voice and set perArchetype.0.phrases.<n>.voice on every phrase independently.",
+      "perArchetype.2.voice: voice belongs on each phrase, not on the kind of buyer — one group can hold words from different voices. Remove perArchetype.2.voice and set perArchetype.2.phrases.<n>.voice on every phrase independently.",
+    ]);
+    expect(groupVoiceIssues("m06", content("m06"))).toEqual([]);
+    expect(groupVoiceIssues("m05", m06)).toEqual([]);
+  });
+
+  it("seeds a firm once across the pack: the same domain under two kinds of buyer is refused (§10 note 28)", () => {
+    const m04 = content("m04") as { perArchetype: Array<{ seedFirms: Array<{ name: string; domain?: string }> }> };
+    m04.perArchetype[0]!.seedFirms[0]!.domain = "northvet.co.uk";
+    m04.perArchetype[1]!.seedFirms[0]!.domain = "https://www.northvet.co.uk/";
+    const check = checkModuleWrite("m04", m04, { accepted: {}, liveFactIds: live, now });
+    if (check.ok) throw new Error("expected a refusal");
+    expect(check.issues.join(" ")).toMatch(/is already a seed firm \(claims-teams-firm-1\); a firm is seeded once across the pack/);
+  });
+
+  it("checks a candidate's references against its own kind of buyer's records (§10 note 26)", () => {
+    const accepted: Record<string, unknown> = {};
+    for (const id of MODULE_IDS.filter((m) => m !== "m16" && m !== "m19")) {
+      const check = checkModuleWrite(id, content(id), { accepted, liveFactIds: live, now });
+      if (!check.ok) throw new Error(`${id}: ${check.issues.join("; ")}`);
+      accepted[id] = check.module;
+    }
+    expect(checkModuleWrite("m16", content("m16"), { accepted, liveFactIds: live, now }).ok).toBe(true);
+    const m16 = content("m16") as { candidates: Array<{ painIds: string[]; angleIds: string[]; venueIds: string[] }> };
+    m16.candidates[0]!.painIds = ["regional-brokers-pain-1"];
+    m16.candidates[0]!.venueIds = ["venue-nowhere"];
+    const refused = checkModuleWrite("m16", m16, { accepted, liveFactIds: live, now });
+    if (refused.ok) throw new Error("expected a refusal");
+    expect(refused.issues.join(" ")).toMatch(/names the pain "regional-brokers-pain-1", which is not one of its kind of buyer's/);
+    expect(refused.issues.join(" ")).toMatch(/names the venue "venue-nowhere"/);
+  });
+});

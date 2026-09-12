@@ -4,6 +4,7 @@ import {
   MACHINE_WORDS,
   BANNED_DASHES,
   assertPlainWords,
+  assertPlainProse,
   assertPlainDashes,
 } from "@/lib/copy/plainWords";
 
@@ -173,5 +174,24 @@ describe("assertPlainDashes", () => {
 
   it("lets a range through", () => {
     expect(() => assertPlainDashes({ body: "9–5 on weekdays" })).not.toThrow();
+  });
+});
+
+describe("assertPlainProse", () => {
+  it("lets the copy list's English homonyms through in a paragraph an agent wrote", () => {
+    expect(() =>
+      assertPlainProse([
+        "Operations leaders judge this kind of change on whether the benefit shows up quickly.",
+        "A specialist insurer hiring from a job advert for a complaints handler.",
+        "The signal is the FCA's July guidance; the pipeline of claims is the model's input.",
+        "Administrators pitch governance as part of their service; a critic of the regulator was quoted.",
+      ]),
+    ).not.toThrow();
+  });
+
+  it("still refuses the runtime's own nouns", () => {
+    expect(() => assertPlainProse(["Three archetypes emerged."])).toThrow(/machine word/);
+    expect(() => assertPlainProse(["The orchestrator will enrol them."])).toThrow(/machine word/);
+    expect(() => assertPlainProse(["The ICP is mid-sized insurers."])).toThrow(/machine word/);
   });
 });

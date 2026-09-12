@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "contact centre quality assurance team listening to small sample of calls insurance frustration survey 2026",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "17 Contact Center Quality Assurance Best Practices for 2026",
+        "url": "https://cxfoundation.com/blog/contact-center-quality-assurance-best-practices",
+        "snippet": "Traditional programs relied on just 1-2% of interactions, meaning most coaching decisions are based on a tiny, often misleading sample. \n\nWith quality analysts and coaches unable to see the full picture, key knowledge, process, and behavioral issues often went undetected.\n\nMeanwhile, agents would complain about the initiative’s fairness. “You just happened to choose the one call I did that!” \n\nSeasoned analysts understand the frustration. [...] Contact centers increasingly use AI-driven customer simulations to turn QA insights into action, with vendors like AmplifAI and Centrical now offering this technology.\n\nHow does it work? Well, if an agent scores poorly on a call, the contact center can trigger an AI simulation to recreate that interaction.\n\nThe interaction will feature the same customer persona and problem in a safe, repeatable environment. [...] Whether the knowledge is inaccurate or missing, contact centers can confirm the correct policy, utilize AI to help generate new content, and update the knowledge system. That helps to keep it dynamic and relevant. \n\nYet, some contact centers are going further by integrating their QA solution with the knowledge base and detecting whether the information agents give customers aligns with actual policy."
+      },
+      {
+        "title": "Top 17 Call Centre Quality Assurance Best Practices for 2026",
+        "url": "https://www.invoca.com/uk/blog/call-center-quality-assurance-best-practices",
+        "snippet": "### 3. Use AI Tools to Review Every Call\n\nAI lets you analyse 100% of your calls, not just a small sample. It detects changes in tone, missed steps, and signs of customer frustration. AI helps teams catch issues early and reduces the time spent on manual review.\n\nThese tools are expected to cut labor costs by $80 billion by 2026. The result: managers can focus on coaching while AI handles repetitive tasks. This leads to faster insights and better decisions. [...] Companies that provide strong customer experiences earn 4–8% more revenue than competitors. Listening closely to your customers helps your team raise service quality and business results.\n\n### 7. Select the Right Sample Size for Call Reviews\n\nReviewing too many calls wastes time, but reviewing too few hides important trends. Choose a sample size that gives a clear picture of performance without overwhelming your QA team. [...] AI-powered interaction monitoring. As mentioned earlier, AI can review all customer interactions rather than a small sample. These systems detect sentiment shifts, missed steps, and compliance risks, giving QA teams faster and more reliable insights. Tools like Invoca's Signal AI Studio make this even stronger by allowing teams to create custom AI signals that detect lead intent, call outcomes, and other business-specific insights with high accuracy."
+      },
+      {
+        "title": "Call center quality assurance best practices: 2026 guide - Level AI",
+        "url": "https://thelevel.ai/blog/call-center-quality-assurance-best-practices",
+        "snippet": "A frequent frustration is that two evaluators can score the same call very differently, or that agents get marked down for things outside their control. Qualtrics research found about a third of agents felt their performance wasn't fairly evaluated. The fixes are standardized rubrics applied to every call, regular calibration sessions among evaluators, an appeals process for agents, and automated scoring that applies identical criteria consistently rather than relying on one reviewer's [...] However, teams that rely solely on manual QA processes will run into one big issue: They’re only able to evaluate 1–2% of calls, which inevitably leads to gaps in coaching and customer experience data (more on this below).\n\nThis one problem leads to issues such as agents getting frustrated during coaching sessions because they’re being coached on one-off mistakes, or missing certain customer complaints because they never came up in the calls that were reviewed. [...] How many calls should actually be scored for call center QA?\n\nTraditional manual QA typically evaluates only about 2–5 calls per agent per week, which works out to roughly 1–2% of total volume. The common complaint is that this tiny sample isn't representative and lets both great and poor calls go unseen. The modern best practice is to use automated quality assurance software to score close to 100% of interactions, then route the flagged outliers to humans for deeper review."
+      },
+      {
+        "title": "Call Center Quality Assurance Software: Complete Guide for 2026 - Capacity",
+        "url": "https://capacity.com/blog/call-center-quality-assurance-software",
+        "snippet": "Main features\n\n Automated evaluation provides analysis of most interactions, not just a small sample\n Real-time or near-real-time alerts trigger agent coaching, e.g., when the customer gets frustrated\n Customizable scorecards and dashboards for QA teams make it easy to track specific goals\n Coaching workflows built on insights assign training based on specific performance gaps\n\nPros [...] Monitoring interactions by listening to calls or reviewing text communication\n Scoring performance using call center quality assurance scorecards to evaluate accuracy, compliance, professionalism, and resolution quality\n Identifying issues by spotting gaps like poor product knowledge, delays, or incorrect procedures\n Helping agents improve through targeted training\n Making sure customers get the same high-quality support no matter who they speak to [...] | Real-time sentiment | A system that analyzes the customer’s emotional tone during the call. It detects frustration, anger, confusion, impatience, positivity, etc., and alerts the agent or supervisor. It helps agents adjust their communication immediately to improve the outcome. | A customer calls with a problem, and after the agent solves it, the system detects that the customer is in a positive and curious mood, which can be a great moment to suggest an upsell. |"
+      },
+      {
+        "title": "Contact Center Quality Assurance: The Complete Guide for 2026",
+        "url": "https://www.zoom.com/en/blog/contact-center-quality-assurance",
+        "snippet": "Contact center quality assurance is a structured process that organizations use to evaluate agent interactions, measure adherence to service standards, and identify opportunities to improve both agent performance and the customer experience. [...] Manual QA relies on sampling — reviewing a small percentage of interactions and extrapolating.\n\nIndicators — identified under the Call Outs section — are customizable keywords or phrases that are highlighted within a conversation's analysis. Indicators can be used to capture critical moments of a conversation or track mentions of a specific competitor, feature, product, or phrase. Accounts can use indicators to identify specific elements of conversation that are worth reviewing or tracking. [...] Quality assurance in a call center is measured through a combination of scorecard-based evaluations, interaction analytics, and customer outcome metrics. Scorecard evaluations assign numeric scores to defined criteria — communication effectiveness, compliance adherence, problem resolution — for individual interactions. Aggregate scores over time show performance trends per agent, per team, and across the operation."
+      },
+      {
+        "title": "Why Contact Centre Consistency Is Insurance's Most Overlooked CX ...",
+        "url": "https://www.conversant.technology/consistency-is-insurances-most-overlooked-cx-challenge",
+        "snippet": "A team of QA assessors, listens to a selection of recorded calls, scores them against a framework, sample sits somewhere between 2% and 5% of"
+      },
+      {
+        "title": "Best Practices for Call Centre Quality Monitoring | Ringover",
+        "url": "https://www.ringover.co.uk/blog/quality-monitoring-in-call-centers",
+        "snippet": "Artificial intelligence is transforming quality control. While a supervisor can only listen to a small sample of calls, AI tools can analyze 100% of interactions and collect reliable data. These technologies make it possible to:\n\n Automatically transcribe all calls into text.\n Perform semantic analysis of all conversations.\n Automatically detect keywords (product name, expressions of dissatisfaction, etc.).\n Verify whether scripts and compliance requirements are being followed. [...] More Deals in 2026  VoIP Calling: All of Your Questions Answered [...] What Is an Executive Search Firm? Chatbot solution: the 10 best chatbot creation tools Top 10 Negotiation Skills for Business Success Top Genesys Alternatives in 2026: Best Contact Center Software Compared  Important numbers you should know, lifesaving hacks and awesome apps!  VoIP Phone Systems & Software for Insurance Companies 10 Effective Tools to Motivate Employees 6 Best Online Coaching Platforms (Compared for 2026) Sales Negotiation Training: Master Techniques to Win More Deals in 2026"
+      },
+      {
+        "title": "Call Centre Quality Assurance: Everything You Need to Know",
+        "url": "https://www.qualtrics.com/en-gb/articles/customer-experience/call-center-quality-assurance",
+        "snippet": "If your call centre’s quality assurance programme is being done manually, it’s often impossible to vet and monitor every call handled by every agent. Instead, you’ll likely take a representative sample at various points and track those against your chosen goals. The goal here would be to look for coachable moments and find areas where agents can improve. You might also rely on post-call surveys that solicit feedback from customers.\n\n### Automated (unsampled) call centre QA [...] In this article we’re going to focus on call centre quality assurance in particular – the what, why, and how. In that setting, quality assurance refers to the act of monitoring every customer interaction your contact centre has, and using a defined process to improve the customer experience. [...] In general, call centre quality assurance is all about tightening the various nuts and bolts of your contact centre, fine-tuning agent performance, and delivering more positive customer interactions.\n\n## Call centre quality assurance: Why should businesses care?"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:54:33.007Z"
+}

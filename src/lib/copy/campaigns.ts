@@ -181,6 +181,8 @@ export const campaignsCopy = {
   kindNotFound: "Looked and found nothing",
   kindConfirmedAbsent: "Checked, and it is not there",
   kindUnreadable: "Found it, could not read it",
+  kindConflicting: "Sources disagree",
+  kindOutOfBudget: "Not looked into: out of time",
   noSource: "No source. Relay inferred this.",
   noSourceFrom: "No source. Relay inferred this from",
 
@@ -229,7 +231,8 @@ export const campaignsCopy = {
   stopChooseOne: "Choose one, and Relay looks again",
   widenRegion: "Widen the region",
   widenSize: "Widen the size",
-  widenPain: "Name the pain yourself",
+  widenSector: "Widen the kind of organisation",
+  widenRole: "Widen the roles",
 
   /** Nothing on these pages sends or spends (§23.1c, last line). */
   toastConfirmed: "Nothing was bought or sent. These campaigns are samples while the real ones are built.",

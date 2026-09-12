@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "SRA vulnerable clients duty solicitors client care calls",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Meeting the needs of vulnerable clients | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/client-care/meeting-the-needs-of-vulnerable-clients",
+        "snippet": "The SRA's professional ethics helpline for solicitors offers advice on the SRA Standards and Regulations to solicitors, trainees and solicitor apprentices. You can choose to remain anonymous.\n\nCall 0370 6062577 from 10am to 1pm and 2pm to 4pm, Monday to Friday.\n\nChat with the team online between 9am and 10am, 1pm and 2pm, and 4pm and 5pm, Monday to Friday (closed on Wednesday).\n\n#### Reporting another professional [...] Paragraph 3.4 of the SRA Code of Conduct for Solicitors specifically requires solicitors to “take account of your client’s attributes, needs and circumstances”.\n\nYou must ensure you have the skills to be able to identify a situation where someone may have impaired mental capacity and robust processes to guide how you approach the situation. [...] The Solicitors Regulation Authority’s (SRA) 2025 consumer vulnerability in the legal market report highlights that vulnerability should be seen as universal, potentially affecting all clients to some extent and/or at some time.\n\nIt recommends that solicitors design their services to be accessible and inclusive to everyone.\n\nBy understanding clients’ specific needs and circumstances, you will be better able to offer your services to empower clients to make decisions."
+      },
+      {
+        "title": "Client care compliance for law firms: SRA Codes, Lexcel, vulnerable ...",
+        "url": "https://www.lexisnexis.com/en-gb/legal/guidance/client-care-law-firms",
+        "snippet": "Vulnerable clients warrant particular consideration within contemporary practice. Solicitors bear enhanced duties when representing"
+      },
+      {
+        "title": "Good Practice Guide to Working with Vulnerable Clients | Resolution",
+        "url": "https://resolution.org.uk/good-practice-guides-and-guidance-notes/good-practice-guide-to-working-with-vulnerable-clients",
+        "snippet": "All solicitors are, of course, bound by the Solicitors Regulation Authority (SRA) Code and in particular rule 3.2 which states:\n\n“You must ensure that the service you provide to clients is competent and delivered in a timely manner.”\n\nClearly this is highly relevant when working with a vulnerable client, and the SRA, in making sure that these minimum standards are delivered by all firms, have made it clear that they will prioritise this with firms that have a vulnerable client base. [...] In reality all family law clients should be considered as vulnerable. They are usually in a state of heightened emotion when they first meet with their lawyer, and we are usually asking them to explain very personal and upsetting matters with someone they have not met before. There are of course very different degrees of vulnerability and how best to support and assist our clients can be an area of concern and confusion, particularly to less experienced practitioners. This guide is designed to [...] children\n victims of domestic abuse\n alcohol or substance misusers\n those with a physical disability or illness\n those with a mental illness\n the elderly\n those who do not speak English as their first language; and\n those with a learning difficulty\n\nIt may not be apparent at your first meeting that the client has any difficulty giving you instructions, but you have a duty of course to keep this under review.\n\n#### Children"
+      },
+      {
+        "title": "Vulnerable clients and the solicitor - Lawyers Defence Group",
+        "url": "https://www.lawyersdefencegroup.org.uk/vulnerable-clients",
+        "snippet": "All solicitors should be aware of the needs of vulnerable clients and take steps to ensure that the service they provide is appropriate in"
+      },
+      {
+        "title": "SRA | Meeting the needs of vulnerable people",
+        "url": "https://www.sra.org.uk/solicitors/resources/specific-areas-of-practice/meeting-needs-vulnerable-people",
+        "snippet": "Working with other people to support your vulnerable client. Your vulnerable client may be supported by a carer when they use your services."
+      },
+      {
+        "title": "Engaging clients | The Law Society",
+        "url": "https://www.lawsociety.org.uk/topics/client-care/engaging-clients",
+        "snippet": "You should always keep in mind the requirement in the SRA Code of Conduct for Solicitors to treat your clients fairly.\n\nYou should have procedures to: [...] Under the SRA Standards and Regulations, you must give your client the best information possible about the likely overall cost of a matter at the start, and as their matter progresses.\n\nThis will help your client make an informed decision about whether to proceed.\n\nYou must give clear, concise and accurate information about the likely overall costs. This may include: [...] ### Axiom Ince and the Solicitors Compensation Fund\n\nIt has been reported that the Solicitors Regulation Authority (SRA) is considering a one-off levy to cover the likely shortfall in the Solicitors…"
+      },
+      {
+        "title": "Vulnerable Clients Policy - NE Family Law",
+        "url": "https://ne-familylaw.co.uk/vulnerable-clients-policy",
+        "snippet": "Client care procedures for vulnerable clients Establishing the needs of our client. Does the client have hearing or visual impairments? When vulnerable clients"
+      },
+      {
+        "title": "Client care letters - Guidance",
+        "url": "https://www.sra.org.uk/solicitors/guidance/client-care-letters",
+        "snippet": "One of the most common complaints made to the Legal Ombudsman is about a lack of clarity around costs. Being clear on costs at the outset in your client care letter, and as the matter progresses, can help prevent this – This is a current regulatory obligation and will be once our Standards and Regulations come into force. (paragraph 8.7 of the Code of Conduct for Solicitors, RELs and RFLs, and 7.1(c) of the SRA Code of Conduct for Firms) [...] Solicitors reporting themselves\n   Suspension or removal from the roll\n   Solicitors Disciplinary Tribunal\n   Intervention into a practice\n   Financial penalties - default salaries\n\n   Log in to mySRA\n   Search the Solicitors Register\n   Contact us\n\n## For the public\n\nClose menu\n\n#### Trending\n\nImage 7: Person typing on laptop\n\n###### Solicitors Register\n\nLook up the records of the solicitors and law firms we regulate.\n\nSearch now [...] Close submenu (Becoming a solicitor)Becoming a solicitor\n\nClose submenu (mySRA)mySRA\n\n\n   Temporary emergency authorisation\n\n##### Good standing and certificates\n\n   Replacement admission certificate\n   Firm letter of regulatory standing\n   Extract from the roll\n   Certificate of good standing\n   Certificate of attestation\n   FAQs - Certificates\n\n##### Investigation and enforcement"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:05:40.187Z"
+}

@@ -133,6 +133,20 @@ export type FailureReason =
   /** Anything else: a provider error, a tool that threw, a bug. */
   | "error";
 
+/**
+ * The reason a tool or a timer ended the run early, carried on the controller's
+ * abort reason so the catch below can tell a cap from a lost lease.
+ */
+export class RunCapError extends Error {
+  constructor(
+    readonly field: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "RunCapError";
+  }
+}
+
 /** A run that ended without a validated answer. The run row is closed before this is thrown. */
 export class AgentRunFailedError extends Error {
   readonly reason: FailureReason;
@@ -182,6 +196,12 @@ export type RunAgentContext = {
    * handler passes `safeError` and gets the useful version.
    */
   scrub?: (error: unknown) => string;
+  /**
+   * Every raw Agent SDK message, as the bridge reads it. For the research
+   * bench's `--record-stream` only, so a rule change can be replayed against a
+   * real run for free; a job never sets it. Not called on the Messages API.
+   */
+  onSdkMessage?: (message: unknown) => void | Promise<void>;
 };
 
 export type RunAgentResult<OUT> = {
@@ -267,6 +287,13 @@ export async function runAgent<IN, OUT>({
   let nextIndex = 0;
   const takeIndex = (): number => nextIndex++;
 
+  // The run's own controller, so a failure to record a step can stop the loop.
+  // Linked to the caller's signal rather than replacing it: losing the lease
+  // must still abort, and so must a failed write.
+  const controller = new AbortController();
+  const unlink = link(ctx.signal, controller);
+  let modelSteps = 0;
+
   const recorder = createToolRecorder({
     db: ctx.db,
     orgId: ctx.orgId,
@@ -274,15 +301,28 @@ export async function runAgent<IN, OUT>({
     runId: run.id,
     runKind: definition.kind,
     takeIndex,
+    // A tool that ends the run — research's budget cap — does it here, and the
+    // catch below reads the reason off the controller.
+    abortRun: (reason, message) => controller.abort(new RunCapError(reason, message)),
+    modelSteps: () => modelSteps,
+    // Read through a closure: `costMicro` is declared below and grows as the ledger records.
+    spendUsd: () => Number(costMicro) / 1_000_000,
   });
 
   const tools = ctx.tools?.(recorder) ?? {};
 
-  // The run's own controller, so a failure to record a step can stop the loop.
-  // Linked to the caller's signal rather than replacing it: losing the lease
-  // must still abort, and so must a failed write.
-  const controller = new AbortController();
-  const unlink = link(ctx.signal, controller);
+  // The wall-clock cap (§6 "minutes"): a timer on the same controller. Cleared
+  // in `finally`, so a run that ends early does not fire it into nothing.
+  const deadline =
+    definition.budget.maxSeconds === undefined
+      ? undefined
+      : setTimeout(
+          () =>
+            controller.abort(
+              new RunCapError("minutes", `stopped at the ${definition.budget.maxSeconds}-second cap with no answer`),
+            ),
+          definition.budget.maxSeconds * 1000,
+        );
 
   let costMicro = 0n;
   /** The first thing that went wrong inside a swallowed callback. */
@@ -307,20 +347,34 @@ export async function runAgent<IN, OUT>({
           },
           fail: noteCallbackFailure,
           signal: controller.signal,
+          noteModelStep: () => {
+            modelSteps += 1;
+            // The step rail, enforced here as well as by the SDK's `maxTurns`:
+            // the bridge accepts at most `SDK_MAX_TURNS`, so a definition with
+            // a higher rail (research v3: 200) is capped by this count instead.
+            if (modelSteps > definition.budget.maxModelSteps) {
+              controller.abort(new RunCapError("modelSteps", `stopped at the ${definition.budget.maxModelSteps}-step cap with no answer`));
+            }
+          },
         })
       : null;
-  const model =
-    handle.transport === "agent-sdk"
-      ? handle.forRun({
-          tools: sdk!.gateTools(tools),
-          maxTurns: definition.budget.maxModelSteps,
-          observe: sdk!.observer,
-        })
-      : handle.model;
-
   try {
     let generated: Awaited<ReturnType<typeof generateText>>;
     try {
+      // Built inside the guarded block: the bridge validates its settings
+      // here, and a refusal must close the run and clear the wall-clock timer
+      // like any other failure. Outside it, a refused setting left the row
+      // `running` and a 90-minute timer holding the process open (brief E,
+      // 2026-09-10).
+      const model =
+        handle.transport === "agent-sdk"
+          ? handle.forRun({
+              tools: sdk!.gateTools(tools),
+              maxTurns: definition.budget.maxModelSteps,
+              ...(definition.effort === null ? {} : { effort: definition.effort }),
+              observe: sdk!.observer,
+            })
+          : handle.model;
       generated = await generateText({
         model,
         system: definition.prompt,
@@ -346,7 +400,8 @@ export async function runAgent<IN, OUT>({
             const usage = normaliseUsage(event.usage);
             const micro = costMicroDollars(usage, ctx.modelId);
             costMicro += micro;
-            await appendModelStep(ctx.db, {
+            modelSteps += 1;
+        await appendModelStep(ctx.db, {
               orgId: ctx.orgId,
               runId: run.id,
               index: takeIndex(),
@@ -376,6 +431,12 @@ export async function runAgent<IN, OUT>({
       if (callbackError !== undefined) {
         throw await failRun(ctx, run, costMicro, "step-record", "a step could not be recorded", callbackError, scrub);
       }
+      // A cap raised from inside the run — a tool's budget, the wall-clock
+      // timer — is an abort of this controller with a `RunCapError` reason, and
+      // it is a cap, not a lost lease. Read before the generic abort branch.
+      if (controller.signal.reason instanceof RunCapError && !aborted(ctx.signal)) {
+        throw await failRun(ctx, run, costMicro, "cap", controller.signal.reason.message, error, scrub);
+      }
       if (aborted(ctx.signal) || controller.signal.aborted) {
         throw await failRun(ctx, run, costMicro, "aborted", "the run was aborted", error, scrub);
       }
@@ -399,7 +460,16 @@ export async function runAgent<IN, OUT>({
       // the definition's schema — and both must report `schema`, or a handler
       // would retry a model that will produce the same shape again.
       if (isValidationFailure(error)) {
-        throw await failRun(ctx, run, costMicro, "schema", "the answer does not validate", error, scrub);
+        const issues = validationIssues(error);
+        throw await failRun(
+          ctx,
+          run,
+          costMicro,
+          "schema",
+          issues.length === 0 ? "the answer does not validate" : `the answer does not validate: ${issues.join("; ")}`,
+          error,
+          scrub,
+        );
       }
       throw await failRun(ctx, run, costMicro, "error", "the model loop failed", error, scrub);
     }
@@ -476,6 +546,7 @@ export async function runAgent<IN, OUT>({
       ...(sdk?.result === undefined ? {} : { sdk: sdk.result }),
     };
   } finally {
+    if (deadline !== undefined) clearTimeout(deadline);
     unlink();
   }
 }
@@ -581,6 +652,8 @@ function agentSdkLedger(args: {
   fail: (error: unknown) => void;
   /** The run's own signal: a parked tool is released with an error when it fires. */
   signal: AbortSignal;
+  /** Counts a recorded model step for the run's budget view. */
+  noteModelStep: () => void;
 }): {
   observer: AgentSdkObserver;
   /** The run's tools, each made to wait for the turn that asked for it. See the module comment. */
@@ -588,7 +661,7 @@ function agentSdkLedger(args: {
   readonly capped: boolean;
   readonly result: AgentSdkResult | undefined;
 } {
-  const { ctx, runId, takeIndex, addCost, fail, signal } = args;
+  const { ctx, runId, takeIndex, addCost, fail, signal, noteModelStep } = args;
   /** Tokens already written as turn steps, by canonical model id. */
   const recorded = new Map<string, Totals>();
   let capped = false;
@@ -609,6 +682,17 @@ function agentSdkLedger(args: {
   // upstream awaited it, a hang.
   let toolUsesSeen = 0;
   let toolStarts = 0;
+  /**
+   * The API message the last row was written for. While a response streams,
+   * the SDK emits one assistant message per completed content block — a turn
+   * with thinking, text and four tool calls arrives as six messages sharing
+   * `message.id`, each carrying the turn's usage again. One API turn is one
+   * row: a message whose id matches the previous one only feeds the ordering
+   * gate. Its usage is not final either (the SDK says so); the closing
+   * `modelUsage` reconciliation tops the turn up to what was billed.
+   * Found live on the research agent, 2026-09-09: 33 rows for 8 turns.
+   */
+  let lastMessageId: string | null = null;
   let closed: Error | null = null;
   let waiters: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
   const releaseWaiters = (): void => {
@@ -647,14 +731,21 @@ function agentSdkLedger(args: {
   };
 
   const observer: AgentSdkObserver = {
+    ...(ctx.onSdkMessage === undefined ? {} : { onRaw: ctx.onSdkMessage }),
     async onTurn(turn) {
       // Everything up to the write is synchronous on purpose: the bridge calls
       // this as it reads the message, and the index has to be taken before the
       // loop can read the control request that follows. See the module comment.
       let index: number;
       try {
-        index = takeIndex();
         toolUsesSeen += turn.blocks.filter((block) => block.startsWith("tool_use:")).length;
+        if (turn.messageId !== "" && turn.messageId === lastMessageId) {
+          // Another block of the turn already written: gate only, no row.
+          releaseWaiters();
+          return;
+        }
+        lastMessageId = turn.messageId;
+        index = takeIndex();
         releaseWaiters();
       } catch (error) {
         fail(error);
@@ -668,6 +759,7 @@ function agentSdkLedger(args: {
         const micro = costMicroDollars(usage, ctx.modelId);
         addCost(micro);
         note(canonicalModelId(turn.model), usage);
+        noteModelStep();
         await appendModelStep(ctx.db, {
           orgId: ctx.orgId,
           runId,
@@ -722,7 +814,8 @@ function agentSdkLedger(args: {
           const micro = costMicroDollars(usage, id);
           addCost(micro);
           note(id, usage);
-          await appendModelStep(ctx.db, {
+          noteModelStep();
+        await appendModelStep(ctx.db, {
             orgId: ctx.orgId,
             runId,
             index: takeIndex(),
@@ -862,6 +955,42 @@ function isValidationFailure(error: unknown): boolean {
   return false;
 }
 
+/**
+ * The zod issues behind a schema failure, as `path: message` lines.
+ *
+ * Without these a failed research run says "response did not match schema" and
+ * nothing else, and the pack the model wrote is gone with the subprocess. The
+ * `ZodError` sits on the `TypeValidationError`'s `cause`, itself wrapped in a
+ * `NoObjectGeneratedError`; the walk is bounded like `isValidationFailure`.
+ */
+export function validationIssues(error: unknown): string[] {
+  let current = error;
+  for (let depth = 0; depth < 8 && current !== undefined && current !== null; depth += 1) {
+    const issues = (current as { issues?: unknown }).issues;
+    if (Array.isArray(issues)) {
+      return issues.map((issue) => {
+        const { path, message } = issue as { path?: unknown[]; message?: string };
+        return `${Array.isArray(path) && path.length > 0 ? path.join(".") : "$"}: ${message ?? "invalid"}`;
+      });
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return [];
+}
+
+/** The text the model answered with, when a schema failure still carries it. */
+export function rejectedAnswerText(error: unknown): string | null {
+  let current = error;
+  for (let depth = 0; depth < 8 && current !== undefined && current !== null; depth += 1) {
+    const text = (current as { text?: unknown }).text;
+    if (typeof text === "string" && text !== "") return text;
+    const value = (current as { value?: unknown }).value;
+    if (value !== undefined && value !== null && typeof value === "object") return JSON.stringify(value);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
+}
+
 /** True when the thrown value is the SDK saying there is no structured answer. */
 function isMissingOutput(error: unknown): boolean {
   return NoOutputGeneratedError.isInstance(error) || NoObjectGeneratedError.isInstance(error);
@@ -908,7 +1037,11 @@ function probeRecorder(ctx: RunAgentContext, runKind: string): ToolRecorder {
     beginCall: refuse,
     endCall: refuse,
     failCall: refuse,
+    releaseCall: refuse,
     noteReplay: refuse,
+    abortRun: refuse,
+    modelSteps: 0,
+    spendUsd: 0,
   };
 }
 

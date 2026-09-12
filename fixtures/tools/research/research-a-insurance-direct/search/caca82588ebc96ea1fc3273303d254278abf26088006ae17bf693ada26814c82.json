@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "FCA reducing regulatory burden insurers simplifying rules less reporting 2026 Consumer Duty scaled back",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:04:35.694Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "print dealer declining print volumes revenue diversification telecoms",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "[PDF] Revenue Diversification Beyond Traditional Print and Digital",
+        "url": "https://www.inma.org/files/images/store/inma_2015RevenueTOC.pdf",
+        "snippet": "At one end, traditional revenues, and print revenues in particular, continue to decline. “As print volumes decline, our assumption is those revenues also"
+      },
+      {
+        "title": "Revenue diversification is the route to success in news media",
+        "url": "https://www.ftstrategies.com/en-gb/insights/state-of-the-nation",
+        "snippet": "The news organisations that participated in our research anticipate a reduced reliance on print revenue over the next three years, with the expectation that print’s contribution to the overall revenue mix will shrink from 54% to 43%. While this is partly a byproduct of the reality that print is in structural decline, it is also the result of a purposeful strategic shift toward digital subscriptions and digital advertising that we’re seeing across the industry. [...] Put simply, legacy print publishers might think they have successfully diversified by growing digital revenues alongside print but in reality they remain exposed either to risks that are almost impossible to mitigate in the structural decline of print (print makes up 54% of revenue for legacy publishers), or emerging risks such as open-marketplace programmatic, or both.\n\npicture_1 [...] Traditional revenue sources such as digital ads and subscriptions are expected to increase in future, while print is expected to go down.\n\nBut more radical diversification initiatives, although smaller in revenue terms, can provide crucial profit contributions for news organisations"
+      },
+      {
+        "title": "Declining print volumes - PRINT IT RESELLER",
+        "url": "https://pitr.uk/declining-print-volumes",
+        "snippet": "Almost three-quarters (70%) of channel partners polled by Quocirca said they expect print volumes to continue falling by an average of 6.25%"
+      },
+      {
+        "title": "Do Small Streams Make a Big River? Detailing the Diversification of Revenue Streams in Newspapers’ Transition to Digital Journalism Businesses",
+        "url": "https://www.tandfonline.com/doi/full/10.1080/21670811.2021.1973905",
+        "snippet": "advertising revenue has moved the business from a print based model to a combined print and digital advertising revenue model, which arguably makes it less dependent on one rapidly declining revenue source. On the other hand, the diversified print and digital advertising revenue of 2019 is far from matching the print only advertising revenue in 2006. As such, our findings on diversification confirm the point made by Chyi and Tenenboim (Citation 2019a), i.e., that the industry is replacing print [...] Since the turn of the century, newspapers’ advertising business has gone through a momentous change with combined pressure from a global recession, declining circulation for printed newspapers, and increasing competition for advertisers’ investment from a vast array of digital players. The shift in advertising spending from print to online and from news organizations to non-news platforms, has resulted in increased attention to diversification of revenues in the news business (e.g., Nel [...] The underlying dynamics of this shift is exposed in Figure 3 which visualizes fluctuations in total revenue, diversification of revenues and how much different revenue sources have contributed to the Norwegian news industry’s total revenue over time. In 2006, print advertising made up the lion’s share of the newspaper business accounting for 7.2 billion NOK. However, after a sharp decline in print advertising in 2009 following the global recession, this side of the advertising business never"
+      },
+      {
+        "title": "Mapping the world of print - FIPP",
+        "url": "https://www.fipp.com/news/mapping-the-world-of-print",
+        "snippet": "The graph below shows the long-term trend in the four key revenue streams tracked by PwC.\n\nPrint circulation is the dominant, though still declining, revenue stream. In 2022, it accounted for 61% of total industry revenues and for 89% of all circulation revenues. By 2026, these two shares are predicted to be 61% (steady) and 86% (-3% points) respectively. [...] Taken together, print circulation plus print advertising currently accounts for 80% of all industry revenues. This share is reducing as the digital shift continues, but by 2026 it will still stand at a dominant 75%.\n As digital growth slows, the decline in print is also slowing. That highlights the need to refocus on extending the life of print. [...] 2020, the start year of the pandemic, saw total industry revenues plunging by -16% year-on-year (YoY).\n The 2022 recovery (+4% YoY) marked a downward step-change. Revenues returned to only 88% of 2019’s figures and well below what would have been expected had the pre-pandemic rate of decline simply continued.\n The future rate of fall is predicted to slow to a -2.1% CAGR in the 2023 to 2026 period.\n\n#### Unpicking print and digital revenue streams"
+      },
+      {
+        "title": "Reach print revenue falls - Printweek",
+        "url": "https://www.printweek.com/content/news/reach-print-revenue-falls",
+        "snippet": "Reach has seen its print revenue drop by nearly 4% year-on-year in Q3 – although print advertising revenue has continued to outperform volume"
+      },
+      {
+        "title": "PrintPower Print dominant revenue magazines",
+        "url": "https://www.printpower.eu/insight/print-dominant-revenue-magazines",
+        "snippet": "Houston’s optimism is further supported by data indicating that newspapers and consumer magazines are still heavily reliant on print revenues with projections showing only slight declines by 2026. While magazine revenues are predicted to decline at a rate similar to newspapers—approximately 2.1% CAGR—the decline in print revenues is slowing down as digital growth also stabilises. [...] Share\n\nThe landscape of print media, particularly magazines, is often painted in bleak tones, overshadowed by the rise of digital formats. However, recent insights from the PwC Media & Entertainment Outlook 2022-2026 reveal a surprisingly positive narrative for print. According to the report, print still accounts for approximately 80% of consumer magazine revenues globally, a figure that is projected to decline only slightly to 75% by 2026.\n\nPeter_Houston_FIPP_Print-Power.png [...] as a relic but as a valuable component of a diversified media strategy."
+      },
+      {
+        "title": "World Press Trends Outlook: Digital growth and ‘other’ revenue streams steady the ship for publishers - WAN-IFRA",
+        "url": "https://wan-ifra.org/2025/01/world-press-trends-outlook-digital-growth-and-other-revenue-streams-steady-the-ship-for-publishers",
+        "snippet": "Although print continues to decline as a proportion of total revenue, it is still the largest source of income for our survey respondents. On average, print circulation and advertising together account for almost 45% of respondents’ revenues. This is the first time in our research that this figure has fallen below 50%. [...] 2025-01-21. The new WAN-IFRA study marks a milestone as news publishers’ revenue structures become more diversified and less reliant on traditional print sources. For the first time in our research, print circulation and advertising revenues account for less than half of respondents’ total revenues.\n\nby Teemu Henriksson teemu.henriksson@wan-ifra.org | January 21, 2025 [...] Meanwhile, print production costs continue to fall as publishers streamline their print logistics and some reduce their print runs. Print costs are now 15% of total costs, down from 17.8% last year."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:24:39.800Z"
+}

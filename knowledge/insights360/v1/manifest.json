@@ -1,0 +1,17 @@
+{
+  "product": "insights360",
+  "version": 1,
+  "copiedAt": "2026-09-09T17:44:09Z",
+  "source": "the Insights360 product wiki (scrubbed copy: fleet codenames, internal paths and personal names replaced; content otherwise verbatim)",
+  "articles": [
+    "overview",
+    "roadmap",
+    "architecture",
+    "integrations",
+    "icp",
+    "competitors",
+    "brand-voice",
+    "decisions",
+    "known-issues"
+  ]
+}

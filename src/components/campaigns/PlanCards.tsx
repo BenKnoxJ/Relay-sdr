@@ -6,7 +6,7 @@ import { Card } from "@/components/Card";
 import { PillButton } from "@/components/PillButton";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
-import type { ResearchPack } from "../../../agents/research/output.schema";
+import type { PlanCards as PlanView } from "../../../agents/research/output.schema";
 
 import { PackItem, PackPhrase } from "./PackItem";
 
@@ -14,12 +14,12 @@ import { PackItem, PackPhrase } from "./PackItem";
  * "The plan, and the research behind it" (§23.1c) — five cards that ARE the
  * research surface. There is no separate research page.
  *
- * The type this takes is the parsed research contract and nothing else
- * (`agents/research/output.schema.ts`). No view model, no mapping layer: a
- * second type would be a second place for the plan to drift from the research,
- * and §23.1c's whole point is that the cards are views over the pack's items.
- * The cost of that is on this file — the summary lines below read fields off
- * the pack directly — and it is the right place for it.
+ * The type this takes is the research contract's own plan-card view
+ * (`planCards(pack)`, research v3 §3 "Derived views") and nothing else: the
+ * pack is the contract and the cards are a view over it, read by the research
+ * module rather than by a second mapping here. The hook and the recipe are
+ * for the chosen kind of buyer, and a pack without them draws those cards'
+ * contents empty rather than inventing them.
  *
  * Two cards deliberately show the same items twice. "Who we found" holds each
  * group with its pains and phrases; "Their pain, in their words" is the same
@@ -51,16 +51,17 @@ function countryName(code: string): string {
 }
 
 /** How many distinct sources the pack cites, for the card meta lines. */
-function sourceCount(pack: ResearchPack): number {
+function sourceCount(pack: PlanView): number {
   const urls = new Set<string>();
-  const add = (item: { evidence: { urls: string[] } }) => {
+  const add = (item: { evidence: { urls: string[] } } | undefined) => {
+    if (item === undefined) return;
     for (const url of item.evidence.urls) urls.add(url);
   };
   for (const group of pack.archetypes) {
     group.pains.forEach(add);
     group.language.forEach(add);
   }
-  add(pack.hook.whyNow);
+  add(pack.hook?.whyNow);
   for (const firm of pack.seedFirms) add(firm.signal);
   for (const contradiction of pack.contradictions) {
     add(contradiction.a);
@@ -138,7 +139,7 @@ export function PlanCards({
   pack,
   onChangeAbout,
 }: {
-  pack: ResearchPack;
+  pack: PlanView;
   /** Absent after confirm: the plan is read only from then on (§23.1c). */
   onChangeAbout?: (about: string) => void;
 }) {
@@ -147,12 +148,14 @@ export function PlanCards({
   const pains = pack.archetypes.flatMap((group) => group.pains);
   const phrases = pack.archetypes.flatMap((group) => group.language);
   const quoted = pains.filter((pain) => pain.quote !== undefined);
+  // The view's summary is the rep summary's lines; the first two lead the cards.
+  const [lead = "", second = lead] = pack.summary;
 
   return (
     <div className="grid gap-chips wide:grid-cols-2">
       <PlanCard
         title={c.cardWho}
-        summary={pack.summary[1]}
+        summary={second}
         meta={`${counted(pack.archetypes.length, c.countGroup, c.countGroups)}${c.noteJoin}${counted(sources, c.countSource, c.fromSources)}`}
         onChangeAbout={onChangeAbout}
       >
@@ -172,18 +175,22 @@ export function PlanCards({
 
       <PlanCard
         title={c.cardHook}
-        summary={pack.hook.text}
-        meta={`1 ${c.countWhyNow}`}
+        summary={pack.hook?.text ?? ""}
+        meta={`${pack.hook === undefined ? 0 : 1} ${c.countWhyNow}`}
         onChangeAbout={onChangeAbout}
       >
-        <p className="type-small mb-1.5">{pack.hook.text}</p>
-        <p className="type-small font-semibold">{c.whyNow}</p>
-        <PackItem item={pack.hook.whyNow} />
+        {pack.hook === undefined ? null : (
+          <>
+            <p className="type-small mb-1.5">{pack.hook.text}</p>
+            <p className="type-small font-semibold">{c.whyNow}</p>
+            <PackItem item={pack.hook.whyNow} />
+          </>
+        )}
       </PlanCard>
 
       <PlanCard
         title={c.cardPain}
-        summary={pack.summary[0]}
+        summary={lead}
         meta={`${quoted.length + phrases.length} ${c.shownOf}`}
         onChangeAbout={onChangeAbout}
       >
@@ -210,20 +217,22 @@ export function PlanCards({
             <PackItem item={firm.signal} />
           </div>
         ))}
-        <dl className="type-small mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          {([
-            [c.fieldWho, pack.recipe.titles.join(", ")],
-            [c.recipeSize, `${pack.recipe.sizeBand.min} ${c.recipeAnd} ${pack.recipe.sizeBand.max}`],
-            [c.recipeWhere, pack.recipe.countries.map(countryName).join(", ")],
-            [c.recipeIndustry, pack.recipe.industries.join(", ")],
-            [c.recipeTriggers, pack.recipe.triggers.join(", ")],
-          ] as [string, string][]).map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className="text-muted">{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {pack.recipe === undefined ? null : (
+          <dl className="type-small mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            {([
+              [c.fieldWho, pack.recipe.titles.join(", ")],
+              [c.recipeSize, `${pack.recipe.sizeBand.min} ${c.recipeAnd} ${pack.recipe.sizeBand.max}`],
+              [c.recipeWhere, [...pack.recipe.countries.map(countryName), ...(pack.recipe.locations ?? [])].join(", ")],
+              [c.recipeIndustry, pack.recipe.industries.join(", ")],
+              [c.recipeTriggers, pack.recipe.triggers.join(", ")],
+            ] as [string, string][]).map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="text-muted">{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </PlanCard>
 
       <PlanCard
@@ -247,8 +256,8 @@ export function PlanCards({
             {pack.contradictions.map((contradiction) => (
               <div key={contradiction.id} data-testid="plan-contradiction">
                 <p className="type-small">{contradiction.text}</p>
-                <PackItem item={contradiction.a} />
-                <PackItem item={contradiction.b} />
+                {contradiction.a === undefined ? null : <PackItem item={contradiction.a} />}
+                {contradiction.b === undefined ? null : <PackItem item={contradiction.b} />}
               </div>
             ))}
           </div>
@@ -258,10 +267,12 @@ export function PlanCards({
   );
 }
 
-const KINDS: Record<"not-found" | "confirmed-absent" | "unreadable", string> = {
+const KINDS: Record<PlanView["unknowns"][number]["kind"], string> = {
   "not-found": campaignsCopy.kindNotFound,
   "confirmed-absent": campaignsCopy.kindConfirmedAbsent,
   unreadable: campaignsCopy.kindUnreadable,
+  conflicting: campaignsCopy.kindConflicting,
+  "out-of-budget": campaignsCopy.kindOutOfBudget,
 };
 
 /**
@@ -277,7 +288,7 @@ export function PlanSection({
   onChangeAbout,
   children,
 }: {
-  pack: ResearchPack;
+  pack: PlanView;
   collapsed?: boolean;
   onChangeAbout?: (about: string) => void;
   children?: React.ReactNode;

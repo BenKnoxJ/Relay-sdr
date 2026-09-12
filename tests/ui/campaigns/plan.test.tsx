@@ -1,11 +1,10 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import goodPack from "../../../agents/research/fixtures/output.good.json";
-import { researchOutputSchema } from "../../../agents/research/output.schema";
 import { PlanCards } from "@/components/campaigns/PlanCards";
 import { campaignsCopy } from "@/lib/copy/campaigns";
-import { getCampaign } from "@/lib/fixtures/campaigns";
+import { getCampaign, toPlanView } from "@/lib/fixtures/campaigns";
+import goodPack from "@/lib/fixtures/research-plan.json";
 
 /**
  * The plan cards are the research surface (§23.1c).
@@ -94,8 +93,8 @@ describe("the plan, and the research behind it", () => {
         expect(screen.getAllByText(new RegExp(phrase.say)).length).toBeGreaterThan(0);
       }
     }
-    expect(screen.getAllByText(pack.hook.text).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(pack.hook.whyNow.text).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(pack.hook!.text).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(pack.hook!.whyNow.text).length).toBeGreaterThan(0);
     for (const firm of pack.seedFirms) {
       expect(screen.getAllByText(new RegExp(firm.name)).length).toBeGreaterThan(0);
       expect(screen.getAllByText(firm.signal.text).length).toBeGreaterThan(0);
@@ -112,8 +111,8 @@ describe("the plan, and the research behind it", () => {
     render(<PlanCards pack={pack} />);
     openEveryCard();
 
-    expect(screen.getAllByText(new RegExp(pack.recipe.titles[0] ?? "")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(new RegExp(pack.recipe.industries[0] ?? "")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(new RegExp(pack.recipe!.titles[0] ?? "")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(new RegExp(pack.recipe!.industries[0] ?? "")).length).toBeGreaterThan(0);
   });
 });
 
@@ -131,8 +130,7 @@ describe("an item with no confidence word", () => {
     if (pain === undefined) throw new Error("the good fixture has no pain to break");
     delete pain.confidence;
 
-    const parsed = researchOutputSchema.safeParse(bad);
-    expect(parsed.success).toBe(false);
+    expect(() => toPlanView(bad)).toThrow();
   });
 
   it("is rejected when it cites nothing and does not say so", () => {
@@ -143,6 +141,6 @@ describe("an item with no confidence word", () => {
     if (pain === undefined) throw new Error("the good fixture has no pain to break");
     pain.evidence = { urls: [], primary: false, domains: [] };
 
-    expect(researchOutputSchema.safeParse(bad).success).toBe(false);
+    expect(() => toPlanView(bad)).toThrow();
   });
 });

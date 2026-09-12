@@ -67,6 +67,8 @@ export type AgentSdkResult = {
 export type AgentSdkObserver = {
   onTurn(turn: AgentSdkTurn): Promise<void>;
   onResult(result: AgentSdkResult): Promise<void>;
+  /** Every raw SDK message, before the ledger reads it. The research bench's `--record-stream` keeps them; nothing else sets it. */
+  onRaw?(message: unknown): Promise<void> | void;
 };
 
 export type AgentSdkRunOptions = {
@@ -74,6 +76,8 @@ export type AgentSdkRunOptions = {
   tools: ToolSet;
   /** The definition's model-step budget. The SDK's `maxTurns` is the cap on this transport. */
   maxTurns: number;
+  /** The definition's effort level, when it names one. */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   observe: AgentSdkObserver;
 };
 

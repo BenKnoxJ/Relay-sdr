@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"Print IT Reseller\" dealer managing director interview diversify telecoms IT services recurring revenue",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Read the latest edition of Print IT Reseller magazine here or download",
+        "url": "https://pitr.uk/read-the-latest-edition-of-print-it-reseller-magazine-here-or-download-issue-111",
+        "snippet": "This month's Q&A is with Michael Cole, Managing Director, Equipment Rentals & Sales Ltd, and PITR spent 60 seconds with Peter Lunn, Senior"
+      },
+      {
+        "title": "Video Interviews - TECHNOLOGY RESELLER",
+        "url": "https://technologyreseller.uk/category/video-intervies",
+        "snippet": "In this interview with PrintIT Reseller, Andy Bryant, Sales Director EMEA at Vasion explains what the company's strategy to enable digital transformation"
+      },
+      {
+        "title": "Print IT Reseller - issue 121",
+        "url": "https://www.binfo.co.uk/PITR121/39",
+        "snippet": "In an exclusive interview with PrintIT Reseller, discuss the opportunity for office technology dealers to expand their offerings into unified communications"
+      },
+      {
+        "title": "Read the latest edition of Print IT Reseller now… Issue 137 (Feb26)",
+        "url": "https://pitr.uk/read-the-latest-edition-of-print-it-reseller-now-issue-137-feb26",
+        "snippet": "This month's Q&A is with Phil Johnson, Managing Director, Archway Business Solutions, and PITR spent 60 seconds with Alex Rollo, Technical"
+      },
+      {
+        "title": "PRINT IT RESELLER – The Magazine, News & Resource site for UK Printer/MFP, MPS, Supplies, Business Tech, Scanner & Document Workflow Channel Resellers, Dealers & MS Providers",
+        "url": "https://pitr.uk",
+        "snippet": "Konica Minolta Business Solutions (UK) Ltd is proud to celebrate a major milestone for one of its longest‑serving team members, Account Manager Pamela Barnard, who…\n\nGold award for Pinnacle\n\n## Gold award for Pinnacle\n\nBy Michelle Ryder on 25th August 2026\n\nPinnacle has been awarded the Defence Employer Recognition Scheme (ERS) Gold Award by the UK government – the highest honour within the scheme. The award…\n\nAnglotech Group completes fourth acquisition [...] Meryl picks the tools she uses every day and couldn’t do her job without…  The wider marketing team I couldn’t do my job without…\n\nVertical expertise is becoming the channel’s strongest competitive edge by Thomas Wakonig, Sales Director Europe North, DocuWare\n\n## Vertical expertise is becoming the channel’s strongest competitive edge by Thomas Wakonig, Sales Director Europe North, DocuWare\n\nBy Neil Trim on 28th August 2026 [...] ## Blue Angel certification\n\nBy Michelle Ryder on 26th August 2026\n\nKatun’s Arivia MFP line has obtained Blue Angel certification, one of the world’s most respected eco-labels for environmentally responsible products. This achievement highlights Katun’s commitment…\n\nKonica Minolta celebrates 25 years of partner excellence from Account Manager Pamela Barnard\n\n## Konica Minolta celebrates 25 years of partner excellence from Account Manager Pamela Barnard\n\nBy Neil Trim on 25th August 2026"
+      },
+      {
+        "title": "Read the latest edition of Print IT Reseller now… Issue 135 (Dec25)",
+        "url": "https://pitr.uk/read-the-latest-edition-of-print-it-reseller-now-issue-135-dec25",
+        "snippet": "Managed print services redefined Partner Conference: some of the industry's leading vendors share their thoughts on what 2026 will hold for the print and IT"
+      },
+      {
+        "title": "Read the latest edition of Print IT Reseller now… Issue 140 (May26).",
+        "url": "https://pitr.uk/read-the-latest-edition-of-print-it-reseller-now-issue-140-may26",
+        "snippet": "Industry Video Interviews Interview with Stuart Brookes, Read the latest edition of Print IT Reseller now... Issue 140 (May26). Print/MPS industry news, updates"
+      },
+      {
+        "title": "Read the latest edition of Print IT Reseller now… Issue 139 (Apr26).",
+        "url": "https://pitr.uk/read-the-latest-edition-of-print-it-reseller-now-issue-139-apr26",
+        "snippet": "In this month's VOX POP, we ask industry leaders how they are responding to these shifting demands and where they are focusing their"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:25:08.903Z"
+}

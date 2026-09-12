@@ -22,9 +22,10 @@ import { outreachInputSchema, type OutreachInput } from "../../../../agents/outr
 import { outreachOutputSchema, type MessageDraft } from "../../../../agents/outreach/output.schema";
 import {
   packItems,
-  researchOutputSchema,
+  planCards,
+  researchRawSchema,
   type Item,
-  type ResearchPack,
+  type PackShape,
 } from "../../../../agents/research/output.schema";
 
 /**
@@ -64,8 +65,10 @@ function sourceCount(items: Item[]): number {
  * mock draws expanded — the pack's own headline finding, every line with a
  * confidence word and a source.
  */
-export function ResearchRender({ pack }: { pack: ResearchPack }) {
-  const [first] = pack.archetypes;
+export function ResearchRender({ pack }: { pack: PackShape }) {
+  // The cards are research v3's own plan-card view over the pack (§3 "Derived views").
+  const view = planCards(pack);
+  const [first] = view.archetypes;
   const pains = first?.pains ?? [];
   // `packItems` and not a walk of our own: the schema module already owns the
   // answer to "every item in a pack, wherever it sits", and a second copy here
@@ -93,27 +96,27 @@ export function ResearchRender({ pack }: { pack: ResearchPack }) {
       <div className="mt-2.5 grid gap-2.5 wide:grid-cols-2">
         <PlanCard
           title={planCopy.card.who}
-          summary={pack.summary[1]}
-          note={`▸ ${pack.archetypes.length} ${planCopy.count.groups} · ${sourceCount(everyItem)} ${planCopy.count.sources}`}
+          summary={view.summary[1] ?? view.summary[0]}
+          note={`▸ ${view.archetypes.length} ${planCopy.count.groups} · ${sourceCount(everyItem)} ${planCopy.count.sources}`}
         />
 
         <PlanCard
           title={planCopy.card.hook}
-          summary={pack.hook.text}
-          note={`▸ ${planCopy.count.whyNow}, ${pack.hook.answeredBy.length} ${planCopy.count.items}`}
+          summary={view.hook?.text ?? ""}
+          note={`▸ ${planCopy.count.whyNow}, ${view.hook?.answeredBy.length ?? 0} ${planCopy.count.items}`}
         />
 
         <PlanCard
           title={planCopy.card.firms}
-          summary={pack.seedFirms.map((firm) => firm.name).join(", ")}
-          note={`▸ ${pack.seedFirms.length} ${planCopy.count.firms} · ${planCopy.count.recipe}`}
+          summary={view.seedFirms.map((firm) => firm.name).join(", ")}
+          note={`▸ ${view.seedFirms.length} ${planCopy.count.firms} · ${planCopy.count.recipe}`}
         />
 
         <PlanCard
           dashed
           title={planCopy.card.unknowns}
-          summary={pack.unknowns.map((unknown) => unknown.text).join(" ")}
-          note={`▸ ${pack.unknowns.length} ${planCopy.count.unknowns} · ${planCopy.unknownsNote}`}
+          summary={view.unknowns.map((unknown) => unknown.text).join(" ")}
+          note={`▸ ${view.unknowns.length} ${planCopy.count.unknowns} · ${planCopy.unknownsNote}`}
         />
       </div>
     </Card>
@@ -326,7 +329,8 @@ export function RenderFixture({
 }) {
   switch (kind) {
     case "research": {
-      const parsed = researchOutputSchema.safeParse(output);
+      // Research v3: what a rep meets is the pack the runtime assembles, not the loop's closing manifest.
+      const parsed = researchRawSchema.safeParse(output);
       return parsed.success ? <ResearchRender pack={parsed.data} /> : <Unrenderable value={output} />;
     }
     case "outreach": {

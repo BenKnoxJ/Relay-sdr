@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { AGENT_KINDS, agentsDir, loadDefinition, type AgentKind } from "@/lib/agents/definitions";
 
+import { researchRawSchema } from "../../../agents/research/output.schema";
+
 /**
  * A bench fixture: one agent's output, kept on disk so it can be looked at.
  *
@@ -154,7 +156,10 @@ export function fixturePath(kind: AgentKind, name: string, root?: string): strin
  * screen.
  */
 export function validateOutput(kind: AgentKind, output: unknown): BenchValidation {
-  const parsed = loadDefinition(kind).output.safeParse(output);
+  // Research v3 (§3): the loop's closing answer is only a manifest of the
+  // modules written; the output a rep meets is the pack the runtime assembles
+  // from them, so a research fixture holds the pack and is checked as one.
+  const parsed = kind === "research" ? researchRawSchema.safeParse(output) : loadDefinition(kind).output.safeParse(output);
   if (parsed.success) return { ok: true, errors: [] };
   return {
     ok: false,

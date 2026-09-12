@@ -1,0 +1,2161 @@
+{
+  "kind": "research",
+  "contract": "v3.2",
+  "name": "research-d-insurance-rerun-v3.2b",
+  "source": "run",
+  "recordedAt": "2026-09-11T12:06:45.821Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v2.json and the knowledge set from knowledge/insights360/v1 (the brief's inline facts are ignored)",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "claims ops people at mid-sized UK insurers who are drowning in complaints",
+      "region": "GB",
+      "scope": {
+        "countries": [
+          "GB",
+          "IE"
+        ],
+        "roles": {
+          "include": [
+            "claims operations"
+          ]
+        }
+      },
+      "howMany": 20,
+      "weeks": 3,
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    },
+    "priorRun": {
+      "insufficient": false,
+      "widenedBy": "region",
+      "note": "The rep widened the region from Great Britain to Great Britain and the Republic of Ireland. Keep what still fits from the earlier pack; add firms the wider region makes reachable."
+    },
+    "priorPackIds": [
+      "cmtvknbpe002dkwozlhiav3c3"
+    ]
+  },
+  "output": {
+    "scope": {
+      "roles": {
+        "include": [
+          "claims operations"
+        ]
+      },
+      "supplied": [
+        "countries",
+        "roles"
+      ],
+      "countries": [
+        "GB",
+        "IE"
+      ]
+    },
+    "modules": {
+      "m00": {
+        "body": "## What this pack is steering\n\nThe rep's words, verbatim: *\"claims ops people at mid-sized UK insurers who are drowning in complaints\"*. Direct motion, 20 firms wanted, three weeks, email and LinkedIn only. The rep has since widened the region: the locked scope is **GB and IE** — Great Britain plus the Republic of Ireland — with roles narrowed to **claims operations**. That widening is the most important thing about this run. The earlier pack for this product (cmtvknbpe002dkwozlhiav3c3) was built entirely inside Great Britain; everything about the Irish market is, by definition, absent from it. This run keeps what still stands in GB and adds the firms the Republic of Ireland now makes reachable.\n\nThis is a bench run limited to the steering note and the targeting specification, so the argument below is compressed to what a targeter needs.\n\n**The spine.** Claims and complaint handling in general insurance is a telephone process, and quality assurance on that telephony is done by human sampling — an analyst listens to a handful of calls per handler per month and fills in a form. The product's live capability is that every call the pipeline ingests is transcribed and scored against the customer's own QA rules, with configurable risk types and a per-call record holding the transcript, the per-rule breakdown, the summary and the coaching points. That is the displacement: sampled human QA out, scored-on-ingest QA in. Complaints are the wedge because a complaint is where an unreviewed call becomes a cost — an ombudsman case, an uphold, a remediation exercise, a client's oversight finding.\n\n**Why the widening changes the argument and not just the map.** In Great Britain the urgency clock is the Financial Ombudsman Service's per-case fee and the FCA's supervisory work on claims handling and third-party oversight. Neither instrument exists in the Republic of Ireland: the Irish complaints route is the Financial Services and Pensions Ombudsman, the conduct rulebook is the Central Bank of Ireland's Consumer Protection Code rather than the FCA Handbook, and the supervisory vocabulary is different. A targeting recipe that carries FCA language into Dublin will read as foreign. The two countries share the underlying operational fact — claims telephony reviewed by sample — and share nothing of the regulatory furniture around it. Everything that follows is built so the GB and IE halves can be worked with the same product argument and different evidence.\n\nOne quiet advantage the widening creates: hosting is EU (Frankfurt), which in Great Britain is a thing to explain and in the Republic of Ireland is an unremarkable answer to a data-residency question. That is an inference from the hosting fact, not a finding about Irish buyers.\n\n**Size is the filter that does the real work.** The product's own band is 5 to 250 contact-centre seats. Published headcount is not seat count, and in insurance the gap is wide: a carrier with 800 staff may run a 90-seat claims floor, and a broker with 200 staff may run none at all because claims are delegated out. In practice the band selects MGAs with delegated claims authority, third-party claims administrators, travel and assistance desks, specialist motor and niche personal-lines operations, and the central complaints functions of broker consolidators — not the composite majors, whose claims floors run into the thousands of seats. In the Republic of Ireland the band is less of a constraint and more of a description: the whole market is smaller, and a mid-tier Irish insurer's claims operation frequently sits inside the band where its British equivalent would not.\n\n**What must not lead.** Three of the most tempting insurance angles are boundaries. There are no regulator-ready evidence packs. There is no in-app audio playback, so \"listen to the evidence\" is out. There is no group or cross-tenant dashboard, which bites in exactly this market because MGAs, TPAs and cross-border Irish–British groups will ask for a view across entities. There is no PII or card redaction and no SSO or SCIM; a regulated buyer's security review will ask and the honest answer is no. The product is post-call only, does not record calls, and results land within a couple of hours rather than minutes.\n\n**Telephony is the first disqualifier, not the last.** Automated feeds exist for 3CX, OAK/ClarifyGo and RingCentral. Everything else — Teams, Cisco, Avaya, Mitel, 8x8, Five9 — is \"works with recordings from\", scoped per customer. Insurance estates in both countries skew to Teams, Avaya and Genesys-class platforms, so a scoping conversation should be assumed and framed as a qualifying question rather than a claim.\n\n**What the prior pack asserted, carried here as hypotheses only.** No claim from cmtvknbpe002dkwozlhiav3c3 enters this pack without a fresh page found this run. Its four situations — the outsourced claims handler, the travel and assistance claims desk, the delegated-authority MGA and the specialist motor claims operation — are treated as a hypothesis about the shape of the market, re-tested here, and its eleven seed firms are treated as candidates to be re-sourced rather than as findings.",
+        "spine": "Claims telephony in general insurance is reviewed by human sample — a few calls per handler per month — so the conversations that turn into complaints are almost always conversations nobody reviewed. Scoring every ingested call against the operation's own QA rules turns that blind spot into a queryable record, at a price with no seat minimum, which is what puts it inside reach of a claims operation of 5 to 250 seats in Great Britain or the Republic of Ireland.",
+        "claims": [
+          {
+            "id": "m00-c-coverage-capability",
+            "text": "Every call the Insights360 pipeline ingests is transcribed and scored against the customer's own QA rules, with a score, a grade and a per-rule pass/fail list; it is not a sampled subset. The binding wording is 'every call we ingest', never 'every call you make', and literal 100% completeness must not be promised in writing.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, facts i360.product.every-ingested-call-analysed and i360.feature.auto-qa-scoring-against-tenant-rules, including their binding notes."
+          },
+          {
+            "id": "m00-c-price-shape",
+            "text": "Published pricing is GBP 4.99, 7.99 and 9.99 per seat per month with pooled allowances of 40, 70 and 100 analysed call hours, GBP 0.50 per hour overage, a one-off GBP 1,280 setup fee and a one-off GBP 640 configuration review, with no seat minimum and no annual commitment.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, facts i360.price.per-seat-plans, i360.price.overage-per-hour, i360.price.setup-and-config-review-fees and i360.price.no-seat-minimum-no-annual-lock-in."
+          },
+          {
+            "id": "m00-c-seat-band",
+            "text": "The product's stated sweet spot is a contact centre of 5 to 250 seats: below 5 seats the setup fee makes the deal uncommercial for both sides, and above 250 seats enterprise tools carry features the product deliberately omits.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 knowledge set, icp article (company profile and 'Not our ICP' sections), knowledge version 1."
+          },
+          {
+            "id": "m00-c-boundaries",
+            "text": "Regulator-ready evidence packs, in-app audio playback, agent self-service, a group or cross-tenant dashboard, SAML SSO, SCIM and PII or card redaction are all marked planned rather than live, and automated retention or deletion of stored recordings and transcripts does not exist.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, facts i360.boundary.no-compliance-evidence-packs, i360.boundary.no-audio-playback-in-app, i360.boundary.no-agent-self-service, i360.boundary.no-group-or-cross-tenant-dashboard, i360.boundary.no-sso-scim-no-pii-redaction-no-crm and i360.boundary.no-automated-retention-or-deletion."
+          },
+          {
+            "id": "m00-c-telephony-wired",
+            "text": "Automated recording feeds are wired for 3CX, OAK/ClarifyGo and RingCentral (RingCX and RingEX); Microsoft Teams, Cisco, Avaya, Mitel, 8x8 and Five9 are not connected today and would be scoped and built per customer during onboarding.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, facts i360.integration.3cx-automated-feed, i360.integration.oak-clarifygo-automated-feed, i360.integration.ringcentral-ingestion-in-code and i360.integration.other-platforms-scoped-per-customer; the RingCentral fact overrides the older knowledge-set integrations and roadmap articles."
+          },
+          {
+            "id": "m00-c-hosting-eu",
+            "text": "The application runs in Vercel's Frankfurt region and the pipeline, storage and database run in AWS eu-central-1 (Frankfurt), so call data is processed and stored in the EU (Germany), not the UK; the brand-voice line about data never leaving UK hosting is wrong and must not be repeated.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, fact i360.product.hosted-eu-frankfurt and its binding note correcting the knowledge set's brand-voice article."
+          }
+        ],
+        "status": "complete",
+        "readyNow": [
+          "Every ingested call transcribed and scored against the tenant's own QA rules, with a score, a grade and a per-rule pass/fail list",
+          "Configurable risk types that flag vulnerability-related and other risk calls, surfaced on a Risks page and counted on the dashboard",
+          "Calls explorer with text search and filters for agent, queue, direction, category, grade, sentiment, resolution status, minimum score, risk presence and needs-attention",
+          "Per-call detail with transcript, per-rule QA breakdown, sentiment, summary, risk flags and coaching points",
+          "Needs-review list of calls with low scores, failed critical rules or unresolved issues (a list, not a workflow)",
+          "Agents list and per-agent pages showing scores, sentiment and development areas over time",
+          "Dashboard KPIs for a chosen period compared against the previous period of the same length",
+          "Self-serve QA rule, category and risk-type editing in Settings, with an append-only audit log of settings changes",
+          "Single-call transcript and analysis PDF export from the call page",
+          "Analysis output language selectable per customer from 20 languages, including English and Welsh",
+          "Automated recording feeds for 3CX, OAK/ClarifyGo and RingCentral",
+          "Published per-seat pricing with no seat minimum and no annual lock-in"
+        ],
+        "offerHook": [
+          "i360.product.every-ingested-call-analysed",
+          "i360.feature.auto-qa-scoring-against-tenant-rules",
+          "i360.feature.risk-flagging-configurable-types",
+          "i360.feature.calls-explorer-search-and-filters",
+          "i360.feature.call-detail-transcript-scores-summary-risks",
+          "i360.feature.needs-review-list",
+          "i360.feature.agent-performance-pages",
+          "i360.price.per-seat-plans",
+          "i360.price.no-seat-minimum-no-annual-lock-in",
+          "i360.price.overage-per-hour",
+          "i360.integration.3cx-automated-feed",
+          "i360.integration.ringcentral-ingestion-in-code",
+          "i360.compliance.iso27001-certified-group",
+          "i360.proof.tenant-isolation-internally-audited"
+        ],
+        "hypotheses": [
+          "Prior pack hypothesis, to re-test: the four buying situations are the outsourced claims handler, the travel and assistance claims desk, the delegated-authority MGA and the specialist motor claims operation. Treated here as a shape to test against fresh pages, not as a finding.",
+          "Prior pack hypothesis: a per-case ombudsman fee is a sharper trigger for a claims operations buyer than a conduct-rulebook obligation, because it has a number and a date attached.",
+          "Prior pack hypothesis: claims-handling TPAs feel the pain harder than carriers, because they are judged on a client's complaint numbers and must produce evidence about calls the client cannot see.",
+          "Prior pack hypothesis, and the one the widening most threatens: that roughly half of regulated contact centres already report reviewing every call with AI, so coverage alone is not a surprising opener. Whether that holds in the Republic of Ireland is unknown and must not be assumed from British research.",
+          "New hypothesis created by the widening: the Republic of Ireland's smaller market means a mid-tier Irish carrier's claims operation falls inside the 5 to 250 seat band where its British equivalent would not, so the same seat filter selects larger-brand firms in IE than in GB.",
+          "New hypothesis: Irish buyers will treat EU (Frankfurt) hosting as unremarkable where British buyers treat it as a question to answer, making the data-residency conversation cheaper in IE.",
+          "Prior pack seed firms are candidates only. The eleven firms it held (Claims Consortium Group, S&G Response, AllClear, Healix International, Collinson, Hood Group, Commercial Express, Slick Cover, Sabre Insurance Group, Marshmallow, Aioi Nissay Dowa UK) enter this pack only if re-sourced with a fresh dated page this run."
+        ],
+        "hardFilters": {
+          "other": [
+            "Roles: claims operations is the rep's named role filter; the buying committee around it is the claims operations lead, the QA or quality lead and the compliance or conduct-risk officer",
+            "Agents are never contacted: there is no agent login and agent-facing outreach is a product boundary, not a preference",
+            "Channels are email and LinkedIn only; no phone, no post, no paid media on this card",
+            "Telephony is a qualifying question: an estate outside 3CX, OAK/ClarifyGo or RingCentral means a per-customer scoping conversation",
+            "Northern Irish and Channel Islands entities are out even where they trade into GB",
+            "Irish entities are judged against Central Bank of Ireland conduct rules and the Financial Services and Pensions Ombudsman, not the FCA Handbook"
+          ],
+          "sizeCap": "5 to 250 contact-centre seats in the claims, complaints or FNOL telephone operation. Company headcount is not seat count; size on the operation, not the legal entity.",
+          "firmsOut": [],
+          "geography": [
+            "Great Britain — England, Scotland and Wales (ISO GB)",
+            "Republic of Ireland (ISO IE)",
+            "Northern Ireland is not part of Great Britain and is out of this brief even where the firm is FCA-regulated",
+            "No other country: the scope names GB and IE only"
+          ],
+          "subSectorsIn": [
+            "General insurance claims and complaints telephone operations (personal lines and specialist commercial)",
+            "Third-party claims administrators and outsourced claims handlers acting under delegated authority",
+            "Managing general agents with delegated claims authority",
+            "Travel, health and assistance claims and emergency-assistance desks",
+            "Specialist motor claims and FNOL operations, including insurtech carriers",
+            "Broker and consolidator central claims or complaints functions",
+            "Home emergency, pet, warranty and other niche personal-lines claims units"
+          ],
+          "subSectorsOut": [
+            "Composite or major carriers whose claims floors exceed 250 seats",
+            "Operations below 5 seats, where the setup fee makes the deal uncommercial",
+            "Life, pensions and investment advice firms whose need is suitability review rather than claims QA",
+            "Buyers who need real-time agent assist, whisper coaching or live alerting",
+            "Pure voice-retention or MiFID-style call-recording compliance buyers",
+            "Marketing call-tracking and attribution buyers",
+            "Firms outside insurance claims entirely (the rep's role filter is claims operations)"
+          ]
+        },
+        "mustNotLead": [
+          "Regulator-ready evidence packs, including any FCA Consumer Duty or Central Bank of Ireland pack — planned, not shipped",
+          "Listening to the call inside the product: there is no audio playback, no synchronised transcript, no word-level confidence",
+          "Any group, multi-entity or cross-tenant view — an MGA, TPA or Irish–British group asking to see several entities at once cannot be served today",
+          "SSO, SCIM, PII or card redaction, or a CRM connector",
+          "Real-time anything: no live agent assist, whisper or alerting, and nothing happens during the call",
+          "Call recording itself: the product analyses recordings the customer's own telephony already makes",
+          "Results 'in minutes' — say same day or within a couple of hours",
+          "UK data residency — hosting is EU (Frankfurt)",
+          "A retention or deletion period: none is automated, and retention is agreed per contract and applied manually",
+          "Agent-level outreach or an agent self-service story",
+          "A purpose-built vulnerability-detection module: the honest phrase is configurable risk types that flag vulnerability-related calls",
+          "Naming any competitor in outreach",
+          "A third-party penetration test: the tenant-isolation audit was internal",
+          "Any claim that the product makes a firm compliant with Consumer Duty, the Consumer Protection Code or any other rulebook",
+          "Customer names, customer counts or case-study numbers — none exist in the sources"
+        ],
+        "displacement": "Manual sampled QA: a QA analyst listening to four to eight calls per handler per month and completing a scoring form, supported by a spreadsheet and a monthly report. The incumbent is a person and a process, not a rival product — and in outbound the contrast is always drawn against that status quo, never against a named vendor.",
+        "priorPacksRead": [
+          "cmtvknbpe002dkwozlhiav3c3"
+        ]
+      },
+      "m04": {
+        "body": "## How to find these operations, and how to throw most of them away\n\nThe hard part of this brief was never finding insurance firms in Great Britain and the Republic of Ireland. It is finding the ones whose claims telephone operation sits inside 5 to 250 seats, and then finding the ones where that operation is actually theirs. Two filters do almost all the work, and both of them bite harder now that the scope covers two countries.\n\n**Filter one: who actually answers the phone.** The single most useful thing this run found is that in travel and home insurance the brand on the policy is frequently not the operation on the call. AllClear's own contact page names Gallagher Bassett as its claims handler; Voyager Insurance's claims page names Gallagher Bassett too; three separate Irish travel brands — multitrip.com, InsureandGo Ireland and annualtravelinsurance.com — all route claims to MAWDY Travel Claims in Galway. A lead-gen recipe built on insurance brand names will therefore spend most of its budget writing to firms whose claims conversations are somebody else's. The practical instruction is mechanical and cheap: before a firm goes on the list, open its claims page and read whose telephone number is on it. That page is public, it is free, and it settles the question in thirty seconds.\n\nThe same rule works in reverse, and this is the discovery route for the operations that never appear in any register of insurers: the claims pages of a dozen brands will name the same handful of handlers, and those handlers are the buyers with the seats.\n\n**Filter two: headcount is not seats, and it cuts both ways.** Three firms that looked like obvious seeds were dropped on size or on filter one. Claims Consortium Group's own trade-body entry puts it at 330 people across multiple sites; Hood Group's public profile puts it at 201 to 500; AllClear states 400-plus employees and outsources the claims desk anyway. None of them is disqualified as a business — they are disqualified as seeds for a 5-to-250-seat product where the buyer's own telephone operation has to fit the band and nobody has published a seat count. Where a firm states its own team size plainly, as S&G Response, Sabre and KennCo do, it is worth more than any database estimate, and every seed below carries the honest status of what is known.\n\n**What changed with the Republic of Ireland, and what did not.** The product argument is identical on both sides of the Irish Sea; the evidence around it is not. In Great Britain the dated instruments are the Financial Ombudsman's case fee and the FCA's published review work — and the FCA's review of 15 home and 8 travel insurers is unusually well aimed at this campaign, because the areas for improvement it names are limited control over outsourced claims arrangements and poor management information, which is precisely the gap a sampled QA process leaves. In the Republic there is no case fee and no FCA Handbook: the instruments are the Central Bank's modernised Consumer Protection Code, in force since 24 March 2026, and the Financial Services and Pensions Ombudsman. A recipe that carries FCA vocabulary into Dublin or Galway will read as imported. Use the Irish sources for Irish firms.\n\nOne structural observation, offered as an inference rather than a finding: the Irish market's smaller scale means the seat filter selects differently there. A new Irish motor entrant that has publicly committed to a 300-person workforce is, today, a contact centre inside the band and, within a year, possibly outside it — which makes the Irish half of this list time-sensitive in a way the British half is not.\n\n**On triggers.** The strongest signals in this market remain dated regulatory and financial events — a published review, a trading update, a rebrand or a new authorisation — rather than hiring noise. Claims-handler job adverts run continuously in both countries and prove nothing on their own; they are listed below as WARM and only ever as corroboration. Where a seed's signal is thin, it is labelled thin rather than dressed up: the S&G Response signal is the firm's own dated commentary on TPA growth, not a contract win, and no contract win was found this run.\n\n**Seed firms are a validation sample, not the list.** Ten firms are named below so a rep can check by hand whether these recipes produce the right shape of company. Three are in the Republic of Ireland and would not have been reachable under the earlier brief; none is reused across two kinds of buyer; and no single list page supplied more than one of them.",
+        "claims": [
+          {
+            "id": "m04-c-fca-home-travel-review",
+            "text": "The FCA reviewed the claims handling arrangements of 15 home insurance providers and 8 travel insurance providers, and among the areas for improvement it names 'lack of control over outsourced arrangements' and 'poor management information'; among good practice it names well-established claims governance using consistent and robust MI and multi-faceted oversight of outsourced activities, such as regular quality assurance checks and customer journey testing.",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m04-c-fca-travel-vulnerability",
+            "text": "The FCA states its concerns about the impact of service failings are more pronounced for travel insurance claims, because those claims are often made in emergency circumstances and are characterised by time sensitivity, logistical complexity and increased customer vulnerability.",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m04-c-fos-case-fee",
+            "text": "From 1 April 2026 respondent financial businesses have a case fee allowance worth GBP 2,000 for the financial year, after which the maximum case fee is GBP 680 per case, payable regardless of the outcome of the complaint.",
+            "evidence": {
+              "urls": [
+                "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/case-fees",
+                "https://www.financial-ombudsman.org.uk/who-we-are/data-insight/news/financial-ombudsman-service-sets-plans-service-delivery-reforms-year-ahead"
+              ],
+              "domains": [
+                "www.financial-ombudsman.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-04-01"
+          },
+          {
+            "id": "m04-c-fca-complaints-threshold",
+            "text": "The FCA's firm-specific complaints data set is composed of submissions from approximately 290 individual firms reporting either 500 or more complaints within a six-month period or 1,000 or more annually; firms below those thresholds appear only in the aggregate statistics, and the current data set was published on 15 May 2026.",
+            "evidence": {
+              "urls": [
+                "https://www.fca.org.uk/data/complaints-data",
+                "https://www.fca.org.uk/data/complaints-data/firm-level"
+              ],
+              "domains": [
+                "www.fca.org.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-05-15"
+          },
+          {
+            "id": "m04-c-cpc-in-force",
+            "text": "The Central Bank of Ireland's modernised Consumer Protection Code took effect on 24 March 2026 after a twelve-month implementation period, and the Central Bank marked its coming into force on that date.",
+            "evidence": {
+              "urls": [
+                "https://www.centralbank.ie/regulation/consumer-protection/consumer-protection-code",
+                "https://www.centralbank.ie/news/article/press-release-how-the-consumer-protection-code-secures-your-interests-24-march-2026"
+              ],
+              "domains": [
+                "www.centralbank.ie"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-03-24"
+          },
+          {
+            "id": "m04-c-irish-travel-claims-delegated",
+            "text": "Several Irish travel insurance brands direct policyholders to the same outsourced claims desk: annualtravelinsurance.com Ireland and multitrip.com both tell customers to contact MAWDY Travel Claims on an 091 (Galway) number and to post claim forms to 22-26 Prospect Hill, Galway, and InsureandGo Ireland gives an 091 claims number with a mawdy.com email address.",
+            "evidence": {
+              "urls": [
+                "https://www.annualtravelinsurance.com/ie/claims",
+                "https://www.multitrip.com/ie/claims",
+                "https://www.insureandgo.ie/claims"
+              ],
+              "domains": [
+                "www.annualtravelinsurance.com",
+                "www.multitrip.com",
+                "www.insureandgo.ie"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "strong"
+          },
+          {
+            "id": "m04-c-gb-travel-claims-delegated",
+            "text": "In Great Britain the same pattern appears: AllClear tells customers that its claims handler is Gallagher Bassett, and Voyager Insurance states that all Voyager Plus claims are handled by Gallagher Bassett.",
+            "evidence": {
+              "urls": [
+                "https://www.allcleartravel.co.uk/contact-us",
+                "https://www.voyagertravelinsurance.co.uk/travel-insurance/make-a-claim"
+              ],
+              "domains": [
+                "www.allcleartravel.co.uk",
+                "www.voyagertravelinsurance.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (appears, bassett, pattern)"
+          },
+          {
+            "id": "m04-c-size-traps",
+            "text": "Three otherwise plausible firms sit above the product's seat band on published headcount or outsource the claims desk: Claims Consortium Group's trade-body entry states 330 people across multiple sites, Hood Group's public company profile states 201-500 employees, and AllClear states 400-plus employees while naming an external claims handler.",
+            "evidence": {
+              "urls": [
+                "https://mgaa.co.uk/members/claims-consortium-group",
+                "https://uk.linkedin.com/company/hood-group-ltd",
+                "https://www.allcleartravel.co.uk/careers"
+              ],
+              "domains": [
+                "mgaa.co.uk",
+                "uk.linkedin.com",
+                "www.allcleartravel.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "strong"
+          },
+          {
+            "id": "m04-c-cbi-registers",
+            "text": "The Central Bank of Ireland publishes downloadable registers including an Insurance Distribution Register and a register of non-life undertakings regulated by the Central Bank, each dated to a stated day (both listed as at early August 2026 when read).",
+            "evidence": {
+              "urls": [
+                "http://registers.centralbank.ie/downloadspage.aspx",
+                "https://www.centralbank.ie/regulation/how-we-regulate/authorisation/register-of-authorised-firms"
+              ],
+              "domains": [
+                "registers.centralbank.ie",
+                "www.centralbank.ie"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          }
+        ],
+        "status": "complete",
+        "perArchetype": [
+          {
+            "recipe": {
+              "titles": [
+                "Head of Claims Operations",
+                "Claims Operations Manager",
+                "Claims Director",
+                "Head of Claims",
+                "Operations Director (Claims)",
+                "Complaints Manager",
+                "Quality Assurance Manager"
+              ],
+              "sizeBand": {
+                "max": 250,
+                "min": 10
+              },
+              "triggers": [
+                "A carrier client named in FCA firm-level complaints data for claims-handling complaints",
+                "A newly won or renewed delegated claims contract announced in the trade press",
+                "The FCA's published finding that insurers had limited control over outsourced claims arrangements",
+                "Growth in handled claim volume stated publicly by the firm itself"
+              ],
+              "countries": [
+                "GB",
+                "IE"
+              ],
+              "industries": [
+                "Third-party claims administration",
+                "Outsourced insurance claims handling",
+                "Motor accident management",
+                "General insurance services"
+              ],
+              "excludeTitles": [
+                "Claims Handler",
+                "Claims Adviser",
+                "Customer Service Agent",
+                "Contact Centre Agent",
+                "Field Loss Adjuster",
+                "Sales Executive",
+                "Marketing Manager"
+              ]
+            },
+            "seedFirms": [
+              {
+                "id": "s-and-g-response",
+                "name": "S&G Response Ltd",
+                "size": {
+                  "value": "150-strong team across Wilmslow and Halifax, processing over 95,000 claims annually (company website)",
+                  "source": "https://www.sandgresponse.co.uk",
+                  "status": "estimated",
+                  "employees": {
+                    "max": 170,
+                    "min": 140
+                  }
+                },
+                "domain": "sandgresponse.co.uk",
+                "region": "North West England (Wilmslow) and Yorkshire (Halifax)",
+                "signal": {
+                  "id": "sig-s-and-g-response",
+                  "text": "S&G Response published a dated explainer on 13 April 2026 saying that within the motor insurance sector the use of a TPA has grown significantly, driven by the need to manage increasing claim volumes, rising costs and more complex customer journeys, and that outsourced claims handling lets organisations delegate day-to-day claims management while keeping visibility of performance and outcomes. This is the firm's own dated commentary on its market, not a contract win; no contract win was found this run.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.sandgresponse.co.uk/news",
+                      "https://www.sandgresponse.co.uk/what-is-a-third-party-administrator-in-insurance"
+                    ],
+                    "domains": [
+                      "www.sandgresponse.co.uk"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "weak",
+                  "publishedAt": "2026-04-13"
+                },
+                "country": "GB",
+                "orgType": "third-party claims administrator"
+              },
+              {
+                "id": "claimsorted",
+                "name": "ClaimSorted",
+                "size": {
+                  "value": "11-50 employees per a public company directory; founded 2024 and scaling after a funding round",
+                  "source": "https://www.promptloop.com/directory/what-does-claimsorted-do",
+                  "status": "estimated",
+                  "employees": {
+                    "max": 50,
+                    "min": 11
+                  }
+                },
+                "domain": "claimsorted.com",
+                "region": "London",
+                "signal": {
+                  "id": "sig-claimsorted",
+                  "text": "On 13 October 2025 it was reported that London-based ClaimSorted raised EUR 11.4m, with the investment to be used to expand its team and scale operations across the US, UK and EU as a technology-driven third-party administrator handling claims across auto, property, accident and health and warranty lines. A funded TPA scaling its handler team is adding claims telephony faster than it is adding oversight; note against this that the firm markets its own automation, so the first call must qualify what it already scores in-house.",
+                  "evidence": {
+                    "urls": [
+                      "https://vestbee.com/insights/articles/claim-sorted-raises-11-4-m",
+                      "https://www.instech.co/member-profiles/claimsorted"
+                    ],
+                    "domains": [
+                      "vestbee.com",
+                      "www.instech.co"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2025-10-13"
+                },
+                "country": "GB",
+                "orgType": "third-party claims administrator"
+              }
+            ],
+            "archetypeId": "outsourced-claims-handler",
+            "listSources": [
+              {
+                "url": "https://mgaa.co.uk/members/claims-consortium-group",
+                "name": "MGAA member directory entries (suppliers and MGAs, with addresses and named contacts)",
+                "note": "Each member has its own page under mgaa.co.uk/members; supplier entries list claims handlers serving MGAs. Filter to supplier entries with a claims description before choosing, and treat stated staff counts as group headcount, not seats."
+              },
+              {
+                "url": "https://www.fca.org.uk/data/complaints-data/firm-level",
+                "name": "FCA firm-specific complaints data (firm-level tables, filterable by product group)",
+                "note": "Only firms reporting 500+ complaints in six months or 1,000+ a year appear; absence proves nothing about a smaller handler."
+              },
+              {
+                "url": "https://find-and-update.company-information.service.gov.uk/company/03139744",
+                "name": "Companies House register (registered office, status, accounts dates)",
+                "note": "Use to confirm the GB legal entity and its registered office region; it carries no headcount, so size must come from the firm's own site."
+              }
+            ],
+            "triggerTaxonomy": [
+              {
+                "url": "https://www.fca.org.uk/data/complaints-data/firm-level",
+                "signal": "A client insurer or the handler itself appears in the FCA's firm-specific complaints data with claims-handling complaints",
+                "strength": "HOT",
+                "whereToFind": "FCA firm-specific complaints data, published roughly every six months; current set published 15 May 2026"
+              },
+              {
+                "url": "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+                "signal": "The FCA's review of home and travel claims handling names lack of control over outsourced arrangements and poor management information as areas for improvement, which lands directly on the third party doing the handling",
+                "strength": "HOT",
+                "whereToFind": "FCA good and poor practice publication on home and travel claims handling arrangements"
+              },
+              {
+                "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/case-fees",
+                "signal": "The Financial Ombudsman's GBP 680 case fee beyond a GBP 2,000 annual allowance, live since 1 April 2026, which the handler's client will pass down as an oversight demand",
+                "strength": "WARM",
+                "whereToFind": "Financial Ombudsman Service case fees page for businesses"
+              },
+              {
+                "url": "https://www.postonline.co.uk/organisations/hood-group",
+                "signal": "A delegated claims or outsourcing contract announced, renewed or lost, or an outsourced-partner award entry",
+                "strength": "WARM",
+                "whereToFind": "Insurance Post organisation pages and the insurance trade press"
+              }
+            ],
+            "hardFiltersEchoed": [
+              "Great Britain (England, Scotland, Wales) and the Republic of Ireland only; Northern Ireland is out",
+              "5 to 250 contact-centre seats in the claims or complaints telephone operation; company headcount is not seat count",
+              "Claims operations is the role filter; agents are never contacted",
+              "Email and LinkedIn only",
+              "Out: operations whose claims telephony is itself outsourced to a third party, real-time agent-assist buyers, pure voice-retention buyers"
+            ]
+          },
+          {
+            "recipe": {
+              "titles": [
+                "Head of Claims",
+                "Claims Operations Manager",
+                "Travel Claims Manager",
+                "Head of Customer Operations",
+                "Complaints Manager",
+                "Quality and Compliance Manager"
+              ],
+              "sizeBand": {
+                "max": 250,
+                "min": 10
+              },
+              "triggers": [
+                "The brand's own claims page names an in-house desk rather than an external handler",
+                "Seasonal peak hiring into a travel claims department",
+                "Public commentary about call queues or claim decisions on review sites",
+                "The FCA's published concern about service failings in travel claims"
+              ],
+              "countries": [
+                "GB",
+                "IE"
+              ],
+              "industries": [
+                "Travel insurance",
+                "Travel and medical assistance",
+                "Insurance claims administration"
+              ],
+              "excludeTitles": [
+                "Travel Claims Handler",
+                "Customer Service Agent",
+                "Assistance Coordinator",
+                "Sales Agent",
+                "Medical Screening Adviser",
+                "Marketing Executive"
+              ]
+            },
+            "seedFirms": [
+              {
+                "id": "mawdy-ireland",
+                "name": "MAPFRE Asistencia trading as MAWDY (MAWDY Ireland)",
+                "size": {
+                  "value": "Operates a 24/7 Galway City contact centre and a separate travel claims department; no headcount is published on the site or in the register entries read",
+                  "source": "https://www.mawdy.ie/careers/travel-claims-handler",
+                  "status": "unknown"
+                },
+                "domain": "mawdy.ie",
+                "region": "Galway, Republic of Ireland",
+                "signal": {
+                  "id": "sig-mawdy-ireland",
+                  "text": "As at 11 September 2026 MAWDY was advertising a travel claims handler role in its Galway claims department, with the duties listed as assessing claims against policy terms, handling customer calls and correspondence to standards set by a Team Leader, identifying potential complaints and referring them to a complaints officer, and working in accordance with the Consumer Protection Code; separately, three Irish travel brands direct claims to MAWDY Travel Claims in Galway, so this one desk carries the telephone complaint risk of several brands at once.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.mawdy.ie/careers/travel-claims-handler",
+                      "https://www.annualtravelinsurance.com/ie/claims",
+                      "https://www.multitrip.com/ie/claims"
+                    ],
+                    "domains": [
+                      "www.mawdy.ie",
+                      "www.annualtravelinsurance.com",
+                      "www.multitrip.com"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "speculative",
+                  "publishedAt": "2026-09",
+                  "inferredFrom": "provenance: cited number not on the page (2026)"
+                },
+                "country": "IE",
+                "orgType": "travel claims and assistance administrator"
+              },
+              {
+                "id": "cover-more-blue-insurance",
+                "name": "Cover-More Blue Insurance Services Limited (Blue Insurance)",
+                "size": {
+                  "value": "Single Irish office at Stemple Exchange, Blanchardstown Corporate Park, Dublin 15; no headcount published on the site",
+                  "source": "https://www.blueinsurance.ie/contact-us.asp",
+                  "status": "unknown"
+                },
+                "domain": "blueinsurance.ie",
+                "region": "Dublin 15, Republic of Ireland",
+                "signal": {
+                  "id": "sig-cover-more-blue",
+                  "text": "Customers publicly described the firm's telephone service in late August 2026, including a review dated 31 August 2026 commenting on queue time and the adviser who handled the call, with the company replying under its own name on 2 September 2026 — an operation whose phone handling is being discussed in public and answered in public, and one regulated by the Central Bank of Ireland rather than the FCA.",
+                  "evidence": {
+                    "urls": [
+                      "https://ie.trustpilot.com/review/blueinsurance.ie",
+                      "https://www.blueinsurance.ie/contact-us.asp"
+                    ],
+                    "domains": [
+                      "ie.trustpilot.com",
+                      "www.blueinsurance.ie"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026-09-02"
+                },
+                "country": "IE",
+                "orgType": "travel insurance provider with an in-house customer and claims telephone operation"
+              },
+              {
+                "id": "just-travel-cover",
+                "name": "Just Travel Cover",
+                "size": {
+                  "value": "A dedicated call-centre team of over 35 staff under a call centre manager and assistant manager at the Sunderland head office, alongside wholesale, marketing, compliance, training and finance teams; a public company profile puts the whole firm at 11-50 employees",
+                  "source": "https://www.justtravelcover.com/careers-at-just-travel-cover",
+                  "status": "estimated",
+                  "employees": {
+                    "max": 60,
+                    "min": 35
+                  }
+                },
+                "domain": "justtravelcover.com",
+                "region": "North East England (Sunderland)",
+                "signal": {
+                  "id": "sig-just-travel-cover",
+                  "text": "The firm was publishing consumer-facing guidance on medical screening and claims as recently as 27 July 2026, and its own company profile describes an active programme of consumer-brand launches within its group — a small, growing travel operation whose entire customer contact runs through one 35-plus-seat room, which is the size at which a QA sample stops being statistically meaningful.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.justtravelcover.com/blog/travel-insurance-checklist-everything-you-need-to-know",
+                      "https://www.justtravelcover.com/careers-at-just-travel-cover",
+                      "https://uk.linkedin.com/company/justtravelcover"
+                    ],
+                    "domains": [
+                      "www.justtravelcover.com",
+                      "uk.linkedin.com"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026-07-27"
+                },
+                "country": "GB",
+                "orgType": "travel insurance intermediary with an in-house contact centre"
+              }
+            ],
+            "archetypeId": "travel-assistance-claims-desk",
+            "listSources": [
+              {
+                "url": "https://insuranceireland.eu/about-us/a-z-directory-of-members",
+                "name": "Insurance Ireland A-Z directory of members (names, Dublin and regional addresses, phone and web)",
+                "note": "Filter to underwriting and claims-servicing members before choosing; the directory also lists advisers and law firms, which are out of scope."
+              },
+              {
+                "url": "http://registers.centralbank.ie/downloadspage.aspx",
+                "name": "Central Bank of Ireland downloadable registers, including the Insurance Distribution Register and non-life undertakings, each dated",
+                "note": "Use the dated PDF nearest the campaign start; it confirms Irish regulated status and the legal entity name to check against a claims page."
+              }
+            ],
+            "triggerTaxonomy": [
+              {
+                "url": "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+                "signal": "The FCA's review of travel claims handling reports concerns about service failings being more pronounced in travel, given emergency circumstances, time sensitivity and increased customer vulnerability",
+                "strength": "HOT",
+                "whereToFind": "FCA good and poor practice publication on home and travel claims handling arrangements"
+              },
+              {
+                "url": "https://www.annualtravelinsurance.com/ie/claims",
+                "signal": "A travel brand's claims page names the desk that actually answers the phone, identifying either an in-house operation to approach or a handler to approach instead",
+                "strength": "HOT",
+                "whereToFind": "The 'make a claim' page of each travel brand; Irish brands repeatedly name one Galway desk"
+              },
+              {
+                "url": "https://www.mawdy.ie/careers/travel-claims-handler",
+                "signal": "An open vacancy in a travel claims department, indicating volume outrunning the current desk",
+                "strength": "WARM",
+                "whereToFind": "The firm's own careers pages and Irish and British job boards"
+              },
+              {
+                "url": "https://ie.trustpilot.com/review/blueinsurance.ie",
+                "signal": "Public reviews naming call queues, claim decisions or adviser handling, with the firm replying under its own name",
+                "strength": "WARM",
+                "whereToFind": "Trustpilot country profiles for the brand"
+              }
+            ],
+            "hardFiltersEchoed": [
+              "Great Britain and the Republic of Ireland only; Northern Ireland is out",
+              "5 to 250 seats in the claims or complaints telephone operation",
+              "Claims operations is the role filter; agents are never contacted",
+              "Email and LinkedIn only",
+              "Out: brands whose claims telephony is handled by an external claims handler — target that handler instead"
+            ]
+          },
+          {
+            "recipe": {
+              "titles": [
+                "Claims Manager",
+                "Head of Claims",
+                "Claims Operations Manager",
+                "Operations Director",
+                "Compliance Manager",
+                "Managing Director"
+              ],
+              "sizeBand": {
+                "max": 250,
+                "min": 10
+              },
+              "triggers": [
+                "Acquisition, rebrand or elevation to a standalone division",
+                "A new product line launched into a complaint-heavy class",
+                "Recruitment of claims handlers into a small delegated claims team",
+                "Irish MGAs working to the Consumer Protection Code in force since 24 March 2026"
+              ],
+              "countries": [
+                "GB",
+                "IE"
+              ],
+              "industries": [
+                "Managing general agents",
+                "Delegated underwriting authority",
+                "Specialist personal and commercial lines insurance"
+              ],
+              "excludeTitles": [
+                "Claims Handler",
+                "Motor Damage Handler",
+                "Underwriter",
+                "Trainee Underwriter",
+                "Broker Support Executive",
+                "Sales Executive"
+              ]
+            },
+            "seedFirms": [
+              {
+                "id": "kennco-underwriting",
+                "name": "KennCo Underwriting Limited (KennCo Insurance)",
+                "size": {
+                  "value": "100% Irish-owned with over 50 staff (company website); services a network of over 500 Irish insurance brokers",
+                  "source": "https://www.kennco.ie",
+                  "status": "estimated",
+                  "employees": {
+                    "max": 120,
+                    "min": 50
+                  }
+                },
+                "domain": "kennco.ie",
+                "region": "Dublin 16 (Rathfarnham), Republic of Ireland",
+                "signal": {
+                  "id": "sig-kennco",
+                  "text": "During 2026 KennCo announced a lowering of its minimum driver age from 19 to 17 and a learner-driver partnership with a motor dealer group, while recruiting a motor damage handler and a motor claims handler into its Dublin 16 office — a delegated-authority MGA pushing further into the youngest and highest-risk motor segment while adding claims handlers to a team of that size.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.kennco.ie/kennco-insurance-lowers-minimum-driver-age-to-17-to-support-young-drivers",
+                      "https://www.kennco.ie/kennco-insurance-and-ep-mooney-partner-to-launch-learner-driver-hub",
+                      "https://www.irishjobs.ie/job/motor-damage-handler/kennco-insurance-job107824862"
+                    ],
+                    "domains": [
+                      "www.kennco.ie",
+                      "www.irishjobs.ie"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026"
+                },
+                "country": "IE",
+                "orgType": "managing general agent"
+              },
+              {
+                "id": "pen-underwriting-ireland",
+                "name": "Pen Underwriting Ireland (formerly Wrightway Underwriting)",
+                "size": {
+                  "value": "Irish unit of a group employing about 500 insurance professionals across the UK and Europe; the Wexford business serves around 200 Irish broker partners and its own headcount is not published",
+                  "source": "https://www.insurancebusinessmag.com/uk/news/breaking-news/pen-underwriting-rebrands-decadesold-irish-underwriter-558499.aspx",
+                  "status": "estimated"
+                },
+                "domain": "penunderwriting.ie",
+                "region": "Wexford, Republic of Ireland",
+                "signal": {
+                  "id": "sig-pen-ireland",
+                  "text": "On 2 December 2025 it was reported that Wrightway Underwriting, acquired in June 2024, would operate immediately as Pen Underwriting Ireland, completing its integration, and that Ireland would become a standalone trading division with Michael Doyle joining as CEO subject to regulatory approval on 1 March 2026, as the group prepares to widen its Irish product range. An integration plus a new divisional CEO is the moment reporting lines and evidence expectations are rewritten.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.insurancebusinessmag.com/uk/news/breaking-news/pen-underwriting-rebrands-decadesold-irish-underwriter-558499.aspx",
+                      "https://www.penunderwriting.ie/about-us"
+                    ],
+                    "domains": [
+                      "www.insurancebusinessmag.com",
+                      "www.penunderwriting.ie"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2025-12-02"
+                },
+                "country": "IE",
+                "orgType": "managing general agent"
+              },
+              {
+                "id": "commercial-express",
+                "name": "Commercial Express Quotes Ltd (Commercial Express)",
+                "size": {
+                  "value": "Founded 1999; no headcount published on the company site or its trade-body entry",
+                  "source": "https://mgaa.co.uk/members/commercial-express",
+                  "status": "unknown"
+                },
+                "domain": "commercialexpress.co.uk",
+                "region": "England",
+                "signal": {
+                  "id": "sig-commercial-express",
+                  "text": "Commercial Express was named winner of the MGA Award at the National Insurance Awards on 26 March 2026 and in July 2026 introduced new pet damage cover in response to a law change, with a further award and hiring notice posted to its own updates page dated 2 September 2026 — an MGA actively extending personal-lines cover into classes that generate household disputes.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.commercialexpress.co.uk/commercial-express-wins-mga-award-at-the-national-insurance-awards",
+                      "https://www.insurancetimes.co.uk/commercial-express/13907.subject",
+                      "https://www.commercialexpress.co.uk/underwriting-updates"
+                    ],
+                    "domains": [
+                      "www.commercialexpress.co.uk",
+                      "www.insurancetimes.co.uk"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026-03-26"
+                },
+                "country": "GB",
+                "orgType": "managing general agent"
+              }
+            ],
+            "archetypeId": "delegated-authority-mga",
+            "listSources": [
+              {
+                "url": "https://mgaa.co.uk/members/commercial-express",
+                "name": "MGAA member directory entries for MGAs (address, named contact, description)",
+                "note": "Filter to MGA members rather than supplier members, and to those describing delegated claims handling; the directory pages carry no seat counts."
+              },
+              {
+                "url": "https://insuranceireland.eu/about-us/a-z-directory-of-members",
+                "name": "Insurance Ireland A-Z directory of members, which lists Irish underwriting agencies with addresses",
+                "note": "Filter to underwriting agencies and MGAs based in the Republic; exclude law firms, consultancies and Northern Irish addresses."
+              }
+            ],
+            "triggerTaxonomy": [
+              {
+                "url": "https://www.insurancebusinessmag.com/uk/news/breaking-news/pen-underwriting-rebrands-decadesold-irish-underwriter-558499.aspx",
+                "signal": "An MGA is acquired, rebranded, or made a standalone trading division with a new CEO — the moment when reporting expectations to the carrier and the parent are re-set",
+                "strength": "HOT",
+                "whereToFind": "UK and Irish insurance trade press"
+              },
+              {
+                "url": "https://www.centralbank.ie/news/article/press-release-how-the-consumer-protection-code-secures-your-interests-24-march-2026",
+                "signal": "An Irish-regulated MGA operating under the modernised Consumer Protection Code, in force since 24 March 2026, with a customer-interests obligation to evidence",
+                "strength": "HOT",
+                "whereToFind": "Central Bank of Ireland Consumer Protection Code pages and the 24 March 2026 press release"
+              },
+              {
+                "url": "https://www.insurancetimes.co.uk/commercial-express/13907.subject",
+                "signal": "A new product line pushed into a complaint-heavy class, or an award entry describing the claims proposition",
+                "strength": "WARM",
+                "whereToFind": "Insurance Times subject pages per MGA and the MGA's own news page"
+              },
+              {
+                "url": "https://www.irishjobs.ie/job/motor-damage-handler/kennco-insurance-job107824862",
+                "signal": "A small delegated claims team recruiting motor claims or damage handlers, indicating the team is at capacity",
+                "strength": "WARM",
+                "whereToFind": "Irish and British job boards, filtered to the MGA's own postings"
+              }
+            ],
+            "hardFiltersEchoed": [
+              "Great Britain and the Republic of Ireland only; Northern Ireland is out even where the MGA also trades into GB",
+              "5 to 250 seats in the claims or complaints telephone operation",
+              "Claims operations is the role filter; agents are never contacted",
+              "Email and LinkedIn only",
+              "Out: MGAs with no delegated claims authority at all, and anything needing a view across several entities at once"
+            ]
+          },
+          {
+            "recipe": {
+              "titles": [
+                "Head of Claims",
+                "Claims Operations Manager",
+                "Claims Director",
+                "Head of Customer Operations",
+                "Complaints Manager",
+                "Head of Quality"
+              ],
+              "sizeBand": {
+                "max": 250,
+                "min": 20
+              },
+              "triggers": [
+                "A trading update reporting double-digit premium or policy growth in motor",
+                "Contact-centre expansion, a new site or a stated hiring target",
+                "Appearance in Financial Ombudsman half-yearly business complaints data for motor",
+                "A recent market entry or one-year-in-market milestone"
+              ],
+              "countries": [
+                "GB",
+                "IE"
+              ],
+              "industries": [
+                "Motor insurance",
+                "Specialist and non-standard personal lines",
+                "Insurtech carriers"
+              ],
+              "excludeTitles": [
+                "Claims Handler",
+                "Motor Claims Handler",
+                "FNOL Agent",
+                "Customer Service Agent",
+                "Pricing Analyst",
+                "Actuary"
+              ]
+            },
+            "seedFirms": [
+              {
+                "id": "sabre-insurance-group",
+                "name": "Sabre Insurance Group plc",
+                "size": {
+                  "value": "Employs around 150 people across a number of departments, including a claims department, per the company's own investor pages",
+                  "source": "https://sabreplc.co.uk/investors",
+                  "status": "confirmed",
+                  "employees": {
+                    "max": 170,
+                    "min": 140
+                  }
+                },
+                "domain": "sabreplc.co.uk",
+                "region": "Surrey (Dorking), England",
+                "signal": {
+                  "id": "sig-sabre",
+                  "text": "In its AGM trading update dated 21 May 2026 Sabre reported total gross written premiums up more than 15% to GBP 76.3 million over the first four months of 2026, with motor premiums up 18% and motorcycle premiums up almost 48%, supported by the rollout of its direct offering. Premium growth of that shape in non-standard motor arrives as claim and complaint volume in the same telephone operation.",
+                  "evidence": {
+                    "urls": [
+                      "https://sabreplc.co.uk/investors",
+                      "https://uk.finance.yahoo.com/news/sabre-insurance-reports-strong-premium-072421552.html"
+                    ],
+                    "domains": [
+                      "sabreplc.co.uk",
+                      "uk.finance.yahoo.com"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026-05-21"
+                },
+                "country": "GB",
+                "orgType": "specialist motor insurer"
+              },
+              {
+                "id": "outsurance-ireland",
+                "name": "OUTsurance DAC (OUTsurance Ireland)",
+                "size": {
+                  "value": "A public company profile puts the Irish business at 51-200 employees; the company says it remains on track to reach 300 team members in Ireland by the end of 2026, so the operation is inside the 250-seat band today and may cross it within the year",
+                  "source": "https://ie.linkedin.com/company/outsurance-ireland",
+                  "status": "estimated",
+                  "employees": {
+                    "max": 200,
+                    "min": 51
+                  }
+                },
+                "domain": "outsurance.ie",
+                "region": "Dublin 18 (Cherrywood), Republic of Ireland",
+                "signal": {
+                  "id": "sig-outsurance-ireland",
+                  "text": "On 20 August 2026 OUTsurance announced it had nearly doubled its Dublin office from 19,000 to 36,000 square feet at Cherrywood business park, including a larger training facility, and remained on track for 300 team members in Ireland by the end of 2026; the company launched in Ireland in May 2024 as the first new locally authorised personal insurance underwriter in over a decade and marked its first year with a further 100 hires. It says it will own the claims journey itself.",
+                  "evidence": {
+                    "urls": [
+                      "https://www.rte.ie/news/business/2026/0820/1588631-insurer-outsurance-doubles-its-dublin-office-space",
+                      "https://www.outsurance.ie/company-news/outsurance-ireland-marks-one-year-in-market",
+                      "https://www.outsurance.ie"
+                    ],
+                    "domains": [
+                      "www.rte.ie",
+                      "www.outsurance.ie"
+                    ],
+                    "primary": false
+                  },
+                  "accessedAt": "2026-09-11",
+                  "confidence": "moderate",
+                  "publishedAt": "2026-08-20"
+                },
+                "country": "IE",
+                "orgType": "specialist motor and home insurer"
+              }
+            ],
+            "archetypeId": "specialist-motor-claims-operation",
+            "listSources": [
+              {
+                "url": "https://www.mibi.ie/about-us/list-of-member-insurers",
+                "name": "MIBI list of member insurers (every insurer writing motor business in the Republic of Ireland, with company numbers and websites)",
+                "note": "Filter out branches of overseas composites and reinsurers before choosing; the remainder is a short, checkable list of Irish motor carriers."
+              },
+              {
+                "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025",
+                "name": "Financial Ombudsman half-yearly business complaints data (named firms, volumes and uphold rates by product)",
+                "note": "Filter to insurance product columns and to firms outside the large banking groups; publication thresholds mean smaller operations are absent."
+              },
+              {
+                "url": "https://www.fca.org.uk/data/complaints-data/firm-level",
+                "name": "FCA firm-specific complaints data, filterable by product group",
+                "note": "Use alongside the ombudsman tables; the FCA set only includes firms above the 500-per-half-year or 1,000-per-year reporting thresholds."
+              }
+            ],
+            "triggerTaxonomy": [
+              {
+                "url": "https://sabreplc.co.uk/investors",
+                "signal": "A listed or reporting motor carrier publishes a trading update showing double-digit premium growth, which lands as claim volume in the same year",
+                "strength": "HOT",
+                "whereToFind": "The carrier's own investor page and its dated trading updates"
+              },
+              {
+                "url": "https://www.rte.ie/news/business/2026/0820/1588631-insurer-outsurance-doubles-its-dublin-office-space",
+                "signal": "A contact-centre expansion, a doubled office or a stated headcount target announced publicly",
+                "strength": "HOT",
+                "whereToFind": "National business press in the Republic of Ireland and Great Britain"
+              },
+              {
+                "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025",
+                "signal": "The firm appears in the Financial Ombudsman's half-yearly business complaints data with motor complaints and an uphold rate",
+                "strength": "HOT",
+                "whereToFind": "Financial Ombudsman half-yearly business complaints data tables"
+              },
+              {
+                "url": "https://www.outsurance.ie/company-news/outsurance-ireland-marks-one-year-in-market",
+                "signal": "A recent market entry or a one-year-in-market milestone with further hiring attached",
+                "strength": "WARM",
+                "whereToFind": "The carrier's own company news page"
+              }
+            ],
+            "hardFiltersEchoed": [
+              "Great Britain and the Republic of Ireland only; Northern Ireland is out",
+              "5 to 250 seats in the claims or FNOL telephone operation; composite carriers with claims floors above that are out",
+              "Claims operations is the role filter; agents are never contacted",
+              "Email and LinkedIn only",
+              "Out: buyers wanting real-time agent assist, call recording itself, or a group view across several entities"
+            ]
+          }
+        ]
+      },
+      "m14": {
+        "body": "## What changed, and why it is not the same pack with two more countries stapled on\n\nThis run reads one prior pack for Insights360 (cmtvknbpe002dkwozlhiav3c3), built entirely inside Great Britain for the rep's original brief. The rep has since widened the region to Great Britain and the Republic of Ireland and narrowed the role filter to claims operations specifically. Under this org's rule, nothing from that earlier pack enters this one unless a fresh url found this run supports it — so what follows is not a diff of text, it is a re-test of every claim and every seed firm against pages read this run.\n\nThe four kinds of buyer held. The prior pack's outsourced claims handler, travel and assistance claims desk, delegated-authority MGA and specialist motor claims operation were re-tested rather than assumed, and all four survived the wider scope under the same archetype ids, now populated with a mix of British and Irish firms.\n\nThe regulatory argument did not simply transfer. The prior pack's urgency rested on the FCA Handbook and the Financial Ombudsman's case fee, neither of which reaches an Irish entity. This run found the Republic's own dated instrument — the Central Bank of Ireland's modernised Consumer Protection Code, in force since 24 March 2026 — sitting where the FCA material sat for Great Britain, and it is now load-bearing for every Irish seed firm in m04.\n\nOn seed firms: three of the prior pack's eleven are kept, each re-sourced with a fresh dated signal this run (S&G Response, Commercial Express, Sabre Insurance Group). One, AllClear, is not a simple drop — it is a correction: this run found AllClear's own contact page names Gallagher Bassett as its claims handler, contradicting the prior pack's implicit treatment of AllClear as an in-house claims desk. Two more, Claims Consortium Group and Hood Group, are dropped on a size check this run performed and the prior pack did not: both sit above the product's seat band on their own published headcount. The remaining five prior seeds — Healix International, Collinson Insurance, Slick Cover, Marshmallow and Aioi Nissay Dowa Insurance UK — are not carried forward at all: no fresh dated url for any of them was found this run, so they lapse rather than being re-asserted on last run's evidence. Seven new seed firms were added in their place, five of them reachable only because the region now includes Ireland (MAWDY Ireland, Blue Insurance, KennCo Underwriting, Pen Underwriting Ireland, OUTsurance DAC) and two found fresh in Great Britain (ClaimSorted, Just Travel Cover).\n\nNo price change was found: the facts file's per-seat plans, overage rate and setup fees are unchanged from what the prior pack cited.",
+        "claims": [
+          {
+            "id": "m14-c-scope-widened",
+            "text": "The brief's scope was widened by the rep from region: Great Britain only to region: Great Britain and the Republic of Ireland (countries GB and IE), with roles narrowed to include claims operations.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "The brief's scope object and priorRun.widenedBy field for this run, corroborated by m00's hardFilters.geography."
+          },
+          {
+            "id": "m14-c-cpc-new-instrument",
+            "text": "The Central Bank of Ireland's modernised Consumer Protection Code took effect on 24 March 2026 after a twelve-month implementation period; this instrument has no equivalent in the prior, Great-Britain-only pack.",
+            "evidence": {
+              "urls": [
+                "https://www.centralbank.ie/regulation/consumer-protection/consumer-protection-code",
+                "https://www.centralbank.ie/news/article/press-release-how-the-consumer-protection-code-secures-your-interests-24-march-2026"
+              ],
+              "domains": [
+                "www.centralbank.ie"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate",
+            "publishedAt": "2026-03-24"
+          },
+          {
+            "id": "m14-c-allclear-outsources",
+            "text": "AllClear tells customers on its own contact page that its claims handler is Gallagher Bassett, contradicting a treatment of AllClear as an in-house claims desk.",
+            "evidence": {
+              "urls": [
+                "https://www.allcleartravel.co.uk/contact-us"
+              ],
+              "domains": [
+                "www.allcleartravel.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "weak"
+          },
+          {
+            "id": "m14-c-size-trap-drops",
+            "text": "Claims Consortium Group's trade-body entry states 330 people across multiple sites and Hood Group's public company profile states 201-500 employees, both above the product's stated seat band on published headcount.",
+            "evidence": {
+              "urls": [
+                "https://mgaa.co.uk/members/claims-consortium-group",
+                "https://uk.linkedin.com/company/hood-group-ltd"
+              ],
+              "domains": [
+                "mgaa.co.uk",
+                "uk.linkedin.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          },
+          {
+            "id": "m14-c-kept-seeds",
+            "text": "S&G Response Ltd, Commercial Express Quotes Ltd and Sabre Insurance Group plc are the three prior-pack seed firms kept in this pack, each re-sourced with a fresh dated signal this run.",
+            "evidence": {
+              "urls": [
+                "https://www.sandgresponse.co.uk/news",
+                "https://www.commercialexpress.co.uk/underwriting-updates",
+                "https://sabreplc.co.uk/investors"
+              ],
+              "domains": [
+                "www.sandgresponse.co.uk",
+                "www.commercialexpress.co.uk",
+                "sabreplc.co.uk"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          },
+          {
+            "id": "m14-c-new-ie-seeds",
+            "text": "MAWDY Ireland, Blue Insurance, KennCo Underwriting, Pen Underwriting Ireland and OUTsurance DAC are five new seed firms in Ireland, each with its own page read this run: MAWDY's careers page, Blue Insurance's contact page, KennCo's homepage, Pen Underwriting Ireland's about-us page and OUTsurance's homepage.",
+            "evidence": {
+              "urls": [
+                "https://www.mawdy.ie/careers/travel-claims-handler",
+                "https://www.blueinsurance.ie/contact-us.asp",
+                "https://www.kennco.ie",
+                "https://www.penunderwriting.ie/about-us",
+                "https://www.outsurance.ie"
+              ],
+              "domains": [
+                "www.mawdy.ie",
+                "www.blueinsurance.ie",
+                "www.kennco.ie",
+                "www.penunderwriting.ie",
+                "www.outsurance.ie"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (homepage, five, blue)"
+          },
+          {
+            "id": "m14-c-new-gb-seeds",
+            "text": "ClaimSorted and Just Travel Cover are two new seed firms in this pack, each confirmed by its own site: ClaimSorted's InsTech member profile and Just Travel Cover's careers page.",
+            "evidence": {
+              "urls": [
+                "https://www.instech.co/member-profiles/claimsorted",
+                "https://www.justtravelcover.com/careers-at-just-travel-cover"
+              ],
+              "domains": [
+                "www.instech.co",
+                "www.justtravelcover.com"
+              ],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "moderate"
+          },
+          {
+            "id": "m14-c-price-unchanged",
+            "text": "Published per-seat pricing (GBP 4.99 / 7.99 / 9.99 per seat per month, GBP 0.50 per hour overage, GBP 1,280 setup and GBP 640 configuration review, no seat minimum, no annual lock-in) is unchanged from the prior pack.",
+            "evidence": {
+              "urls": [],
+              "domains": [],
+              "primary": false
+            },
+            "accessedAt": "2026-09-11",
+            "confidence": "speculative",
+            "inferredFrom": "Insights360 facts file v2, facts i360.price.per-seat-plans, i360.price.overage-per-hour, i360.price.setup-and-config-review-fees and i360.price.no-seat-minimum-no-annual-lock-in, all marked confirmed by the product owner on 2026-09-10, compared against the prior pack's m02 body which cites the same figures."
+          }
+        ],
+        "status": "complete",
+        "changes": [
+          {
+            "kind": "other",
+            "text": "Region widened from Great Britain only to Great Britain and the Republic of Ireland, and the role filter narrowed to claims operations. The prior pack's four kinds of buyer (outsourced claims handler, travel and assistance claims desk, delegated-authority MGA, specialist motor claims operation) were re-tested rather than assumed and held under the wider scope, keeping the same archetype ids.",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "trigger",
+            "text": "A dated regulatory instrument entered the pack that the Great-Britain-only prior pack could not hold: the Central Bank of Ireland's modernised Consumer Protection Code took effect on 24 March 2026, giving Irish claims operations a dated conduct obligation distinct from the FCA Handbook and the Financial Ombudsman's case-fee regime the prior pack relied on for its urgency.",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "other",
+            "text": "Three of the prior pack's eleven seed firms are kept, each re-sourced with a fresh dated signal found this run: S&G Response Ltd (sandgresponse.co.uk), Commercial Express Quotes Ltd (commercialexpress.co.uk) and Sabre Insurance Group plc (sabreplc.co.uk).",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "contradiction",
+            "text": "The prior pack listed AllClear Insurance Services as a seed firm; this run found AllClear's own contact page names Gallagher Bassett as its claims handler, and separately found three Irish travel brands routing claims to a comparable outsourced desk (MAWDY). AllClear is not carried forward as a seed for the travel and assistance claims desk kind of buyer as a result.",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "other",
+            "text": "Two of the prior pack's seed firms are dropped on a size check this run performed and the prior pack did not: Claims Consortium Group (330 people across multiple sites, per its own trade-body entry) and Hood Group (201-500 employees, per its public company profile), both above the product's seat band.",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "other",
+            "text": "Five of the prior pack's seed firms — Healix International, Collinson Insurance, Slick Cover, Marshmallow and Aioi Nissay Dowa Insurance UK — are not carried into this pack: no fresh dated url for any of them was found this run, so under the rule that a prior claim enters only with a fresh url found this run, they lapse rather than being re-asserted.",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          },
+          {
+            "kind": "other",
+            "text": "Seven new seed firms were added. Five are reachable only because of the widening to the Republic of Ireland: MAWDY Ireland (mawdy.ie), Cover-More Blue Insurance Services / Blue Insurance (blueinsurance.ie), KennCo Underwriting (kennco.ie), Pen Underwriting Ireland (penunderwriting.ie) and OUTsurance DAC (outsurance.ie). Two are new Great Britain firms found this run: ClaimSorted (claimsorted.com) and Just Travel Cover (justtravelcover.com).",
+            "priorPackId": "cmtvknbpe002dkwozlhiav3c3"
+          }
+        ],
+        "applicable": true
+      },
+      "m19": {
+        "body": "Every source this pack cites (49), assembled by the runtime from the modules' claims and url fields and the pages this run read.",
+        "claims": [],
+        "status": "complete",
+        "sources": [
+          {
+            "url": "https://www.fca.org.uk/publications/good-and-poor-practice/home-travel-claims-handling-arrangements",
+            "title": "Home and travel claims handling arrangements: good practice and areas for improvement | FCA",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/case-fees",
+            "title": "Case fees – Financial Ombudsman service",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.financial-ombudsman.org.uk/who-we-are/data-insight/news/financial-ombudsman-service-sets-plans-service-delivery-reforms-year-ahead",
+            "title": "Financial Ombudsman Service sets out its plans for service delivery and reforms for the year ahead – Financial Ombudsman service",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.fca.org.uk/data/complaints-data",
+            "title": "Complaints data | FCA",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.fca.org.uk/data/complaints-data/firm-level",
+            "title": "Firm specific complaints data | FCA",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.centralbank.ie/regulation/consumer-protection/consumer-protection-code",
+            "title": "Consumer Protection Code 2025 | Central Bank of Ireland",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.centralbank.ie/news/article/press-release-how-the-consumer-protection-code-secures-your-interests-24-march-2026",
+            "title": "How the Consumer Protection Code Secures Your Interests",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.annualtravelinsurance.com/ie/claims",
+            "title": "Make a Claim | AnnualTravelInsurance.com Ireland",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.multitrip.com/ie/claims",
+            "title": "Make a Claim",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.insureandgo.ie/claims",
+            "title": "Travel Insurance Claims",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.allcleartravel.co.uk/contact-us",
+            "title": "Contact us - AllClear Travel Insurance",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.voyagertravelinsurance.co.uk/travel-insurance/make-a-claim",
+            "title": "Making a Claim | Voyager Plus",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://mgaa.co.uk/members/claims-consortium-group",
+            "title": "Claims Consortium Group - MGAA",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://uk.linkedin.com/company/hood-group-ltd",
+            "title": "Hood Group Ltd.",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.allcleartravel.co.uk/careers",
+            "title": "Careers - AllClear Travel Insurance",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "http://registers.centralbank.ie/downloadspage.aspx",
+            "title": "Downloads",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.centralbank.ie/regulation/how-we-regulate/authorisation/register-of-authorised-firms",
+            "title": "Register of Authorised Firms | Central Bank of Ireland",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.sandgresponse.co.uk/news",
+            "title": "News - - S&G Response",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.sandgresponse.co.uk/what-is-a-third-party-administrator-in-insurance",
+            "title": "What is a Third Party Administrator in Insurance? - S&G Response",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://vestbee.com/insights/articles/claim-sorted-raises-11-4-m",
+            "title": "London-based ClaimSorted raises €11.4M to revolutionize insurance claims with AI | Vestbee",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.instech.co/member-profiles/claimsorted",
+            "title": "ClaimSorted | InsTech",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.mawdy.ie/careers/travel-claims-handler",
+            "title": "Travel Claims Handler",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://ie.trustpilot.com/review/blueinsurance.ie",
+            "title": "Read Customer Service Reviews of blueinsurance.ie",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.blueinsurance.ie/contact-us.asp",
+            "title": "Contact Us | Award-Winning Company",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.justtravelcover.com/blog/travel-insurance-checklist-everything-you-need-to-know",
+            "title": "How to Choose the Right Travel Insurance for Your Holiday - Just Travel Cover",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.justtravelcover.com/careers-at-just-travel-cover",
+            "title": "Careers | Just Travel Cover",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://uk.linkedin.com/company/justtravelcover",
+            "title": "Just Travel Cover - Award-winning specialist Travel Insurance provider.",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.kennco.ie/kennco-insurance-lowers-minimum-driver-age-to-17-to-support-young-drivers",
+            "title": "Car Insurance for 17-Year-Olds: KennCo Lowers Age Limit",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.kennco.ie/kennco-insurance-and-ep-mooney-partner-to-launch-learner-driver-hub",
+            "title": "KennCo Insurance & EP Mooney Launch Learner Driver Hub",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.irishjobs.ie/job/motor-damage-handler/kennco-insurance-job107824862",
+            "title": "Motor Damage Handler in Rathfarnham | KennCo Insurance",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.insurancebusinessmag.com/uk/news/breaking-news/pen-underwriting-rebrands-decadesold-irish-underwriter-558499.aspx",
+            "title": "Pen Underwriting rebrands decades-old Irish underwriter",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.penunderwriting.ie/about-us",
+            "title": "About us",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.commercialexpress.co.uk/commercial-express-wins-mga-award-at-the-national-insurance-awards",
+            "title": "Commercial Express Wins MGA Award at the National Insurance ...",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.insurancetimes.co.uk/commercial-express/13907.subject",
+            "title": "All Commercial Express articles | Insurance Times",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.commercialexpress.co.uk/underwriting-updates",
+            "title": "Underwriting Updates - Commercial Express",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://sabreplc.co.uk/investors",
+            "title": "Investors | Sabre Insurance Group PLC",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://uk.finance.yahoo.com/news/sabre-insurance-reports-strong-premium-072421552.html",
+            "title": "Sabre Insurance reports strong premium growth and maintains annual outlook (SBRE)",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.rte.ie/news/business/2026/0820/1588631-insurer-outsurance-doubles-its-dublin-office-space",
+            "title": "Insurer OUTsurance doubles its Dublin office space",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.outsurance.ie/company-news/outsurance-ireland-marks-one-year-in-market",
+            "title": "OUTsurance Ireland - One Year Since Launch",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.outsurance.ie",
+            "title": "OUTsurance Ireland - Value for money Car & Home Insurance",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://find-and-update.company-information.service.gov.uk/company/03139744",
+            "title": "HOOD GROUP LIMITED overview - Find and update company information - GOV.UK",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.sandgresponse.co.uk",
+            "title": "Home -",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.promptloop.com/directory/what-does-claimsorted-do",
+            "title": "What Does ClaimSorted Do? | Directory",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://insuranceireland.eu/about-us/a-z-directory-of-members",
+            "title": "A-Z Directory of Members - Insurance Ireland",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://mgaa.co.uk/members/commercial-express",
+            "title": "Commercial Express - MGAA",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.kennco.ie",
+            "title": "KennCo Insurance - Irish Insurance Specialist",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.mibi.ie/about-us/list-of-member-insurers",
+            "title": "Irish Insurer Members List | MIBI",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/half-yearly-complaints-data-h1-2025",
+            "title": "Half-yearly complaints data: H1 2025 – Financial Ombudsman service",
+            "accessedAt": "2026-09-11"
+          },
+          {
+            "url": "https://ie.linkedin.com/company/outsurance-ireland",
+            "title": "OUTsurance Ireland",
+            "accessedAt": "2026-09-11"
+          }
+        ],
+        "factsVersion": 2,
+        "priorPackIds": [
+          "cmtvknbpe002dkwozlhiav3c3"
+        ],
+        "knowledgeArticles": [
+          "overview",
+          "roadmap",
+          "architecture",
+          "integrations",
+          "icp",
+          "competitors",
+          "brand-voice",
+          "decisions",
+          "known-issues"
+        ]
+      }
+    },
+    "outcome": "partial",
+    "partial": true,
+    "missingModules": [
+      "repSummary",
+      "execSummary",
+      "m01",
+      "m02",
+      "m03",
+      "m05",
+      "m06",
+      "m07",
+      "m08",
+      "m09",
+      "m10",
+      "m11",
+      "m12",
+      "m13",
+      "m15",
+      "m16",
+      "m17",
+      "m18"
+    ]
+  },
+  "report": {
+    "rails": {
+      "maxFetches": 60,
+      "maxSeconds": 5400,
+      "maxSearches": 120,
+      "maxSpendUsd": 50,
+      "maxModelSteps": 200,
+      "maxFetchedChars": 400000
+    },
+    "models": {
+      "research": "claude-opus-5",
+      "synthesis": "claude-sonnet-5"
+    },
+    "actuals": {
+      "runs": 3,
+      "costUsd": 5.851957,
+      "fetches": 13,
+      "searches": 34,
+      "tokensIn": 2903808,
+      "tokensOut": 81003,
+      "modelSteps": 31,
+      "fetchedChars": 81198,
+      "tokensCached": 2477513,
+      "activeSeconds": 991,
+      "elapsedSeconds": 993,
+      "unfinishedRuns": []
+    },
+    "demoted": [],
+    "endings": [
+      {
+        "phase": "research",
+        "ending": "answer"
+      },
+      {
+        "phase": "synthesis",
+        "ending": "answer"
+      },
+      {
+        "phase": "synthesis",
+        "ending": "answer"
+      }
+    ],
+    "reasked": [
+      [
+        "m14"
+      ]
+    ],
+    "attempts": 3,
+    "provenance": [
+      {
+        "total": 45,
+        "failed": [
+          {
+            "id": "m04-c-gb-travel-claims-delegated",
+            "text": "In Great Britain the same pattern appears: AllClear tells customers that its claims handler is Gallagher Bassett, and Voyager Insurance states that all Voyager Plus claims are handled by Gallagher Bassett.",
+            "module": "m04",
+            "reason": "fewer than two of its distinctive words on the page (appears, bassett, pattern)"
+          },
+          {
+            "id": "sig-mawdy-ireland",
+            "text": "As at 11 September 2026 MAWDY was advertising a travel claims handler role in its Galway claims department, with the duties listed as assessing claims against policy terms, handling customer calls and correspondence to standards set by a Team Leader, identifying potential complaints and referring them to a complaints officer, and working in accordance with the Consumer Protection Code; separately, three Irish travel brands direct claims to MAWDY Travel Claims in Galway, so this one desk carries the telephone complaint risk of several brands at once.",
+            "module": "m04",
+            "reason": "cited number not on the page (2026)"
+          },
+          {
+            "id": "m14-c-size-trap-drops",
+            "text": "Claims Consortium Group's trade-body entry states 330 people across multiple sites and Hood Group's public company profile states 201-500 employees, both above the product's 250-seat band on published headcount.",
+            "module": "m14",
+            "reason": "cited number not on the page (250)"
+          },
+          {
+            "id": "m14-c-new-ie-seeds",
+            "text": "MAWDY Ireland, Cover-More Blue Insurance Services (Blue Insurance), KennCo Underwriting, Pen Underwriting Ireland and OUTsurance DAC are new seed firms in the Republic of Ireland, each with a page found this run confirming its Irish claims or underwriting operation.",
+            "module": "m14",
+            "reason": "fewer than two of its distinctive words on the page (republic, operation, found)"
+          },
+          {
+            "id": "m14-c-new-gb-seeds",
+            "text": "ClaimSorted and Just Travel Cover are new Great Britain seed firms found this run, neither of which appeared in the prior pack.",
+            "module": "m14",
+            "reason": "fewer than two of its distinctive words on the page (prior, britain, found)"
+          }
+        ],
+        "passed": 40,
+        "modules": [
+          {
+            "total": 39,
+            "failed": [
+              {
+                "id": "m04-c-gb-travel-claims-delegated",
+                "text": "In Great Britain the same pattern appears: AllClear tells customers that its claims handler is Gallagher Bassett, and Voyager Insurance states that all Voyager Plus claims are handled by Gallagher Bassett.",
+                "module": "m04",
+                "reason": "fewer than two of its distinctive words on the page (appears, bassett, pattern)"
+              },
+              {
+                "id": "sig-mawdy-ireland",
+                "text": "As at 11 September 2026 MAWDY was advertising a travel claims handler role in its Galway claims department, with the duties listed as assessing claims against policy terms, handling customer calls and correspondence to standards set by a Team Leader, identifying potential complaints and referring them to a complaints officer, and working in accordance with the Consumer Protection Code; separately, three Irish travel brands direct claims to MAWDY Travel Claims in Galway, so this one desk carries the telephone complaint risk of several brands at once.",
+                "module": "m04",
+                "reason": "cited number not on the page (2026)"
+              }
+            ],
+            "module": "m04",
+            "passed": 37,
+            "fraction": 0.05128205128205128,
+            "rejected": false
+          },
+          {
+            "total": 6,
+            "failed": [
+              {
+                "id": "m14-c-size-trap-drops",
+                "text": "Claims Consortium Group's trade-body entry states 330 people across multiple sites and Hood Group's public company profile states 201-500 employees, both above the product's 250-seat band on published headcount.",
+                "module": "m14",
+                "reason": "cited number not on the page (250)"
+              },
+              {
+                "id": "m14-c-new-ie-seeds",
+                "text": "MAWDY Ireland, Cover-More Blue Insurance Services (Blue Insurance), KennCo Underwriting, Pen Underwriting Ireland and OUTsurance DAC are new seed firms in the Republic of Ireland, each with a page found this run confirming its Irish claims or underwriting operation.",
+                "module": "m14",
+                "reason": "fewer than two of its distinctive words on the page (republic, operation, found)"
+              },
+              {
+                "id": "m14-c-new-gb-seeds",
+                "text": "ClaimSorted and Just Travel Cover are new Great Britain seed firms found this run, neither of which appeared in the prior pack.",
+                "module": "m14",
+                "reason": "fewer than two of its distinctive words on the page (prior, britain, found)"
+              }
+            ],
+            "module": "m14",
+            "passed": 3,
+            "fraction": 0.5,
+            "rejected": true
+          }
+        ],
+        "fraction": 0.1111111111111111,
+        "rejected": true
+      },
+      {
+        "total": 45,
+        "failed": [
+          {
+            "id": "m04-c-gb-travel-claims-delegated",
+            "text": "In Great Britain the same pattern appears: AllClear tells customers that its claims handler is Gallagher Bassett, and Voyager Insurance states that all Voyager Plus claims are handled by Gallagher Bassett.",
+            "module": "m04",
+            "reason": "fewer than two of its distinctive words on the page (appears, bassett, pattern)"
+          },
+          {
+            "id": "sig-mawdy-ireland",
+            "text": "As at 11 September 2026 MAWDY was advertising a travel claims handler role in its Galway claims department, with the duties listed as assessing claims against policy terms, handling customer calls and correspondence to standards set by a Team Leader, identifying potential complaints and referring them to a complaints officer, and working in accordance with the Consumer Protection Code; separately, three Irish travel brands direct claims to MAWDY Travel Claims in Galway, so this one desk carries the telephone complaint risk of several brands at once.",
+            "module": "m04",
+            "reason": "cited number not on the page (2026)"
+          },
+          {
+            "id": "m14-c-new-ie-seeds",
+            "text": "MAWDY Ireland, Blue Insurance, KennCo Underwriting, Pen Underwriting Ireland and OUTsurance DAC are five new seed firms in Ireland, each with its own page read this run: MAWDY's careers page, Blue Insurance's contact page, KennCo's homepage, Pen Underwriting Ireland's about-us page and OUTsurance's homepage.",
+            "module": "m14",
+            "reason": "fewer than two of its distinctive words on the page (homepage, five, blue)"
+          }
+        ],
+        "passed": 42,
+        "modules": [
+          {
+            "total": 39,
+            "failed": [
+              {
+                "id": "m04-c-gb-travel-claims-delegated",
+                "text": "In Great Britain the same pattern appears: AllClear tells customers that its claims handler is Gallagher Bassett, and Voyager Insurance states that all Voyager Plus claims are handled by Gallagher Bassett.",
+                "module": "m04",
+                "reason": "fewer than two of its distinctive words on the page (appears, bassett, pattern)"
+              },
+              {
+                "id": "sig-mawdy-ireland",
+                "text": "As at 11 September 2026 MAWDY was advertising a travel claims handler role in its Galway claims department, with the duties listed as assessing claims against policy terms, handling customer calls and correspondence to standards set by a Team Leader, identifying potential complaints and referring them to a complaints officer, and working in accordance with the Consumer Protection Code; separately, three Irish travel brands direct claims to MAWDY Travel Claims in Galway, so this one desk carries the telephone complaint risk of several brands at once.",
+                "module": "m04",
+                "reason": "cited number not on the page (2026)"
+              }
+            ],
+            "module": "m04",
+            "passed": 37,
+            "fraction": 0.05128205128205128,
+            "rejected": false
+          },
+          {
+            "total": 6,
+            "failed": [
+              {
+                "id": "m14-c-new-ie-seeds",
+                "text": "MAWDY Ireland, Blue Insurance, KennCo Underwriting, Pen Underwriting Ireland and OUTsurance DAC are five new seed firms in Ireland, each with its own page read this run: MAWDY's careers page, Blue Insurance's contact page, KennCo's homepage, Pen Underwriting Ireland's about-us page and OUTsurance's homepage.",
+                "module": "m14",
+                "reason": "fewer than two of its distinctive words on the page (homepage, five, blue)"
+              }
+            ],
+            "module": "m14",
+            "passed": 5,
+            "fraction": 0.1666666666666667,
+            "rejected": false
+          }
+        ],
+        "fraction": 0.06666666666666667,
+        "rejected": false
+      }
+    ],
+    "firstIngestIssues": [],
+    "insufficientModules": []
+  },
+  "run": {
+    "steps": 96,
+    "modelSteps": 31,
+    "toolSteps": 65,
+    "moduleWrites": 6,
+    "attempts": 3,
+    "cost": "5.851957",
+    "runsCostTotal": "5.851957",
+    "durationMs": 992751,
+    "jobId": "5c7f07f7-7954-4599-8d9a-7077ee3e5473",
+    "eventId": "cmtwwux3d005lkwfgquqmrdas",
+    "actuals": {
+      "runs": 3,
+      "searches": 34,
+      "fetches": 13,
+      "fetchedChars": 81198,
+      "modelSteps": 31,
+      "tokensIn": 2903808,
+      "tokensOut": 81003,
+      "tokensCached": 2477513,
+      "costUsd": 5.851957,
+      "elapsedSeconds": 993,
+      "activeSeconds": 991,
+      "unfinishedRuns": []
+    }
+  },
+  "record": [
+    {
+      "run": 0,
+      "name": "facts"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "knowledge"
+    },
+    {
+      "run": 0,
+      "name": "priorPacks"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m00",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "decideScope",
+      "verdict": "continue",
+      "accepted": true
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "fetch"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "search"
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m04",
+      "accepted": false
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m04",
+      "accepted": false
+    },
+    {
+      "run": 0,
+      "name": "writeModule",
+      "module": "m04",
+      "accepted": true
+    },
+    {
+      "run": 1,
+      "name": "writeModule",
+      "module": "m14",
+      "accepted": true
+    },
+    {
+      "run": 2,
+      "name": "writeModule",
+      "module": "m14",
+      "accepted": true
+    }
+  ],
+  "error": null,
+  "rejectedIssues": null,
+  "rubric": [
+    {
+      "check": 1,
+      "name": "Schema and derived confidence",
+      "verdict": "pass",
+      "detail": "33 items parsed; none above its ceiling"
+    },
+    {
+      "check": 2,
+      "name": "Coverage",
+      "verdict": "pass",
+      "detail": "targeted run: m00, m04, m14 complete"
+    },
+    {
+      "check": 3,
+      "name": "Provenance",
+      "verdict": "pass",
+      "detail": "3 of 45 claims demoted (7%); the cap is 10%"
+    },
+    {
+      "check": 4,
+      "name": "Buyer words",
+      "verdict": "n/a",
+      "detail": "targeted run without m06"
+    },
+    {
+      "check": 5,
+      "name": "Recency",
+      "verdict": "pass",
+      "detail": "no strong dated claim older than twelve months (10 checked)"
+    },
+    {
+      "check": 6,
+      "name": "Domain spread",
+      "verdict": "pass",
+      "detail": "every module inside the cap; seed firms from two or more sources"
+    },
+    {
+      "check": 7,
+      "name": "Contradictions",
+      "verdict": "n/a",
+      "detail": "targeted run without m17"
+    },
+    {
+      "check": 8,
+      "name": "Insufficient path",
+      "verdict": "n/a",
+      "detail": "not a thin brief"
+    },
+    {
+      "check": 9,
+      "name": "Replay",
+      "verdict": "n/a",
+      "detail": "its own test: tests/worker/research.test.ts (a kill mid-run replays every stored call)"
+    },
+    {
+      "check": 10,
+      "name": "Widening",
+      "verdict": "pass",
+      "detail": "2 of 11 prior seed firm(s) retained (S&G Response Ltd, Sabre Insurance Group plc); 8 new, 5 in IE"
+    },
+    {
+      "check": 11,
+      "name": "Cost and time",
+      "verdict": "pass",
+      "detail": "34 searches, 13 fetches, 81k chars, 31 steps, 993s, $5.8520"
+    },
+    {
+      "check": 12,
+      "name": "Depth against the bar",
+      "verdict": "n/a",
+      "detail": "The product owner reads brief A against Signal's May insurance pack and brief E against the legal exemplar"
+    },
+    {
+      "check": 13,
+      "name": "Plan-card view",
+      "verdict": "pass",
+      "detail": "0 kind(s) of buyer, 10 firm(s) on the cards"
+    },
+    {
+      "check": 14,
+      "name": "Scope held",
+      "verdict": "pass",
+      "detail": "10 seed firm(s) and 4 recipe(s) inside the scope (countries, roles)"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "FCA complaints data insurance firms half year",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T14:37:19.417Z"
+}

@@ -1,6 +1,7 @@
 import type { Job, PrismaClient } from "@prisma/client";
 
 import { echo } from "@/worker/handlers/echo";
+import { research } from "@/worker/handlers/research";
 import { noop } from "@/worker/handlers/noop";
 import { sleep } from "@/worker/handlers/sleep";
 import { stubDraft } from "@/worker/handlers/stubDraft";
@@ -51,6 +52,7 @@ export const handlers: Record<string, Handler> = {
   noop,
   sleep,
   echo,
+  research,
   stub_draft: stubDraft,
   stub_send: stubSend,
 };

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "conveyancing firm update calls clients chasing \"phone\" burden fee earners Today's Conveyancer",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "How UK Conveyancing Firms Can Reduce Client Update Calls",
+        "url": "https://nudgetech.co.uk/reduce-client-update-calls.html",
+        "snippet": "On a typical conveyancing desk, a fee earner loses 2–3 hours per day to update calls, chasers and status emails — time fragmented across the"
+      },
+      {
+        "title": "Call Answering for Conveyancers During Peak Periods | Face For ...",
+        "url": "https://ffb.co.uk/blog/conveyancing-firms-how-to-handle-the-phone-during-peak-completion-periods",
+        "snippet": "Fee earners are managing simultaneous exchanges, chasing telegraphic transfers, handling last-minute queries from estate agents and fielding calls from clients"
+      },
+      {
+        "title": "Why Your Best Conveyancer Is About To Quit (And How To Stop It)",
+        "url": "https://www.linkedin.com/pulse/why-your-best-conveyancer-quit-how-stop-tellida-vlpxc",
+        "snippet": "Sending regular client updates (so your fee earner doesn't have to). Searches don't sit. Information doesn't get lost. Clients know what's"
+      },
+      {
+        "title": "Good service is harder to see when the process remains hidden",
+        "url": "https://todaysconveyancer.co.uk/good-service-harder-see-process-remains-hidden",
+        "snippet": "24% had to chase their solicitor or conveyancer for updates. costly and sometimes difficult. not every update requires a telephone call or"
+      },
+      {
+        "title": "Conveyancers should contact clients 'even if there are no updates'",
+        "url": "https://www.lawgazette.co.uk/news/conveyancers-should-contact-clients-even-if-there-are-no-updates/5126386.article",
+        "snippet": "Yes, conveyancers should keep in regular touch even if there is no actual progress to report. if fees are constantly reduced, then the service"
+      },
+      {
+        "title": "Quotes? What quotes? Most conveyancing firms refuse to give them ...",
+        "url": "https://www.legalfutures.co.uk/latest-news/quotes-what-quotes-most-conveyancing-firms-refuse-to-give-them-over-the-phone",
+        "snippet": "Some 60% of conveyancing firms refuse to give fee quotes over the phone and, whether they do or not, the majority then fail to follow-up"
+      },
+      {
+        "title": "We provide a fixed cost conveyancing service to clients all over ...",
+        "url": "https://www.facebook.com/groups/1009655995792755/posts/25635487869449559",
+        "snippet": "We provide a fixed cost conveyancing service to clients all over England (not Scotland or Wales). We offer clear communications and a personal"
+      },
+      {
+        "title": "DMA Law - Facebook",
+        "url": "https://www.facebook.com/dmalawfirm/posts/-no-two-days-in-conveyancing-are-ever-quite-the-samebehind-every-property-transa/1618778490252425",
+        "snippet": "No two days in conveyancing are ever quite the same. Behind every property transaction is a team working hard to keep things progressing,"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:06:02.143Z"
+}

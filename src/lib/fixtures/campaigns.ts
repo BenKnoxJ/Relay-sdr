@@ -1,8 +1,7 @@
-import {
-  researchOutputSchema,
-  type ResearchPack,
-} from "../../../agents/research/output.schema";
-import goodPack from "../../../agents/research/fixtures/output.good.json";
+import { z } from "zod";
+
+import { itemSchema, planCardsSchema, type Item, type PlanCards } from "../../../agents/research/output.schema";
+import samplePack from "./research-plan.json";
 
 import {
   answersFor,
@@ -29,11 +28,30 @@ import {
  * writes nothing. And it spends nothing: `confirmPlan` and `startResearch` are
  * not here at all, because on fixtures they change a screen and not a campaign.
  *
- * The research pack is the **real** parsed output of the signed research
- * contract (`agents/research/output.schema.ts`), not a shape invented for the
- * page. It is parsed at module load, so a pack the contract would reject fails
- * the build rather than rendering as a page with quiet gaps.
+ * The research each page shows is the signed research contract's own
+ * plan-card view (`planCardsSchema`, research v3 §3 "Derived views"), not a
+ * shape invented for the page. It is parsed at module load, so a view the
+ * contract would reject fails the build rather than rendering as a page with
+ * quiet gaps.
  */
+
+/** What the campaign page draws from the research: the plan-card view, and on a stop the items the stop cites. */
+export type CampaignPack = PlanCards & { stopEvidence?: Item[] };
+
+/**
+ * A plan-card view from a sample pack in the cards' own shape, parsed by the
+ * view's contract: the recipe gets lead gen's excluded titles (none here) and
+ * the view its completeness fields.
+ */
+export function toPlanView(raw: unknown): PlanCards {
+  const pack = structuredClone(raw) as Record<string, unknown> & { recipe?: Record<string, unknown> };
+  return planCardsSchema.parse({
+    ...pack,
+    ...(pack.recipe === undefined ? {} : { recipe: { excludeTitles: [], ...pack.recipe } }),
+    partial: false,
+    missingModules: [],
+  });
+}
 
 export type BriefFields = {
   product: string;
@@ -64,7 +82,7 @@ export type CampaignSummary = {
 export type Campaign = CampaignSummary & {
   brief: BriefFields;
   /** The research behind the plan. Absent while research is still reading. */
-  pack: ResearchPack | null;
+  pack: CampaignPack | null;
   plan: {
     people: number;
     companies: number;
@@ -111,8 +129,8 @@ export const HOW_LONG = [2, 3, 4, 6] as const;
  * edited under `agents/` to do this — the fixture there stays the research
  * agent's, and this is the page's own copy of it.
  */
-function planPack(): ResearchPack {
-  const raw = structuredClone(goodPack) as Record<string, unknown>;
+function planPack(): CampaignPack {
+  const raw = structuredClone(samplePack) as Record<string, unknown>;
   const archetypes = raw.archetypes as { pains: unknown[] }[];
   const first = archetypes[0];
   if (first === undefined) throw new Error("the research fixture has no groups to render");
@@ -152,20 +170,33 @@ function planPack(): ResearchPack {
     },
   );
 
-  return researchOutputSchema.parse(raw);
+  return toPlanView(raw);
 }
 
 /**
  * The pack behind the research stop.
  *
- * Same pack with an `insufficient` block, because the contract keeps a pack
- * whole and puts the stop inside it (§3, `insufficientSchema`): what was found,
- * and exactly three widenings. The stop screen reads only that block.
+ * Same view with the research v3.2 stop (§10 note 28): why Relay stopped, the
+ * ids of the evidence it rests on, and one to three genuine widening options.
+ * The stop cites its evidence by id; here the two items it cites ride beside
+ * it as `stopEvidence`, which is what the stop card draws under "What it did
+ * find". The stop screen reads only these.
  */
-function stoppedPack(): ResearchPack {
-  const raw = structuredClone(goodPack) as Record<string, unknown>;
-  raw.insufficient = {
-    found: [
+function stoppedPack(): CampaignPack {
+  const view = planCardsSchema.parse({
+    ...toPlanView(samplePack),
+    insufficient: {
+      reason: "Too few independent practices of this size in Scotland show any sign of the pain.",
+      evidenceIds: ["found-triage", "found-no-press"],
+      widenings: [
+        { dimension: "region", text: "Look at the whole of the United Kingdom rather than Scotland alone.", scopePatch: { countries: ["GB"], places: null } },
+        { dimension: "size", text: "Look at every practice with three or more sites rather than four to six.", scopePatch: { size: { unit: "sites", min: 3 } } },
+        { dimension: "sector", text: "Look at practice groups as well as independent practices.", scopePatch: { orgTypes: ["independent veterinary practice", "veterinary practice group"] } },
+      ],
+      decidedAt: "2026-09-08T10:00:00Z",
+    },
+  });
+  const stopEvidence = z.array(itemSchema).parse([
       {
         id: "found-triage",
         text: "Three independent practices with four to six sites, all three listing out of hours triage as a service.",
@@ -182,14 +213,8 @@ function stoppedPack(): ResearchPack {
         confidence: "speculative",
         inferredFrom: "eleven searches that returned nothing datable",
       },
-    ],
-    widenings: [
-      { kind: "region", text: "Look at the whole of the United Kingdom rather than Scotland alone." },
-      { kind: "size", text: "Look at every practice with three or more sites rather than four to six." },
-      { kind: "pain", text: "Name the pain yourself and Relay will look for evidence of it." },
-    ],
-  };
-  return researchOutputSchema.parse(raw);
+  ]);
+  return { ...view, stopEvidence };
 }
 
 const PLAN_PACK = planPack();

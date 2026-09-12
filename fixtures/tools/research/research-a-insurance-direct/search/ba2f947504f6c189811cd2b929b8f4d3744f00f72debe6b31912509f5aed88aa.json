@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance complaints handler \"we are drowning\" OR \"backlog\" reddit UK insurer complaints team workload",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:14:14.003Z"
+}

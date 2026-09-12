@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"West Midlands\" OR \"East Midlands\" managed print provider also 3CX telephony reseller business systems",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "3CX Phone Systems for Businesses | VOIP Provider - Minster Micro",
+        "url": "https://www.minstermicro.co.uk/it-services-and-support/3cx-phone-systems",
+        "snippet": "At Minster Micro Computers we provide fully managed 3CX phone systems designed to modernise the way you communicate within your business."
+      },
+      {
+        "title": "3CX Resellers - Cloud PBX - Phone System Providers",
+        "url": "https://www.3cx.com/reseller/west-midlands/pbx-phone-system-wolverhampton",
+        "snippet": "Cube Ltd +44 7957 286216. Perfectly situated in the heart of the West Midlands ・ our certified resellers ・ telephony solutions throughout the region."
+      },
+      {
+        "title": "3CX Phone Systems Birmingham & West Midlands - CyberBITS",
+        "url": "https://www.cyberbits.co.uk/services/3cx-phone-systems",
+        "snippet": "We're a 3CX Partner supporting SMEs across the West Midlands and South Staffordshire, including Birmingham, Wolverhampton, Walsall, Cannock and Stafford. A"
+      },
+      {
+        "title": "Business VoIP Phone Systems | 3CX Partner | CSLN Group",
+        "url": "https://cslngroup.com/business-voip-phone-systems",
+        "snippet": "We're not just another VoIP reseller. CSLN Group combines managed IT support expertise with specialist telecoms knowledge, giving you a single provider for your entire technology stack. Our partnership with Spitfire Network Services — one of the UK's leading independent network providers — means we deliver VoIP over business-grade connectivity, not consumer broadband. [...] Authorised 3CX Partner — certified to design, deploy, and support 3CX systems\n Spitfire Network Services Partner — VoIP delivered over dedicated, quality-assured connectivity\n Single Provider — IT support, cybersecurity, connectivity, and telecoms from one team\n UK-Wide Support — remote and on-site support from our offices in Kings Lynn, Cambridge, and Norwich\n Extended Hours — support available 6am–10pm, seven days a week\n\n## Our Business VoIP Phone Systems [...] For organisations that require full control over their telephony infrastructure, we deploy and manage on-premise 3CX systems. This is ideal for businesses with strict data sovereignty requirements, large call volumes, or existing server infrastructure.\n\n Installed on your own hardware or virtual machine\n Full control over call data and recordings\n Lower per-user costs at scale\n Managed and maintained remotely by CSLN Group\n\n### SIP Trunking"
+      },
+      {
+        "title": "VoIP Phones - CDS Office Technologies",
+        "url": "https://www.cdsofficetech.com/managed-it-services/unified-communications/voip-phone-systems",
+        "snippet": "CDS is a 3CX Titanium Partner Cloud hosted phone systems are flexible, powerful, and reliable. Contact CDS today to talk about cloud hosted business phone"
+      },
+      {
+        "title": "List of 3CX Partners in the UK - Cloudtango",
+        "url": "https://www.cloudtango.net/3cx/uk",
+        "snippet": "List of 3CX Partners servicing and implementing unified communications and VoIP solutions for businesses in the UK."
+      },
+      {
+        "title": "3CX: Enterprise Phone System Software",
+        "url": "https://www.3cx.com",
+        "snippet": "Skip to content\n\n3CX Logo [...] ### Windows Softphone V5.7: One-Click Desktop App Migration\n\nCategories: Product Releases\n\n## Choose 3CX your business\n\nEnterprise On Premise Self-hosted 3CX Hosted Contact Center Small Business\n\n Enterprise\n On Premise\n Self-hosted\n 3CX Hosted\n Contact Center\n Small Business\n\nDiscount 30%-fb\n\n### Easily managed enterprise phone system with built-in Agentic AI [...] A powerful, all-in-one business phone system and contact center solution crafted for companies with 25+ users. Now featuring Agentic AI to handle call routing, screening and 24/7 support. Manage it on-premise, in your private cloud for total data sovereignty or hosted if you prefer - all for one flat annual rate. No per-user costs, no third party data uploads - just secure, AI driven communications under your control.\n\nExplore AI phone system\n\nHosted\n\nOn premise\n\nSelf-hosted\n\nSMB"
+      },
+      {
+        "title": "How to buy 3CX - contact one of our VoIP Resellers",
+        "url": "https://www.3cx.com/ordering/find-reseller",
+        "snippet": "# 3CX Partners\n\n3CX sells through its channel partners. We have a worldwide network of partners who are well-trained in installing and supporting 3CX either in the cloud or on-premise. Find a 3CX Partner near you to check out the unique features of 3CX today! If you are searching for a 3CX Distributor near you, you can find one here.\n\n### 20 Years of VoIP Industry Leadership\n\n20 Years of VoIP  \nIndustry Leadership [...] 3CX Logo\nLink Icon\nLink Icon\nLink Icon\nLink Icon\nLogin\n\nLogin\n\nAdmin Manual Icon\n\n3CX Phone System | Main Features\n\n### Easy set up\n\nArrow Right\n\n### Do-it-yourself admin\n\nArrow Right\n\n### Cut call costs\n\nArrow Right\n\n### Hosted or DIY\n\nArrow Right\n\n# 3CX Partners [...] Founded in 2005, when VoIP was an emerging technology, 3CX has gone on to establish itself as a global leader in business communications.\n\n## Company\n\nAbout 3CX  \nCareers  \nPartners  \nAwards  \nCase Studies  \nTestimonials  \nGlobal Sites  \nContact Us\n\n## Solutions\n\nEnterprise PBX  \nSmall Business  \nContact Center  \nMulti-tenant PBX  \nHotel PBX  \nEducation  \nHealthcare  \nAutomotive\n\n## Useful Links"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:26:07.128Z"
+}

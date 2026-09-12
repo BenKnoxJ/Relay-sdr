@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"head of customer relations\" OR \"complaints\" insurer interview Insurance Post 2026 \"we get\" volumes",
+    "region": "GB",
+    "recencyMonths": 18,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T15:03:11.681Z"
+}

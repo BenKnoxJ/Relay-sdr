@@ -1,0 +1,13 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"Legal Ombudsman\" model complaints resolution procedure 2026 law firms first-tier requirement",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-09T16:06:27.332Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance claims operations director says complaints \"listening to calls\" quality checks resource",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Complaints Handling, Claims Operations & DISP Support | TCC",
+        "url": "https://tcc.group/complaints-claims-handling",
+        "snippet": "Our engagements are designed around the operational realities of handling complaints and claims. We assess complaint drivers, case-handling processes, service-level performance, quality assurance frameworks and management information. Depending on requirements, we can provide managed complaint handling, claims administration support, operational leadership, complaint quality assurance or specialist resources to augment existing teams.\n3. 03\n\n   ### What do clients receive? [...] Organisations typically seek support when complaint backlogs grow, service levels come under pressure, quality assurance concerns emerge or claims operations require additional capacity. Many also need help strengthening complaint governance, enhancing management information, identifying root causes and delivering large-scale complaint or remediation programmes. TCC combines operational expertise, managed delivery and specialist resources to help firms improve complaint and claims handling [...] Yes. Through our specialist resourcing capability, we can provide complaint handlers, team leaders, quality assurance specialists, operational managers and subject matter experts to support short-term peaks or long-term programmes.\n\nHow can complaint data support Consumer Duty?\n\nComplaint trends can help firms identify customer outcome risks, assess foreseeable harm, review customer journeys and improve support arrangements across the product lifecycle."
+      },
+      {
+        "title": "Complaints and root cause analysis: good practice and areas for improvement | FCA",
+        "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
+        "snippet": "Smaller firms might consider using checks to test whether issues are being missed. For example, they could listen to a sample of customer calls, review a small number of completed customer journeys, or ask customer-facing staff to discuss recent examples where customers appeared confused, dissatisfied, vulnerable or at risk of harm. [...] A proportionate approach may involve greater focus on recurring issues or risks and compare what happens before and after changes are implemented. This coupled with other mechanisms could support better monitoring. For example, if a firm changes a customer communication because customers were misunderstanding it, the firm could review a small sample of later customer interactions, listen to relevant calls, or ask staff whether customers are still raising the same issue. [...] Some complaints data reports appeared to be prepared for operational discussions, for example to ensure the organisation had the right resource to answer complaints, rather than also considering how the data can help inform where the firm can improve customer outcomes. Limited or no analysis had been done to draw out themes or symptoms of complaints, root causes or preventative actions.\n\nSmaller firms"
+      },
+      {
+        "title": "Call Quality Monitoring Best Practices for Contact Centres - Voyc AI",
+        "url": "https://voyc.ai/call-quality-monitoring-best-practices-contact-centre",
+        "snippet": "Incorporate customer feedback into the call quality monitoring process to gain insight into their preferences and experiences. Actively listening to your customers enables you to identify complaints, recognise possible indicators of customer vulnerability, and swiftly address issues before they escalate.\n\n### \n\n### 11. Analyse and act on data [...] Also known as Quality Assurance(QA), call quality monitoring is a process employed in contact centres to assess interactions between agents and customers. This involves reviewing customer calls to evaluate factors that impact the overall customer experience such as: agent professionalism, adherence to company policies, agent knowledge and training gaps, differences in the standard of service offered and more. At its core, call quality monitoring determines whether a customer-facing team is [...] efficiency but also pinpoints complaints, safeguards vulnerable customers, and elevates the overall customer experience."
+      },
+      {
+        "title": "Are calls really monitored for \"quality and security purposes\" or do ...",
+        "url": "https://www.reddit.com/r/AskBrits/comments/1pf7o3k/are_calls_really_monitored_for_quality_and",
+        "snippet": "I once worked as a quality manager and had to listen to calls and give feedback to operators. Pick up on their faults give them tips on how"
+      },
+      {
+        "title": "Call Quality Monitoring Jobs (with Salaries) | Indeed United Kingdom",
+        "url": "https://uk.indeed.com/q-call-quality-monitoring-jobs.html",
+        "snippet": "Conduct regular call listening and quality assurance checks. Monitor call quality, productivity, donor retention and overall caller performance."
+      },
+      {
+        "title": "Why do insurance and other companies say they are recording your ...",
+        "url": "https://www.quora.com/Why-do-insurance-and-other-companies-say-they-are-recording-your-call-for-quality-purposes-but-if-you-say-thats-okay-I-am-too-they-say-they-cannot-talk-to-you-if-you-are-recording-the-call",
+        "snippet": "When a company records a phone call for \"training and quality purposes\" what do they actually do with the recordings and how long do they"
+      },
+      {
+        "title": "Call Center Quality Assurance: Everything You Need to Know",
+        "url": "https://www.qualtrics.com/articles/customer-experience/call-center-quality-assurance",
+        "snippet": "Quality assurance (often abbreviated to QA) is the act of ensuring your various services are meeting (or exceeding) the standards of quality you’ve set out for them. This often includes monitoring and evaluating customer service calls, chats, and other interactions between your agents and your customers. [...] Using AI to monitor customer satisfaction and sentiment during contact center calls is great, but that active listening and processing power should also be pointed at social media platforms, third-party review sites, chatbots, and emails alike. It’s only by getting a clear view of customer interactions across mediums that you’ll be able to make decisive, beneficial changes to the overall customer experience.\n\n## Call center quality management, the easy way [...] In fact, there are a couple of key ways in which putting a greater focus on customer satisfaction and call center quality monitoring can yield operational results:\n\n### Boosting agent effectiveness in call centers"
+      },
+      {
+        "title": "18 best practices for call center quality assurance - Aircall",
+        "url": "https://aircall.io/en-gb/blog/customer-happiness/call-center-quality-assurance",
+        "snippet": "Listen to or read a sample of customer conversations and score them using a clear, consistent rubric."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:13:14.946Z"
+}

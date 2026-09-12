@@ -1,0 +1,11 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://uk.linkedin.com/jobs/view/insurance-complaints-handler-at-keystone-4462173052"
+  },
+  "response": {
+    "unreadable": true,
+    "reason": "firecrawl: HTTP 403"
+  },
+  "recordedAt": "2026-09-09T14:53:15.787Z"
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "managed print dealers diversifying into managed services UK",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Managed Print Services vs. Managed IT - Print in the Channel",
+        "url": "https://printinthechannel.co.uk/managed-print-services-vs-managed-it-navigating-the-convergence-for-growth",
+        "snippet": "With print volumes down, managed print services providers are diversifying into managed IT services, leveraging existing client relationships"
+      },
+      {
+        "title": "Managed Print Services | DTP Group",
+        "url": "https://dtpgroup.co.uk/managed-print-services",
+        "snippet": "DTP provides sustainable, flexible and transparent Managed Print Services to our customers across the UK and Europe."
+      },
+      {
+        "title": "Managed Print Services - SCC UK",
+        "url": "https://www.scc.com/solutions/digital-workplace/managed-print-services",
+        "snippet": "Managed print services: device consolidation, secure release printing, fleet management and 30-50% cost reduction with improved security."
+      },
+      {
+        "title": "Managed Print Services - Alternative Managed Services",
+        "url": "https://alternative.uk.com/services/managed-print-services",
+        "snippet": "Managed Print Services includes; Fleet procurement, installation, and re-siting Systems auditing and optimisation Total management of document flows"
+      },
+      {
+        "title": "Managed Print Services (MPS) - Evolve Business Solutions",
+        "url": "https://evolve-businesssolutions.co.uk/services/managed-print-services",
+        "snippet": "We provide full managed print solutions designed to bring efficiency, security, and cost control to businesses across Suffolk, Essex and Norfolk, and the wider"
+      },
+      {
+        "title": "Managed Print Services for Enterprise | Sharp Business",
+        "url": "https://www.sharp.co.uk/enterprise-managed-print",
+        "snippet": "Effectively manage large and dispersed print networks through tailored Managed Print Services designed for enterprise-level and corporate businesses."
+      },
+      {
+        "title": "Managed Print Services: Rethinking print in the digital age - Xenith",
+        "url": "https://www.xenith.co.uk/blog/managed-print-services-rethinking-print-in-the-digital-age",
+        "snippet": "Managed Print Services have evolved from supporting hard-copy devices, to supporting the document lifecycle within companies."
+      },
+      {
+        "title": "What is Managed Print Services? Using MPS for Your Business",
+        "url": "https://www.aurora.co.uk/what-is-managed-print-services-using-mps-for-your-business",
+        "snippet": "Managed Print Services (MPS) are services from external providers, aiming to optimise and manage a company's document output."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:24:38.727Z"
+}

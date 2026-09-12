@@ -13,7 +13,6 @@ import { z } from "zod";
  */
 
 export const MOTIONS = ["direct", "channel"] as const;
-export const BREADTHS = ["narrow", "standard", "wide"] as const;
 
 /** ISO-3166 alpha-2, upper case. Country names are a screen concern (§10). */
 export const regionSchema = z.string().regex(/^[A-Z]{2}$/, "region is an ISO-3166 alpha-2 code");
@@ -39,6 +38,36 @@ export const productFactsSchema = z
   })
   .strict();
 
+const scopeTerm = z.string().min(1).max(200);
+
+/**
+ * The rep's scope, structured (v3.2, §10 note 28). Every field is optional:
+ * only what the rep supplied is a constraint, and `who` stays the rep's words
+ * beside it. The orchestrator will derive this from the campaign request; the
+ * bench briefs carry it by hand. `countries` defaults to the brief's `region`.
+ */
+export const scopeSchema = z
+  .object({
+    countries: z.array(regionSchema).min(1).max(10).optional(),
+    /** Sub-national places, e.g. Orkney, with the other names a page may use for it. */
+    places: z.array(z.object({ name: scopeTerm, aliases: z.array(scopeTerm).max(10).optional() }).strict()).min(1).max(20).optional(),
+    /** What the buying organisation is, e.g. "veterinary practice". */
+    orgTypes: z.array(scopeTerm).min(1).max(20).optional(),
+    /** The rep's size band. Only an employee band can be checked against a firm; seats and sites are judged. */
+    size: z
+      .object({ unit: z.enum(["employees", "seats", "sites"]), min: z.number().int().nonnegative().optional(), max: z.number().int().positive().optional() })
+      .strict()
+      .refine((s) => s.min !== undefined || s.max !== undefined, "a size gives a min, a max or both")
+      .refine((s) => s.min === undefined || s.max === undefined || s.min <= s.max, "size.min must not be above size.max")
+      .optional(),
+    /** Roles to reach and roles never to reach. Exclusions are enforced on the recipe; inclusion is judged. */
+    roles: z.object({ include: z.array(scopeTerm).max(30).optional(), exclude: z.array(scopeTerm).max(30).optional() }).strict().optional(),
+    excludeOrgTypes: z.array(scopeTerm).max(20).optional(),
+    excludeFirms: z.array(z.object({ name: scopeTerm, domain: z.string().min(1).max(253).optional() }).strict()).max(200).optional(),
+  })
+  .strict();
+export type Scope = z.infer<typeof scopeSchema>;
+
 export const researchBriefSchema = z
   .object({
     product: z.string().min(1).max(120),
@@ -46,9 +75,18 @@ export const researchBriefSchema = z
     /** The rep's own words for who they are selling to. Kept verbatim (§2, orchestrator §2). */
     who: z.string().min(1).max(500),
     region: regionSchema,
+    /** v3.2 (§10 note 28): the rep's scope, structured, beside `who`. */
+    scope: scopeSchema.optional(),
     howMany: z.number().int().positive().max(500),
     weeks: z.number().int().positive().max(52),
     channels: z.array(z.string().min(1).max(60)).min(1).max(8),
+    /**
+     * The one question campaign start asks beyond the signed seven: "Do you
+     * already have customers like this? Who, and what did they buy it for?"
+     * Optional, the rep's words, a hypothesis for the research and never a
+     * claim. Amendment note on §2, product owner 2026-09-09; definition untouched.
+     */
+    existingCustomers: z.string().min(1).max(1000).optional(),
   })
   .strict();
 
@@ -56,18 +94,63 @@ export const researchBriefSchema = z
 export const priorRunSchema = z
   .object({
     insufficient: z.boolean(),
-    widenedBy: z.enum(["region", "size", "pain"]),
+    /** v3.2 (§10 note 28): the scope dimension the rep widened. */
+    widenedBy: z.enum(["region", "size", "sector", "role"]),
     note: z.string().max(1000),
   })
   .strict();
 
+/**
+ * What the runtime names when it re-asks the modules that failed the §7
+ * provenance check (v3: per module, never the run): the modules, and the items
+ * in them that could not be found in the corpus, and why. A runtime field,
+ * not one the rep or the orchestrator supplies.
+ */
+export const provenanceRerunSchema = z
+  .object({
+    modules: z.array(z.string().min(1).max(20)).min(1).max(30),
+    /** v3.1 (§10 note 16): the stored version of each re-asked module, so the re-ask edits it rather than rewriting from memory. */
+    current: z.record(z.unknown()).optional(),
+    failures: z
+      .array(
+        z
+          .object({ module: z.string().min(1).max(20), id: z.string().min(1).max(120), text: z.string().min(1).max(1000), reason: z.string().min(1).max(300) })
+          .strict(),
+      )
+      .min(1)
+      .max(200),
+  })
+  .strict();
+
+/** `ResearchInput` — v3 §2. The facts and knowledge reach the model through its tools; the input names their versions. */
 export const researchInputSchema = z
   .object({
     brief: researchBriefSchema,
-    facts: productFactsSchema,
+    /** The signed facts file the run may claim from. */
+    factsVersion: z.number().int().positive(),
+    /** The product knowledge set the run may read. */
+    knowledgeVersion: z.number().int().positive(),
+    /** This org's earlier packs for the same product, by id, read-only. */
+    priorPackIds: z.array(z.string().min(1).max(80)).max(20),
     priorRun: priorRunSchema.optional(),
-    /** Set by the runtime from the brief (§6), never chosen by the model. */
-    breadth: z.enum(BREADTHS),
+    provenanceRerun: provenanceRerunSchema.optional(),
+    /**
+     * Bench only (plan step 5, `research-bench --modules`): the run writes the
+     * steering note and these modules and nothing else, so one module can be
+     * tried live for cents. Set by the runtime from the bench's deps; a job
+     * never sets it. A runtime field beside `provenanceRerun`, pending an
+     * amendment note on §2.
+     */
+    onlyModules: z.array(z.string().min(1).max(20)).min(1).max(22).optional(),
+    /**
+     * v3.1 (§10 note 17): which half of the job this run is. `research` gathers
+     * and writes the evidence modules; `synthesis` writes the rest in a fresh,
+     * smaller context from `acceptedModules`, with search and fetch refused.
+     * Set by the runtime; absent on a bench run that sets neither.
+     */
+    phase: z.enum(["research", "synthesis"]).optional(),
+    /** On the synthesis phase: the modules the research phase stored, by id. */
+    acceptedModules: z.record(z.unknown()).optional(),
   })
   .strict();
 

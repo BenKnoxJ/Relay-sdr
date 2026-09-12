@@ -1,7 +1,10 @@
 # D · A again, re-run after a widening
 
-Brief A with a `priorRun` that says the last attempt was narrow on region. The pass is a
-pack that widens sensibly and does not hand back the same seed firms.
+Brief A re-run after the rep widened the region from Great Britain to Great Britain and
+the Republic of Ireland (definition §10 note 29). Brief A's signed pack is the prior pack:
+`priorPacks()` shows its seed firms, and it — not `priorRun.note` — says what the first
+research contained. The pass may keep good A seed firms, must say in m14 which are kept
+and which are new, and must add new coverage the wider region makes reachable: Irish firms.
 
 The input below is what `npm run agent` reads. The prose above it is for a person.
 
@@ -17,7 +20,11 @@ The input below is what `npm run agent` reads. The prose above it is for a perso
     "channels": [
       "email",
       "linkedin"
-    ]
+    ],
+    "scope": {
+      "countries": ["GB", "IE"],
+      "roles": { "include": ["claims operations"] }
+    }
   },
   "facts": {
     "product": "Insights360",
@@ -45,7 +52,7 @@ The input below is what `npm run agent` reads. The prose above it is for a perso
   "priorRun": {
     "insufficient": false,
     "widenedBy": "region",
-    "note": "The first run found four firms in the North West and nothing outside it. Widen beyond that region and do not repeat those firms."
+    "note": "The rep widened the region from Great Britain to Great Britain and the Republic of Ireland. Keep what still fits from the earlier pack; add firms the wider region makes reachable."
   }
 }
 ```

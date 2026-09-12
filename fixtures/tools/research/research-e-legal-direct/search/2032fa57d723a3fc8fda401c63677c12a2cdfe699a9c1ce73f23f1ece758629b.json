@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "small law firm missed calls new enquiries lost clients UK",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Missed-call revenue loss in law firms - The Office Genie",
+        "url": "https://www.theofficegenie.co.uk/knowledge-centre/missed-call-revenue-loss-law-firm",
+        "snippet": "Small and medium firms during business hours: 15–25% of inbound calls go unanswered. Out-of-hours: 90–100% miss rate. new-client enquiries = 30"
+      },
+      {
+        "title": "How much are missed calls costing your law firm? - Moneypenny",
+        "url": "https://www.moneypenny.com/uk/resources/blog/how-much-are-missed-calls-costing-your-law-firm",
+        "snippet": "Could your firm be missing out on new clients? 1 in 3 calls to UK businesses go unanswered costing them thousands in business."
+      },
+      {
+        "title": "The Real Cost of Missed Calls for Law Firms (and How to Avoid It) | Stafi",
+        "url": "https://getstafi.com/blog/missed-calls-law-firms",
+        "snippet": "For law firms, missed calls are not a minor inconvenience; they’re often the difference between securing a new client and losing them to a competitor. Leads rarely wait around. In fact, most won’t leave a voicemail or call back if they don’t reach someone right away. [...] Absolutely. Legal-trained bilingual intake specialists can ensure your clients feel understood from the first call.\n\n## Stop Losing Clients to Missed Calls\n\nAt the end of the day, every missed call is a missed client. By combining 24/7 legal intake support, automation, and a well-trained team, your law firm can stay connected, enchance intake conversion, and grow sustainably. [...] Lost Clients and Revenue  \n  For practice areas such as personal injury, family law, or immigration law, each missed call could mean losing a case worth thousands in fees. With clients often choosing the first lawyer who answers, lack of response equals lost opportunities and revenue.\n Damaged Reputation"
+      },
+      {
+        "title": "How to secure the clients your firm is missing with Lexidesk",
+        "url": "https://www.lawscot.org.uk/members/journal-hub/articles/sponsored-how-to-secure-the-clients-your-firm-is-missing-with-lexidesk",
+        "snippet": "The worrying part is that these lost enquiries are almost invisible. Firms only measure the calls they know about, never the people who gave up"
+      },
+      {
+        "title": "Law Firms Losing Clients with Missed Calls | Jonathan Merel posted ...",
+        "url": "https://www.linkedin.com/posts/jonathanmerel_many-law-firms-are-terrible-at-answering-activity-7475128522919813121-Aztu",
+        "snippet": "Losing Clients with Missed Calls. If you call twenty firms in your area, half of them won't pick up and some of them make you talk to an"
+      },
+      {
+        "title": "Why are solicitors so bad at returning telephone calls from new ...",
+        "url": "https://www.samsonconsulting.co.uk/blog/why-are-solicitors-so-bad-at-returning-telephone-calls-new-clients",
+        "snippet": "It is rife across the United Kingdom. When it comes to dealing with new client enquiries law firms are, by and large, woeful at the process from the first"
+      },
+      {
+        "title": "How Out-of-Hours Call Answering Services Help Solicitors Win More ...",
+        "url": "https://ffb.co.uk/blog/how-out-of-hours-call-answering-services-help-solicitors-win-more-clients",
+        "snippet": "An after-hours service helps capture urgent enquiries and potential new clients outside standard office hours, reducing missed business"
+      },
+      {
+        "title": "Answering Service For Lawyers & Law Firms | ReceptionHQ",
+        "url": "https://www.receptionhq.co.uk/industry/legal-answering-service",
+        "snippet": "We provide an answering service for lawyers, solicitors and law firms across the UK, with professional receptionists answering your calls in your firm's name."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T16:05:39.056Z"
+}

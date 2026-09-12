@@ -120,6 +120,9 @@ export type AgentSdkSettingsInput = {
   run: AgentSdkRunOptions;
 };
 
+/** The highest `maxTurns` the bridge's settings schema accepts (`ai-sdk-provider-claude-code@4.3.1`). */
+export const SDK_MAX_TURNS = 100;
+
 /**
  * The bridge settings for one run. Pure, so a test can pin every field.
  *
@@ -138,12 +141,16 @@ export function agentSdkSettings({ configDir, token, run }: AgentSdkSettingsInpu
     allowedTools: server.allowedTools,
     permissionMode: "bypassPermissions",
     allowDangerouslySkipPermissions: true,
-    maxTurns: run.maxTurns,
+    // The bridge refuses a `maxTurns` above 100. A higher rail is left to
+    // `runAgent`, which counts the turns off the stream and aborts past it.
+    ...(run.maxTurns <= SDK_MAX_TURNS ? { maxTurns: run.maxTurns } : {}),
+    ...(run.effort === undefined ? {} : { effort: run.effort }),
     // The run is the record; the SDK's transcript would be a second copy of
     // every fetched page under a directory nothing reads.
     persistSession: false,
     logger: false,
     onSdkMessage: async (message) => {
+      await run.observe.onRaw?.(message);
       if (message.type === "assistant") {
         const turn: AgentSdkTurn = {
           messageId: message.message.id,

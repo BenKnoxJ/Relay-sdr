@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { factIdSchema, idSchema, itemObject, withCeilingRule } from "../_shared/item.schema";
 import { productFactsSchema } from "../research/input.schema";
-import { archetypeSchema, hookSchema } from "../research/output.schema";
+import { hookSchema, planArchetypeSchema as archetypeSchema } from "../research/output.schema";
 import { revealedPersonSchema } from "../leadgen/output.schema";
 
 /**

@@ -233,7 +233,7 @@ export function CampaignPage({
 
       {state === "stopped" && campaign.pack?.insufficient !== undefined ? (
         <div className="mb-grid">
-          <WidenCard insufficient={campaign.pack.insufficient} />
+          <WidenCard insufficient={campaign.pack.insufficient} found={campaign.pack.stopEvidence ?? []} />
         </div>
       ) : null}
 

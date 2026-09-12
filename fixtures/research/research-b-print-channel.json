@@ -1,0 +1,960 @@
+{
+  "kind": "research",
+  "name": "research-b-print-channel",
+  "source": "run",
+  "recordedAt": "2026-09-09T15:33:36.319Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v1.json (the brief's inline facts are ignored)",
+  "breadth": "standard",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "channel",
+      "who": "managed print dealers in the Midlands who resell services to their own customers",
+      "region": "GB",
+      "howMany": 15,
+      "weeks": 4,
+      "channels": [
+        "email",
+        "linkedin"
+      ]
+    },
+    "breadth": "standard"
+  },
+  "output": {
+    "hook": {
+      "id": "another-line-on-the-same-bill",
+      "text": "Print volumes are forecast to fall again this year and services are still only about a fifth of partner revenue. Insights360 gives a dealer another monthly line for the accounts they already hold: it takes recordings from 3CX or OAK/ClarifyGo, scores every call it ingests against the customer's own quality rules, and shows scores, sentiment and coaching points in a web app.",
+      "whyNow": {
+        "id": "quocirca-state-of-the-channel-2026",
+        "text": "Quocirca's State of the Channel 2026, published 8 September 2026 from 144 partners surveyed in June and July, reports 72% expecting print volumes to fall by about 7.5%, services at 21% of partner revenue, and only 8% rating their main vendor's partner programme as highly effective.",
+        "evidence": {
+          "urls": [
+            "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+          ],
+          "domains": [
+            "quocirca.com"
+          ],
+          "primary": true
+        },
+        "accessedAt": "2026-09-09",
+        "confidence": "weak",
+        "publishedAt": "2026-09-08"
+      },
+      "answeredBy": [
+        "i360.product.post-call-call-analytics",
+        "i360.product.every-ingested-call-analysed",
+        "i360.integration.3cx-automated-feed",
+        "i360.integration.oak-clarifygo-automated-feed",
+        "i360.feature.auto-qa-scoring-against-tenant-rules",
+        "i360.feature.coaching-points-read-only",
+        "i360.price.no-seat-minimum-no-annual-lock-in"
+      ]
+    },
+    "recipe": {
+      "titles": [
+        "Managing Director",
+        "Owner",
+        "Sales Director",
+        "Commercial Director",
+        "Business Development Director",
+        "Operations Director",
+        "Director of Services",
+        "Head of Telecoms",
+        "Telecoms Sales Manager",
+        "Technical Director",
+        "Head of Managed Services",
+        "Group Sales Director"
+      ],
+      "sizeBand": {
+        "max": 250,
+        "min": 10
+      },
+      "triggers": [
+        "Acquired another dealer's customer base in the last 12 months",
+        "Opened or announced a Midlands office or hub",
+        "Lists hosted telephony or VoIP alongside managed print",
+        "Named 3CX partner or reseller",
+        "Sells OAK / ClarifyGo call recording",
+        "Lost a brand line to a vendor exit such as UTAX UK",
+        "Hiring a services or telecoms salesperson",
+        "Exhibiting at a Midlands business expo",
+        "Recently added an IT or telecoms division"
+      ],
+      "countries": [
+        "GB"
+      ],
+      "industries": [
+        "Office technology dealer",
+        "Managed print services",
+        "Document solutions provider",
+        "Managed IT services provider",
+        "Telecoms and unified communications reseller",
+        "Business equipment supplier",
+        "Copier and MFP dealer"
+      ]
+    },
+    "summary": [
+      "Midlands office technology dealers are the buyer here, and their squeeze is dated: Quocirca's State of the Channel study of 8 September 2026 has 72% of partners expecting customer print volumes to fall again (about 7.5%), services still only 21% of partner revenue, and average growth hopes of 3.5%.",
+      "Dealers say in their own words that they have already bolted on telecoms and IT and want more per customer. Insights360 fits where they have put 3CX or OAK/ClarifyGo recording in, because those two feeds are automated today and plans are month to month with no seat minimum.",
+      "Two things to say out loud rather than hide: 3CX's own AI edition already transcribes, summarises and scores sentiment, and OAK's ClarifyGo is now Subphonic Focus with analytics attached. And the signed facts carry no dealer margin or white-label terms, so partner economics cannot be quoted yet."
+    ],
+    "unknowns": [
+      {
+        "id": "no-partner-terms-in-signed-facts",
+        "kind": "confirmed-absent",
+        "text": "The signed facts carry no dealer margin, white-label, reseller discount or partner programme terms at all. For a channel conversation that means partner economics cannot be quoted; only the end-customer plan shape is written down, and even that needs signature before a rep says the numbers.",
+        "queriesTried": [
+          "facts file review for partner, margin, reseller, white-label terms"
+        ]
+      },
+      {
+        "id": "no-midlands-print-dealer-selling-call-analytics",
+        "kind": "not-found",
+        "text": "Could not find a single dated, public example of a Midlands managed print dealer reselling call analytics to its own customers, so there is no local proof story to point at.",
+        "queriesTried": [
+          "Midlands print and IT dealer adds call recording telephony division 2026 \"we have added\" OR \"launched\" telecoms customers",
+          "\"managed print\" \"3CX\" OR \"hosted telephony\" dealer Midlands Birmingham Leicester Nottingham copiers phone systems",
+          "managed print dealer Birmingham Leicester Nottingham 2026 announces partnership growth \"telecoms\" news office technology"
+        ]
+      },
+      {
+        "id": "buyer-words-mostly-from-2024-round-up",
+        "kind": "not-found",
+        "text": "Named dealer quotes come mainly from a trade-press round-up of 31 October 2024 and from dealers based outside the Midlands (Kent, Berkshire, Bradford, Stockport). Treat them as how this trade talks, not as Midlands voices.",
+        "queriesTried": [
+          "\"view from the channel\" 2026 managing director print dealer AI services customers demand",
+          "technologyreseller.uk \"Managing Director\" reseller quote print volumes decline services recurring revenue 2026",
+          "pitr.uk Q&A managing director dealer \"biggest challenge\" print business telecoms IT services"
+        ]
+      },
+      {
+        "id": "oyster-base-location-not-confirmed",
+        "kind": "confirmed-absent",
+        "text": "Oyster's own site does not state where it is based; it says national. The Midlands link is the customer base it bought, not a confirmed Midlands office.",
+        "queriesTried": [
+          "Oyster IT managed print Office Options Midlands acquisition August 2026 Birmingham",
+          "fetch of oystermps.co.uk home page"
+        ]
+      },
+      {
+        "id": "midlands-dealer-names-without-dated-signals",
+        "kind": "not-found",
+        "text": "Several Midlands names came up with nothing dated behind them, so they are not on the list: MiDs4d in Leicester, CSR Digital in Northampton, Minster Micro in Kidderminster, Birmingham Telecom, Cube in Wolverhampton.",
+        "queriesTried": [
+          "Agilico OR Midshire OR \"CSR Digital\" OR \"Zero Group\" Midlands acquires managed print telecoms news 2026",
+          "managed print dealer Nottingham Derby Coventry Stoke \"telephony\" \"IT support\" copiers company news 2026",
+          "insidermedia Midlands managed print office technology company acquisition investment 2026"
+        ]
+      },
+      {
+        "id": "no-price-list-behind-the-plans",
+        "kind": "confirmed-absent",
+        "text": "No dated price list exists behind the per-seat plans, the overage rate or the setup fees; they appear only in internal wiki material. Nothing about dealer pricing was found in public sources either.",
+        "queriesTried": [
+          "facts file notes on i360.price.per-seat-plans and i360.price.setup-and-config-review-fees"
+        ]
+      }
+    ],
+    "seedFirms": [
+      {
+        "id": "oyster",
+        "name": "Oyster",
+        "domain": "oystermps.co.uk",
+        "region": "Midlands customer base; national managed print, document and IT provider",
+        "signal": {
+          "id": "oyster-buys-office-options-base",
+          "text": "On 21 August 2026 the trade press reported Oyster had acquired the customer base of Office Options (Midlands) Ltd from the appointed liquidator, with several of the former team joining. Oyster's own site describes it as a national independent provider of managed print, managed document and IT services.",
+          "evidence": {
+            "urls": [
+              "https://pitr.uk/oyster-acquires-office-options-customer-base-oyster-has-announced-the-acquisition-of-the-customer-base-of-office-options-midlands-ltd-from-the-appointed-liquidator-in-a-statement-the-company-said-i/",
+              "https://oystermps.co.uk/"
+            ],
+            "domains": [
+              "pitr.uk",
+              "oystermps.co.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "moderate",
+          "publishedAt": "2026-08-21"
+        }
+      },
+      {
+        "id": "xbm",
+        "name": "XBM Limited",
+        "domain": "xbmltd.com",
+        "region": "Leeds head office, managed print base across the Midlands and Wales",
+        "signal": {
+          "id": "xbm-midlands-base-and-utax-exit",
+          "text": "XBM's own news pages record its acquisition of Office Odyssey, a Midlands-based reseller, expanding its managed print base, and on 11 May 2026 it published that UTAX (UK) would cease trading on 31 May 2026 because of the contraction of the UK managed print market.",
+          "evidence": {
+            "urls": [
+              "https://www.xbmltd.com/category/xbm"
+            ],
+            "domains": [
+              "xbmltd.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-05-11"
+        }
+      },
+      {
+        "id": "agilico",
+        "name": "Agilico",
+        "domain": "agilico.co.uk",
+        "region": "Midlands office at Whetstone, Leicester",
+        "signal": {
+          "id": "agilico-derby-expo",
+          "text": "Agilico posted on 15 April 2026 that it would exhibit at the Derby Business Expo on 14 May 2026, and its site lists telecoms and IT alongside managed print, with a Midlands office in Whetstone, Leicester.",
+          "evidence": {
+            "urls": [
+              "https://www.agilico.co.uk/category/news"
+            ],
+            "domains": [
+              "agilico.co.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-04-15"
+        }
+      },
+      {
+        "id": "intalect",
+        "name": "Intalect",
+        "region": "Leicestershire (East Midlands)",
+        "signal": {
+          "id": "intalect-acquired-by-novem",
+          "text": "Reported on 12 May 2026: Intalect, founded 2004 and based in Leicestershire, providing managed IT including cybersecurity, disaster recovery and VoIP, was acquired by Novem.",
+          "evidence": {
+            "urls": [
+              "https://www.insidermedia.com/news/midlands/pe-backed-novem-makes-its-fifth-acquisition-adds-significant-scale-to-our-midlands-credentials"
+            ],
+            "domains": [
+              "insidermedia.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-05-12"
+        }
+      },
+      {
+        "id": "novem",
+        "name": "Novem",
+        "region": "Manchester head office with a new Midlands hub in Coventry",
+        "signal": {
+          "id": "novem-coventry-hub",
+          "text": "Reported on 12 May 2026: Novem, a private equity-backed managed IT, cyber resilience and telecoms provider, made its fifth acquisition and announced a new Midlands hub office in Coventry; the group has grown past 75 people supporting more than 8,100 users.",
+          "evidence": {
+            "urls": [
+              "https://www.insidermedia.com/news/midlands/pe-backed-novem-makes-its-fifth-acquisition-adds-significant-scale-to-our-midlands-credentials"
+            ],
+            "domains": [
+              "insidermedia.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-05-12"
+        }
+      }
+    ],
+    "archetypes": [
+      {
+        "id": "midlands-dealer-selling-print-and-phones",
+        "name": "Midlands dealer selling print and phones to local firms",
+        "pains": [
+          {
+            "id": "print-volumes-falling-again",
+            "text": "Seven in ten partners expect customer print volumes to fall again this year, by about 7.5% on average, so the meter revenue sitting behind every contract keeps shrinking.",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency",
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "quocirca.com",
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "moderate",
+            "publishedAt": "2026-09-08"
+          },
+          {
+            "id": "services-still-a-fifth-of-revenue",
+            "text": "Services beyond print are still only about 21% of partner revenue on average, and partners forecast a revenue uplift of just 3.5% for the year, so a new recurring line matters more than another box.",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+              ],
+              "domains": [
+                "quocirca.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-08"
+          },
+          {
+            "id": "vendor-programmes-not-helping-them-sell",
+            "text": "Only 8% of partners describe their main vendor's partner programme as highly effective; the gaps they name are pre-sales support, sales material and practical help selling a services portfolio.",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+              ],
+              "domains": [
+                "quocirca.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-08"
+          },
+          {
+            "id": "costs-they-cannot-pass-on",
+            "role": "Managing Director, Commerce Business Systems",
+            "text": "Dealers say hardware, consumables and software support costs have risen faster than they can pass on, because there is a ceiling on what end users will accept at renewal.",
+            "quote": "the price of hardware and consumables has rocketed, and we have software suppliers who are increasing support costs at a level that we could not possibly pass on to our customers",
+            "speaker": "John Green",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/view-from-the-channel-46"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2023-03-15"
+          }
+        ],
+        "language": [
+          {
+            "id": "not-just-copiers-anymore",
+            "say": "You are not a copier firm any more, so I will not pitch you a copier add-on. This is a monthly line you can put next to the phones you already sold them.",
+            "role": "Managing Director, Commerce Business Systems",
+            "text": "Dealers describe themselves as full solution providers now, not copier firms.",
+            "quote": "It's not just about copiers and printers anymore; it's now about the fully encompassing digital solution we offer",
+            "speaker": "John Green",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/view-from-the-channel-46"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2023-03-15"
+          },
+          {
+            "id": "telecoms-now-as-big-as-print",
+            "say": "If telecoms is now as big for you as print, the recordings your customers already make are the next thing to sell against.",
+            "role": "Managing Director, Commerce Business Systems",
+            "text": "Telecoms and IT have become as significant to some dealers as managed print.",
+            "quote": "for the past three years we have been diversifying into IT services and telecoms, to such an extent that now these fields are as significant to our business and our customers, as managed print",
+            "speaker": "John Green",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          },
+          {
+            "id": "diversification-is-crucial",
+            "say": "Most dealers I speak to are broadening the portfolio to spread the risk. This is one more thing to sell into accounts you already hold.",
+            "role": "Digital Services Director, Carbon",
+            "text": "Broadening the portfolio is how dealers describe protecting revenue.",
+            "quote": "Diversification is crucial for us sustaining revenue growth and mitigating risks by broadening our portfolio and maintaining a cross- sector focus.",
+            "speaker": "Ryan Green",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          },
+          {
+            "id": "two-divisions-print-and-telecoms",
+            "say": "This lands on the telecoms side of your business, not the print side, and it uses recordings the customer's phone system already makes.",
+            "role": "Technical Director, Elmdale Maintenance",
+            "text": "Dealers often run two sides of the house, print on one and IT, networking and telecoms on the other.",
+            "quote": "We have two divisions to our business, one for managed print and the other for IT, networking and telecoms.",
+            "speaker": "Jon Palin",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          },
+          {
+            "id": "strategy-versus-execution",
+            "say": "You already know services is where the growth is. The hard part is a service you can actually deliver, which is why this one runs on feeds you already have.",
+            "role": "CEO, Quocirca",
+            "text": "The research house behind the channel study frames the problem as doing it, not deciding it.",
+            "quote": "The challenge is no longer one of strategy but one of execution.",
+            "notThis": "Do not quote this as if a dealer said it; it is the analyst's line.",
+            "speaker": "Louella Fernandes",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+              ],
+              "domains": [
+                "quocirca.com"
+              ],
+              "primary": true
+            },
+            "notBuyer": true,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-08"
+          }
+        ],
+        "situation": "An independent office technology dealer in the Midlands, roughly 15 to 150 people, selling managed print alongside hosted phones and IT support to local businesses, and hunting for another monthly line to put on the same bill."
+      },
+      {
+        "id": "midlands-dealer-whose-customers-record-calls",
+        "name": "Midlands dealer whose customers already record calls",
+        "pains": [
+          {
+            "id": "recording-vendor-changed-hands",
+            "text": "The recording brand many dealers resell has changed hands: Oak Innovation is now part of Subphonic and ClarifyGo has been renamed Subphonic Focus, with transcription and conversation analytics added alongside it.",
+            "evidence": {
+              "urls": [
+                "https://www.subphonic.ai/oak-transition"
+              ],
+              "domains": [
+                "subphonic.ai"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "speculative",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (subphonic, resell, hands)"
+          },
+          {
+            "id": "phone-platform-now-does-some-of-it",
+            "text": "The phone system itself has moved onto this ground: 3CX's AI edition transcribes calls, writes automatic summaries and scores caller sentiment across agents, queues and ring groups.",
+            "evidence": {
+              "urls": [
+                "https://www.3cx.com/pbx/ai-analytics"
+              ],
+              "domains": [
+                "3cx.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak"
+          },
+          {
+            "id": "applying-ai-is-the-hard-part",
+            "text": "Integrating and applying this kind of technology is named by 40% of partners as one of their most pressing challenges, second only to expanding digital and software services.",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+              ],
+              "domains": [
+                "quocirca.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-08"
+          }
+        ],
+        "language": [
+          {
+            "id": "enterprise-level-support-for-smes",
+            "say": "Your small customers want the sort of call review a big contact centre gets. That is what this gives them, on the recordings they already keep.",
+            "role": "Co-founder and Director, Intalect (Leicestershire)",
+            "text": "Midlands resellers describe their promise to small firms as enterprise-grade support without losing the care.",
+            "quote": "From day one, Intalect was built around providing enterprise-level IT and support to UK SMEs",
+            "speaker": "Richard Hamilton",
+            "evidence": {
+              "urls": [
+                "https://www.insidermedia.com/news/midlands/pe-backed-novem-makes-its-fifth-acquisition-adds-significant-scale-to-our-midlands-credentials"
+              ],
+              "domains": [
+                "insidermedia.com"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-05-12"
+          },
+          {
+            "id": "clarifygo-is-now-subphonic-focus",
+            "say": "If your OAK line has just become Subphonic Focus, worth knowing our OAK/ClarifyGo feed is automated today, and I will be straight with you about where we overlap.",
+            "text": "The recording vendor's own words on the change dealers will be asked about.",
+            "quote": "ClarifyGo is now Subphonic Focus. Your Microsoft-certified compliance recording capability is unchanged, and now sits alongside intelligent transcription and conversation analytics.",
+            "notThis": "Vendor wording, not a dealer speaking. Never claim Subphonic has retired the product.",
+            "evidence": {
+              "urls": [
+                "https://www.subphonic.ai/oak-transition"
+              ],
+              "domains": [
+                "subphonic.ai"
+              ],
+              "primary": true
+            },
+            "notBuyer": true,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-09"
+          },
+          {
+            "id": "stay-good-at-what-we-are-good-at",
+            "say": "If you have decided to stay in print and document work, say so and I will stop. This only makes sense where you already touch the phone system.",
+            "role": "Managing Director, Woodbank Office Solutions",
+            "text": "Some dealers deliberately refuse to chase telecoms and IT, and say so plainly.",
+            "quote": "In terms of offering UCaaS and IT services, it's essential that we prioritise maintaining our expertise in print and document management.",
+            "notThis": "Do not push telecoms at a dealer who has chosen not to sell it.",
+            "speaker": "Janet Bowden",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          }
+        ],
+        "situation": "A Midlands dealer that has put 3CX or OAK/ClarifyGo call recording into small sales and service teams, and is now being asked by those same customers what the pile of recordings is actually worth."
+      },
+      {
+        "id": "midlands-dealer-taking-on-other-bases",
+        "name": "Midlands dealer taking on other dealers' customers",
+        "pains": [
+          {
+            "id": "local-dealers-are-failing",
+            "text": "Local bases are changing hands under pressure: the customer base of Office Options (Midlands) was bought from the appointed liquidator in August 2026, with several of the old team moving across.",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/oyster-acquires-office-options-customer-base-oyster-has-announced-the-acquisition-of-the-customer-base-of-office-options-midlands-ltd-from-the-appointed-liquidator-in-a-statement-the-company-said-i/"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-08-21"
+          },
+          {
+            "id": "brand-exits-shrink-the-base",
+            "text": "Brands are leaving the UK market: UTAX (UK) stopped trading on 31 May 2026, and a dealer's own note put it down to the ongoing contraction of the UK managed print market.",
+            "quote": "With the ongoing contraction of the Managed Print Service market in the UK, UTAX (UK) Ltd is set to cease trading on 31 May 2026",
+            "evidence": {
+              "urls": [
+                "https://www.xbmltd.com/category/xbm"
+              ],
+              "domains": [
+                "xbmltd.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-05-11"
+          },
+          {
+            "id": "more-revenue-per-inherited-account",
+            "text": "With growth forecast at about 3.5% and services still around a fifth of revenue, the money has to come from selling more into the accounts already owned.",
+            "evidence": {
+              "urls": [
+                "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+              ],
+              "domains": [
+                "quocirca.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-09-08"
+          },
+          {
+            "id": "buyers-reward-broader-support",
+            "text": "Groups buying Midlands providers say the point is broader, end-to-end support for the customers they inherit, not just more engineers.",
+            "evidence": {
+              "urls": [
+                "https://www.insidermedia.com/news/midlands/pe-backed-novem-makes-its-fifth-acquisition-adds-significant-scale-to-our-midlands-credentials"
+              ],
+              "domains": [
+                "insidermedia.com"
+              ],
+              "primary": true
+            },
+            "accessedAt": "2026-09-09",
+            "confidence": "speculative",
+            "publishedAt": "2026-05-12",
+            "inferredFrom": "provenance: fewer than two of its distinctive words on the page (buying, groups, engineers)"
+          }
+        ],
+        "language": [
+          {
+            "id": "significant-scale-to-midlands",
+            "say": "When you take on a base, you need a reason to ring all of it. This is a first call worth making to anyone with a small sales or service team.",
+            "role": "Chief Executive, Novem",
+            "text": "Acquirers talk about Midlands scale and the customer relationships that come with it.",
+            "quote": "The addition of Intalect has added significant scale to our Midlands credentials, bringing valuable additional skills and strong customer relationships.",
+            "speaker": "Alex Heslip",
+            "evidence": {
+              "urls": [
+                "https://www.insidermedia.com/news/midlands/pe-backed-novem-makes-its-fifth-acquisition-adds-significant-scale-to-our-midlands-credentials"
+              ],
+              "domains": [
+                "insidermedia.com"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2026-05-12"
+          },
+          {
+            "id": "machines-in-the-field-still-growing",
+            "say": "I am not going to tell you print is dying. Plenty of dealers are still adding machines. The question is what else goes on the invoice.",
+            "role": "Managing Director, Key Digital",
+            "text": "Dealers who are still growing say volume per site drops but total machines rise.",
+            "quote": "While print per customer site has seen a slight decrease on average over the last few years, we're still growing our number of machines in the field",
+            "notThis": "Never open with 'print is dead'; dealers push back on it hard.",
+            "speaker": "Daniel Gilbert",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          },
+          {
+            "id": "customers-still-print-plenty",
+            "say": "If your print base is holding up, good. This is about the phone side of the same customer, not a replacement for print.",
+            "role": "Managing Director, WDS",
+            "text": "Some dealers report customers printing more than ever, especially white-collar ones.",
+            "quote": "We have found that the majority of our customers still consider print as a major requirement, especially within the white-collar industry, who are printing more than ever.",
+            "speaker": "Rachel Pollard",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          },
+          {
+            "id": "fewer-devices-more-capacity",
+            "say": "Fewer devices per site means fewer places to grow. Recorded calls are one of the few things at those sites that is growing.",
+            "role": "Director, Vitale Digital",
+            "text": "Dealers describe fleets getting smaller but faster as hybrid working settles.",
+            "quote": "we do see a trend of people purchasing fewer devices due to hybrid working and lower volumes being produced",
+            "speaker": "Simon Riley",
+            "evidence": {
+              "urls": [
+                "https://pitr.uk/declining-print-volumes"
+              ],
+              "domains": [
+                "pitr.uk"
+              ],
+              "primary": true
+            },
+            "notBuyer": false,
+            "accessedAt": "2026-09-09",
+            "confidence": "weak",
+            "publishedAt": "2024-10-31"
+          }
+        ],
+        "situation": "A dealer or small group in the Midlands that has picked up another dealer's customer base in the last year or two, and needs more revenue per account plus a reason to ring every inherited customer."
+      }
+    ],
+    "contradictions": [
+      {
+        "a": {
+          "id": "seventy-two-percent-expect-decline",
+          "text": "72% of partners expect customer print volumes to decline over the coming year, by an average of 7.5%.",
+          "evidence": {
+            "urls": [
+              "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+            ],
+            "domains": [
+              "quocirca.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-09-08"
+        },
+        "b": {
+          "id": "dealers-report-no-decline",
+          "role": "Managing Director, Commerce Business Systems",
+          "text": "Dealers in a trade-press round-up said otherwise: one reported growth in mid to high volume machines, another that school customers had increased print, a third that total managed volumes were rising as machines in the field grew.",
+          "quote": "Managed print has always been our core business and so far, we are not really seeing a big decline in print yet, in fact, we're seeing growth in the area of mid to higher volume MFPs.",
+          "speaker": "John Green",
+          "evidence": {
+            "urls": [
+              "https://pitr.uk/declining-print-volumes"
+            ],
+            "domains": [
+              "pitr.uk"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2024-10-31"
+        },
+        "id": "decline-versus-dealers-own-numbers",
+        "text": "The channel study says volumes are falling for nearly everyone, but named dealers say their own volumes are flat or growing. Do not open with decline; ask what their meter revenue is doing."
+      },
+      {
+        "a": {
+          "id": "utax-exit-cites-contraction",
+          "text": "UTAX (UK) ceased trading on 31 May 2026, described on a dealer's site as part of the ongoing contraction of the UK managed print market.",
+          "evidence": {
+            "urls": [
+              "https://www.xbmltd.com/category/xbm"
+            ],
+            "domains": [
+              "xbmltd.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-05-11"
+        },
+        "b": {
+          "id": "research-houses-forecast-growth",
+          "text": "Market research publishers put the global managed print services market at around USD 50bn in 2025 rising through 2026 at roughly 8 to 9% a year, driven by cloud print management and workflow.",
+          "evidence": {
+            "urls": [
+              "https://www.precedenceresearch.com/managed-print-services-market"
+            ],
+            "domains": [
+              "precedenceresearch.com"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "inferredFrom": "Search result summary of the published market sizing; the page itself was not opened."
+        },
+        "id": "market-contraction-versus-market-growth",
+        "text": "A dealer's own note blames the contraction of the UK managed print market for a brand leaving, while market research houses publish global managed print growth of roughly 8 to 9% a year. Both cannot be the whole story; the UK dealer picture is the one that matters here."
+      },
+      {
+        "a": {
+          "id": "3cx-ships-ai-analytics",
+          "text": "3CX's AI edition includes call transcription, automatic summaries and sentiment scores across call logs, extensions, ring groups and queues, on a flat annual fee with no per-user charge.",
+          "evidence": {
+            "urls": [
+              "https://www.3cx.com/pbx/ai-analytics"
+            ],
+            "domains": [
+              "3cx.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak"
+        },
+        "b": {
+          "id": "subphonic-bundles-analytics-with-recording",
+          "text": "ClarifyGo, the OAK recording product dealers resell, is now Subphonic Focus and is sold with intelligent transcription and conversation analytics attached.",
+          "evidence": {
+            "urls": [
+              "https://www.subphonic.ai/oak-transition"
+            ],
+            "domains": [
+              "subphonic.ai"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "speculative",
+          "inferredFrom": "provenance: fewer than two of its distinctive words on the page (subphonic, resell, sold)"
+        },
+        "id": "phone-system-already-does-some-of-this",
+        "text": "The strongest objection, and it comes from the platform we integrate with. 3CX's AI edition already transcribes calls, summarises them and scores sentiment, and the renamed OAK product now sits alongside conversation analytics. Lead with the customer's own quality rules and per-call scoring, and be honest about the overlap."
+      },
+      {
+        "a": {
+          "id": "partners-rank-ai-a-top-challenge",
+          "text": "40% of partners name integrating and applying AI as one of their most pressing challenges, second only to expanding digital and software services at 41%.",
+          "evidence": {
+            "urls": [
+              "https://quocirca.com/content/print-industry-channel-transformation-gains-urgency"
+            ],
+            "domains": [
+              "quocirca.com"
+            ],
+            "primary": true
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2026-09-08"
+        },
+        "b": {
+          "id": "many-smes-have-no-plans",
+          "text": "British Chambers of Commerce research found 43% of firms surveyed had no plans to use AI at all, with 25% using a specific technology.",
+          "evidence": {
+            "urls": [
+              "https://www.britishchambers.org.uk/news/2024/07/most-smes-still-struggling-to-embrace-ai"
+            ],
+            "domains": [
+              "britishchambers.org.uk"
+            ],
+            "primary": false
+          },
+          "accessedAt": "2026-09-09",
+          "confidence": "weak",
+          "publishedAt": "2024-07-01",
+          "inferredFrom": "Search result summary of the BCC news release; the page itself was not opened."
+        },
+        "id": "smes-may-not-want-this-at-all",
+        "text": "Partners rank applying this kind of technology as a top challenge, but a large share of small firms say they have no plans to use it. Expect the dealer to ask who is actually asking for it."
+      }
+    ]
+  },
+  "run": {
+    "steps": 62,
+    "modelSteps": 23,
+    "toolSteps": 39,
+    "attempts": 1,
+    "cost": "3.158065",
+    "durationMs": 547757,
+    "replayedToolCalls": 0,
+    "jobId": "f64d03ec-1880-4ae8-918a-6a07c897e213",
+    "eventId": "cmtu9d7ru003lkw35sjxs78n8"
+  },
+  "validation": {
+    "ok": true,
+    "errors": []
+  },
+  "error": null,
+  "rejectedIssues": null,
+  "rubric": [
+    {
+      "check": 1,
+      "name": "Schema and derived confidence",
+      "verdict": "pass",
+      "detail": "37 items parsed under the strict schema"
+    },
+    {
+      "check": 2,
+      "name": "Coverage",
+      "verdict": "pass",
+      "detail": "3 archetypes, 5 firms, 6 unknowns"
+    },
+    {
+      "check": 4,
+      "name": "Buyer words",
+      "verdict": "pass",
+      "detail": "83% of 12 phrases are buyer words with a role"
+    },
+    {
+      "check": 5,
+      "name": "Recency",
+      "verdict": "pass",
+      "detail": "no strong signal older than twelve months"
+    },
+    {
+      "check": 6,
+      "name": "Domain spread",
+      "verdict": "pass",
+      "detail": "10 domains"
+    },
+    {
+      "check": 7,
+      "name": "Contradictions",
+      "verdict": "pass",
+      "detail": "3 contradiction queries for 3 archetypes; 4 recorded"
+    },
+    {
+      "check": 8,
+      "name": "Insufficient path",
+      "verdict": "n/a",
+      "detail": "not a thin brief"
+    },
+    {
+      "check": 10,
+      "name": "Widening",
+      "verdict": "n/a",
+      "detail": "not a re-run"
+    },
+    {
+      "check": 11,
+      "name": "Cost and time",
+      "verdict": "pass",
+      "detail": "26 searches, 11 fetches, 23 steps, 548s, $3.1581"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "managed print dealer Nottingham Derby Coventry Stoke \"telephony\" \"IT support\" copiers company news 2026",
+    "region": "GB",
+    "recencyMonths": 14,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Managed Print Services in Nottingham | The Zero Group",
+        "url": "https://zeroenterprises.co.uk/managed-print/nottingham",
+        "snippet": "Managed print services in Nottingham from The Zero Group bring printer support, toner management, remote monitoring, reporting and optional"
+      },
+      {
+        "title": "Managed Print Services | Copier & Printer Support | Camelott®",
+        "url": "https://camelott.co.uk/managed-print-service",
+        "snippet": "Supporting Toshiba e-STUDIO, Epson Heat-Free, and Konica Minolta, with options for Canon, Ricoh, and Sharp.\n\n#### Sustainability First\n\nPrecision fleet rightsizing and low-energy hardware to reduce your environmental footprint and paper waste.\n\n#### Data Protection\n\nHard-drive encryption and access controls to ensure your printing complies with modern security standards.\n\n#### National Scale\n\nFrom headquarters to satellite offices, we provide a unified support experience across the entire UK. [...] Whether you need a single photocopier lease or a UK-wide managed fleet, we deliver the expertise you deserve.\n\nRequest a Free Audit View Leasing Options\n\nScroll to Top\n\nCamelott Logo\n\nLinkedin-in     Facebook-f\n\nCall Now Button [...] Can you assist with cloud workflows?\n\nAbsolutely. We specialize in modernizing the office environment, enabling secure scanning directly into SharePoint, OneDrive, and specialized document management systems.\n\n  How do you handle national support?\n\nCamelott® operates a nationwide network. Regardless of your location in the UK, we provide consistent response times and onsite engineer support.\n\n## Ready to optimize your print environment?"
+      },
+      {
+        "title": "Managed Print Services UK - Award Winning Managed Print ...",
+        "url": "https://www.uk-managedprintservices.co.uk",
+        "snippet": "Managed Print Services UK offer award winning managed print solutions throughout the UK. CALL OUR EXPERT TEAM ON 0800 526 716. We can offer nationwide support"
+      },
+      {
+        "title": "Managed Print Services | Sharp Business | UK",
+        "url": "https://www.sharp.co.uk/managed-print-services",
+        "snippet": "Through proactive maintenance and support we help to ensure your printers and copiers retain maximum uptime, whilst optimising processes and resources. Our latest MFPs offer integration with cloud and mobile applications. Some of our devices also benefit from a built-in Microsoft Teams connector, providing direct and secure access for printing or scanning from Teams channels. [...] More than just devices and maintenance, our Managed Print Services support every aspect of printing and Document Management.\n\nWe optimise workflows with advanced software like DocuWare and Filestar, helping streamline and improve business processes.\n\ncolour-printers\n\nPrint Management [...] Our Managed Print Services support corporate-level organisations with complex, geographically dispersed operations. Our understanding of corporate requirements is shape by our our experience as a multinational organisation, enabling us to deliver secure, efficient Managed Print Services with seamless integration and proactive management."
+      },
+      {
+        "title": "Managed Print Services | DTP Group",
+        "url": "https://dtpgroup.co.uk/managed-print-services",
+        "snippet": "### Key Benefits of Our Managed Print Services\n\n  Security, sustainability and automation sit at the heart of our Managed Print Services. We make managing your print fleet easier, help you cut energy use and keep your users happy. You get smarter insights, flexible finance options, a smaller environmental footprint and a partnership that actually delivers value. [...] With powerful print analytics software and the expertise of DTP’s technical consultants, we help organisations make smart, data-driven decisions to keep their print fleet running at its best without wasting time or resources.\n\n### OUR MANAGED PRINT SERVICES\n\nWe make print easy. Our Managed Print Services cover everything you need – from consultancy and fleet monitoring to consumables, hardware maintenance and tech support. Whatever you need, we can shape it around you. [...] DTP Group Logo\n\n 0113 207 9669\n hello@dtpgroup.co.uk\n ShopContact\n\nContact\n\n0113 207 9669 hello@dtpgroup.co.uk\n\n# Managed Print Services\n\nDTP provides sustainable, flexible and transparent Managed Print Services to our customers across the UK and Europe.\n\n Talk to Us\n\nManaged Print Services haven’t changed much over the years, but we’re here to shake things up. We aim to provide expert guidance on what great looks like and why it matters."
+      },
+      {
+        "title": "Managed Print Services | Bold IT",
+        "url": "https://boldit.co.uk/managed-print-services",
+        "snippet": "We curate a bespoke print package for your business’s needs with a support and maintenance deal for your machine, and a supply of ink and toner according to your usage. You will be supplied with top-quality printers, installed and serviced regularly by our expert engineers and a secure, sustainable print and scan contract for all your business’s printing needs. An MPS with Bold IT will mean you don’t have to invest in expensive printers and manage downtime. [...] ##### Outdated Cabling\n  :   Using outdated cabling can lead to compatibility issues with modern devices and technologies, reducing overall network performance and reliability.\n ##### Improve Productivity\n  :   A managed print service will enhance your team’s output with faster and more reliable printing solutions to minimise downtime allowing employees to complete tasks more efficiently.\n ##### Reduce Carbon Footprint [...] :   Implement eco-friendly printing practices that reduce energy consumption, minimise waste and support your business’s commitment to greener practices and sustainability.\n ##### Improve Your Information Security\n  :   With Bold IT’s managed print services, you can protect sensitive data with advanced security features, meaning only authorised users can access and print confidential documents, safeguarding your information."
+      },
+      {
+        "title": "UK – Managed Print Contracts - bidstats",
+        "url": "https://bidstats.uk/tenders/office-supplies?q=managed+print",
+        "snippet": "Find UK government contracts. Procurement notices containing managed print. 20 matched over past year."
+      },
+      {
+        "title": "Historical tender awards - Contract Finder Pro",
+        "url": "https://www.contractfinderpro.com/awardresults/%22Managed%20Print%22",
+        "snippet": "# Award Search\n\nContract Finder Pro helps you find out who won tenders\n\nWith our award search tool you can find who is winning public sector contracts  \nSearching is via keyword or more advanced users can use CPV codes"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:26:27.348Z"
+}

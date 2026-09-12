@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import type { z } from "zod";
 
+import type { PricedModel } from "@/lib/agents/pricing";
+
 import { echoInputSchema } from "../../../agents/echo/input.schema";
 import { echoOutputSchema } from "../../../agents/echo/output.schema";
 import { leadgenInputSchema } from "../../../agents/leadgen/input.schema";
@@ -13,7 +15,7 @@ import { orchestratorOutputSchema } from "../../../agents/orchestrator/output.sc
 import { outreachInputSchema } from "../../../agents/outreach/input.schema";
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
 import { researchInputSchema } from "../../../agents/research/input.schema";
-import { researchOutputSchema } from "../../../agents/research/output.schema";
+import { researchRunOutputSchema } from "../../../agents/research/output.schema";
 
 /**
  * The signed agent definitions, as the code's input.
@@ -44,6 +46,10 @@ export type AgentKind = (typeof AGENT_KINDS)[number];
 
 /** What a run is allowed to spend. Every number is quoted from the definition. */
 export type AgentBudget = {
+  /** v3 §6: characters of fetched page text a run may hold. */
+  maxFetchedChars?: number;
+  /** v3 §6: the spend ceiling, dollars. */
+  maxSpendUsd?: number;
   /** Hard cap on model calls. The loop stops here, and a run that stops here fails. */
   maxModelSteps: number;
   /** Search tool calls, where the definition sets one. */
@@ -54,8 +60,22 @@ export type AgentBudget = {
   maxSeconds?: number;
 };
 
+/** The effort levels the model transport accepts (`ClaudeCodeSettings.effort`). */
+export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type Effort = (typeof EFFORTS)[number];
+
 export type AgentDefinition<IN = unknown, OUT = unknown> = {
   kind: AgentKind;
+  /**
+   * Which pinned model the agent runs on, and at what effort, or `null` for an
+   * agent that makes no model calls. Decided per agent by the product owner on
+   * 2026-09-09 (research Opus 5 at high — the pack is what every draft opens on;
+   * orchestrator and outreach Sonnet 5; echo Opus 5, the spike's model) and
+   * recorded here rather than in a handler constant, so the choice is in the
+   * record a run is checked against. The id must be in the price table.
+   */
+  model: PricedModel | null;
+  effort: Effort | null;
   /**
    * The system prompt, or `null` for an agent that makes no model calls.
    *
@@ -79,6 +99,8 @@ export type AgentDefinition<IN = unknown, OUT = unknown> = {
 type Spec = {
   input: z.ZodTypeAny;
   output: z.ZodTypeAny;
+  model: PricedModel | null;
+  effort: Effort | null;
   tools: readonly string[];
   budget: AgentBudget;
   /** False for an agent with no model calls: no `prompt.md` is read. */
@@ -94,18 +116,21 @@ const SPECS = {
     // §6: four model steps, two of them headroom.
     budget: { maxModelSteps: 4, maxSearches: 0, maxFetches: 0, maxSeconds: 120 },
     hasPrompt: true,
+    model: "claude-opus-5",
+    effort: "high",
   },
   research: {
     input: researchInputSchema,
-    output: researchOutputSchema,
-    // §4, the read-only four. `priorKnowledge` is advisory, `facts` is local.
-    tools: ["facts", "priorKnowledge", "search", "fetch"],
-    // §6, the `standard` row — one sector national, or a channel motion. The
-    // narrow and wide rows are `RESEARCH_BREADTH_BUDGETS` below; the runtime
-    // picks by breadth, and `standard` is what a definition loaded without one
-    // gets.
-    budget: { maxModelSteps: 30, maxSearches: 40, maxFetches: 25, maxSeconds: 15 * 60 },
+    // v3 §3/§5: the modules are written through `writeModule` as the run goes;
+    // the loop's own answer is the manifest of what was written.
+    output: researchRunOutputSchema,
+    // v3 §4, the six: five read-only, and the module writer that validates on write.
+    tools: ["facts", "knowledge", "priorPacks", "search", "fetch", "writeModule", "decideScope"],
+    // v3 §6: rails, not scope. One depth; these sit an order above a real run.
+    budget: { maxModelSteps: 200, maxSearches: 120, maxFetches: 60, maxSeconds: 90 * 60, maxFetchedChars: 400_000, maxSpendUsd: 50 },
     hasPrompt: true,
+    model: "claude-opus-5",
+    effort: "high",
   },
   orchestrator: {
     input: orchestratorInputSchema,
@@ -117,6 +142,8 @@ const SPECS = {
     // than one loop. The cap is per call; three is the whole agent's ration.
     budget: { maxModelSteps: 3 },
     hasPrompt: true,
+    model: "claude-sonnet-5",
+    effort: "medium",
   },
   leadgen: {
     input: leadgenInputSchema,
@@ -127,6 +154,8 @@ const SPECS = {
     // §0: "Zero model calls."
     budget: { maxModelSteps: 0 },
     hasPrompt: false,
+    model: null,
+    effort: null,
   },
   outreach: {
     input: outreachInputSchema,
@@ -138,21 +167,10 @@ const SPECS = {
     // single draft job can reach. §4's ninety seconds is the lookup's budget.
     budget: { maxModelSteps: 3, maxSearches: 2, maxFetches: 2, maxSeconds: 90 },
     hasPrompt: true,
+    model: "claude-sonnet-5",
+    effort: "high",
   },
 } as const satisfies Record<AgentKind, Spec>;
-
-/**
- * Research's budget by breadth (§6), runtime-set and never model-chosen.
- *
- * Exported rather than folded into one budget because the definition makes the
- * scaling the point: the brief's shape decides the ration, and Task 12 picks the
- * row. `standard` is the row in `SPECS.research.budget`.
- */
-export const RESEARCH_BREADTH_BUDGETS = {
-  narrow: { maxModelSteps: 20, maxSearches: 20, maxFetches: 12, maxSeconds: 8 * 60 },
-  standard: { maxModelSteps: 30, maxSearches: 40, maxFetches: 25, maxSeconds: 15 * 60 },
-  wide: { maxModelSteps: 40, maxSearches: 60, maxFetches: 35, maxSeconds: 20 * 60 },
-} as const satisfies Record<string, AgentBudget>;
 
 export type InputOf<K extends AgentKind> = z.infer<(typeof SPECS)[K]["input"]>;
 export type OutputOf<K extends AgentKind> = z.infer<(typeof SPECS)[K]["output"]>;
@@ -195,6 +213,8 @@ export function loadDefinition<K extends AgentKind>(
     output: spec.output,
     tools: spec.tools,
     budget: spec.budget,
+    model: spec.model,
+    effort: spec.effort,
     definition: read("definition.md"),
     rubric: read("rubric.md"),
   };

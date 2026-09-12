@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Prisma, PrismaClient } from "@prisma/client";
 
-import { beginToolStep, failToolStep, finishToolStep } from "@/lib/repo/agentRuns";
+import { beginToolStep, failToolStep, finishToolStep, releaseToolStep } from "@/lib/repo/agentRuns";
 
 /**
  * Tools that cannot be paid for twice.
@@ -47,21 +47,19 @@ import { beginToolStep, failToolStep, finishToolStep } from "@/lib/repo/agentRun
  * are stored under the reserved key {@link FAILURE_KEY}, which a tool's own
  * output cannot collide with, and a replay that finds one rethrows.
  *
- * ## A failure is permanent, including one that cost nothing
+ * ## A failure is permanent — unless the tool says it spent nothing
  *
- * **Known limitation, deliberate in Phase 1.** The stored failure is keyed the
- * same way a success is, so a call that failed *before* it spent anything — a
- * 429, a dropped socket, a DNS blip — is never retried within the job: the
- * second attempt replays the stored failure instead of running. The cautious
- * direction, because the wrapper cannot see inside a tool and a failure after a
- * charge is the one that must never repeat.
+ * The stored failure is keyed the same way a success is, so a call that
+ * failed is not retried within the job by default: the second attempt replays
+ * the stored failure instead of running. The cautious direction, because the
+ * wrapper cannot see inside a tool and a failure after a charge is the one
+ * that must never repeat.
  *
- * Making it narrower needs the tool to say which it was — an `execute` that
- * distinguishes "spent, then failed" from "failed before spending", so only the
- * first is permanent and the second clears its own claim. That is a change to
- * the tool contract, not to this file, and Phase 1 ships no tool that spends: it
- * belongs with the first one that does (Task 12's search and fetch), and is
- * flagged there rather than guessed at here.
+ * Task 12 gave the tool contract the one word it needed: a spec may declare
+ * `unspent(error)`, and an error it answers `true` for **releases the key**
+ * — the row stays as the record of the attempt, its key is cleared, and a
+ * retry runs the call. Research's budget cap and a provider's refusal are the
+ * two cases; a fetch that returned a page after a charge is not one.
  *
  * ## What the model sees on a replay
  *
@@ -97,7 +95,21 @@ export type ToolRecorder = {
   beginCall(input: BeginCallInput): Promise<BeginCallResult>;
   endCall(stepId: string, output: unknown): Promise<void>;
   failCall(stepId: string, error: string): Promise<void>;
+  /** The call failed before it spent anything: keep the row, free the key. */
+  releaseCall(stepId: string, error: string): Promise<void>;
   noteReplay(): void;
+  /**
+   * End the run from inside a tool, with a reason the run reports.
+   *
+   * A tool has no other way to stop the loop: on the Agent SDK a tool error is
+   * text the model reads and reasons past. Research's budget cap uses this, so
+   * a capped run ends as `cap` with the field named and no partial answer.
+   */
+  abortRun(reason: "cap", message: string): void;
+  /** How many model steps the run has recorded so far; the budget's re-plan reads it. */
+  readonly modelSteps: number;
+  /** What the run has cost so far, in dollars, read live from the ledger; research's spend rail reads it. */
+  readonly spendUsd: number;
 };
 
 export type BeginCallInput = {
@@ -131,6 +143,12 @@ export type ToolRecorderDeps = {
   runId: string;
   runKind: string;
   takeIndex: () => number;
+  /** How `abortRun` reaches the run's controller. `runAgent` supplies it. */
+  abortRun?: (reason: "cap", message: string) => void;
+  /** The run's model-step count, read live. `runAgent` supplies it. */
+  modelSteps?: () => number;
+  /** The run's cost so far in dollars, read live. `runAgent` supplies it. */
+  spendUsd?: () => number;
 };
 
 export function createToolRecorder(deps: ToolRecorderDeps): ToolRecorder {
@@ -147,6 +165,19 @@ export function createToolRecorder(deps: ToolRecorderDeps): ToolRecorder {
     key: (toolName, discriminator) => toolKey(deps.orgId, deps.jobId, deps.runKind, toolName, discriminator),
     noteReplay() {
       replayed += 1;
+    },
+    abortRun(reason, message) {
+      if (deps.abortRun === undefined) throw new Error(`abortRun(${reason}): this recorder cannot end the run — ${message}`);
+      deps.abortRun(reason, message);
+    },
+    get modelSteps() {
+      return deps.modelSteps?.() ?? 0;
+    },
+    get spendUsd() {
+      return deps.spendUsd?.() ?? 0;
+    },
+    async releaseCall(stepId, error) {
+      await releaseToolStep(deps.db, { orgId: deps.orgId, stepId, failureKey: FAILURE_KEY, error });
     },
     async beginCall(input) {
       const result = await beginToolStep(deps.db, {
@@ -234,6 +265,11 @@ export type ReplayableTool<ARGS, OUT> = {
    * schema, the replay is parsed and a mismatch is a failure rather than a lie.
    */
   output?: { safeParse: (value: unknown) => { success: true; data: OUT } | { success: false } };
+  /**
+   * True when a thrown error means the call spent nothing, so its key may be
+   * released and a retry may run it. Absent means every failure is permanent.
+   */
+  unspent?: (error: unknown) => boolean;
 };
 
 /**
@@ -304,7 +340,8 @@ export function withReplay<ARGS, OUT>(
     try {
       output = await spec.execute(args);
     } catch (error) {
-      await recorder.failCall(claim.stepId, scrub(error));
+      if (spec.unspent?.(error) === true) await recorder.releaseCall(claim.stepId, scrub(error));
+      else await recorder.failCall(claim.stepId, scrub(error));
       throw error;
     }
     await recorder.endCall(claim.stepId, output);

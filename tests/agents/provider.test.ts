@@ -12,8 +12,7 @@ import {
   credentialKind,
   makeModel,
   subprocessEnv,
-  transportFor,
-} from "@/lib/agents/provider";
+  transportFor, SDK_MAX_TURNS } from "@/lib/agents/provider";
 import type { ToolRecorder } from "@/lib/agents/tools";
 import { parseEnv } from "@/lib/env";
 
@@ -33,7 +32,11 @@ function probeRecorder(): ToolRecorder {
     beginCall: refuse,
     endCall: refuse,
     failCall: refuse,
+    releaseCall: refuse,
     noteReplay: refuse,
+    abortRun: refuse,
+    modelSteps: 0,
+    spendUsd: 0,
   };
 }
 
@@ -157,6 +160,13 @@ describe("the Agent SDK subprocess", () => {
     expect(settings.allowDangerouslySkipPermissions).toBe(true);
     // The cap is the definition's model-step budget.
     expect(settings.maxTurns).toBe(4);
+  });
+
+  it("hands the SDK the step rail as maxTurns up to the bridge's 100, and leaves a higher rail to runAgent's own count", () => {
+    const at = (maxTurns: number) => agentSdkSettings({ configDir: "/tmp/relay-home", token: "token", run: { tools: {}, maxTurns, observe: silent } });
+    expect(at(SDK_MAX_TURNS).maxTurns).toBe(100);
+    // Research v3's rail is 200; the bridge's settings schema refuses anything over 100.
+    expect(at(200).maxTurns).toBeUndefined();
   });
 
   it("gives a definition with no tools a server with none, and an empty allow list", () => {

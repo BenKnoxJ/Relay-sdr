@@ -1,0 +1,57 @@
+{
+  "kind": "research",
+  "name": "research-e-legal-direct",
+  "source": "run",
+  "recordedAt": "2026-09-09T16:15:40.562Z",
+  "live": true,
+  "tools": "record",
+  "factsNote": "facts from facts/insights360.v1.json (the brief's inline facts are ignored)",
+  "breadth": "standard",
+  "input": {
+    "brief": {
+      "product": "Insights360",
+      "motion": "direct",
+      "who": "law or legal firms, ideally with a customer-facing line or support service, around 10 to 50 users or employees",
+      "region": "GB",
+      "howMany": 25,
+      "weeks": 4,
+      "channels": [
+        "email",
+        "linkedin"
+      ],
+      "existingCustomers": "one or two small firms like this already, no big household names"
+    },
+    "breadth": "standard"
+  },
+  "output": null,
+  "run": {
+    "steps": 58,
+    "modelSteps": 18,
+    "toolSteps": 40,
+    "attempts": 1,
+    "cost": "3.139200",
+    "durationMs": 611761,
+    "replayedToolCalls": 0,
+    "jobId": "26a1f4ef-b97b-40ce-9db8-07ef4c3a1095",
+    "eventId": null
+  },
+  "validation": {
+    "ok": false,
+    "errors": [
+      "TerminalError: research: bad_output — schema: the answer does not validate: archetypes.0.pains.0.publishedAt: Invalid datetime; archetypes.0.pains.2.publishedAt: Invalid datetime; archetypes.1.pains.0.publishedAt: Invalid datetime; archetypes.1.pains.1.publishedAt: Invalid datetime; archetypes.1.pains.3.publishedAt: Invalid datetime; archetypes.1.language.2.publishedAt: Invalid datetime; archetypes.2.pains.0.publishedAt: Invalid datetime; archetypes.2.pains.1.publishedAt: Invalid datetime; contradictions.0.b.publishedAt: Invalid datetime (AI_NoObjectGeneratedError: No object generated: response did not match schema.)"
+    ]
+  },
+  "error": "TerminalError: research: bad_output — schema: the answer does not validate: archetypes.0.pains.0.publishedAt: Invalid datetime; archetypes.0.pains.2.publishedAt: Invalid datetime; archetypes.1.pains.0.publishedAt: Invalid datetime; archetypes.1.pains.1.publishedAt: Invalid datetime; archetypes.1.pains.3.publishedAt: Invalid datetime; archetypes.1.language.2.publishedAt: Invalid datetime; archetypes.2.pains.0.publishedAt: Invalid datetime; archetypes.2.pains.1.publishedAt: Invalid datetime; contradictions.0.b.publishedAt: Invalid datetime (AI_NoObjectGeneratedError: No object generated: response did not match schema.)",
+  "rejectedIssues": [
+    "archetypes.0.pains.0.publishedAt: Invalid datetime",
+    "archetypes.0.pains.2.publishedAt: Invalid datetime",
+    "archetypes.1.pains.0.publishedAt: Invalid datetime",
+    "archetypes.1.pains.1.publishedAt: Invalid datetime",
+    "archetypes.1.pains.3.publishedAt: Invalid datetime",
+    "archetypes.1.language.2.publishedAt: Invalid datetime",
+    "archetypes.2.pains.0.publishedAt: Invalid datetime",
+    "archetypes.2.pains.1.publishedAt: Invalid datetime",
+    "contradictions.0.b.publishedAt: Invalid datetime"
+  ],
+  "rubric": []
+}

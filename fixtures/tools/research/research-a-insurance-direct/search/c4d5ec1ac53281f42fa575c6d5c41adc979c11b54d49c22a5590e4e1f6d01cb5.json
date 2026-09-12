@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurers outsourced claims handling third party administrators call recordings insurer no access oversight",
+    "region": "GB",
+    "recencyMonths": 24,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Using Insurance Third-party Administrators (TPAs) - Cherry Bekaert",
+        "url": "https://www.cbh.com/insights/articles/how-third-party-administrators-improve-insurance-operations",
+        "snippet": "Outsourcing functions to these third-party administrators allows insurance companies to focus on their core competencies, such as underwriting and risk management, while ensuring that other operational elements are efficiently handled. [...] When insurers outsource administrative functions to TPAs, they shift day-to-day operational duties to an external partner rather than managing them internally. Typically, this outsourcing arrangement is formalized through a service agreement or contract that outlines the TPA’s scope of work, performance expectations, reporting obligations and regulatory requirements. [...] By outsourcing administrative functions to TPAs, insurance companies free up internal resources to concentrate on their primary business activities, such as product development, assessing and managing risk, and driving growth and innovation."
+      },
+      {
+        "title": "Call Recordings and Insurance Claims | HUB International",
+        "url": "https://www.hubinternational.com/products/employee-benefits/compliance-bulletins/2021/07/call-recordings-and-insurance-claims",
+        "snippet": "The insurer in this case said the recording was not part of the administrative record and therefore was not relied on in making the decision. Instead, the insurer said, it was only recorded for quality assurance purposes. As a result, the insurer argued the recording did not have to be provided.\n\nClaims Record(ing) [...] However, employers should consider confirming with their insurance carriers or third-party administrators that they are aware of this guidance and will comply. Most of them likely already are. Ultimately, the fiduciary responsibility for the administration of the plan falls on the ERISA plan administrator. In most cases, that is the employer. This is true even if the employer has hired third parties to handle the day-to-day administration of the plan. Therefore, while employers may have [...] employers may have outsourced that day-to-day responsibility, the fiduciary responsibility to ensure vendors are complying likely ultimately rests with the employer."
+      },
+      {
+        "title": "What is a TPA? Understanding the Role of Third-Party Administrators",
+        "url": "https://www.adjustingexpectations.com/adjuster-blog/what-is-a-tpa-understanding-the-role-of-third-party-administrators",
+        "snippet": "Third-party administrators like CNC are a crucial partner in the claims management process for insurance companies and adjusters. A commitment to regulatory compliance and specialized expertise allows us to handle claims efficiently and effectively.\n\nIf you’re ready to unlock the full potential of your insurance operations and deliver unparalleled service to your policyholders, partner with CNC for claims that are always handled with precision and care. [...] ## What is a TPA?\n\nA TPA isn’t an insurance company. Instead, it’s an independent company that helps insurance carriers and adjusters manage claims. When an insurer receives a claim, they have the option to outsource it to a TPA. By leveraging a TPA’s expertise and resources, insurance companies can concentrate on their core operations. The result is improved efficiency and better outcomes for all parties involved.\n\n## How is a TPA different from an insurance company? [...] ## Why work with a TPA?\n\nInsurers and adjusters can tap into a variety of benefits when they work with a TPA. From improved efficiency and cost savings to specialized expertise and regulatory compliance, collaborating with a TPA can lead to a more effective claims-handling process.\n\n### Improved efficiency and cost savings"
+      },
+      {
+        "title": "Shortcomings in the oversight of insurers' outsourcing arrangements ...",
+        "url": "https://www.regulationtomorrow.com/2015/06/shortcomings-in-the-oversight-of-insurers-outsourcing-arrangements-pose-risks-to-the-quality-of-services-to-customers-the-fca-finds",
+        "snippet": "The failure to provide sufficient oversight of outsourced functions demonstrates a lack of appropriate systems and controls and a failure to"
+      },
+      {
+        "title": "Know the Risks Outsourcing to Third Parties | FTI Consulting",
+        "url": "https://www.fticonsulting.com/insights/fti-journal/know-risks-outsourcing-third-parties-insurance-industry",
+        "snippet": "Back to top\n\nCarriers that choose to outsource to two specific types of third parties — MGAs and TPAs — may find distinct challenges. A little knowledge can go a long way.\n\nThe variety of services offered by third parties to the insurance industry is seemingly endless. From outsourcing underwriting authority to a managing general agent (“MGA”) or the claims administration to a third-party administrator (“TPA”), carriers have a wealth of choices for engaging third parties. [...] Departure from claim-handling guidelines — Carriers expose themselves to extracontractual obligations if claims are denied without merit or improperly disputed. Additional risks exist if the TPA does not follow claim-handling guidelines or service-level agreements.\n Inaccurate loss run data —The TPA may report loss run data inaccurately or miss deadlines, which puts the carrier at risk of not having the proper reserves recorded. [...] ### Risks Associated With TPAs\n\nA TPA typically handles administrative responsibilities such as claim administration, loss control and risk management information systems on a fee-for-service basis. Here are three select risks:"
+      },
+      {
+        "title": "TPA vs. Insurance Carrier: What’s the Real Difference in Claims Oversight? | Engle Martin",
+        "url": "https://englemartin.com/difference-tpa-vs-insurance-company-claims-oversight",
+        "snippet": "## Defining TPA and Insurance Carriers\n\nA Third-Party Administrator or TPA is an organization that provides administrative and operational services to insurers or self-insured entities without taking on financial risk for claim payments. TPAs may manage claim intake, vendor coordination, field investigations, or day-to-day claims processing under contract with an insurance carrier or employer. [...] Carriers remain legally responsible for regulatory requirements such as licensing, recordkeeping, anti-fraud programs, and privacy compliance. TPAs must follow these standards when acting on a carrier’s behalf. Strong carrier oversight often includes Special Investigative Units (SIUs), audits, and performance monitoring, ensuring compliance remains defensible.\n\n### Operational Scale and Specialization [...] Carriers hold final authority on coverage interpretation, reserve thresholds, and litigation strategy. TPAs may receive delegated authority for responsibilities such as triage, vendor coordination, or smaller claim approvals. The scope depends on contract terms, including defined limits, audit rights, and escalation protocols, which together establish how much autonomy a TPA can exercise.\n\n### Oversight and Compliance"
+      },
+      {
+        "title": "Transparency in Insurance Claims: Giving Policyholders Access to Information – Iowa Association of Public Insurance Adjusters",
+        "url": "https://iowapublicadjusters.org/transparency-in-insurance-claims",
+        "snippet": "But the law does not require insurers to provide policyholders with access to their own claim records, like internal notes, reserve amounts, or third-party communications. As a result, consumers often lack the evidence they need to challenge unfair treatment or hold insurers accountable.\n\n### Our Proposed Changes To § 507B.4 [...] Weakened Appeals – Policyholders and their advocates (public adjusters, contractors, attorneys) can’t effectively dispute a denial without access to the insurer’s own records. [...] All communications between the insurer and any outside parties related to the claim.\n Any additional claim-related information collected by the insurer."
+      },
+      {
+        "title": "The Insurer – Global (Re)Insurance News, Analysis ...",
+        "url": "https://www.theinsurer.com/homepage",
+        "snippet": "Cyberattacks are becoming more expensive ​for mid-sized UK and European businesses despite declining claims volumes, while the U.S. faces a \"historic high\" in claims severity, according ‌to Chubb's 2026 cyber claims report published on Tuesday.\n\nIllustration shows MS Amlin logo\n\n### MS Amlin hires two in direct cyber insurance expansion [...] The Milford Bank said the Banc Insurance Agency failed to report a cyber claim arising from a third-party data breach within the 30-day period, and then misled the bank into believing the claim was ​being handled, contributing to AFG-owned Great American’s denial of breach-response coverage.\n\nHooded an holds laptop computer as cyber code is projected on him in this illustration picture\n\n### Minnesota water attacks, vendor breach sharpen cyber insurers’ focus on OT risk [...] Cyber catastrophe bond issuance may have slowed in 2026, but market participants say the sector's next innovation could already be taking shape: a combined property and cyber transaction.\n\nDelvin Tillett, Coalition\n\n### Coalition hires Allianz's Tillett to lead UK cyber underwriting\n\nCoalition has appointed Delvin Tillett as head ​of cyber underwriting, UK, the ‌active insurance provider announced on Friday.\n\nBoardroom business meeting\n\n### Australian cyber insurer Emergence enters US market"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:04:51.852Z"
+}

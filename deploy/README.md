@@ -24,7 +24,7 @@ The names, and nothing else — values are Benny-san's:
 | `INTEGRATIONS` | `live` or `mock`. |
 | `TOKEN_ENC_KEY` | Required when `INTEGRATIONS=live`; provider tokens are stored encrypted. |
 | `ANTHROPIC_API_KEY` | Agent steps, fallback only: the Messages API path when no subscription token is set. |
-| `TAVILY_API_KEY`, `FIRECRAWL_API_KEY` | Research tools. |
+| `TAVILY_API_KEY`, `FIRECRAWL_API_KEY` | Research tools (search and the extract fallback; page scrapes). |
 | `RELAY_MS_TENANT_ID`, `RELAY_MS_CLIENT_ID`, `RELAY_MS_CLIENT_SECRET` | Microsoft Graph. |
 | `RELAY_ZOHO_CLIENT_ID`, `RELAY_ZOHO_CLIENT_SECRET`, `RELAY_ZOHO_REFRESH_TOKEN`, `ZOHO_CRM_BASE_URL` | Zoho CRM. |
 

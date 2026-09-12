@@ -1,0 +1,53 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "reddit UK insurance complaints handler workload cases backlog \"complaints team\"",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Anyone work for NatWest complaints - Reddit",
+        "url": "https://www.reddit.com/r/Natwest/comments/1syv3ko/anyone_work_for_natwest_complaints",
+        "snippet": "There's a massive backlog of complaints currently. complaints team review and finalise each case to help with workload."
+      },
+      {
+        "title": "Complaints handling insurance jobs in London - Indeed",
+        "url": "https://uk.indeed.com/q-complaints-handling-insurance-l-london-jobs.html",
+        "snippet": "30 Complaints Handling Insurance jobs available in London. SLA performance, backlog management, and low complaint rates. Assist the complaints team with claim"
+      },
+      {
+        "title": "Motor insurance handler here - addressing some common ... - Reddit",
+        "url": "https://www.reddit.com/r/CarTalkUK/comments/zuda78/motor_insurance_handler_here_addressing_some",
+        "snippet": "I work in the complaints department for a large insurer, I review and decide the outcome of the complaint when they come through. Thank you"
+      },
+      {
+        "title": "Car insurance claim dragging for over 2.5 years - is this a ... - Reddit",
+        "url": "https://www.reddit.com/r/LegalAdviceUK/comments/1vq0n3g/car_insurance_claim_dragging_for_over_25_years_is",
+        "snippet": "There has been a backlog with the courts and they have delayed responding to claim forms. this can take around 6-8 weeks cannot chase them"
+      },
+      {
+        "title": "What secret tips do you know from being 'in the business?' : r/AskUK",
+        "url": "https://www.reddit.com/r/AskUK/comments/xajk2b/what_secret_tips_do_you_know_from_being_in_the",
+        "snippet": "I worked in insurance for about a decade and our complaints team hated it when this threat was hanging over us. I forget the exact details"
+      },
+      {
+        "title": "Legal ombudsman or await complaint response? : r/LegalAdviceUK",
+        "url": "https://www.reddit.com/r/LegalAdviceUK/comments/1nul3qg/legal_ombudsman_or_await_complaint_response",
+        "snippet": "I received an email today saying that the “Quality Team” will now review but they will miss their service level of 10 days and their current"
+      },
+      {
+        "title": "[Update] Has anyone had success stories in negotiating with a motor ...",
+        "url": "https://www.reddit.com/r/UKPersonalFinance/comments/p9uuol/update_has_anyone_had_success_stories_in",
+        "snippet": "They were slow to respond. They then had to pass it to their complaints team instead of letting the claims team finish it, and the complaints"
+      },
+      {
+        "title": "Financial Ombudsman Service: Our homepage – Financial ...",
+        "url": "https://www.financial-ombudsman.org.uk",
+        "snippet": "The Financial Ombudsman Service is a free service, set up by Parliament in 2001. We investigate complaints about financial businesses – companies that provide products and services like bank accounts, credit cards and loans, insurance policies, pensions, savings and investments. [...] How to complain\n\n2\n\n## Submit an online complaint form\n\nBring a complaint to us\n\n3\n\n## Get a fair answer and explanation\n\nWhat to expect\n\n## Our role is to investigate complaints [...] If we decide that a financial business hasn’t treated a customer fairly, we have the power to put things right. We can also look at complaints about claims management companies – that is, businesses who handle claims for compensation on behalf of consumers."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T15:04:07.067Z"
+}

@@ -20,8 +20,16 @@ export const urlSchema = z
   .string()
   .url()
   .refine((raw) => {
-    const protocol = new URL(raw).protocol;
-    return protocol === "http:" || protocol === "https:";
+    // Total: zod 3 runs this refinement even after `.url()` has failed, and a
+    // throw here is an exception out of the whole parse rather than an issue —
+    // it crashed `writeModule` twice on brief E (2026-09-10) over a size
+    // `source` written as a note.
+    try {
+      const protocol = new URL(raw).protocol;
+      return protocol === "http:" || protocol === "https:";
+    } catch {
+      return false;
+    }
   }, "must be an http:// or https:// URL");
 
 /** A stable slug id. Ids are referenced across the pack, so they cannot be prose. */
@@ -43,6 +51,9 @@ export const factIdSchema = z
   .min(1)
   .max(120)
   .regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/, "fact ids are dotted or dashed slugs");
+
+/** `YYYY` or `YYYY-MM`, the precision a source often gives. */
+export const partialDateSchema = z.string().regex(/^\d{4}(-(0[1-9]|1[0-2]))?$/, "a date is YYYY-MM-DD, YYYY-MM or YYYY");
 
 export const CONFIDENCE = ["strong", "moderate", "weak", "speculative"] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
@@ -115,19 +126,25 @@ export function aboveCeiling(asserted: Confidence, evidence: Evidence): boolean 
 
 const itemFields = {
   id: idSchema,
-  text: z.string().min(1).max(600),
+  text: z.string().min(1).max(2000),
   /** The source's own words. Needed for the provenance check (§7). */
-  quote: z.string().min(1).max(600).optional(),
-  speaker: z.string().min(1).max(160).optional(),
-  role: z.string().min(1).max(160).optional(),
-  /** When the source said it. ISO date or date-time. */
-  publishedAt: z.string().datetime({ offset: true }).or(z.string().date()).optional(),
+  quote: z.string().min(1).max(2000).optional(),
+  speaker: z.string().min(1).max(500).optional(),
+  role: z.string().min(1).max(500).optional(),
+  /**
+   * When the source said it. ISO date-time, date, year-month or a bare year:
+   * a report is often dated "March 2026" or just "2026", and refusing a pack
+   * over the precision a source did not give cost a live run (brief E,
+   * 2026-09-09). `monthsOld` reads a partial date as its first day, which is
+   * the older reading, so recency errs towards demotion.
+   */
+  publishedAt: z.string().datetime({ offset: true }).or(z.string().date()).or(partialDateSchema).optional(),
   /** When this run read it. Always present: a citation with no read date cannot be re-checked. */
   accessedAt: z.string().datetime({ offset: true }).or(z.string().date()),
   evidence: evidenceSchema,
   confidence: z.enum(CONFIDENCE),
   /** Required for `speculative`: what the inference was made from. */
-  inferredFrom: z.string().min(1).max(400).optional(),
+  inferredFrom: z.string().min(1).max(1000).optional(),
 };
 
 /**
@@ -200,9 +217,9 @@ export const phraseObject = z
   .object({
     ...itemFields,
     /** What to say. */
-    say: z.string().min(1).max(300),
+    say: z.string().min(1).max(1000),
     /** What not to say, when the contrast is the point. */
-    notThis: z.string().min(1).max(300).optional(),
+    notThis: z.string().min(1).max(1000).optional(),
     /** True when a vendor or consultant said it, not a buyer. */
     notBuyer: z.boolean(),
   })

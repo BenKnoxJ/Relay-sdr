@@ -1,0 +1,54 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "insurance claims quality assurance analyst job description call listening sample complaints UK",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 8
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Quality Analyst (Call Monitoring/Listening) - Facebook",
+        "url": "https://www.facebook.com/groups/1689250585089144/posts/2006311306716402",
+        "snippet": "A Quality Assurance Analyst must measure and evaluate the performance of the Agents. Identify and remedy defects within the production process * Recommend,"
+      },
+      {
+        "title": "What Is a Quality Assurance Analyst? 2026 Career Guide | Coursera",
+        "url": "https://www.coursera.org/articles/quality-assurance-analyst",
+        "snippet": "In technical QA analyst jobs such as software quality assurance, you’ll develop and implement testing plans, create test cases and test scripts, and document your findings. You’ll also report defects and track resolutions. This may involve focus groups with customers and monitoring ongoing customer feedback to identify product issues. The main goal of quality assurance is to ensure products meet functional requirements before they make it to the user.\n\n## QA analyst job description [...] Quality assurance analysts are responsible for testing, analyzing, and ensuring the quality of software, products, and systems. They confirm that products or services meet the standards set by the company or the industry in which they’re working. QA has become synonymous with the software development process and technology products. However, jobs in quality assurance are available in various sectors in and outside of the tech industry, including manufacturing, food and beverage, and health [...] Daily responsibilities can vary depending on the industry or company you work for. Here are a few tasks you can expect to manage in most QA roles:\n\n Planning and implementing product testing\n\n Establishing procedures and scenarios for quality control\n\n Reviewing products for defects and errors\n\n Regression testing\n\n Conducting software compatibility tests and software design reviews\n\n Analyzing test results\n\n Assisting with product designs\n\n Tracking progress on product issue resolutions"
+      },
+      {
+        "title": "What Does a Call Center Quality Monitor Do? - CYF",
+        "url": "https://cyf.com/what-does-a-call-center-quality-monitor-do",
+        "snippet": "The quality monitor or analyst is responsible for analyzing the interaction between call center agents and customers. This interaction can be by phone, chat,"
+      },
+      {
+        "title": "Customer Service Representative Job Description, Skills, and Responsibilities",
+        "url": "https://www.instawork.com/blog/customer-service-representative-job-description",
+        "snippet": "Entry-Level Customer Service Representative – Handles basic customer inquiries, support requests, and issue resolution.\n Senior Customer Service Representative – Manages more complex cases, mentors new team members, and supports quality assurance.\n Team Lead or Supervisor – Oversees daily operations, coaches representatives, and ensures service-level goals are met.\n Customer Service Manager – Leads teams, improves processes, and drives customer satisfaction strategies. [...] Specialized or Cross-Functional Roles – Transition into positions such as Customer Success Manager, Account Manager, Quality Analyst, or Operations Specialist. [...] Investigate customer complaints and service issues\n Troubleshoot problems and offer appropriate resolutions\n Escalate complex cases to the appropriate teams when needed\n Follow up to ensure issues are fully resolved\n\n### Processing Orders and Requests\n\nCustomer service representatives often assist with transactions and account-related requests."
+      },
+      {
+        "title": "How to build a QA scorecard: Examples + template",
+        "url": "https://www.zendesk.com/blog/quality-assurance/workforce-optimization/qa-scorecard",
+        "snippet": "Phone QA scorecards evaluate call center skills like pacing, volume, active listening, and any other customer service skills your team considers most important. Providing phone support is often more emotionally and mentally demanding than chat or email, so you’ll want to pay special attention to call center agent performance in light of those challenges.\n\n## How to build a QA scorecard [...] Live chat support is fast-paced and often more casual than email or phone support. Support professionals must be proficient in multitasking, as it’s not unusual for teammates to juggle three or four chat conversations at once. [...] QA scorecards can help you deliver outstanding customer experiences in every interaction. That said, even with the most comprehensive quality assurance scorecard, you could miss out on valuable insights. For complete coverage, you need AI in customer service QA."
+      },
+      {
+        "title": "Question for QA and Call Center IT: How Does Call Grading Actually ...",
+        "url": "https://www.reddit.com/r/callcentres/comments/1q2fmvk/question_for_qa_and_call_center_it_how_does_call",
+        "snippet": "Quick question for people in QA team at their respective call centre or just for anyone who knows how call selections for grading works."
+      },
+      {
+        "title": "Call Center Script Examples and Best Practices | MicroSourcing",
+        "url": "https://www.microsourcing.com/learn/blog/call-center-script-examples-and-best-practices",
+        "snippet": "Accounting\n Accounting & Finance\n All Industries\n Banking\n BPO/RPO/HRO\n Communication\n CSR & ESG\n Customer & Client Acquisition\n Customer Experience\n Cybersecurity\n Cybersecurity & Compliance\n Data Management\n Digital Operations\n Digital Transformation\n eCommerce\n Education\n Employee Engagement\n Engineering & Construction\n Financial Services\n Healthcare\n Hospitality and tourism\n HR & Recruitment\n Information Technology\n Insurance\n Legal Services\n Logistics\n Offshoring & Outsourcing [...] 1. Connect with a genuine welcome: ensure to create a positive first impression that makes the customer know they’re valued and is speaking with an expert who is able and willing to help.\n2. Ask questions and discover: demonstrate curiosity by asking questions and listening, and show that we’re genuinely interested.\n3. Wrap up with a friendly farewell: conclude the conversation by ensuring the customer feels valued and acknowledged.\n\n## Call center script ideas [...] March 25, 2025\n\n### Insurance BPO Outsourcing Services: A Complete Guide\n\nMarch 18, 2025\n\nInsurance executives could be excused for feeling an extra weight on their shoulders were they to glance at McKinsey & Company’s latest insight into.."
+      },
+      {
+        "title": "Division of Quality Assurance (DQA) | Wisconsin Department of Health Services",
+        "url": "https://www.dhs.wisconsin.gov/dqa/index.htm",
+        "snippet": "Are you a DQA regulated provider? If so, you may also be interested in training resources on our DQA Provider Trainings webpage.\n\n## Additional resources\n\n### Complaints about Health or Residential Care in Wisconsin\n\nElderly person in a nursing home is fed orange juice by a nurse\n\nIf any individual believes that a caregiver or DQA regulated health care provider has violated State or Federal laws, that individual has the right to file a complaint with DQA. [...] The Division of Quality Assurance (DQA) is responsible for protecting and promoting the health, safety, and welfare of residents living and receiving care in the health and residential care facilities regulated by the Division. DQA is responsible for regulating and licensing more than 40 different programs and facilities that provide health, long-term care, mental health and substance use services, as well as conducting caregiver background checks and investigations.\n\n## Mission [...] DQA also provides the Post Survey Questionnaire for health care providers to complete.\n\n### Request a DQA presenter\n\nA microphone in a conference room."
+      }
+    ]
+  },
+  "recordedAt": "2026-09-09T14:25:09.125Z"
+}

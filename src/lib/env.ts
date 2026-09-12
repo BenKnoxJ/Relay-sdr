@@ -257,6 +257,20 @@ const schema = z
     // --- research ---------------------------------------------------------
     TAVILY_API_KEY: optional(z.string()),
     FIRECRAWL_API_KEY: optional(z.string()),
+    /**
+     * Where the research tools' recorded provider responses live when the
+     * services run in mock mode: a directory with `search/` and `fetch/`
+     * subdirectories, one JSON per call keyed by the call's discriminator.
+     * Default `fixtures/tools/research` in the repository; the bench and the
+     * rubric point it at one brief's subdirectory.
+     */
+    RELAY_TOOL_FIXTURES: optional(z.string()),
+    /**
+     * `"1"` makes a **live** research tool write its response into
+     * `RELAY_TOOL_FIXTURES` after each call, so a brief can be recorded once
+     * and replayed offline. Anything else, including unset, is off.
+     */
+    RELAY_TOOL_RECORD: optional(z.string()),
   })
   .superRefine((value, ctx) => {
     // `DEV_USER_EMAIL` signs every request in as one rep with no credential.

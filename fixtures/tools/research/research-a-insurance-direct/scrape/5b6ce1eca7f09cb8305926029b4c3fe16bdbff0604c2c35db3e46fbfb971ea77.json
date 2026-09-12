@@ -1,0 +1,11 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://www.linkedin.com/posts/rav-sandhu-a249297b_%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F-%3F%3F%3F%3F%3F%3F%3F%3F%3F-activity-7385587954892558336-GjPc"
+  },
+  "response": {
+    "unreadable": true,
+    "reason": "firecrawl: HTTP 403"
+  },
+  "recordedAt": "2026-09-09T15:25:48.040Z"
+}

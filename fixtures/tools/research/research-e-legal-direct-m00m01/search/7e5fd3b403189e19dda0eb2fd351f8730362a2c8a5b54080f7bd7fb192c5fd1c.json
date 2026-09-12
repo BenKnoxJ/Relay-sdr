@@ -1,0 +1,12 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "law firm call recording GDPR ICO guidance",
+    "region": "GB",
+    "maxResults": 8
+  },
+  "response": {
+    "hits": []
+  },
+  "recordedAt": "2026-09-10T09:51:25.359Z"
+}

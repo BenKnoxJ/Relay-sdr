@@ -33,5 +33,5 @@ export const startCopy = {
   blank: "nothing yet",
 
   start: "Start research",
-  startNote: "About ten minutes. Nothing is bought or sent until you confirm the plan.",
+  startNote: "Usually 20 to 45 minutes. Nothing is bought or sent until you confirm the plan.",
 } as const;

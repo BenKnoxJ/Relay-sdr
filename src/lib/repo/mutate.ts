@@ -48,6 +48,10 @@ export type EventKind =
   /// provenance report and what the run ran under. Until Task 6d's table,
   /// this Event *is* where the pack lives.
   | "research.completed"
+  /// A rep started a campaign: `after` carries its name, brief version 1 and
+  /// the brief. Written in the same transaction as the campaign row and its
+  /// first research job, so "started" and "research asked for" are one fact.
+  | "campaign.created"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the

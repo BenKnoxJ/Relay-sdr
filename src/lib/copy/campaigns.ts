@@ -43,7 +43,12 @@ export const campaignsCopy = {
    */
   nextResearching: "reading around the brief",
   nextStopped: "widen the brief",
+  /** A real stop, before choosing a way to widen can be pressed. */
+  nextStoppedLive: "read what research found",
   nextPlanReady: "confirm the plan",
+  /** A real plan, before Confirm can be pressed. */
+  nextPlanReadyLive: "read the plan",
+  nextFailed: "research needs you",
   nextFindingPeople: "pick your people",
   nextDrafting: "first drafts on the way",
   nextRunningDrafts: "drafts due today",
@@ -55,6 +60,7 @@ export const campaignsCopy = {
   /** The state chip, one word of state (mock 3a). */
   chipResearching: "Researching",
   chipStopped: "Stopped",
+  chipNeedsYou: "Needs you",
   chipPlanReady: "Plan ready",
   chipFindingPeople: "Finding people",
   chipDrafting: "Drafting",
@@ -66,6 +72,7 @@ export const campaignsCopy = {
   stepBrief: "Brief",
   stepResearching: "Researching",
   stepStopped: "Researching · stopped",
+  stepNeedsYou: "Researching · needs you",
   stepPlanReady: "Plan ready",
   stepFindingPeople: "Finding people",
   stepDrafting: "Drafting",
@@ -79,8 +86,22 @@ export const campaignsCopy = {
   actionResume: "Resume",
   actionWiden: "Widen the brief",
 
-  /** Researching: a line, and no spinner (§23.1c). */
-  researchingNote: "Reading around the brief now. Back in about ten minutes.",
+  /** Researching: a line, and no spinner (§23.1c; research v3 runs 20 to 45 minutes). */
+  researchingNote: "Reading around the brief now. This usually takes 20 to 45 minutes.",
+
+  /**
+   * Research that did not finish (orchestrator §7, amended A1). One line of
+   * reason, never the error itself, and never "needs you" on its own.
+   */
+  failedTookTooLong: "Relay's research took longer than it should and stopped before it finished.",
+  failedBadOutput: "Relay's research came back in a shape it could not use.",
+  failedOther: "Relay's research did not finish.",
+  failedNotStarted: "Relay's research has not started.",
+  failedNothingSpent: "Nothing was bought or sent.",
+  failedNext: "Trying again from here arrives next.",
+
+  /** Confirm plan is drawn and cannot be pressed until finding people exists. */
+  confirmLater: "Confirming the plan arrives with finding people.",
 
   /** The brief card (mock 3b), five fields read only. */
   briefLabel: "The brief",
@@ -89,6 +110,18 @@ export const campaignsCopy = {
   fieldWho: "Who",
   fieldHowMany: "How many",
   fieldChannels: "Channels",
+  /** Who exactly, on the brief card: each row only when the rep set it. */
+  fieldWhere: "Where",
+  fieldOrgTypes: "Kinds of organisation",
+  fieldSize: "Size",
+  fieldRolesInclude: "Roles to reach",
+  fieldRolesExclude: "Roles to leave out",
+  fieldCustomers: "Customers like this",
+  alsoCalled: "also",
+  sizeAtLeast: "at least",
+  sizeAtMost: "at most",
+  sizeTo: "to",
+  sizeUnits: { employees: "people employed", seats: "seats", sites: "sites" },
   over: "over",
   changeSomething: "Change something…",
   changeFromCard: "Change something about this…",
@@ -122,8 +155,12 @@ export const campaignsCopy = {
   answerDrafted: "drafted",
   answerFound: "found",
   answerNothingYet: "Nothing has gone out yet.",
+  answerNothingFound: "No people have been found yet, and nothing has been sent.",
   answerWaitingConfirm: "You. Confirm the plan and Relay finds your people.",
   answerWaitingWiden: "You. Widen the brief and Relay reads around it again.",
+  answerWaitingPlanLive: "Nothing yet. Read the plan; confirming it arrives with finding people.",
+  answerWaitingStoppedLive: "Nothing yet. Read what research found; widening the brief arrives next.",
+  answerWaitingFailed: "Nothing you can do here yet. The reason is at the top of the page.",
   answerWaitingDrafts: "drafts due today in Inbox.",
   answerWaitingNothing: "Nothing right now.",
   answerRepliesNone: "Nobody has replied yet.",
@@ -136,6 +173,7 @@ export const campaignsCopy = {
   answerCostUsed: "credits used,",
   answerCostLeft: "left.",
   answerCostNothing: "Nothing has been spent on this campaign.",
+  answerCostNoCredits: "No credits have been spent on this campaign.",
   answerStoppedNone: "Nothing is paused or stopped.",
   answerPaused: "You paused it. Resume puts the queue and the schedule back.",
   answerStopped: "Relay stopped: not enough evidence to write a plan. Widen the brief and it looks again.",
@@ -186,6 +224,43 @@ export const campaignsCopy = {
   noSource: "No source. Relay inferred this.",
   noSourceFrom: "No source. Relay inferred this from",
 
+  /** The hook and the targeting are for one kind of buyer; this says which. */
+  forGroup: "For:",
+
+  /**
+   * A partial plan (research outcome `partial`): a limit ended the run, and
+   * the page says which parts are missing rather than drawing them empty.
+   */
+  planPartial: "Relay ran out of time before it finished. What is shown was found; these parts are missing:",
+  /**
+   * The parts of the research, in a rep's words, for the partial line. Keyed
+   * by the pack's own part names, which never reach a screen.
+   */
+  partNames: {
+    m00: "the brief as Relay read it",
+    repSummary: "the five-line summary",
+    execSummary: "the longer summary",
+    m01: "the market and its firms",
+    m02: "competitors",
+    m03: "the kinds of buyer",
+    m04: "who to target, and first firms",
+    m05: "their pains",
+    m06: "their own words",
+    m07: "how the product answers each pain",
+    m08: "who is a good fit, and who is not",
+    m09: "what to say to them",
+    m10: "where they gather",
+    m11: "objections, and answers to them",
+    m12: "rules for contacting them",
+    m13: "dates and deadlines",
+    m14: "what changed since last time",
+    m15: "proof you can use",
+    m16: "campaign ideas",
+    m17: "where sources disagree",
+    m18: "what Relay could not find",
+    m19: "the sources",
+  },
+
   /** The four confidence words a rep sees. Never a number (§23.1c). */
   confidenceStrong: "strong",
   confidenceModerate: "moderate",
@@ -223,12 +298,18 @@ export const campaignsCopy = {
   peopleLink: "Your people",
   peopleBeforeConfirm:
     "Chosen after you confirm. You pick from the ranked list before any credit is spent.",
+  /** Progress before anyone has been found: words, not five zeros that read like work done. */
+  progressNone: "No people have been found yet. Nothing has been sent.",
+  /** The list row's count before anyone has been contacted. */
+  nothingSentYet: "Nothing sent yet",
 
   /** The insufficient-evidence stop (§23.1c, mock 3c). */
   stopBanner: "Not enough evidence to write a plan. Nothing has been spent.",
   stopFound: "What it did find",
   stopHelp: "What would help",
   stopChooseOne: "Choose one, and Relay looks again",
+  /** A real stop, before choosing an option can be pressed. */
+  stopChooseLater: "Choosing one of these arrives next. Nothing has been spent.",
   widenRegion: "Widen the region",
   widenSize: "Widen the size",
   widenSector: "Widen the kind of organisation",
@@ -236,7 +317,7 @@ export const campaignsCopy = {
 
   /** Nothing on these pages sends or spends (§23.1c, last line). */
   toastConfirmed: "Nothing was bought or sent. These campaigns are samples while the real ones are built.",
-  toastStarted: "Nothing was bought or sent. This is a sample campaign while the real ones are built.",
+  toastStarted: "Research has started. Nothing was bought or sent.",
 } as const;
 
 /** Start (§23.1d), as drawn in section 3d of the signed mock. */
@@ -271,8 +352,33 @@ export const startCopy = {
   channelLinkedin: "LinkedIn",
   channelCalls: "Calls",
 
+  /** Who exactly (research v3.2 scope): each only when the rep adds it. */
+  fieldWhoExactly: "Who exactly",
+  whoExactlyHint: "Only what you add here limits the research. Leave the rest to Relay.",
+  fieldAlsoInclude: "Also include",
+  fieldPlaces: "Places",
+  placePlaceholder: "Orkney",
+  aliasesLabel: "Also called",
+  aliasesPlaceholder: "Other names, separated by commas",
+  fieldOrgTypes: "Kinds of organisation",
+  orgTypePlaceholder: "veterinary practice",
+  fieldSize: "Size",
+  sizeUnitLabel: "Counted in",
+  sizeFrom: "From",
+  sizeTo: "To",
+  sizeBackwards: "The first size is bigger than the second.",
+  fieldRolesInclude: "Roles to reach",
+  fieldRolesExclude: "Roles to leave out",
+  rolePlaceholder: "practice manager",
+  add: "Add",
+  remove: "Remove",
+  fieldCustomers: "Do you already have customers like this? Who, and what did they buy it for?",
+  customersHint: "Optional. Relay looks for more like them and never names them.",
+
   start: "Start research",
-  startNote: "About ten minutes. Nothing is bought or sent until you confirm the plan.",
+  starting: "Starting",
+  startNote: "Usually 20 to 45 minutes. Nothing is bought or sent until you confirm the plan.",
+  cannotStart: "Relay could not start this campaign. Check the brief and try again.",
   connectFirst: "Connect your mailbox first",
   connectLink: "Settings",
 } as const;

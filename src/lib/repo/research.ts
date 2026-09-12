@@ -49,11 +49,17 @@ export async function recordResearchCompleted(
 ): Promise<RecordResearchCompletedResult> {
   const existing = await findResearchCompletedForJob(db, { orgId: input.orgId, jobId: input.jobId });
   if (existing !== null) return { event: existing, duplicate: true };
+  // Integration metadata, not research: a job run for a campaign files its
+  // completion on that campaign's timeline (`Event.campaignId`, indexed), read
+  // off the job row itself so the research runtime passes nothing new. A
+  // bench or other campaignless job leaves it null.
+  const job = await db.job.findFirst({ where: { id: input.jobId, orgId: input.orgId }, select: { campaignId: true } });
   try {
     await mutate(db, {
       orgId: input.orgId,
       actor: { kind: "system" },
       kind: RESEARCH_COMPLETED,
+      campaignId: job?.campaignId ?? null,
       after: {
         jobId: input.jobId,
         runId: input.runId,

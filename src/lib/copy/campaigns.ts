@@ -98,10 +98,10 @@ export const campaignsCopy = {
   failedOther: "Relay's research did not finish.",
   failedNotStarted: "Relay's research has not started.",
   failedNothingSpent: "Nothing was bought or sent.",
-  failedNext: "Trying again from here arrives next.",
+  failedNext: "You'll be able to try this research again next.",
 
   /** Confirm plan is drawn and cannot be pressed until finding people exists. */
-  confirmLater: "Confirming the plan arrives with finding people.",
+  confirmLater: "Finding people comes next. Nothing will be bought or sent yet.",
 
   /** The brief card (mock 3b), five fields read only. */
   briefLabel: "The brief",
@@ -237,27 +237,27 @@ export const campaignsCopy = {
    * by the pack's own part names, which never reach a screen.
    */
   partNames: {
-    m00: "the brief as Relay read it",
-    repSummary: "the five-line summary",
-    execSummary: "the longer summary",
-    m01: "the market and its firms",
+    m00: "the brief Relay understood",
+    repSummary: "the short summary",
+    execSummary: "the full summary",
+    m01: "the market and firms",
     m02: "competitors",
     m03: "the kinds of buyer",
-    m04: "who to target, and first firms",
+    m04: "who to target first",
     m05: "their pains",
     m06: "their own words",
-    m07: "how the product answers each pain",
-    m08: "who is a good fit, and who is not",
-    m09: "what to say to them",
+    m07: "how the product helps",
+    m08: "good fit and poor fit",
+    m09: "what to say",
     m10: "where they gather",
-    m11: "objections, and answers to them",
-    m12: "rules for contacting them",
+    m11: "objections and answers",
+    m12: "contacting rules",
     m13: "dates and deadlines",
-    m14: "what changed since last time",
+    m14: "what changed",
     m15: "proof you can use",
     m16: "campaign ideas",
     m17: "where sources disagree",
-    m18: "what Relay could not find",
+    m18: "what Relay couldn't find",
     m19: "the sources",
   },
 
@@ -309,7 +309,7 @@ export const campaignsCopy = {
   stopHelp: "What would help",
   stopChooseOne: "Choose one, and Relay looks again",
   /** A real stop, before choosing an option can be pressed. */
-  stopChooseLater: "Choosing one of these arrives next. Nothing has been spent.",
+  stopChooseLater: "You'll be able to choose one of these next. Nothing has been spent.",
   widenRegion: "Widen the region",
   widenSize: "Widen the size",
   widenSector: "Widen the kind of organisation",

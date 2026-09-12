@@ -64,14 +64,15 @@ describe("the Campaigns list", () => {
     expect(done?.textContent).toContain(`2 ${campaignsCopy.doneMeetings}`);
   });
 
-  it("says how many are running and how many are done, and offers one door", async () => {
+  it("says how many are running and how many are done, and leaves New campaign to the nav", async () => {
     render(await CampaignsPage());
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(campaignsCopy.title);
     expect(screen.getByText(`2 ${campaignsCopy.noteRunning} · 1 ${campaignsCopy.noteDone}`)).toBeDefined();
 
-    const newCampaign = screen.getByRole("link", { name: campaignsCopy.newCampaign });
-    expect(newCampaign.getAttribute("href")).toBe("/campaigns/new");
+    // A rep with a campaign has "New campaign" in the nav pill (`tests/ui/nav.test.tsx`);
+    // a second one on the page would be the same door twice.
+    expect(screen.queryByRole("link", { name: campaignsCopy.newCampaign })).toBeNull();
   });
 
   it("has no search, no folders and no archive", async () => {

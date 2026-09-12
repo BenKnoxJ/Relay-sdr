@@ -224,11 +224,11 @@ model Event {
 /// `startRequestId` is minted by the Start form. Unique per org, it is what
 /// turns a double-pressed Start into one campaign rather than two.
 ///
-/// The id is a uuid minted by the write path, not a cuid: the `campaign.created`
-/// Event carries it, and `mutate` writes the Event from values it was handed
-/// before the row exists.
+/// The id is a cuid like every other table's. The `campaign.created` Event
+/// takes it from the row `apply` wrote (`mutate`'s `campaignId` can be read
+/// off `apply`'s result), so nothing has to be minted ahead of the row.
 model Campaign {
-  id             String   @id @default(uuid())
+  id             String   @id @default(cuid())
   orgId          String   @map("org_id")
   ownerUserId    String   @map("owner_user_id")
   name           String

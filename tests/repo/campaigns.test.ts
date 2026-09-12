@@ -71,6 +71,8 @@ describe("createCampaign", () => {
     const { campaign, job, created } = await start();
 
     expect(created).toBe(true);
+    // Relay's id convention: a cuid, like every other table's.
+    expect(campaign.id).toMatch(/^c[a-z0-9]{24}$/);
     expect(campaign).toMatchObject({ orgId: ORG, ownerUserId: REP, name: "Vets in Orkney", briefVersion: 1, brief: brief() });
 
     const events = await prisma.event.findMany({ where: { orgId: ORG, kind: CAMPAIGN_CREATED } });

@@ -149,6 +149,22 @@ describe("mutate", () => {
     expect(created.state).toBe("returned");
   });
 
+  it("can take the Event's campaign from what apply wrote, for the change that makes the row", async () => {
+    const created = await mutate(prisma, {
+      orgId: ORG_ID,
+      actor: { kind: "system" },
+      kind: "account.connected",
+      campaignId: (row: { state: string }) => `campaign-for-${row.state}`,
+      apply: (tx) =>
+        tx.oAuthState.create({
+          data: { orgId: ORG_ID, userId: USER_ID, provider: "zoho", state: "derived", expiresAt: new Date(Date.now() + 60_000) },
+        }),
+    });
+
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "account.connected" } });
+    expect(event.campaignId).toBe(`campaign-for-${created.state}`);
+  });
+
   it("@proof rolls the Event back when apply throws", async () => {
     const eventsBefore = await prisma.event.count();
 

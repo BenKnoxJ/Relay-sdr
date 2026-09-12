@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import type { Campaign, Event, Job, Prisma, PrismaClient } from "@prisma/client";
 
 import { enqueue } from "@/lib/jobs/queue";
@@ -53,6 +51,9 @@ export type CreateCampaignInput = {
   brief: Prisma.InputJsonObject;
 };
 
+/** What the start transaction writes: the campaign and its first research job. */
+type Started = { campaign: Campaign; job: Job };
+
 export type CreateCampaignResult = {
   campaign: Campaign;
   /** The research job this call enqueued; null when the press was a repeat and nothing was written. */
@@ -66,22 +67,19 @@ export async function createCampaign(db: PrismaClient, input: CreateCampaignInpu
   if (input.startRequestId.trim() === "") throw new Error("createCampaign: startRequestId is required");
   if (input.name.trim() === "") throw new Error("createCampaign: name is required");
 
-  // Minted here rather than by the database, because the Event names the
-  // campaign and `mutate` writes the Event from what it was handed.
-  const id = randomUUID();
   try {
     const { campaign, job } = await mutate(db, {
       orgId: input.orgId,
       actor: { kind: "user", userId: input.userId },
       kind: CAMPAIGN_CREATED,
-      campaignId: id,
+      // The row's own cuid, read off what `apply` wrote: the Event is written after it.
+      campaignId: (written: Started) => written.campaign.id,
       after: { name: input.name, briefVersion: 1, brief: input.brief, startRequestId: input.startRequestId },
-      apply: async (tx) => {
+      apply: async (tx): Promise<Started> => {
         // The campaign first, so a repeated press fails on its unique index
         // before a job is even attempted.
         const campaign = await tx.campaign.create({
           data: {
-            id,
             orgId: input.orgId,
             ownerUserId: input.userId,
             name: input.name,
@@ -94,9 +92,9 @@ export async function createCampaign(db: PrismaClient, input: CreateCampaignInpu
           orgId: input.orgId,
           ownerUserId: input.userId,
           kind: RESEARCH_JOB,
-          idempotencyKey: researchJobKey(id, 1),
+          idempotencyKey: researchJobKey(campaign.id, 1),
           input: { brief: input.brief },
-          campaignId: id,
+          campaignId: campaign.id,
           briefVersion: 1,
         });
         // A key built from an id minted a moment ago cannot already have a

@@ -48,6 +48,10 @@ export type EventKind =
   /// provenance report and what the run ran under. Until Task 6d's table,
   /// this Event *is* where the pack lives.
   | "research.completed"
+  /// A rep started a campaign: `after` carries its name, brief version 1 and
+  /// the brief. Written in the same transaction as the campaign row and its
+  /// first research job, so "started" and "research asked for" are one fact.
+  | "campaign.created"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the
@@ -76,8 +80,17 @@ export type Mutation<T> = {
   orgId: string;
   actor: Actor;
   kind: EventKind;
-  /** Set when the change belongs to a campaign or a person, for the timeline. */
-  campaignId?: string | null;
+  /**
+   * Set when the change belongs to a campaign or a person, for the timeline.
+   *
+   * `campaignId` may also be read off what `apply` returned, for the change
+   * that creates the campaign: its id is the row's own (a cuid, like every
+   * other table's), which does not exist until `apply` has written it. The
+   * Event is written after `apply` either way.
+   */
+  // A callback takes its parameter type from the caller's annotation: `apply`'s
+  // own parameter is contextually typed, so it cannot be the only source of `T`.
+  campaignId?: string | null | ((result: T) => string | null);
   personId?: string | null;
   /** The edit diff §25 asks for. Omit both for a change that has no shape. */
   before?: Prisma.InputJsonValue;
@@ -117,6 +130,7 @@ export async function mutate<T>(db: PrismaClient, mutation: Mutation<T>): Promis
 
   return db.$transaction(async (tx) => {
     const result = await apply(tx);
+    const eventCampaignId = typeof campaignId === "function" ? campaignId(result) : (campaignId ?? null);
 
     // After the change, not before: the Event is the record of something that
     // happened, and on this ordering a constraint violation in `apply` never
@@ -127,7 +141,7 @@ export async function mutate<T>(db: PrismaClient, mutation: Mutation<T>): Promis
         kind,
         actorKind: actor.kind,
         actorUserId: actor.kind === "user" ? actor.userId : null,
-        campaignId: campaignId ?? null,
+        campaignId: eventCampaignId,
         personId: personId ?? null,
         // Omitted rather than passed as null: the column is NOT NULL with a
         // `now()` default, so `undefined` takes the default and `null` would

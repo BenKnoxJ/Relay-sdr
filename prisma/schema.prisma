@@ -69,6 +69,7 @@ model Org {
   agentRunSteps       AgentRunStep[]
   productFactsVersion ProductFactsVersion[]
   sideEffects         SideEffect[]
+  campaigns           Campaign[]
 
   @@map("orgs")
 }
@@ -92,6 +93,7 @@ model User {
   oauthStates       OAuthState[]
   events            Event[]
   jobs              Job[]
+  campaigns         Campaign[]
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -203,6 +205,48 @@ model Event {
   @@map("events")
 }
 
+// ── Campaign ────────────────────────────────────────────────────────────────
+
+/// One rep's campaign: the brief research is asked to read around, and the
+/// version of it that is current.
+///
+/// No `state` column, on purpose. Where a campaign is depends on research,
+/// which finishes on the worker whenever it finishes, and a stored state is
+/// stale the moment it does. The rep-facing state is derived from this row,
+/// its latest research `Job` at `briefVersion`, and that job's
+/// `research.completed` Event (`src/lib/campaigns/derive.ts`).
+///
+/// `brief` is research's own brief (`researchBriefSchema`): ISO region, the
+/// rep's `who` verbatim, and only the scope the rep supplied. Earlier versions
+/// are not lost when it changes: each version's brief is on its research job's
+/// input and on the campaign's Events.
+///
+/// `startRequestId` is minted by the Start form. Unique per org, it is what
+/// turns a double-pressed Start into one campaign rather than two.
+///
+/// The id is a cuid like every other table's. The `campaign.created` Event
+/// takes it from the row `apply` wrote (`mutate`'s `campaignId` can be read
+/// off `apply`'s result), so nothing has to be minted ahead of the row.
+model Campaign {
+  id             String   @id @default(cuid())
+  orgId          String   @map("org_id")
+  ownerUserId    String   @map("owner_user_id")
+  name           String
+  briefVersion   Int      @default(1) @map("brief_version")
+  brief          Json
+  startRequestId String   @map("start_request_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  org       Org   @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser User  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  jobs      Job[]
+
+  @@unique([orgId, startRequestId])
+  @@index([orgId, ownerUserId, createdAt])
+  @@map("campaigns")
+}
+
 enum JobStatus {
   queued
   running
@@ -238,11 +282,16 @@ model Job {
   input          Json
   responseDigest String?   @map("response_digest")
   error          String?
+  /// The campaign and brief version this job is research for. Both or neither
+  /// (a CHECK in the migration); `enqueue` checks the campaign is this org's.
+  campaignId     String?   @map("campaign_id")
+  briefVersion   Int?      @map("brief_version")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   org         Org          @relation(fields: [orgId], references: [id], onDelete: Restrict)
   ownerUser   User?        @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   agentRuns   AgentRun[]
   sideEffects SideEffect[]
 
@@ -256,6 +305,8 @@ model Job {
   /// The reaper's query: expired leases.
   @@index([leaseUntil])
   @@index([orgId, createdAt])
+  /// A campaign's latest research job at its current brief version.
+  @@index([orgId, campaignId, briefVersion, createdAt])
   @@map("jobs")
 }
 

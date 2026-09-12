@@ -150,6 +150,14 @@ export function PlanCards({
   const quoted = pains.filter((pain) => pain.quote !== undefined);
   // The view's summary is the rep summary's lines; the first two lead the cards.
   const [lead = "", second = lead] = pack.summary;
+  // The hook and the targeting recipe are for one kind of buyer; say which.
+  const chosen = pack.archetypes.find((group) => group.id === pack.chosenArchetypeId);
+  const forChosen =
+    chosen === undefined ? null : (
+      <p data-testid="plan-for" className="type-small mb-1.5 text-muted">
+        {c.forGroup} {chosen.name}
+      </p>
+    );
 
   return (
     <div className="grid gap-chips wide:grid-cols-2">
@@ -181,6 +189,7 @@ export function PlanCards({
       >
         {pack.hook === undefined ? null : (
           <>
+            {forChosen}
             <p className="type-small mb-1.5">{pack.hook.text}</p>
             <p className="type-small font-semibold">{c.whyNow}</p>
             <PackItem item={pack.hook.whyNow} />
@@ -217,6 +226,7 @@ export function PlanCards({
             <PackItem item={firm.signal} />
           </div>
         ))}
+        {pack.recipe === undefined ? null : <div className="mt-2">{forChosen}</div>}
         {pack.recipe === undefined ? null : (
           <dl className="type-small mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             {([
@@ -276,6 +286,23 @@ const KINDS: Record<PlanView["unknowns"][number]["kind"], string> = {
 };
 
 /**
+ * A partial plan says so (research outcome `partial`, orchestrator A1 item 2):
+ * a limit ended the run, and the parts it did not write are named in a rep's
+ * words rather than drawn as empty cards. A stopped pack is partial too, and
+ * is the stop card's to explain, so it never gets this line.
+ */
+function PartialNote({ pack }: { pack: PlanView }) {
+  if (!pack.partial || pack.insufficient !== undefined || pack.missingModules.length === 0) return null;
+  const names: Record<string, string> = campaignsCopy.partNames;
+  const missing = pack.missingModules.map((id) => names[id] ?? id).join(", ");
+  return (
+    <p data-testid="plan-partial" className="type-small mb-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
+      {campaignsCopy.planPartial} {missing}.
+    </p>
+  );
+}
+
+/**
  * The plan section, as one card with the five inside it (mock 3b).
  *
  * `collapsed` is the Running state (mock 3c): the page leads with progress and
@@ -298,6 +325,7 @@ export function PlanSection({
   if (!collapsed) {
     return (
       <Card label={campaignsCopy.planLabel}>
+        <PartialNote pack={pack} />
         <PlanCards pack={pack} onChangeAbout={onChangeAbout} />
         {children}
       </Card>
@@ -320,6 +348,7 @@ export function PlanSection({
       </button>
       {open ? (
         <div className="mt-2.5">
+          <PartialNote pack={pack} />
           <PlanCards pack={pack} onChangeAbout={onChangeAbout} />
           {children}
         </div>

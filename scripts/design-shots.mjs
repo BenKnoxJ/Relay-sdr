@@ -27,6 +27,10 @@
  *            Default 9b.
  *   OUT      where the comparisons go   (default docs/design/task-<SET>)
  *   CHROME   the browser binary         (default chromium)
+ *   CAMPAIGN_IDS  the JSON file `scripts/seed-campaigns.ts --out` wrote: the
+ *            ids of one real campaign per state. REQUIRED for a set with the
+ *            Campaigns pages on it (9b, 9c, 15), because the campaign pages
+ *            read the database and a campaign id is not known in advance.
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -110,22 +114,35 @@ const APP_PAGES_6B = {
 };
 
 /**
- * The Campaigns routes (Task 9c). The ids are the fixture adapter's own
- * (`src/lib/fixtures/campaigns.ts`), so a renamed fixture fails here loudly
- * rather than shooting a 404 and calling it a state.
+ * The Campaigns routes (Task 9c, real since Task 15). The campaign pages read
+ * the database, so the ids are the seeded campaigns' (`CAMPAIGN_IDS`); a
+ * missing one fails here loudly rather than shooting a 404 and calling it a
+ * state. Running and Done are not here: no real campaign can reach them until
+ * lead gen exists, and the component snapshots hold their markup meanwhile.
  */
-const CAMPAIGN_PAGES = {
-  start: "/campaigns/new",
-  "start-prefilled":
-    "/campaigns/new?said=" +
-    encodeURIComponent(
-      "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users",
-    ),
-  "campaign-researching": "/campaigns/midlands-fleet-operators",
-  "campaign-plan-ready": "/campaigns/managed-print-partners-midlands",
-  "campaign-running": "/campaigns/uk-logistics-ops",
-  "campaign-stopped": "/campaigns/vets-scotland",
-};
+function campaignPages() {
+  if (process.env.CAMPAIGN_IDS === undefined || process.env.CAMPAIGN_IDS === "") {
+    throw new Error("CAMPAIGN_IDS is required for the Campaigns pages: run scripts/seed-campaigns.ts --out <file> and pass that file.");
+  }
+  const ids = JSON.parse(readFileSync(process.env.CAMPAIGN_IDS, "utf8"));
+  const id = (kind) => {
+    if (typeof ids[kind] !== "string") throw new Error(`CAMPAIGN_IDS has no ${kind} campaign`);
+    return `/campaigns/${ids[kind]}`;
+  };
+  return {
+    start: "/campaigns/new",
+    "start-prefilled":
+      "/campaigns/new?said=" +
+      encodeURIComponent(
+        "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users",
+      ),
+    "campaign-researching": id("researching"),
+    "campaign-plan-ready": id("complete"),
+    "campaign-partial": id("partial"),
+    "campaign-stopped": id("stopped"),
+    "campaign-failed": id("failed"),
+  };
+}
 
 /** One row per signed state: what to show, in what order. */
 const STATES_9B = [
@@ -159,10 +176,12 @@ const STATES_9B = [
     [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-plan-ready-light"], ["Built, dark", "app-campaign-plan-ready-dark"]]],
   ["plan-expanded", "The plan, one card expanded, and the unknowns card (signed mock 3b-ii)",
     [["Signed mock", "mock-plan-expanded"], ["Built, light", "app-plan-expanded-light"], ["Built, dark", "app-plan-expanded-dark"]]],
-  ["campaign-running", "Campaign page, Running (signed mock section 3c)",
-    [["Signed mock", "mock-campaign-running"], ["Built, light", "app-campaign-running-light"], ["Built, dark", "app-campaign-running-dark"]]],
+  ["campaign-partial", "Campaign page, a partial plan: the missing parts named (orchestrator A1; the mock draws no partial plan)",
+    [["Signed mock", "mock-campaign-plan-ready"], ["Built, light", "app-campaign-partial-light"], ["Built, dark", "app-campaign-partial-dark"]]],
   ["campaign-stopped", "Campaign page, the research stop (signed mock section 3c)",
     [["Signed mock", "mock-campaign-stopped"], ["Built, light", "app-campaign-stopped-light"], ["Built, dark", "app-campaign-stopped-dark"]]],
+  ["campaign-failed", "Campaign page, research did not finish (orchestrator §7 amended A1; the mock draws no failure)",
+    [["Built, light", "app-campaign-failed-light"], ["Built, dark", "app-campaign-failed-dark"]]],
   ["settings", "Settings (signed mock section 5; the cards fill in with Task 10b)",
     [["Signed mock", "mock-settings"], ["Built, light", "app-settings-light"], ["Built, dark", "app-settings-dark"]]],
   ["home-dark", "Home in dark (signed mock section 6 draws the populated Home)",
@@ -202,8 +221,10 @@ const STATES_9E = [
 const SETS = {
   // Task 9c added the Campaigns frames and states to the shell set in place, so
   // "9b" and "9c" are one set; the key only picks the output directory.
-  "9b": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
-  "9c": { frames: MOCK_FRAMES_9B, pages: { ...APP_PAGES_9B, ...CAMPAIGN_PAGES }, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9b": { frames: MOCK_FRAMES_9B, pages: APP_PAGES_9B, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  "9c": { frames: MOCK_FRAMES_9B, pages: APP_PAGES_9B, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
+  // Task 15: the Campaigns screens on real campaigns. The same set, its own directory.
+  "15": { frames: MOCK_FRAMES_9B, pages: APP_PAGES_9B, states: STATES_9B, focusPass: true, roles: true, campaigns: true },
   "6b": { frames: MOCK_FRAMES_6B, pages: APP_PAGES_6B, states: STATES_6B, focusPass: false, roles: false },
   "9e": { frames: MOCK_FRAMES_9B, pages: { settings: "/settings" }, states: STATES_9E, focusPass: false, roles: false, settings: true },
 };
@@ -213,7 +234,7 @@ if (chosen === undefined) {
   throw new Error(`SET must be one of ${Object.keys(SETS).join(", ")}, not ${JSON.stringify(SET)}`);
 }
 const MOCK_FRAMES = chosen.frames;
-const APP_PAGES = chosen.pages;
+const APP_PAGES = chosen.campaigns ? { ...chosen.pages, ...campaignPages() } : chosen.pages;
 const STATES = chosen.states;
 
 /** Only producible with a second instance signed in as a rep. */
@@ -422,7 +443,7 @@ for (const [name, steps] of APP_PAGES.inbox === undefined ? [] : Object.entries(
  * mock draws open.
  */
 for (const theme of chosen.campaigns ? ["light", "dark"] : []) {
-  await cdp.send("Page.navigate", { url: `${APP}/campaigns/managed-print-partners-midlands` });
+  await cdp.send("Page.navigate", { url: `${APP}${APP_PAGES["campaign-plan-ready"]}` });
   await sleep(2000);
   await evaluate(`document.documentElement.setAttribute("data-theme", ${JSON.stringify(theme)})`);
   await evaluate(`document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())`);

@@ -132,6 +132,13 @@ export type EnqueueInput = {
   priority?: number;
   /** Hold the job until this time. Omitted, it is due immediately. */
   nextAt?: Date;
+  /**
+   * The campaign and brief version the job belongs to. Both or neither: a
+   * campaign's research is always research for one version of its brief, and
+   * which version is a column, never something read back out of the key.
+   */
+  campaignId?: string;
+  briefVersion?: number;
 };
 
 export type EnqueueResult = {
@@ -217,9 +224,32 @@ export async function enqueue(
     }
   }
 
+  // The campaign likewise: its foreign key says the campaign exists, not whose
+  // it is. Checked here, in the caller's transaction, for the reason the owner
+  // is: a campaign created in the same transaction must be visible.
+  if ((input.campaignId === undefined) !== (input.briefVersion === undefined)) {
+    throw new Error("enqueue: campaignId and briefVersion come together");
+  }
+  if (input.campaignId !== undefined) {
+    if (!Number.isInteger(input.briefVersion) || input.briefVersion! < 1) {
+      throw new Error("enqueue: briefVersion is a positive whole number");
+    }
+    const campaign = await db.campaign.findUnique({
+      where: { id: input.campaignId },
+      select: { orgId: true, briefVersion: true },
+    });
+    if (campaign === null || campaign.orgId !== input.orgId) {
+      throw new Error("enqueue: campaignId is not a campaign of this org");
+    }
+    if (input.briefVersion! > campaign.briefVersion) {
+      throw new Error("enqueue: briefVersion is ahead of the campaign's own");
+    }
+  }
+
   const rows = await db.$queryRaw<JobRow[]>`
     INSERT INTO jobs (id, org_id, owner_user_id, kind, idempotency_key,
-                      priority, next_at, input, created_at, updated_at)
+                      priority, next_at, input, campaign_id, brief_version,
+                      created_at, updated_at)
     VALUES (${crypto.randomUUID()},
             ${input.orgId},
             ${input.ownerUserId ?? null},
@@ -228,6 +258,8 @@ export async function enqueue(
             ${input.priority ?? 0},
             COALESCE(${input.nextAt ?? null}::timestamp(3), (now() AT TIME ZONE 'UTC')),
             ${JSON.stringify(input.input)}::jsonb,
+            ${input.campaignId ?? null},
+            ${input.briefVersion ?? null}::integer,
             (now() AT TIME ZONE 'UTC'),
             (now() AT TIME ZONE 'UTC'))
     ON CONFLICT (org_id, idempotency_key) DO NOTHING
@@ -265,6 +297,8 @@ type JobRow = {
   input: Prisma.JsonValue;
   response_digest: string | null;
   error: string | null;
+  campaign_id: string | null;
+  brief_version: number | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -287,6 +321,8 @@ export function toJob(row: JobRow): Job {
     input: row.input,
     responseDigest: row.response_digest,
     error: row.error,
+    campaignId: row.campaign_id,
+    briefVersion: row.brief_version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

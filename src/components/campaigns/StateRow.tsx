@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils";
  * The state machine as a quiet row of steps, with the current one marked
  * (§23.1c, mock 3b).
  *
- * Seven steps and no more. `stopped` and `paused` are not steps: a stopped
- * campaign marks Researching in the warn colour and renames it, because the
- * rep's question is "where did this get to", and inventing an eighth box would
- * answer a different one.
+ * Seven steps and no more. `stopped`, `failed` and `paused` are not steps: a
+ * stopped or failed campaign marks Researching in the warn colour and renames
+ * it, because the rep's question is "where did this get to", and inventing an
+ * eighth box would answer a different one.
  *
  * It is a list, not a row of spans. A screen reader gets "step 3 of 7" out of
  * an ordered list and nothing at all out of styled text.
@@ -32,13 +32,18 @@ const LABELS: Record<CampaignStep, string> = {
 
 export function StateRow({ state }: { state: CampaignState }) {
   const current = stepIndexFor(state);
-  const stopped = state === "stopped";
+  const warn = state === "stopped" || state === "failed";
 
   return (
     <ol aria-label={campaignsCopy.stepsLabel} className="flex flex-wrap items-center gap-1.5">
       {CAMPAIGN_STEPS.map((step, index) => {
         const now = index === current;
-        const label = stopped && step === "researching" ? campaignsCopy.stepStopped : LABELS[step];
+        const label =
+          step === "researching" && state === "stopped"
+            ? campaignsCopy.stepStopped
+            : step === "researching" && state === "failed"
+              ? campaignsCopy.stepNeedsYou
+              : LABELS[step];
         return (
           <li
             key={step}
@@ -51,7 +56,7 @@ export function StateRow({ state }: { state: CampaignState }) {
             */
             className={cn(
               "type-mono rounded-pill px-2 py-0.5 text-11",
-              now && stopped
+              now && warn
                 ? "bg-warn-bg text-warn"
                 : now
                   ? "bg-action text-on-action"

@@ -1,9 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign, type Campaign } from "@/lib/fixtures/campaigns";
+
+import { liveCampaign } from "./live";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/campaigns" }));
 
@@ -25,7 +27,8 @@ describe("the campaign page, by state", () => {
     }
     // No spinner, and no plan: there is nothing to show yet.
     expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
-    expect(screen.getAllByTestId("brief-field")).toHaveLength(5);
+    // The signed five, and Where: the region research is held to.
+    expect(screen.getAllByTestId("brief-field")).toHaveLength(6);
   });
 
   it("Plan ready leads with the plan and offers Confirm plan", () => {
@@ -167,5 +170,106 @@ describe("Change something", () => {
     expect(
       screen.getByRole("button", { name: campaignsCopy.changeSubmit }).hasAttribute("disabled"),
     ).toBe(true);
+  });
+});
+
+/**
+ * A real campaign, built the way the router builds it over contract data
+ * (`./live.ts`). It offers only what is built, and draws nothing downstream
+ * before it has happened.
+ */
+describe("a real campaign", () => {
+  const currentStep = () =>
+    screen.getAllByTestId("state-step").find((step) => step.getAttribute("aria-current") === "step")?.textContent;
+
+  it("while research reads, shows the brief and how long it takes, and nothing downstream", () => {
+    render(<CampaignPage campaign={liveCampaign("researching")} />);
+
+    expect(screen.getByTestId("researching-note").textContent).toBe(campaignsCopy.researchingNote);
+    expect(screen.getByTestId("progress-none").textContent).toBe(campaignsCopy.progressNone);
+    expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: campaignsCopy.changeSomething })).toBeNull();
+    expect(screen.queryByRole("link", { name: campaignsCopy.peopleLink })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askCost }));
+    expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerCostNoCredits);
+  });
+
+  it("on a complete plan, draws Confirm plan but cannot press it, and says why", () => {
+    render(<CampaignPage campaign={liveCampaign("complete")} />);
+
+    const confirm = screen.getByRole("button", { name: campaignsCopy.actionConfirm });
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(confirm);
+    expect(currentStep()).toBe(campaignsCopy.stepPlanReady);
+    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.confirmLater);
+    expect(screen.getAllByTestId("plan-card")).toHaveLength(5);
+    // No people, credits or sending window: none of them exists before lead gen.
+    expect(screen.queryAllByTestId("plan-fact")).toHaveLength(0);
+    expect(screen.queryByTestId("plan-partial")).toBeNull();
+  });
+
+  it("names the kind of buyer the hook and the targeting are for", () => {
+    const live = liveCampaign("complete");
+    const chosen = live.pack?.archetypes.find((group) => group.id === live.pack?.chosenArchetypeId);
+    expect(chosen).toBeDefined();
+    render(<CampaignPage campaign={live} />);
+
+    for (const card of screen.getAllByTestId("plan-card")) fireEvent.click(within(card).getAllByRole("button")[0]!);
+    const labels = screen.getAllByTestId("plan-for").map((line) => line.textContent);
+    expect(labels.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(labels)).toEqual(new Set([`${campaignsCopy.forGroup} ${chosen?.name}`]));
+    // No change from a card on a real campaign: Edit brief is the next change.
+    expect(screen.queryByRole("button", { name: campaignsCopy.changeFromCard })).toBeNull();
+  });
+
+  it("on a partial plan, says which parts are missing, in a rep's words", () => {
+    render(<CampaignPage campaign={liveCampaign("partial")} />);
+
+    const note = screen.getByTestId("plan-partial").textContent ?? "";
+    expect(note).toContain(campaignsCopy.planPartial);
+    expect(note).toContain(campaignsCopy.partNames.m04);
+    expect(note).not.toMatch(/\bm\d\d\b|repSummary|execSummary/);
+  });
+
+  it("on a stop, shows research's own options and the evidence it cites, and offers no choice yet", () => {
+    const live = liveCampaign("stopped");
+    render(<CampaignPage campaign={live} />);
+
+    expect(screen.getAllByTestId("widening")).toHaveLength(3);
+    expect(screen.getByTestId("stop-reason").textContent).toBe(live.pack?.insufficient?.reason);
+    expect(screen.getByTestId("widen-note").textContent).toBe(campaignsCopy.stopChooseLater);
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionWiden })).toBeNull();
+    expect(screen.getAllByTestId("pack-item")).toHaveLength(live.pack?.stopEvidence?.length ?? -1);
+    expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
+    expect(currentStep()).toBe(campaignsCopy.stepStopped);
+  });
+
+  it("when research failed, says why in words and that nothing was spent, and offers nothing to press", () => {
+    render(<CampaignPage campaign={liveCampaign("failed")} />);
+
+    const note = screen.getByTestId("failed-note").textContent ?? "";
+    expect(note).toContain(campaignsCopy.failedTookTooLong);
+    expect(note).toContain(campaignsCopy.failedNothingSpent);
+    expect(note).not.toContain("rail");
+    expect(currentStep()).toBe(campaignsCopy.stepNeedsYou);
+    for (const label of [campaignsCopy.actionConfirm, campaignsCopy.actionWiden]) {
+      expect(screen.queryByRole("button", { name: label })).toBeNull();
+    }
+  });
+
+  it("shows who exactly on the brief card, and only the parts the rep set", () => {
+    render(<CampaignPage campaign={liveCampaign("stopped")} />);
+
+    const fields = Object.fromEntries(
+      screen.getAllByTestId("brief-field").map((field) => [field.querySelector("dt")?.textContent, field.querySelector("dd")?.textContent]),
+    );
+    expect(fields[campaignsCopy.fieldWho]).toBe("veterinary practices in Orkney");
+    expect(fields[campaignsCopy.fieldWhere]).toBe(
+      `United Kingdom, Orkney (${campaignsCopy.alsoCalled} Orkney Islands, Kirkwall, Stromness)`,
+    );
+    expect(fields[campaignsCopy.fieldOrgTypes]).toBe("veterinary practice");
+    expect(fields[campaignsCopy.fieldSize]).toBeUndefined();
+    expect(fields[campaignsCopy.fieldRolesInclude]).toBeUndefined();
   });
 });

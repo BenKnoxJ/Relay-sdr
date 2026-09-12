@@ -2,7 +2,6 @@ import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authCopy } from "@/lib/copy/auth";
-import { campaignsCopy } from "@/lib/copy/campaigns";
 import { prisma } from "@/lib/db";
 import { appRouter } from "@/server/api/root";
 import { isRefusal } from "@/server/api/caller";
@@ -11,6 +10,7 @@ import { type Session } from "@/server/auth/session";
 import { ensureUser, type Actor } from "@/server/auth/upsertUser";
 
 import { emptyAll, resetDatabase } from "../db/harness";
+import { startInput } from "../lib/campaignPacks";
 
 /** Same reason as `tests/api/auth.test.ts`: the module will not load outside an RSC. */
 vi.mock("@clerk/nextjs/server", () => ({
@@ -141,41 +141,14 @@ describe("isRefusal", () => {
   });
 });
 
-describe("the brief box's Start", () => {
-  it("@proof refuses a caller with no session", async () => {
-    await expect(
-      caller(null).campaigns.stub({ sentence: "UK logistics firms, ops directors" }),
-    ).rejects.toThrow(authCopy.signedOut);
-  });
-
-  it("says what happens next, in the words of the copy file", async () => {
+describe("hasCampaign", () => {
+  it("turns true once the rep starts a campaign, and only for that rep", async () => {
     await ensureUser(prisma, boss());
+    await ensureUser(prisma, rep());
 
-    const answer = await caller(boss()).campaigns.stub({
-      sentence: "UK logistics firms, ops directors",
-    });
+    await caller(rep()).campaigns.create(startInput());
 
-    expect(answer).toEqual({ line: campaignsCopy.next });
-  });
-
-  /**
-   * "Stores nothing" is the whole of the stub's contract: starting a campaign
-   * is slice 1, and a sentence written to a table now is a row nothing owns
-   * and no Event explains.
-   */
-  it("@proof stores nothing", async () => {
-    const actor = await ensureUser(prisma, boss());
-    const before = await prisma.event.count({ where: { orgId: actor.orgId } });
-
-    await caller(boss()).campaigns.stub({ sentence: "UK logistics firms, ops directors" });
-
-    expect(await prisma.event.count({ where: { orgId: actor.orgId } })).toBe(before);
-    expect(await prisma.job.count({ where: { orgId: actor.orgId } })).toBe(0);
-  });
-
-  it("refuses an empty sentence rather than starting on nothing", async () => {
-    await ensureUser(prisma, boss());
-
-    await expect(caller(boss()).campaigns.stub({ sentence: "   " })).rejects.toThrow();
+    expect((await caller(rep()).me.get()).hasCampaign).toBe(true);
+    expect((await caller(boss()).me.get()).hasCampaign).toBe(false);
   });
 });

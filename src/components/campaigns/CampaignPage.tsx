@@ -6,9 +6,9 @@ import Link from "next/link";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
-import { actionFor, answersFor, type CampaignState } from "@/lib/campaigns/state";
+import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
+import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
-import type { Campaign } from "@/lib/fixtures/campaigns";
 
 import { AskRelay } from "./AskRelay";
 import { BriefCard } from "./BriefCard";
@@ -18,7 +18,7 @@ import { StateRow } from "./StateRow";
 import { WidenCard } from "./WidenCard";
 
 /**
- * The campaign page, in its four signed states (§23.1c, mock 3b and 3c).
+ * The campaign page (§23.1c, mock 3b and 3c).
  *
  * Top to bottom, and the order is the signed one: header with the steps and
  * ONE action matching the state; the brief; Ask Relay; the plan and the
@@ -26,12 +26,12 @@ import { WidenCard } from "./WidenCard";
  * section says so in as many words: Plan ready leads with the plan, and Running
  * leads with progress and folds the plan away.
  *
- * A client component because the page holds state: which plan card is open,
- * which question was asked, and what the one action did. On fixtures the
- * action changes this component's state and says so, and nothing else: nothing
- * on this page sends anything and nothing on it spends (§23.1c, last line).
- * That is why there is no server action here to review — there is no write to
- * make yet, and inventing one would be inventing a `Campaign` model too.
+ * A real campaign (`live`) is drawn from the database and offers only what is
+ * built: Confirm plan is shown and cannot be pressed until finding people
+ * exists, and widening a stop or changing the brief arrive with the next
+ * change. Nothing downstream is drawn as a number before it has happened.
+ * The sample campaigns the component tests use keep the signed actions, which
+ * change this component's state and nothing else.
  */
 
 export function CampaignPage({
@@ -39,15 +39,16 @@ export function CampaignPage({
   banner = null,
 }: {
   campaign: Campaign;
-  /** A line the route arrived with, such as Start's "nothing was bought or sent". */
+  /** A line the route arrived with, such as Start's "research has started". */
   banner?: string | null;
 }) {
   const [state, setState] = useState<CampaignState>(campaign.state);
   const [toast, setToast] = useState<string | null>(banner);
   const [about, setAbout] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
+  const live = campaign.live;
 
-  const action = actionFor(state);
+  const action = actionFor(state, live);
   /*
     Recomputed from the state the SCREEN is in, not from the state the campaign
     arrived in. Pause moves the page and the six answers together, and an Ask
@@ -64,12 +65,12 @@ export function CampaignPage({
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
   // Read only after confirm (§23.1c): the plan stops being a Confirm screen the
   // moment it has been confirmed, and "Change something" is the only edit left.
-  const planIsConfirmScreen = state === "planReady";
+  // A real campaign has no change path yet, so its plan offers none.
+  const planIsConfirmScreen = state === "planReady" && !live;
 
   /*
-    The note is kept word for word, as the dialog promises. On fixtures there
-    is nowhere to keep it but the screen, so the screen is where it is kept:
-    dropping it would make the placeholder under the box a lie.
+    The note is kept word for word, as the dialog promises. On a sample there
+    is nowhere to keep it but the screen, so the screen is where it is kept.
   */
   const changeSomething = (reason: string, note: string) => {
     const said = note.trim() === "" ? reason : `${reason}${campaignsCopy.noteJoin}${note.trim()}`;
@@ -86,20 +87,31 @@ export function CampaignPage({
 
   const progress = (
     <Card label={campaignsCopy.progressLabel}>
-      <ProgressCounts
-        progress={campaign.progress}
-        /*
-          The line under the counts is the same two answers Ask Relay gives to
-          "what is waiting on me" and "when does the next batch go" — written
-          once, in the copy file, and read here rather than restated.
-        */
-        note={state === "running" ? answerTo("waiting", "next-batch") : undefined}
-      />
+      {campaign.progress === null ? (
+        // Nobody has been found yet: words, not five zeros that read like work done.
+        <p data-testid="progress-none" className="type-small text-muted">
+          {campaignsCopy.progressNone}
+        </p>
+      ) : (
+        <ProgressCounts
+          progress={campaign.progress}
+          /*
+            The line under the counts is the same two answers Ask Relay gives to
+            "what is waiting on me" and "when does the next batch go" — written
+            once, in the copy file, and read here rather than restated.
+          */
+          note={state === "running" ? answerTo("waiting", "next-batch") : undefined}
+        />
+      )}
     </Card>
   );
 
   const plan =
-    campaign.pack === null || state === "stopped" || state === "researching" || state === "brief" ? null : (
+    campaign.pack === null ||
+    state === "stopped" ||
+    state === "researching" ||
+    state === "brief" ||
+    state === "failed" ? null : (
       <PlanSection
         pack={campaign.pack}
         collapsed={leadsWithProgress}
@@ -149,12 +161,15 @@ export function CampaignPage({
             <dt className="type-small text-muted">{campaignsCopy.peopleOnHold}</dt>
             <dd className="type-mono text-13">{campaign.people.onHold}</dd>
           </dl>
-          <Link
-            href={`/campaigns/${campaign.id}/people`}
-            className="type-small mt-2.5 inline-block text-action focus-visible:outline-none focus-visible:ring-2"
-          >
-            {campaignsCopy.peopleLink}
-          </Link>
+          {/* Your people (§23.1e) is lead gen's screen and is not built: no link to it from a real campaign. */}
+          {live ? null : (
+            <Link
+              href={`/campaigns/${campaign.id}/people`}
+              className="type-small mt-2.5 inline-block text-action focus-visible:outline-none focus-visible:ring-2"
+            >
+              {campaignsCopy.peopleLink}
+            </Link>
+          )}
         </>
       )}
     </Card>
@@ -170,7 +185,7 @@ export function CampaignPage({
         setChanging(isOpen);
         if (!isOpen) setAbout(null);
       }}
-      onChange={changeSomething}
+      onChange={live ? undefined : changeSomething}
     />
   );
 
@@ -182,8 +197,7 @@ export function CampaignPage({
     Plan ready leads with the plan, because the plan section IS the Confirm
     screen and the rep is here to read it. Running leads with progress and
     folds the plan, because the decision is made and the question is how it is
-    going. Researching and the stop have no plan to lead with at all: one has
-    not been written and the other could not be.
+    going. Researching, the stop and a failure have no plan to lead with at all.
   */
   const column =
     state === "planReady"
@@ -207,15 +221,24 @@ export function CampaignPage({
           <StateRow state={state} />
         </div>
         {action === null ? null : (
-          <PillButton
-            variant={state === "running" ? "outline" : "primary"}
-            onClick={() => {
-              setState(action.next);
-              setToast(campaignsCopy.toastConfirmed);
-            }}
-          >
-            {action.label}
-          </PillButton>
+          <div className="flex flex-col items-end gap-1.5">
+            <PillButton
+              variant={state === "running" ? "outline" : "primary"}
+              disabled={action.disabled === true}
+              onClick={() => {
+                if (action.disabled === true) return;
+                setState(action.next);
+                setToast(campaignsCopy.toastConfirmed);
+              }}
+            >
+              {action.label}
+            </PillButton>
+            {action.note === undefined ? null : (
+              <p data-testid="action-note" className="type-small text-muted">
+                {action.note}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -231,9 +254,19 @@ export function CampaignPage({
         </p>
       ) : null}
 
+      {state === "failed" ? (
+        <p data-testid="failed-note" className="type-small mb-grid rounded-input bg-warn-bg px-3 py-2.5 text-warn">
+          {failureLine(campaign.failure)} {campaignsCopy.failedNothingSpent} {campaignsCopy.failedNext}
+        </p>
+      ) : null}
+
       {state === "stopped" && campaign.pack?.insufficient !== undefined ? (
         <div className="mb-grid">
-          <WidenCard insufficient={campaign.pack.insufficient} found={campaign.pack.stopEvidence ?? []} />
+          <WidenCard
+            insufficient={campaign.pack.insufficient}
+            found={campaign.pack.stopEvidence ?? []}
+            canChoose={!live}
+          />
         </div>
       ) : null}
 

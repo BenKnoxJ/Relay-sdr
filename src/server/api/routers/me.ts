@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 
 import { authCopy } from "@/lib/copy/auth";
+import { hasCampaign } from "@/lib/repo/campaigns";
 import { getMailbox, isConnected } from "@/lib/repo/connections";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
@@ -12,11 +13,12 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
  * the avatar's initials, and the two flags decide what Home shows on day one
  * (§23.1a).
  *
- * `hasCampaign` is a constant today and is here anyway: the first campaign
- * arrives with slice 1. Typing it now means the shell reads one shape before
- * and after, and the change reaches no component. `connections.mailbox` became
- * real in Task 10b; Zoho is org-level and admin-owned, so it stays false until
- * slice 3 gives an admin somewhere to connect it.
+ * `hasCampaign` is whether the rep has started a campaign of their own: the
+ * nav's "New campaign" and Home's day-one state turn on it.
+ *
+ * `connections.mailbox` became real in Task 10b. Zoho is org-level and
+ * admin-owned, so it stays false until slice 3 gives an admin somewhere to
+ * connect it.
  */
 export const meRouter = createTRPCRouter({
   get: repProcedure.query(async ({ ctx }) => {
@@ -41,8 +43,7 @@ export const meRouter = createTRPCRouter({
       name: user.name,
       role: user.role,
       orgName: user.org.name,
-      /** No Campaign entity until slice 1. Until then nobody has one. */
-      hasCampaign: false,
+      hasCampaign: await hasCampaign(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId }),
       /**
        * A revoked mailbox reads as no mailbox: Home's connect prompt is asking
        * "can Relay send for you yet", and the answer for a disconnected account

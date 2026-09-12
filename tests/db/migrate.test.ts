@@ -12,6 +12,7 @@ import { listColumns, listTables, listUniqueIndexes, resetDatabase } from "./har
 const EXPECTED_TABLES = [
   "agent_run_steps",
   "agent_runs",
+  "campaigns",
   "connected_accounts",
   "events",
   "jobs",
@@ -90,6 +91,7 @@ describe("foundations", () => {
     { table: "side_effects", column: "key", index: ["org_id", "key"] },
     { table: "agent_run_steps", column: "tool_key", index: ["org_id", "tool_key"] },
     { table: "product_facts_versions", column: "version", index: ["org_id", "product", "version"] },
+    { table: "campaigns", column: "start_request_id", index: ["org_id", "start_request_id"] },
   ];
 
   for (const { table, column, index } of ORG_SCOPED_KEYS) {
@@ -118,5 +120,48 @@ describe("foundations", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * The campaigns migration. Its two hand-written rules are CHECKs the Prisma
+ * schema cannot express, so they are proved by what the database refuses
+ * rather than by reading the schema back.
+ */
+describe("campaigns", () => {
+  const insertOrgUserCampaign = async () => {
+    await prisma.$executeRaw`INSERT INTO orgs (id, name, updated_at) VALUES ('org_m', 'org_m', now())`;
+    await prisma.$executeRaw`INSERT INTO users (id, org_id, email, updated_at) VALUES ('user_m', 'org_m', 'm@example.test', now())`;
+    await prisma.$executeRaw`
+      INSERT INTO campaigns (id, org_id, owner_user_id, name, brief, start_request_id, updated_at)
+      VALUES ('camp_m', 'org_m', 'user_m', 'Vets', '{}'::jsonb, 'req_m', now())`;
+  };
+  const insertJob = (key: string, campaignId: string | null, briefVersion: number | null) =>
+    prisma.$executeRaw`
+      INSERT INTO jobs (id, org_id, kind, idempotency_key, input, campaign_id, brief_version, updated_at)
+      VALUES (${key}, 'org_m', 'research', ${key}, '{}'::jsonb, ${campaignId}, ${briefVersion}::integer, now())`;
+
+  it("gives a job a campaign and a brief version together or not at all", async () => {
+    await insertOrgUserCampaign();
+
+    await expect(insertJob("both", "camp_m", 1)).resolves.toBe(1);
+    await expect(insertJob("neither", null, null)).resolves.toBe(1);
+    await expect(insertJob("campaign-only", "camp_m", null)).rejects.toThrow(/jobs_campaign_brief_version_together/);
+    await expect(insertJob("version-only", null, 1)).rejects.toThrow(/jobs_campaign_brief_version_together/);
+    await expect(insertJob("version-zero", "camp_m", 0)).rejects.toThrow(/jobs_brief_version_positive/);
+  });
+
+  it("stores no campaign state: where a campaign is, is derived", async () => {
+    expect(await listColumns("campaigns")).toEqual([
+      "brief",
+      "brief_version",
+      "created_at",
+      "id",
+      "name",
+      "org_id",
+      "owner_user_id",
+      "start_request_id",
+      "updated_at",
+    ]);
   });
 });

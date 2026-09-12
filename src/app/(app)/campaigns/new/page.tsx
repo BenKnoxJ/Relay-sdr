@@ -1,22 +1,21 @@
 import { StartForm } from "@/components/campaigns/StartForm";
-import { HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, startFromSentence } from "@/lib/fixtures/campaigns";
+import { HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, startFromSentence } from "@/lib/campaigns/start";
 import { getProfile } from "@/lib/fixtures/repProfile";
 import { serverCaller } from "@/server/api/caller";
+
+import { startCampaign } from "./actions";
 
 /**
  * Start (master doc §23.1d, mock 3d).
  *
  * Two things this page resolves on the server. Whether the rep's mailbox is
- * connected, read from the connections router built in Task 10b, so the mock
- * connect flow enables "Start research" for real. And the rep's Calls default
- * (Settings §23.1f, card 4), read once from the profile adapter and folded
- * into the pre-fill, so the Calls chip lands ticked or unticked as the rep
- * asked; the sentence and the chip itself still win for the one campaign.
- * The adapter is the Task 9e seam (`getProfile`), so the swap to a row and a
- * router is one file and this page does not change.
+ * connected, read from the connections router, so "Start research" is enabled
+ * for real. And the rep's Calls default (Settings §23.1f, card 4), read once
+ * from the profile adapter and folded into the pre-fill.
  *
  * The sentence arrives in the query string when the rep came from Home's brief
- * box, and is empty when they pressed "New campaign".
+ * box, and is empty when they pressed "New campaign". Pressing Start submits
+ * the card to `startCampaign`, which makes the campaign and its research job.
  */
 export default async function NewCampaignPage({
   searchParams,
@@ -49,6 +48,7 @@ export default async function NewCampaignPage({
       howMany={HOW_MANY}
       howLong={HOW_LONG}
       mailboxConnected={mailbox.connected}
+      onStart={startCampaign}
     />
   );
 }

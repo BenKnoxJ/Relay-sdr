@@ -1,16 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StartForm } from "@/components/campaigns/StartForm";
-import { startCopy } from "@/lib/copy/campaigns";
 import {
   HOW_LONG,
   HOW_MANY,
   PRODUCTS,
   REGIONS,
+  countryName,
   startFromSentence,
   type StartDefaults,
-} from "@/lib/fixtures/campaigns";
+  type StartResult,
+  type StartSubmission,
+} from "@/lib/campaigns/start";
+import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { getProfile, resetProfile, saveProfile } from "@/lib/fixtures/repProfile";
 
 const push = vi.fn();
@@ -19,8 +22,13 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 const SENTENCE =
   "Managed print dealers in the Midlands who resell service contracts, sell them Insights360, partners not end users";
 
+const onStart = vi.fn<(submission: StartSubmission) => Promise<StartResult>>();
+
 function start(props: { sentence?: string; connected?: boolean; defaults?: StartDefaults } = {}) {
   const sentence = props.sentence ?? SENTENCE;
+  push.mockClear();
+  onStart.mockReset();
+  onStart.mockResolvedValue({ id: "camp_1" });
   return render(
     <StartForm
       sentence={sentence}
@@ -30,8 +38,25 @@ function start(props: { sentence?: string; connected?: boolean; defaults?: Start
       howMany={HOW_MANY}
       howLong={HOW_LONG}
       mailboxConnected={props.connected ?? true}
+      onStart={onStart}
     />,
   );
+}
+
+const pressStart = () => fireEvent.click(screen.getByRole("button", { name: startCopy.start }));
+
+/** What the last press of Start sent. */
+const sent = (): StartSubmission => {
+  const call = onStart.mock.calls.at(-1);
+  if (call === undefined) throw new Error("Start was not pressed");
+  return call[0];
+};
+
+/** Type a term into one of Who exactly's lists and add it. */
+function addTerm(label: string, term: string) {
+  const input = screen.getByLabelText(label);
+  fireEvent.change(input, { target: { value: term } });
+  fireEvent.click(within(input.parentElement!).getByRole("button", { name: startCopy.add }));
 }
 
 /**
@@ -43,7 +68,7 @@ function start(props: { sentence?: string; connected?: boolean; defaults?: Start
  * carry the right default.
  */
 describe("Start", () => {
-  it("shows the sentence, then the card Relay filled from it", () => {
+  it("shows the sentence, then the card Relay filled from it, then who exactly", () => {
     start();
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(startCopy.title);
@@ -51,19 +76,23 @@ describe("Start", () => {
     // Twice: the sentence itself, and the Who field it pre-filled.
     expect(screen.getAllByText(SENTENCE).length).toBeGreaterThan(0);
     expect(screen.getByText(startCopy.understood)).toBeDefined();
-    expect(screen.getAllByTestId("start-field")).toHaveLength(6);
+    // Six signed fields, and the seven of who exactly.
+    expect(screen.getAllByTestId("start-field")).toHaveLength(13);
+    expect(within(screen.getByTestId("who-exactly")).getAllByTestId("start-field")).toHaveLength(7);
   });
 
   it("offers every value the signed section allows, and nothing else", () => {
     start();
 
     const options = (label: string) =>
-      Array.from(screen.getByLabelText(label).querySelectorAll("option")).map((option) =>
-        option.getAttribute("value"),
-      );
+      Array.from(screen.getByLabelText(label).querySelectorAll("option")).map((option) => option.getAttribute("value"));
+    const names = (label: string) =>
+      Array.from(screen.getByLabelText(label).querySelectorAll("option")).map((option) => option.textContent);
 
     expect(options(startCopy.fieldProduct)).toEqual(PRODUCTS.map((product) => product.name));
+    // Stored as the ISO code research reads, shown by name.
     expect(options(startCopy.fieldRegion)).toEqual([...REGIONS]);
+    expect(names(startCopy.fieldRegion)).toEqual(REGIONS.map(countryName));
     expect(options(startCopy.people)).toEqual(HOW_MANY.map(String));
     expect(options(startCopy.weeks)).toEqual(HOW_LONG.map(String));
     expect(screen.getAllByTestId("motion-chip").map((chip) => chip.textContent)).toEqual([
@@ -126,7 +155,7 @@ describe("Start", () => {
     expect(loud.channels).toEqual(["email", "calls"]);
   });
 
-  it("keeps the defaults §23.1d names when the sentence says nothing", () => {
+  it("keeps the defaults §23.1d names when the sentence says nothing, and guesses nothing about who exactly", () => {
     const draft = startFromSentence("");
 
     expect(draft.region).toBe(REGIONS[0]);
@@ -135,6 +164,16 @@ describe("Start", () => {
     // Email always on, Calls on by default.
     expect(draft.channels).toEqual(["email", "calls"]);
     expect(draft.product).toBe(PRODUCTS[0]?.name);
+    expect(draft.scope).toEqual({ extraCountries: [], places: [], orgTypes: [], size: null, rolesInclude: [], rolesExclude: [] });
+    expect(draft.existingCustomers).toBe("");
+
+    // A sentence naming a place and a kind of practice still adds nothing: no parsing.
+    expect(startFromSentence("independent vets in Orkney, practice owners").scope.places).toEqual([]);
+  });
+
+  it("reads a country the sentence names as its code", () => {
+    expect(startFromSentence("accountancy firms in Ireland").region).toBe("IE");
+    expect(startFromSentence("accountancy firms in Ireland").guessed).not.toContain("region");
   });
 
   it("has Email always on, and lets the other two off", () => {
@@ -154,22 +193,12 @@ describe("Start", () => {
 
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByTestId("connect-first").textContent).toContain(startCopy.connectFirst);
-    expect(screen.getByRole("link", { name: startCopy.connectLink }).getAttribute("href")).toBe(
-      "/settings",
-    );
+    expect(screen.getByRole("link", { name: startCopy.connectLink }).getAttribute("href")).toBe("/settings");
     unmount();
 
     start({ connected: true });
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByText(startCopy.startNote)).toBeDefined();
-  });
-
-  it("lands on the campaign in Researching, and spends nothing doing it", () => {
-    start();
-
-    fireEvent.click(screen.getByRole("button", { name: startCopy.start }));
-
-    expect(push).toHaveBeenCalledWith(`/campaigns/${startFromSentence(SENTENCE).landsOn}?started=1`);
   });
 
   it("has no campaign name field and no mailbox picker", () => {
@@ -181,10 +210,122 @@ describe("Start", () => {
   });
 });
 
+describe("Pressing Start", () => {
+  it("sends the card as the rep confirmed it, then lands on the new campaign", async () => {
+    start();
+    pressStart();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(sent().startRequestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sent().brief).toEqual({
+      product: "Insights360",
+      motion: "channel",
+      who: SENTENCE,
+      region: "GB",
+      howMany: 20,
+      weeks: 3,
+      channels: ["email", "calls"],
+      scope: { extraCountries: [], places: [], orgTypes: [], size: null, rolesInclude: [], rolesExclude: [] },
+      existingCustomers: "",
+    });
+  });
+
+  it("keeps who exactly as the rep wrote it", async () => {
+    start();
+    fireEvent.change(screen.getByLabelText(startCopy.fieldWho), { target: { value: "  Vets, Orkney.  Owners only " } });
+    pressStart();
+
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(sent().brief.who).toBe("  Vets, Orkney.  Owners only ");
+  });
+
+  it("sends each part of who exactly the rep added, and nothing it did not", async () => {
+    start();
+
+    fireEvent.click(screen.getByRole("button", { name: countryName("IE") }));
+    fireEvent.change(screen.getByLabelText(startCopy.fieldPlaces), { target: { value: "Orkney" } });
+    fireEvent.change(screen.getByLabelText(startCopy.aliasesLabel), { target: { value: "Orkney Islands, Kirkwall" } });
+    fireEvent.click(within(screen.getByLabelText(startCopy.fieldPlaces).parentElement!).getByRole("button", { name: startCopy.add }));
+    addTerm(startCopy.fieldOrgTypes, "veterinary practice");
+    // Enter adds a term too, and a second spelling of the same one is not a second term.
+    fireEvent.change(screen.getByLabelText(startCopy.fieldOrgTypes), { target: { value: "Veterinary practice" } });
+    fireEvent.keyDown(screen.getByLabelText(startCopy.fieldOrgTypes), { key: "Enter" });
+    addTerm(startCopy.fieldRolesInclude, "practice owner");
+    addTerm(startCopy.fieldRolesExclude, "receptionist");
+    fireEvent.change(screen.getByLabelText(startCopy.sizeFrom), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText(startCopy.sizeTo), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText(startCopy.fieldCustomers), { target: { value: "Two practices in Kirkwall" } });
+
+    expect(screen.getByText(`Orkney (${campaignsCopy.alsoCalled} Orkney Islands, Kirkwall)`)).toBeDefined();
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+
+    expect(sent().brief.scope).toEqual({
+      extraCountries: ["IE"],
+      places: [{ name: "Orkney", aliases: ["Orkney Islands", "Kirkwall"] }],
+      orgTypes: ["veterinary practice"],
+      size: { unit: "employees", min: 5, max: 50 },
+      rolesInclude: ["practice owner"],
+      rolesExclude: ["receptionist"],
+    });
+    expect(sent().brief.existingCustomers).toBe("Two practices in Kirkwall");
+  });
+
+  it("takes a term off again", () => {
+    start();
+    addTerm(startCopy.fieldOrgTypes, "veterinary practice");
+    expect(screen.getAllByTestId("term-chip")).toHaveLength(1);
+
+    const remove = screen.getByRole("button", { name: `${startCopy.remove} veterinary practice` });
+    // A 24px square to press (WCAG 2.5.8); jsdom has no layout, so the classes are what is checked here.
+    expect(remove.className.split(" ")).toEqual(expect.arrayContaining(["h-6", "w-6"]));
+    fireEvent.click(remove);
+    expect(screen.queryAllByTestId("term-chip")).toHaveLength(0);
+  });
+
+  it("never offers the region as an extra country, and drops it when the region moves to it", async () => {
+    start();
+    expect(screen.getAllByTestId("country-chip").map((chip) => chip.textContent)).toEqual([countryName("IE"), countryName("US")]);
+
+    fireEvent.click(screen.getByRole("button", { name: countryName("IE") }));
+    fireEvent.change(screen.getByLabelText(startCopy.fieldRegion), { target: { value: "IE" } });
+    expect(screen.getAllByTestId("country-chip").map((chip) => chip.textContent)).toEqual([countryName("GB"), countryName("US")]);
+
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(sent().brief.region).toBe("IE");
+    expect(sent().brief.scope.extraCountries).toEqual([]);
+  });
+
+  it("will not start on a size that runs backwards, and says why", () => {
+    start();
+    fireEvent.change(screen.getByLabelText(startCopy.sizeFrom), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText(startCopy.sizeTo), { target: { value: "5" } });
+
+    expect(screen.getByText(startCopy.sizeBackwards)).toBeDefined();
+    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows the line it is given, and a second press sends the same request id", async () => {
+    start();
+    onStart.mockResolvedValueOnce({ error: startCopy.cannotStart });
+
+    pressStart();
+    expect(await screen.findByTestId("start-error")).toBeDefined();
+    expect(screen.getByTestId("start-error").textContent).toBe(startCopy.cannotStart);
+    expect(push).not.toHaveBeenCalled();
+
+    pressStart();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
+    const [first, second] = onStart.mock.calls.map((call) => call[0].startRequestId);
+    expect(second).toBe(first);
+  });
+});
+
 describe("Editing the sentence", () => {
   it("closes without navigating when nothing was changed", () => {
     start();
-    push.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: startCopy.edit }));
     fireEvent.click(screen.getByRole("button", { name: startCopy.readIt }));
@@ -196,7 +337,6 @@ describe("Editing the sentence", () => {
 
   it("goes back through the pre-fill when the sentence changed", () => {
     start();
-    push.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: startCopy.edit }));
     fireEvent.change(screen.getByLabelText(startCopy.question), {
@@ -264,10 +404,9 @@ describe("The rep's Calls default", () => {
     expect(linkedin.channels).toEqual(["email", "linkedin"]);
   });
 
-  it("takes the rep's choice on the form for this campaign, and leaves the profile alone", () => {
+  it("takes the rep's choice on the form for this campaign, and leaves the profile alone", async () => {
     saveProfile({ callByDefault: false });
     start({ defaults: { callByDefault: getProfile().callByDefault } });
-    push.mockClear();
 
     expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
     const chip = callsChip();
@@ -277,8 +416,9 @@ describe("The rep's Calls default", () => {
     expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
     expect(channelsFrame()?.className).not.toContain("border-dashed");
 
-    fireEvent.click(screen.getByRole("button", { name: startCopy.start }));
-    expect(push).toHaveBeenCalledWith(`/campaigns/${startFromSentence(SENTENCE).landsOn}?started=1`);
+    pressStart();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
+    expect(sent().brief.channels).toEqual(["email", "calls"]);
 
     // The profile is the default, not a lock, and Start never writes it.
     expect(getProfile().callByDefault).toBe(false);

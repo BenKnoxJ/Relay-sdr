@@ -602,6 +602,63 @@ describe("enqueue and the job's owner", () => {
   });
 });
 
+describe("enqueue and the job's campaign", () => {
+  /** A campaign row put in directly: this file is about the queue, not the campaign write path. */
+  const makeCampaign = async (orgId: string, id: string, briefVersion = 1) => {
+    const userId = `user_${id}`;
+    await prisma.user.create({ data: { id: userId, orgId, email: `${userId}@example.com` } });
+    await prisma.campaign.create({
+      data: { id, orgId, ownerUserId: userId, name: id, briefVersion, brief: {}, startRequestId: `req_${id}` },
+    });
+  };
+  const research = (over: { orgId?: string; campaignId?: string; briefVersion?: number; key?: string }) =>
+    enqueue(prisma, {
+      orgId: over.orgId ?? ORG_ID,
+      kind: "research",
+      idempotencyKey: over.key ?? "research-1",
+      input: {},
+      ...(over.campaignId === undefined ? {} : { campaignId: over.campaignId }),
+      ...(over.briefVersion === undefined ? {} : { briefVersion: over.briefVersion }),
+    });
+
+  it("records the campaign and brief version, on the insert and on a dedupe", async () => {
+    await makeCampaign(ORG_ID, "camp_one");
+    const first = await research({ campaignId: "camp_one", briefVersion: 1 });
+    const again = await research({ campaignId: "camp_one", briefVersion: 1 });
+
+    expect(first.job).toMatchObject({ campaignId: "camp_one", briefVersion: 1 });
+    expect(again).toMatchObject({ deduped: true, job: { id: first.job.id, campaignId: "camp_one", briefVersion: 1 } });
+    // What `claimNext` reads back through `RETURNING *` carries them too.
+    expect(await claimNext(prisma, "worker-a")).toMatchObject({ campaignId: "camp_one", briefVersion: 1 });
+  });
+
+  it("refuses a campaign without a brief version, and a version without a campaign", async () => {
+    await makeCampaign(ORG_ID, "camp_two");
+    await expect(research({ campaignId: "camp_two" })).rejects.toThrow("campaignId and briefVersion come together");
+    await expect(research({ briefVersion: 1 })).rejects.toThrow("campaignId and briefVersion come together");
+    expect(await prisma.job.count()).toBe(0);
+  });
+
+  it("refuses another org's campaign, and one that does not exist", async () => {
+    // The foreign key says the campaign exists, not whose it is.
+    await makeCampaign(OTHER_ORG_ID, "camp_elsewhere");
+    await expect(research({ campaignId: "camp_elsewhere", briefVersion: 1 })).rejects.toThrow(
+      "campaignId is not a campaign of this org",
+    );
+    await expect(research({ campaignId: "camp_missing", briefVersion: 1 })).rejects.toThrow(
+      "campaignId is not a campaign of this org",
+    );
+    expect(await prisma.job.count()).toBe(0);
+  });
+
+  it("refuses a brief version the campaign has not reached, and one below the first", async () => {
+    await makeCampaign(ORG_ID, "camp_three", 2);
+    await expect(research({ campaignId: "camp_three", briefVersion: 3 })).rejects.toThrow("ahead of the campaign's own");
+    await expect(research({ campaignId: "camp_three", briefVersion: 0 })).rejects.toThrow("positive whole number");
+    await expect(research({ campaignId: "camp_three", briefVersion: 2 })).resolves.toMatchObject({ deduped: false });
+  });
+});
+
 describe("release", () => {
   it("gives the job back without spending the attempt", async () => {
     await add("released");

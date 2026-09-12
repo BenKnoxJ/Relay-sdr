@@ -4,20 +4,21 @@ import { useState } from "react";
 
 import { Card } from "@/components/Card";
 import { PillButton } from "@/components/PillButton";
+import { countryName } from "@/lib/campaigns/start";
+import type { BriefFields } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
-import type { BriefFields } from "@/lib/fixtures/campaigns";
 
 /**
- * The brief, five fields, read only, with "Change something" (§23.1c).
+ * The brief, read only, with "Change something" (§23.1c).
  *
- * Read only is the whole design: there is no inline edit and no save. The one
- * way to change a campaign is to say what should change and let Relay read
- * around it again, which is why the button opens a reason picker rather than
- * an input. The reason is required; the note beside it is optional and is kept
- * word for word (orchestrator §2, "no model reads them").
+ * Read only is the whole design: there is no inline edit and no save. Its
+ * rows are the card the rep confirmed on Start, and Who exactly's rows are
+ * there only when the rep set them: the brief card never shows a constraint
+ * research was not held to.
  *
- * On fixtures the dialog does not write: it reports the reason to its caller,
- * which moves the page to Researching and says that nothing was spent.
+ * "Change something" is offered only where there is a way to change: on the
+ * sample campaigns today. A real campaign's brief is changed through Edit
+ * brief, which arrives with the next change.
  */
 
 const REASONS = [
@@ -39,6 +40,22 @@ const CHANNELS: Record<BriefFields["channels"][number], string> = {
   calls: startCopy.channelCalls,
 };
 
+/** "5 to 50 people employed", "at least 3 sites", "at most 40 seats". */
+function sizeLine(size: NonNullable<BriefFields["scope"]["size"]>): string {
+  const unit = campaignsCopy.sizeUnits[size.unit];
+  if (size.min !== undefined && size.max !== undefined) return `${size.min} ${campaignsCopy.sizeTo} ${size.max} ${unit}`;
+  if (size.min !== undefined) return `${campaignsCopy.sizeAtLeast} ${size.min} ${unit}`;
+  return `${campaignsCopy.sizeAtMost} ${size.max} ${unit}`;
+}
+
+/** Where: the region, the countries added to it, and the places, each by name. */
+function whereLine(brief: BriefFields): string {
+  const places = brief.scope.places.map((place) =>
+    place.aliases.length === 0 ? place.name : `${place.name} (${campaignsCopy.alsoCalled} ${place.aliases.join(", ")})`,
+  );
+  return [countryName(brief.region), ...brief.scope.extraCountries.map(countryName), ...places].join(", ");
+}
+
 export function BriefCard({
   brief,
   summary,
@@ -51,18 +68,14 @@ export function BriefCard({
   /**
    * The one-line spelling of the brief, for the rail.
    *
-   * The signed mock draws the brief twice: five fields in the main column while
+   * The signed mock draws the brief twice: the fields in the main column while
    * the plan is the screen (3b), and one grey line on the rail once the
-   * campaign is running and progress has the column (3c). Same card, same one
-   * way to change it, one field or five.
+   * campaign is running and progress has the column (3c).
    */
   summary?: string;
   /**
-   * Whether the reason dialog is showing.
-   *
-   * The page owns it, not this card: "Change something about this…" on a plan
-   * card opens the same dialog with the card's own name pre-filled, and a flag
-   * held in here could not be reached from there.
+   * Whether the reason dialog is showing. The page owns it, not this card:
+   * "Change something about this…" on a plan card opens the same dialog.
    */
   open?: boolean;
   /** Pre-filled when the rep came from a plan card ("Change something about this…"). */
@@ -81,15 +94,22 @@ export function BriefCard({
     onOpenChange?.(false);
   };
 
+  const scope = brief.scope;
   const fields: [string, string][] = [
     [campaignsCopy.fieldProduct, brief.product],
     [campaignsCopy.fieldMotion, MOTIONS[brief.motion]],
     [campaignsCopy.fieldWho, brief.who],
+    [campaignsCopy.fieldWhere, whereLine(brief)],
+    ...(scope.orgTypes.length === 0 ? [] : [[campaignsCopy.fieldOrgTypes, scope.orgTypes.join(", ")] as [string, string]]),
+    ...(scope.size === null ? [] : [[campaignsCopy.fieldSize, sizeLine(scope.size)] as [string, string]]),
+    ...(scope.rolesInclude.length === 0 ? [] : [[campaignsCopy.fieldRolesInclude, scope.rolesInclude.join(", ")] as [string, string]]),
+    ...(scope.rolesExclude.length === 0 ? [] : [[campaignsCopy.fieldRolesExclude, scope.rolesExclude.join(", ")] as [string, string]]),
     [
       campaignsCopy.fieldHowMany,
       `${brief.howMany} ${startCopy.people} ${campaignsCopy.over} ${brief.weeks} ${startCopy.weeks}`,
     ],
     [campaignsCopy.fieldChannels, brief.channels.map((channel) => CHANNELS[channel]).join(", ")],
+    ...(brief.existingCustomers.trim() === "" ? [] : [[campaignsCopy.fieldCustomers, brief.existingCustomers] as [string, string]]),
   ];
 
   return (

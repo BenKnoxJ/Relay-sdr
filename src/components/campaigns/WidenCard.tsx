@@ -38,8 +38,12 @@ export function WidenCard({
 }) {
   return (
     <Card className="max-w-[760px]">
-      <p className="type-small mb-4 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
+      <p className="type-small mb-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
         {campaignsCopy.stopBanner}
+      </p>
+      {/* Why research stopped, in research's own words (the stop's `reason`, v3.2 note 28). */}
+      <p data-testid="stop-reason" className="type-body mb-4">
+        {insufficient.reason}
       </p>
 
       <div className="grid gap-grid wide:grid-cols-2">

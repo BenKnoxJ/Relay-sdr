@@ -237,6 +237,7 @@ describe("a real campaign", () => {
     render(<CampaignPage campaign={live} />);
 
     expect(screen.getAllByTestId("widening")).toHaveLength(3);
+    expect(screen.getByTestId("stop-reason").textContent).toBe(live.pack?.insufficient?.reason);
     expect(screen.getByTestId("widen-note").textContent).toBe(campaignsCopy.stopChooseLater);
     expect(screen.queryByRole("button", { name: campaignsCopy.actionWiden })).toBeNull();
     expect(screen.getAllByTestId("pack-item")).toHaveLength(live.pack?.stopEvidence?.length ?? -1);

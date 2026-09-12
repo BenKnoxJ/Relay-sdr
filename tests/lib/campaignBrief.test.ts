@@ -187,12 +187,24 @@ describe("the widening options on screen", () => {
     const lines = stoppedPack().insufficient!.widenings.map((option) => {
       const result = widenedBrief(stoppedBrief() as ResearchBrief, option);
       if (!result.ok) throw new Error(result.issue);
-      return becomesLine(option.dimension, briefFieldsFrom(result.brief));
+      return becomesLine(option.dimension, briefFieldsFrom(stoppedBrief() as ResearchBrief), briefFieldsFrom(result.brief));
     });
     expect(lines).toEqual([
       `${campaignsCopy.fieldWhere} ${campaignsCopy.widenBecomes} United Kingdom`,
       `${campaignsCopy.fieldWhere} ${campaignsCopy.widenBecomes} United Kingdom, Orkney, Shetland, Western Isles, Highland, Argyll and Bute`,
-      `${campaignsCopy.fieldOrgTypes} ${campaignsCopy.widenBecomes} ${campaignsCopy.widenAny}`,
+      campaignsCopy.orgTypesLimitRemoved,
     ]);
+  });
+
+  it("says a constraint an option takes off was removed, and one the rep never set was not set", () => {
+    const sized = briefFields({ scope: { ...EMPTY_SCOPE, size: { unit: "employees", min: 5, max: 50 }, rolesExclude: ["receptionist"] } });
+    const bare = briefFields();
+    expect(becomesLine("size", sized, bare)).toBe(campaignsCopy.sizeLimitRemoved);
+    expect(becomesLine("size", bare, bare)).toBe(campaignsCopy.sizeLimitNone);
+    expect(becomesLine("size", sized, briefFields({ scope: { ...EMPTY_SCOPE, size: { unit: "employees", max: 50 } } }))).toBe(
+      `${campaignsCopy.fieldSize} ${campaignsCopy.widenBecomes} ${campaignsCopy.sizeAtMost} 50 ${campaignsCopy.sizeUnits.employees}`,
+    );
+    expect(becomesLine("sector", bare, bare)).toBe(campaignsCopy.orgTypesLimitNone);
+    expect(becomesLine("role", sized, bare)).toBe(`${campaignsCopy.rolesIncludeLimitNone}${campaignsCopy.noteJoin}${campaignsCopy.rolesExcludeLimitRemoved}`);
   });
 });

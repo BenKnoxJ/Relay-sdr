@@ -56,25 +56,32 @@ export function widenHeadings(dimensions: readonly WidenDimension[]): string[] {
 }
 
 /**
- * What the part of the brief an option widens would read afterwards, from the
- * widened brief: "Where becomes United Kingdom". Computed from the brief the
- * option makes, not from research's words about it, so two options with
+ * What the part of the brief an option widens would read afterwards:
+ * "Where becomes United Kingdom". Computed from the brief before and the brief
+ * the option makes, not from research's words about it, so two options with
  * similar prose still read as the different changes they are.
+ *
+ * A constraint with nothing in it afterwards is said as what it is: taken off
+ * by this option ("Size limit removed"), or never set by the rep ("No size
+ * limit set"). It is never described as something Relay will fill in.
  */
-export function becomesLine(dimension: WidenDimension, after: BriefFields): string {
+export function becomesLine(dimension: WidenDimension, before: BriefFields, after: BriefFields): string {
   const c = campaignsCopy;
   const line = (label: string, value: string) => `${label} ${c.widenBecomes} ${value}`;
+  const list = (label: string, had: readonly string[], has: readonly string[], removed: string, none: string) =>
+    has.length > 0 ? line(label, has.join(", ")) : had.length > 0 ? removed : none;
   switch (dimension) {
     case "region":
       return line(c.fieldWhere, whereLine(after, { aliases: false }));
     case "size":
-      return line(c.fieldSize, after.scope.size === null ? c.widenAny : sizeLine(after.scope.size));
+      if (after.scope.size !== null) return line(c.fieldSize, sizeLine(after.scope.size));
+      return before.scope.size === null ? c.sizeLimitNone : c.sizeLimitRemoved;
     case "sector":
-      return line(c.fieldOrgTypes, after.scope.orgTypes.length === 0 ? c.widenAny : after.scope.orgTypes.join(", "));
+      return list(c.fieldOrgTypes, before.scope.orgTypes, after.scope.orgTypes, c.orgTypesLimitRemoved, c.orgTypesLimitNone);
     case "role":
       return [
-        line(c.fieldRolesInclude, after.scope.rolesInclude.length === 0 ? c.widenAny : after.scope.rolesInclude.join(", ")),
-        line(c.fieldRolesExclude, after.scope.rolesExclude.length === 0 ? c.widenNone : after.scope.rolesExclude.join(", ")),
+        list(c.fieldRolesInclude, before.scope.rolesInclude, after.scope.rolesInclude, c.rolesIncludeLimitRemoved, c.rolesIncludeLimitNone),
+        list(c.fieldRolesExclude, before.scope.rolesExclude, after.scope.rolesExclude, c.rolesExcludeLimitRemoved, c.rolesExcludeLimitNone),
       ].join(c.noteJoin);
   }
 }

@@ -110,12 +110,13 @@ export function toCampaign(record: CampaignRecord): Campaign {
 export function widenChoices(brief: ResearchBrief, options: readonly unknown[]): WidenChoice[] {
   const checked = options.map((option) => ({ option: option as { dimension: WidenChoice["dimension"]; text: string }, widened: widenedBrief(brief, option) }));
   const headings = widenHeadings(checked.map(({ option }) => option.dimension));
+  const before = briefFieldsFrom(brief);
   return checked.map(({ option, widened }, index) => ({
     index,
     dimension: option.dimension,
     heading: headings[index] ?? "",
     text: option.text,
-    becomes: widened.ok ? becomesLine(option.dimension, briefFieldsFrom(widened.brief)) : null,
+    becomes: widened.ok ? becomesLine(option.dimension, before, briefFieldsFrom(widened.brief)) : null,
     usable: widened.ok,
   }));
 }

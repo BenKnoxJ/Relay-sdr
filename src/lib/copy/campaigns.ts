@@ -311,8 +311,18 @@ export const campaignsCopy = {
   widenOption: "option",
   /** What the brief would read after an option: "Where becomes United Kingdom". */
   widenBecomes: "becomes",
-  widenAny: "open, for Relay to decide",
-  widenNone: "none",
+  /**
+   * A constraint an option takes off, or one the rep never set. An absent
+   * constraint is exactly that: Relay puts nothing in its place.
+   */
+  sizeLimitRemoved: "Size limit removed",
+  sizeLimitNone: "No size limit set",
+  orgTypesLimitRemoved: "Kinds of organisation limit removed",
+  orgTypesLimitNone: "No kinds of organisation set",
+  rolesIncludeLimitRemoved: "Roles to reach limit removed",
+  rolesIncludeLimitNone: "No roles to reach set",
+  rolesExcludeLimitRemoved: "Roles to leave out limit removed",
+  rolesExcludeLimitNone: "No roles to leave out set",
   widenUnusable: "This option no longer fits the brief, so it cannot be chosen.",
   widenSubmit: "Look again with this",
   widenSubmitting: "Asking",

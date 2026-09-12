@@ -2,7 +2,7 @@ import type { Campaign, Event, Job, Prisma, PrismaClient } from "@prisma/client"
 
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { researchRawSchema } from "../../../agents/research/output.schema";
-import { researchJobInputSchema, sameBrief, widenedBrief, type ResearchBrief, type ResearchJobInput } from "@/lib/campaigns/brief";
+import { nameFrom, researchJobInputSchema, sameBrief, widenedBrief, type ResearchBrief, type ResearchJobInput } from "@/lib/campaigns/brief";
 import { deriveResearch, failureOf } from "@/lib/campaigns/derive";
 import { enqueue, reopenFailed } from "@/lib/jobs/queue";
 
@@ -309,11 +309,11 @@ async function alreadyMade(
  * brief that moved after the lock; the key names the new version, so the
  * queue cannot already hold it.
  */
-async function advance(tx: Tx, campaign: Campaign, input: ResearchJobInput): Promise<{ campaign: Campaign; job: Job }> {
+async function advance(tx: Tx, campaign: Campaign, input: ResearchJobInput, rename: { name?: string } = {}): Promise<{ campaign: Campaign; job: Job }> {
   const to = campaign.briefVersion + 1;
   const updated = await tx.campaign.updateMany({
     where: { id: campaign.id, orgId: campaign.orgId, ownerUserId: campaign.ownerUserId, briefVersion: campaign.briefVersion },
-    data: { brief: input.brief as Prisma.InputJsonObject, briefVersion: to },
+    data: { brief: input.brief as Prisma.InputJsonObject, briefVersion: to, ...rename },
   });
   if (updated.count !== 1) throw new CampaignChangeRefused("version_behind");
   const { job, deduped } = await enqueue(tx, {
@@ -433,6 +433,11 @@ export type EditInput = ChangeInput & { fromBriefVersion: number; brief: Researc
  * needs you, never while research is reading. The rep's own fields become the
  * next version, and research runs again on them, reading the campaign's
  * latest pack if it has one, with no `priorRun`: nothing is said about why.
+ *
+ * The campaign's name is not the rep's own title: it is made from `who`
+ * (`nameFrom`), so an edit that changes `who` makes it again, in the same
+ * transaction, and the Event carries both names. An edit that leaves `who`
+ * alone leaves the name alone.
  */
 export async function editCampaignBrief(db: PrismaClient, input: EditInput): Promise<ChangeResult> {
   return change(db, input, CAMPAIGN_BRIEF_CHANGED, async (tx) => {
@@ -458,13 +463,16 @@ export async function editCampaignBrief(db: PrismaClient, input: EditInput): Pro
 
     const prior = await latestPack(tx, campaign);
     const jobInput = researchJobInputSchema.parse({ brief: input.brief, ...(prior === null ? {} : { priorPackIds: [prior] }) });
-    const next = await advance(tx, campaign, jobInput);
+    const name = input.brief.who === brief.who ? campaign.name : nameFrom(input.brief.who);
+    const renamed = name !== campaign.name;
+    const next = await advance(tx, campaign, jobInput, renamed ? { name } : {});
     return {
       ...next,
-      before: { briefVersion: campaign.briefVersion, brief: brief as Prisma.InputJsonObject },
+      before: { briefVersion: campaign.briefVersion, brief: brief as Prisma.InputJsonObject, ...(renamed ? { name: campaign.name } : {}) },
       after: {
         briefVersion: next.campaign.briefVersion,
         brief: jobInput.brief as Prisma.InputJsonObject,
+        ...(renamed ? { name: next.campaign.name } : {}),
         cause: "edit",
         requestId: input.requestId,
         priorPackIds: prior === null ? [] : [prior],

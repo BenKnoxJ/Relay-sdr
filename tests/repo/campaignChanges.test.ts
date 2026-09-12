@@ -336,6 +336,8 @@ describe("editCampaignBrief", () => {
     const result = await edit(campaign.id, changed());
 
     expect(result.campaign).toMatchObject({ briefVersion: 2, brief: changed() });
+    // `who` is unchanged, so the name made from it is too, and the Event says nothing about names.
+    expect(result.campaign.name).toBe(campaign.name);
     expect(result.job).toMatchObject({ briefVersion: 2, idempotencyKey: researchJobKey(campaign.id, 2), status: "queued" });
     expect(result.job!.input).toEqual({ brief: changed(), priorPackIds: [event.id] });
     expect(result.job!.input).not.toHaveProperty("priorRun");
@@ -346,6 +348,20 @@ describe("editCampaignBrief", () => {
     expect(change.before).toEqual({ briefVersion: 1, brief: plain() });
     expect(change.after).toMatchObject({ briefVersion: 2, brief: changed(), cause: "edit", priorPackIds: [event.id], jobId: result.job!.id });
     expect(await stateOf(campaign.id)).toBe("researching");
+  });
+
+  it("makes the name again from the rep's new words when who changes, and records both names", async () => {
+    const { campaign } = await planReady();
+    const who = "Claims directors at Lloyd's syndicates and London market MGAs in the City";
+    const brief = toResearchBrief(briefFields({ who }));
+
+    const result = await edit(campaign.id, brief);
+
+    expect(result.campaign.name).toBe(nameFrom(who));
+    expect(result.campaign.name).not.toBe(campaign.name);
+    const change = await prisma.event.findFirstOrThrow({ where: { kind: CAMPAIGN_BRIEF_CHANGED } });
+    expect(change.before).toEqual({ briefVersion: 1, brief: plain(), name: campaign.name });
+    expect(change.after).toMatchObject({ briefVersion: 2, brief, name: nameFrom(who), cause: "edit" });
   });
 
   it("from a stop, research reads the stop", async () => {

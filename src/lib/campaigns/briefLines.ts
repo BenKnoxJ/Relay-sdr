@@ -1,7 +1,7 @@
-import { campaignsCopy } from "@/lib/copy/campaigns";
+import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 
 import { countryName } from "./start";
-import type { BriefFields, WidenDimension } from "./types";
+import type { BriefFields, BriefScope, WidenDimension } from "./types";
 
 /**
  * A brief's parts as one line each, for the brief card and for what a
@@ -17,6 +17,39 @@ export function sizeLine(size: NonNullable<BriefFields["scope"]["size"]>): strin
   if (size.min !== undefined && size.max !== undefined) return `${size.min} ${campaignsCopy.sizeTo} ${size.max} ${unit}`;
   if (size.min !== undefined) return `${campaignsCopy.sizeAtLeast} ${size.min} ${unit}`;
   return `${campaignsCopy.sizeAtMost} ${size.max} ${unit}`;
+}
+
+const sizeSet = (size: BriefScope["size"]): size is NonNullable<BriefScope["size"]> =>
+  size !== null && (size.min !== undefined || size.max !== undefined);
+
+/** Whether the rep has set any hard limit: a country beyond the region, a place, a kind of organisation, a size or a role. */
+export function hasLimits(scope: BriefScope): boolean {
+  return (
+    scope.extraCountries.length > 0 ||
+    scope.places.length > 0 ||
+    scope.orgTypes.length > 0 ||
+    sizeSet(scope.size) ||
+    scope.rolesInclude.length > 0 ||
+    scope.rolesExclude.length > 0
+  );
+}
+
+/**
+ * The hard limits in one line, for the section while it is closed: "Limits:
+ * Ireland · Orkney · veterinary practice · 50 to 250 people employed · never
+ * receptionist". In the section's own order, so the same limits always read
+ * the same way. Null when there are none.
+ */
+export function limitsLine(scope: BriefScope): string | null {
+  const parts = [
+    ...scope.extraCountries.map(countryName),
+    ...scope.places.map((place) => place.name),
+    ...scope.orgTypes,
+    ...(sizeSet(scope.size) ? [sizeLine(scope.size)] : []),
+    ...scope.rolesInclude,
+    ...scope.rolesExclude.map((role) => `${startCopy.limitsNever} ${role}`),
+  ];
+  return parts.length === 0 ? null : `${startCopy.limitsLead} ${parts.join(campaignsCopy.noteJoin)}`;
 }
 
 /**

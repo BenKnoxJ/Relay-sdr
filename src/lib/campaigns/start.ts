@@ -33,7 +33,7 @@ export const SIZE_UNITS = ["employees", "seats", "sites"] as const;
 
 export const CHANNELS: readonly Channel[] = ["email", "linkedin", "calls"];
 
-/** Nothing added: research judges every part of who exactly for itself. */
+/** No hard limits: research judges every part of the market for itself. */
 export const EMPTY_SCOPE: BriefScope = {
   extraCountries: [],
   places: [],
@@ -54,17 +54,6 @@ export type GuessableField = "motion" | "region" | "howMany" | "weeks" | "channe
 
 /** What Start pre-filled, and what it had to guess (§23.1d: dashed means guessed). */
 export type BriefDraft = BriefFields & { guessed: GuessableField[] };
-
-/** What Start knows about the rep before it reads the sentence. */
-export type StartDefaults = {
-  /**
-   * The Calls toggle from Settings (§23.1f, card 4: "include a day-3 call in
-   * new campaigns by default"). The default for the Calls chip when the
-   * sentence says nothing about calls; the sentence wins when it does, and
-   * the chip on Start wins over both for that one campaign.
-   */
-  callByDefault?: boolean;
-};
 
 /** What Start sends: the brief as the rep confirmed it, and the request id that makes a second press the same campaign. */
 export type StartSubmission = { startRequestId: string; brief: BriefFields };
@@ -95,12 +84,11 @@ export type RetrySubmission = ChangeTarget & { requestId: string };
  * round: a field the sentence does not support is left at its default and
  * named in `guessed`, which is what draws it dashed.
  *
- * Who exactly is never pre-filled. Reading places, kinds of organisation or
+ * Hard limits are never pre-filled. Reading places, kinds of organisation or
  * roles out of a sentence is parsing, and a guessed constraint would hold
  * research to something the rep did not say. The rep adds them.
  */
-export function startFromSentence(sentence: string, defaults: StartDefaults = {}): BriefDraft {
-  const { callByDefault = true } = defaults;
+export function startFromSentence(sentence: string): BriefDraft {
   const text = sentence.toLowerCase();
   const guessed: GuessableField[] = [];
 
@@ -122,20 +110,17 @@ export function startFromSentence(sentence: string, defaults: StartDefaults = {}
   const weeksMatch = /\b(2|3|4|6)\s*weeks?\b/.exec(text);
   if (weeksMatch === null) guessed.push("weeks");
 
-  // One pattern decides whether calls are on, and the same one decides whether
-  // the rep said so: two patterns is how "email only, no cold calls" ends up
-  // with calls on and no dashed frame to show it was a guess.
+  // Calls start off and are only ever the rep's tap on the chip. There is no
+  // saved Calls preference yet, and a sentence is no signal: Insights360 is
+  // sold to people whose work is calls, so "who handle a lot of client calls"
+  // describes the buyer, not the channel. "Email only" is the rep answering
+  // the channels question, so it is not drawn as a guess.
   const saidLinkedin = /linkedin/.test(text);
-  const saidNoCalls = /\b(no|without)\s+(cold\s+)?calls?\b|email only|no phone/.test(text);
-  const saidCalls = /\bcalls?\b|\bphone\b/.test(text);
-  if (!saidLinkedin && !saidCalls && !saidNoCalls) guessed.push("channels");
+  const saidEmailOnly = /\b(no|without)\s+(cold\s+)?calls?\b|email only|no phone/.test(text);
+  if (!saidLinkedin && !saidEmailOnly) guessed.push("channels");
 
   const channels: Channel[] = ["email"];
   if (saidLinkedin) channels.push("linkedin");
-  // Calls follow the rep's Settings default (§23.1f) unless the sentence said
-  // otherwise: "no cold calls" turns them off whatever the toggle, and "call
-  // them on day 3" turns them on whatever the toggle.
-  if (saidNoCalls ? false : saidCalls || callByDefault) channels.push("calls");
 
   return {
     // §23.1d: never invent a product. v1 has one, so it is the one.

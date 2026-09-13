@@ -7,19 +7,20 @@ import { researchCopy } from "@/lib/copy/research";
 import { cn } from "@/lib/utils";
 
 import { ConfidenceChip, PackItem, PackPhrase, WithHosts, packDate, shortDate, sourceHost } from "./PackItem";
+import { ResearchNav } from "./ResearchNav";
 
 /**
  * "What Relay learned" (task 19): everything research found for a campaign,
  * on one page, in eleven anchored parts.
  *
- * A server component with no state of its own: the longer lists open in
- * place (`<details>`), the Jump to links are anchors, and nothing here asks
- * anything of the server. Every string of research's is shown as research
+ * A server component with no state of its own. Each of the eleven parts is
+ * closed by default and says what it holds; the longer lists inside open in
+ * place (`<details>`). The one piece that runs in the browser is the
+ * navigation (`ResearchNav`): anchors to each part, and Expand all / Collapse
+ * all. Nothing here asks anything of the server. Every string of research's is shown as research
  * wrote it (`research.ts` takes out internal names and nothing else); a url is
  * only ever where a link goes, never text on the page.
  */
-
-const PARTS: ResearchPart[] = ["market", "who", "pains", "say", "prove", "competition", "companies", "gather", "contact", "gaps", "sources"];
 
 /** The sources shown before "Show all". */
 const SOURCES_FIRST = 10;
@@ -92,9 +93,119 @@ function HostLink({ url, children }: { url: string; children?: React.ReactNode }
   );
 }
 
+const count = (n: number, [one, many]: readonly [string, string]) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * What a closed part says about itself: counts of what it holds, read off the
+ * same data the part draws when it opens. Nothing is summarised; a count is a
+ * count.
+ */
+function previewOf(part: ResearchPart, research: CampaignResearch): { text: string; warn?: boolean }[] {
+  const p = researchCopy.preview;
+  const groups = (n: number) => `${p.across} ${count(n, p.groups)}`;
+  switch (part) {
+    case "market": {
+      const coming = research.market.timeline.filter((entry) => entry.comingUp === true);
+      const next = coming[0]?.date;
+      return [
+        ...(research.market.timeline.length === 0 ? [] : [{ text: count(research.market.timeline.length, p.moments) }]),
+        ...(coming.length === 0 ? [] : [{ text: `${coming.length} ${p.comingUp}${next === undefined || next === null ? "" : `, ${p.nextOn} ${packDate(next)}`}` }]),
+        ...(research.market.segments.length === 0 ? [] : [{ text: count(research.market.segments.length, p.segments) }]),
+      ];
+    }
+    case "who": {
+      const b = research.who.boundaries;
+      const lines = (b === null ? 0 : b.geography.length + (b.size === null ? 0 : 1) + b.sectorsIn.length + b.sectorsOut.length + b.firmsOut.length + b.other.length) +
+        research.who.groupBoundaries.reduce((sum, entry) => sum + entry.lines.length, 0);
+      return [
+        ...(research.who.groups.length === 0 ? [] : [{ text: count(research.who.groups.length, p.groups) }]),
+        ...(research.who.disqualifiers.length === 0 ? [] : [{ text: count(research.who.disqualifiers.length, p.notAFit) }]),
+        ...(lines === 0 ? [] : [{ text: count(lines, p.boundaries) }]),
+      ];
+    }
+    case "pains": {
+      const g = research.pains.groups;
+      const pains = g.reduce((sum, group) => sum + group.pains.length, 0);
+      return [
+        { text: `${count(pains, p.pains)} ${groups(g.length)}` },
+        { text: count(g.reduce((sum, group) => sum + group.buyerWords.length, 0), p.buyerPhrases) },
+        { text: `${g.reduce((sum, group) => sum + group.otherVoices.length, 0)} ${p.fromOthers}` },
+      ];
+    }
+    case "say": {
+      const g = research.say.groups;
+      return [
+        { text: `${count(g.reduce((sum, group) => sum + group.angles.length, 0), p.angles)} ${groups(g.length)}` },
+        { text: count(g.reduce((sum, group) => sum + group.doDont.length, 0), p.doDont) },
+        { text: count(g.reduce((sum, group) => sum + group.vocabulary.length, 0), p.words) },
+      ];
+    }
+    case "prove": {
+      const answers = research.prove.groups.flatMap((group) => group.answers);
+      const d = research.prove.dontClaim;
+      return [
+        { text: count(answers.filter((answer) => answer.strength === "direct").length, p.answered) },
+        { text: `${answers.filter((answer) => answer.strength === "partial").length} ${p.partly}` },
+        { text: `${research.prove.groups.reduce((sum, group) => sum + group.unanswered.length, 0)} ${p.cantAnswer}` },
+        { text: count(research.prove.groups.reduce((sum, group) => sum + group.objections.length, 0), p.objections) },
+        { text: count(d.lead.length + d.product.length + d.brand.length + d.imply.length + d.proof.length, p.dontClaim) },
+      ];
+    }
+    case "competition": {
+      const c = research.competition;
+      return [
+        { text: count(c.competitors.length, p.competitors) },
+        ...(c.prices.length === 0 ? [] : [{ text: count(c.prices.length, p.prices) }]),
+        ...(c.doNothing === null ? [] : [{ text: p.doNothing }]),
+      ];
+    }
+    case "companies": {
+      const g = research.companies.groups;
+      const firms = g.flatMap((group) => group.firms);
+      const unknown = firms.filter((firm) => firm.size.status === "unknown").length;
+      return [{ text: `${count(firms.length, p.firms)} ${groups(g.length)}` }, ...(unknown === 0 ? [] : [{ text: `${unknown} ${p.sizeUnknown}` }])];
+    }
+    case "gather":
+      return [
+        ...research.gather.kinds.map(({ kind, entries }) => ({ text: count(entries.length, p.kinds[kind]) })),
+        ...(research.gather.discovery.length === 0 ? [] : [{ text: count(research.gather.discovery.length, p.toolPlaces) }]),
+      ];
+    case "contact": {
+      const channels = research.contact.channels;
+      const rules = channels.flatMap((channel) => channel.rules);
+      const names = channels.map(({ channel }) => (researchCopy.channels as Record<string, string>)[channel] ?? channel);
+      const barring = rules.filter((rule) => rule.bars).length;
+      const across = names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} ${p.and} ${names.at(-1)}`;
+      return [{ text: `${count(rules.length, p.rules)} ${p.across} ${across}` }, ...(barring === 0 ? [] : [{ text: count(barring, p.restrict), warn: true }])];
+    }
+    case "gaps": {
+      const findings = research.gaps.groups.flatMap((group) => group.findings);
+      const gaps = findings.flatMap((finding) => (finding.kind === "gap" ? [finding.gap] : []));
+      return [
+        { text: count(gaps.length, p.gaps) },
+        { text: count(findings.length - gaps.length, p.contradictions) },
+        { text: count(gaps.filter((gap) => gap.askOnFirstCall !== undefined).length, p.questions) },
+      ];
+    }
+    case "sources": {
+      const read = research.researchedOn === null ? null : shortDate(research.researchedOn);
+      return [{ text: count(research.sources, p.sources) }, ...(read === null ? [] : [{ text: `${p.readOn} ${read}` }])];
+    }
+  }
+}
+
+/**
+ * One of the eleven parts. Closed by default: its title, what it holds, and
+ * "View …". Opened, everything the part has, with its own groups and "Show"s
+ * inside as before. A part research did not write says so whether it is open
+ * or not, and one with nothing in it has nothing to open.
+ */
 function Part({ part, research, empty, children }: { part: ResearchPart; research: CampaignResearch; empty: boolean; children: React.ReactNode }) {
   const missing = research.unwritten[part];
   const names = missing.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ");
+  // A count of nothing is left out: on a run cut short, "0 objections" would read as a finding when the part was never written.
+  const preview = previewOf(part, research).filter((segment) => !/^0\b/.test(segment.text));
+  const label = researchCopy.viewLabels[part];
   return (
     <section
       id={part}
@@ -102,15 +213,41 @@ function Part({ part, research, empty, children }: { part: ResearchPart; researc
       aria-labelledby={`${part}-title`}
       className="min-w-0 scroll-mt-4 rounded-card border border-line bg-panel p-card shadow-card [overflow-wrap:anywhere]"
     >
-      <h2 id={`${part}-title`} className="type-heading mb-3">
+      <h2 id={`${part}-title`} className="type-heading">
         {researchCopy.parts[part]}
       </h2>
       {missing.length === 0 ? null : (
-        <p data-testid="part-unwritten" className="type-small mb-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
+        <p data-testid="part-unwritten" className="type-small mt-2 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
           {empty ? researchCopy.unwrittenAll : `${researchCopy.unwrittenSome} ${names}.`}
         </p>
       )}
-      {empty ? missing.length === 0 ? <p className="type-small text-muted">{researchCopy.nothingHere}</p> : null : children}
+      {empty ? (
+        missing.length === 0 ? (
+          <p className="type-small mt-1.5 text-muted">{researchCopy.nothingHere}</p>
+        ) : null
+      ) : (
+        <details data-research-section={part} data-testid={`section-${part}`} className="mt-1.5 min-w-0">
+          <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 rounded-input focus-visible:outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+            <span data-testid="section-preview" className="type-small min-w-0 basis-full text-muted wide:flex-1 wide:basis-0">
+              {preview.map((segment, index) => (
+                <span key={index} className={segment.warn === true ? "font-semibold text-warn" : undefined}>
+                  {index === 0 ? null : campaignsCopy.noteJoin}
+                  {segment.text}
+                </span>
+              ))}
+            </span>
+            <span data-testid="section-toggle" className="type-small font-semibold text-action wide:shrink-0">
+              <span className="[details[open]>summary>span>&]:hidden">
+                {researchCopy.view} {label}
+              </span>
+              <span className="hidden [details[open]>summary>span>&]:inline">
+                {researchCopy.hide} {label}
+              </span>
+            </span>
+          </summary>
+          <div className="mt-4 min-w-0">{children}</div>
+        </details>
+      )}
     </section>
   );
 }
@@ -1093,55 +1230,44 @@ function Sources({ research }: { research: CampaignResearch }) {
 export function ResearchPage({ name, campaignHref, research }: { name: string; campaignHref: string; research: CampaignResearch }) {
   const researched = research.researchedOn === null ? null : shortDate(research.researchedOn);
   return (
-    <div data-testid="research" className="mx-auto grid min-w-0 max-w-[900px] gap-grid">
-      <div className="min-w-0">
-        <Link
-          href={campaignHref}
-          data-testid="research-back"
-          className="type-small inline-flex min-h-6 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
-        >
-          {researchCopy.back}
-        </Link>
-        <PageHeader title={researchCopy.title} className="mb-1 mt-2" />
-        <p className="type-body text-muted [overflow-wrap:anywhere]">{name}</p>
-        <p data-testid="research-meta" className="type-mono mt-1 text-13 text-muted">
-          {research.sources} {research.sources === 1 ? researchCopy.metaSource : researchCopy.metaSources}
-          {researched === null ? null : `${campaignsCopy.noteJoin}${researchCopy.metaResearched} ${researched}`}
-        </p>
-        {research.partial.length === 0 ? null : (
-          <p data-testid="research-partial" className="type-small mt-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
-            {campaignsCopy.planPartial} {research.partial.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ")}.
+    <div data-testid="research" className="mx-auto grid min-w-0 max-w-[1120px] gap-grid wide:grid-cols-[12rem_minmax(0,1fr)] wide:items-start">
+      <ResearchNav placement="side" />
+      <div className="grid min-w-0 gap-grid">
+        <div className="min-w-0">
+          <Link
+            href={campaignHref}
+            data-testid="research-back"
+            className="type-small inline-flex min-h-6 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+          >
+            {researchCopy.back}
+          </Link>
+          <PageHeader title={researchCopy.title} className="mb-1 mt-2" />
+          <p className="type-body text-muted [overflow-wrap:anywhere]">{name}</p>
+          <p data-testid="research-meta" className="type-mono mt-1 text-13 text-muted">
+            {research.sources} {research.sources === 1 ? researchCopy.metaSource : researchCopy.metaSources}
+            {researched === null ? null : `${campaignsCopy.noteJoin}${researchCopy.metaResearched} ${researched}`}
           </p>
-        )}
+          {research.partial.length === 0 ? null : (
+            <p data-testid="research-partial" className="type-small mt-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
+              {campaignsCopy.planPartial} {research.partial.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ")}.
+            </p>
+          )}
+        </div>
+
+        <ResearchNav placement="top" />
+
+        <Market research={research} />
+        <Who research={research} />
+        <Pains research={research} />
+        <Say research={research} />
+        <Prove research={research} />
+        <Competition research={research} />
+        <Companies research={research} />
+        <Gather research={research} />
+        <Contact research={research} />
+        <Gaps research={research} />
+        <Sources research={research} />
       </div>
-
-      <nav aria-label={researchCopy.jumpTo} data-testid="research-jump" className="min-w-0">
-        <p className="type-label mb-1.5">{researchCopy.jumpTo}</p>
-        <ul className="flex flex-wrap gap-1.5">
-          {PARTS.map((part) => (
-            <li key={part}>
-              <a
-                href={`#${part}`}
-                className="type-small inline-flex min-h-6 items-center rounded-pill border border-line bg-panel px-3 py-1 text-ink focus-visible:outline-none focus-visible:ring-2"
-              >
-                {researchCopy.jump[part]}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <Market research={research} />
-      <Who research={research} />
-      <Pains research={research} />
-      <Say research={research} />
-      <Prove research={research} />
-      <Competition research={research} />
-      <Companies research={research} />
-      <Gather research={research} />
-      <Contact research={research} />
-      <Gaps research={research} />
-      <Sources research={research} />
     </div>
   );
 }

@@ -47,19 +47,36 @@ Nothing else in research's text changes.
 
 A partial pack draws every part it can. A part whose sources were not written says "Relay ran out of time before it wrote this part." One with some of them missing names them. Nothing is filled in. With no campaign ranking (m16) no group is ranked or given a lead. With no source list (m19) the count falls back to the urls research cited, as the Overview's does. Only a finished plan has this page; a campaign still researching, stopped or needing the rep is sent back to its own page.
 
+## Getting around (UX pass)
+
+The page opens with all eleven parts closed. Each closed part shows its title, a line of counts read off the data it holds ("11 gaps · 7 contradictions · 6 questions worth asking"), and "View …". A part's counts leave out anything that is zero, so a run cut short never reads as "0 objections found". Opening a part shows everything it had before, with its groups and "Show"s inside as they were: research's rank-1 group open, the rest one click away. Nothing is summarised, and no model writes a preview.
+
+- **Wide screen:** "In this research" stays in view on the left, with the eleven parts and **Expand all** / **Collapse all**.
+- **Phone:** one "Jump to section" control and the same two buttons. There is no sticky bar and no row that scrolls sideways.
+- **Links:** every part keeps its own id. Following a link to a part, or to anything inside one (a pain from "What we can answer and prove", Don't claim, a dated venue), opens what it lands on and scrolls to it. Opening the page at `#gaps` opens Gaps.
+- **Expand all / Collapse all:** these open and close the eleven parts only, never what is inside them. They are what a printable view can use to open everything.
+
+| State | 1440px | 390px |
+|---|---|---|
+| Default, all closed | 1,484px | 2,157px |
+| Expand all | 25,909px | 55,345px |
+| Everything open, groups and Shows included | 49,132px | 106,579px |
+
+Before this pass the default was 25,837px at 1440 and 54,617px at 390.
+
 ## Shots
 
-Taken from a throwaway local database seeded with the sanitised smoke fixture (`fixtures/research/smoke-a-insurance-direct-2026-09-13.json`), never the live pack: the live pack names the people it quotes. In each part about the kinds of buyer, research's rank-1 group is open and the others are closed.
+Taken from a throwaway local database seeded with the sanitised smoke fixture (`fixtures/research/smoke-a-insurance-direct-2026-09-13.json`), never the live pack: the live pack names the people it quotes. Every part is closed by default; the shots that show one open say so.
 
 | Shot | Shows |
 |---|---|
-| `research-1440-light-top.png` | The top of the page on desktop, every Show closed: title, sources line, Jump to, why this market and the timeline |
-| `research-390-light-top.png`, `research-390-dark-top.png` | The top of the page at phone width: title, sources line, Jump to, and the start of the timeline |
-| `research-1440-market-timeline.png` | The timeline, with one event's "also reported that day" open |
-| `research-1440-who-group.png` | A kind of buyer, with what a deal might look like open |
-| `research-1440-pains-group.png` | A group's pains, its buyers' words, and the regulator's kept apart |
-| `research-1440-dont-claim.png` | Don't claim |
-| `research-1440-companies-group.png` | Example firms, with how to find more like these open |
-| `research-1440-contact.png` | Contact rules, with the three that restrict a channel |
-| `research-1440-gaps.png` | Gaps and contradictions, with what Relay searched open |
+| `research-1440-light.png` | The default page on desktop: "In this research", and eleven closed parts with their counts |
+| `research-390-light.png`, `research-390-dark.png` | The default page at phone width: "Jump to section", Expand all, Collapse all, and eleven closed parts |
+| `research-1440-light-three-open.png` | Who to target, Competition and Contact rules opened from "In this research" |
+| `research-390-light-gaps-open.png` | Gaps and contradictions, opened from "Jump to section" |
+| `research-1440-market-timeline.png` | Inside the market: one event's "also reported that day" open |
+| `research-1440-who-group.png` | Inside Who to target: a kind of buyer, with what a deal might look like open |
+| `research-1440-pains-group.png` | Inside Pains: a group's pains, its buyers' words, and the regulator's kept apart |
+| `research-1440-dont-claim.png` | Inside What we can answer and prove: Don't claim |
+| `research-1440-companies-group.png` | Inside Example companies: firms, with how to find more like these open |
 | `overview-link-1440-light.png`, `overview-link-390-light.png` | The Overview's way in |

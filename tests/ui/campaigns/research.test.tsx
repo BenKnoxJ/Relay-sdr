@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { MODULE_IDS, moduleOwnIds, researchRawSchema } from "../../../agents/research/output.schema";
@@ -21,6 +21,7 @@ const research = researchSections(pack);
 const draw = (data = research) => render(<ResearchPage name="Claims ops at mid-sized UK insurers" campaignHref="/campaigns/camp_1" research={data} />);
 const pageText = () => screen.getByTestId("research").textContent ?? "";
 const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
+const sections = () => [...document.querySelectorAll<HTMLDetailsElement>("details[data-research-section]")];
 
 describe("What Relay learned", () => {
   it("says what it is, how much it rests on, and the way back", () => {
@@ -30,15 +31,94 @@ describe("What Relay learned", () => {
     expect(screen.getByTestId("research-meta").textContent).toBe(`78 ${researchCopy.metaSources}${campaignsCopy.noteJoin}${researchCopy.metaResearched} 13 Sep 2026`);
   });
 
-  it("jumps to each of the eleven parts, on one page", () => {
+  it("navigates to each of the eleven parts by its own id: a list on a wide screen, one control on a phone", () => {
     draw();
-    const links = within(screen.getByTestId("research-jump")).getAllByRole("link");
-    expect(links).toHaveLength(11);
-    for (const link of links) {
-      const id = link.getAttribute("href")!.slice(1);
-      expect(document.getElementById(id)?.tagName).toBe("SECTION");
-    }
+    const ids = Object.keys(researchCopy.parts);
+    const links = within(screen.getByTestId("research-nav")).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(ids.map((id) => `#${id}`));
+    const options = within(screen.getByTestId("research-jump-select")).getAllByRole("option").slice(1);
+    expect(options.map((option) => option.getAttribute("value"))).toEqual(ids);
+    for (const id of ids) expect(document.getElementById(id)?.tagName).toBe("SECTION");
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual(Object.values(researchCopy.parts));
+    // On a phone the parts are one select, never a row that scrolls sideways.
+    expect(screen.getByTestId("research-jump").className).not.toMatch(/overflow-x|nowrap/);
+    expect(screen.getByTestId("research-nav").className).toContain("hidden");
+  });
+
+  it("closes every part by default, and each closed part still says what it holds", () => {
+    draw();
+    expect(sections()).toHaveLength(11);
+    for (const section of sections()) expect(section.open).toBe(false);
+    const previews = screen.getAllByTestId("section-preview").map((preview) => preview.textContent ?? "");
+    expect(previews).toHaveLength(11);
+    for (const preview of previews) expect(preview).toMatch(/\d/);
+    const preview = (part: string) => within(screen.getByTestId(`research-${part}`)).getByTestId("section-preview").textContent;
+    expect(preview("gaps")).toBe("11 gaps · 7 contradictions · 6 questions worth asking");
+    expect(preview("competition")).toBe("5 competitors researched · 6 prices compared · plus what happens if they do nothing");
+    expect(preview("companies")).toBe("8 example firms across 4 kinds of buyer · 3 with size not known");
+    expect(preview("contact")).toBe("8 rules across Email and LinkedIn · 3 restrict a channel");
+    expect(preview("sources")).toBe("78 sources · read 13 Sep 2026");
+    expect(preview("market")).toBe("17 dated moments · 6 coming up, the next on 24 Sep 2026 · 8 parts of the market");
+    expect(within(screen.getByTestId("research-gaps")).getByTestId("section-toggle").textContent).toContain(`${researchCopy.view} ${researchCopy.viewLabels.gaps}`);
+  });
+
+  it("opens and closes each part from its summary", () => {
+    draw();
+    for (const section of sections()) {
+      fireEvent.click(section.querySelector("summary")!);
+      expect(section.open).toBe(true);
+      fireEvent.click(section.querySelector("summary")!);
+      expect(section.open).toBe(false);
+    }
+  });
+
+  it("opens all eleven with Expand all and closes them with Collapse all, and nothing inside them", () => {
+    draw();
+    const inner = () => [...screen.getByTestId("research").querySelectorAll("details:not([data-research-section])")].map((details) => (details as HTMLDetailsElement).open);
+    const before = inner();
+    fireEvent.click(screen.getAllByTestId("expand-all")[0]!);
+    expect(sections().every((section) => section.open)).toBe(true);
+    expect(inner()).toEqual(before);
+    fireEvent.click(screen.getAllByTestId("collapse-all")[0]!);
+    expect(sections().every((section) => !section.open)).toBe(true);
+    expect(inner()).toEqual(before);
+  });
+
+  it("keeps the groups inside a part as they were: research's rank 1 open, the rest one click away", () => {
+    draw();
+    fireEvent.click(screen.getAllByTestId("expand-all")[0]!);
+    const groups = screen.getAllByTestId("research-group") as HTMLDetailsElement[];
+    expect(groups[0]!.open).toBe(true);
+    expect(groups.slice(1).every((group) => !group.open)).toBe(true);
+    fireEvent.click(groups[1]!.querySelector("summary")!);
+    expect(groups[1]!.open).toBe(true);
+    expect((screen.getAllByTestId("group-deal")[0] as HTMLDetailsElement).open).toBe(false);
+  });
+
+  it("opens the part a link lands on, from the list, the phone control and a link inside the page", async () => {
+    draw();
+    fireEvent.click(within(screen.getByTestId("research-nav")).getByRole("link", { name: researchCopy.jump.gaps }));
+    expect((screen.getByTestId("section-gaps") as HTMLDetailsElement).open).toBe(true);
+    fireEvent.change(screen.getByTestId("research-jump-select"), { target: { value: "contact" } });
+    expect((screen.getByTestId("section-contact") as HTMLDetailsElement).open).toBe(true);
+    expect(window.location.hash).toBe("#contact");
+    // A pain in the second group, from a link in another part: the part and the group open.
+    act(() => {
+      window.history.replaceState(null, "", "#pain-2-1");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    await waitFor(() => expect((screen.getByTestId("section-pains") as HTMLDetailsElement).open).toBe(true));
+    expect((document.getElementById("pain-2-1")!.closest("details") as HTMLDetailsElement).open).toBe(true);
+    window.history.replaceState(null, "", " ");
+  });
+
+  it("hides nothing: every item is on the page whether its part is open or closed", () => {
+    draw();
+    const closed = screen.getAllByTestId("pack-item").length;
+    fireEvent.click(screen.getAllByTestId("expand-all")[0]!);
+    expect(screen.getAllByTestId("pack-item")).toHaveLength(closed);
+    expect(screen.getAllByTestId("research-source")).toHaveLength(78);
+    for (const section of sections()) expect(section.querySelector("summary + div")?.childElementCount).toBeGreaterThan(0);
   });
 
   it("shows no internal name anywhere: no part id, no fact id, no record id, no url as text", () => {
@@ -154,5 +234,25 @@ describe("What Relay learned, when a limit cut the research short", () => {
     expect(within(screen.getByTestId("research-sources")).queryByTestId("part-unwritten")).toBeNull();
     expect(screen.queryAllByTestId("timeline-entry")).toHaveLength(0);
     expect(screen.getAllByTestId("research-group").length).toBeGreaterThan(0);
+  });
+
+  it("opens what it has, gives a part with nothing written nothing to open, and ranks nothing without the ranking", () => {
+    draw(researchSections(partialPack()));
+    // Written: the market's case, the kinds of buyer, what to say, don't claim (m00 and m09), the sources.
+    for (const part of ["market", "who", "say", "prove", "sources"]) expect(screen.getByTestId(`section-${part}`)).toBeDefined();
+    // Not written at all: said so, and nothing to open.
+    for (const part of ["pains", "competition", "companies", "gather", "contact", "gaps"]) {
+      expect(screen.queryByTestId(`section-${part}`)).toBeNull();
+      expect(within(screen.getByTestId(`research-${part}`)).getByTestId("part-unwritten").textContent).toBe(researchCopy.unwrittenAll);
+    }
+    // A closed part never counts what was not written as nothing found.
+    for (const preview of screen.getAllByTestId("section-preview")) expect(preview.textContent).not.toMatch(/(^|· )0 /);
+    expect(within(screen.getByTestId("research-prove")).getByTestId("section-preview").textContent).toMatch(/things not to claim$/);
+    fireEvent.click(screen.getAllByTestId("expand-all")[0]!);
+    const text = pageText();
+    // No campaign ranking (m16) was written: no rank, no lead angle, no reason of its own.
+    expect(text).not.toContain(`${researchCopy.ranked} 1`);
+    expect(text).not.toContain(researchCopy.leadWith);
+    expect(text).not.toMatch(/\bm[01]\d\b|i360\.|https?:\/\//);
   });
 });

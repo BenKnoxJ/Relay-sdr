@@ -114,6 +114,12 @@ describe("the Overview", () => {
     for (const gap of overview.gaps) expect(screen.getByTestId("overview").textContent).toContain(gap.whyItMatters);
   });
 
+  it("shows no fact id or internal part name, with everything open", () => {
+    draw();
+    openAll();
+    expect(screen.getByTestId("overview").textContent).not.toMatch(/i360\.|\bm[01]\d\b|archetype/i);
+  });
+
   it("gives every item it shows a source and a confidence word", () => {
     draw();
     openAll();

@@ -136,6 +136,14 @@ describe("the rest of the Overview", () => {
     expect(overview.groups.every((group) => group.roles.length > 0)).toBe(true);
   });
 
+  it("shows no fact id or internal part name, where research's own text has them", () => {
+    // Only what a rep reads: ids, evidence and the searches research ran are not text on the Overview.
+    const shown = (value: unknown) => JSON.stringify(value, (key, inner: unknown) => (["id", "archetypeId", "evidence", "queriesTried"].includes(key) ? undefined : inner));
+    const internal = /i360\.|\bm[01]\d\b|archetype/i;
+    expect(shown([researchGaps(pack), buyerLanguage(pack, rankOne.archetypeId)])).toMatch(internal);
+    expect(shown(overview)).not.toMatch(internal);
+  });
+
   it("comes with a finished plan from the stored Event, and not with a stop", () => {
     const view = deriveResearch({ status: "done", error: null }, { after: fixture });
     expect(view.state).toBe("planReady");

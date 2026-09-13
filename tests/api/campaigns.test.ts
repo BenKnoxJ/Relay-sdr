@@ -237,6 +237,17 @@ describe("campaigns.research", () => {
     expect(page.research?.who.groups).toHaveLength(3);
   });
 
+  it("reads a partial plan too, naming what was not written and ranking nothing research did not rank", async () => {
+    const { id, job } = await started();
+    await finish(job, partialPack(), "partial");
+    expect((await caller(rep()).campaigns.get({ id })).state).toBe("planReady");
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(page.research?.partial).toEqual(partialPack().missingModules);
+    expect(page.research?.unwritten.pains).toEqual(["m05", "m06"]);
+    expect(page.research?.who.groups.length).toBeGreaterThan(0);
+    expect(page.research?.who.groups.every((group) => group.rank === null && group.whyNow === null)).toBe(true);
+  });
+
   it("@proof shows a campaign's research to its owner only: another rep and another org get NOT_FOUND", async () => {
     await ensureUser(prisma, boss());
     const { id, job } = await started(rep());

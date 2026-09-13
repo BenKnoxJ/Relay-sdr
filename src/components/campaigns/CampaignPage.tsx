@@ -138,7 +138,7 @@ export function CampaignPage({
   const plan =
     // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
     campaign.overview !== null && state === "planReady" ? (
-      <Overview overview={campaign.overview} editHref={editHref} />
+      <Overview overview={campaign.overview} editHref={editHref} researchHref={live ? `/campaigns/${campaign.id}/research` : undefined} />
     ) : campaign.pack === null ||
     state === "stopped" ||
     state === "researching" ||

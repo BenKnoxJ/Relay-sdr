@@ -5,9 +5,10 @@ import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { becomesLine, widenHeadings } from "./briefLines";
-import { deriveResearch } from "./derive";
+import { deriveResearch, storedPack } from "./derive";
+import { researchSections } from "./research";
 import { answersFor, chipFor, nextFor, type CampaignCounts, type CampaignState } from "./state";
-import type { BriefFields, Campaign, CampaignSummary, ResearchActions, WidenChoice } from "./types";
+import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, ResearchActions, WidenChoice } from "./types";
 
 /**
  * A stored campaign as its screens draw it.
@@ -98,6 +99,17 @@ export function toCampaign(record: CampaignRecord): Campaign {
     can,
     widenings,
   };
+}
+
+/**
+ * A stored campaign's research page (task 19): the whole finished pack, read
+ * into the page's parts. Only a finished plan (complete or partial) has one;
+ * everything else is null, and the page sends the rep back to the campaign.
+ */
+export function toCampaignResearch(record: CampaignRecord): CampaignResearchPage {
+  const campaign = toCampaign(record);
+  const pack = campaign.state === "planReady" && record.event !== null ? storedPack(record.event.after) : null;
+  return { id: campaign.id, name: campaign.name, research: pack === null ? null : researchSections(pack) };
 }
 
 /**

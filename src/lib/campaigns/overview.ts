@@ -3,6 +3,7 @@ import { completeModule, type PackShape } from "../../../agents/research/output.
 import {
   buyerLanguage,
   groupName,
+  groupsByRank,
   leadAngle,
   researchContradictions,
   researchGaps,
@@ -31,20 +32,15 @@ const FIRST_QUESTIONS = 3;
 export function overviewOf(pack: PackShape): CampaignOverview {
   const summary = completeModule(pack, "repSummary");
   const top = topCandidate(pack);
-  const ranks = new Map((completeModule(pack, "m16")?.candidates ?? []).map((candidate) => [candidate.archetypeId, candidate.rank]));
-  const rankOf = (id: string) => ranks.get(id) ?? Number.MAX_SAFE_INTEGER;
 
-  const groups = (completeModule(pack, "m03")?.archetypes ?? [])
-    .slice()
-    .sort((a, b) => rankOf(a.id) - rankOf(b.id))
-    .map((group) => ({
-      id: group.id,
-      name: group.name,
-      situation: group.situation,
-      sizeRange: group.sizeRange,
-      roles: group.roles.map((role) => ({ part: role.part, title: role.title })),
-      first: group.id === top?.archetypeId,
-    }));
+  const groups = groupsByRank(pack).map((group) => ({
+    id: group.id,
+    name: group.name,
+    situation: group.situation,
+    sizeRange: group.sizeRange,
+    roles: group.roles.map((role) => ({ part: role.part, title: role.title })),
+    first: group.id === top?.archetypeId,
+  }));
 
   const topName = top === undefined ? undefined : groupName(pack, top.archetypeId);
   const pains = top === undefined ? [] : (completeModule(pack, "m05")?.perArchetype.find((entry) => entry.archetypeId === top.archetypeId)?.pains ?? []);

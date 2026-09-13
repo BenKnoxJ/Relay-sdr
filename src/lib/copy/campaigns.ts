@@ -339,7 +339,6 @@ export const startCopy = {
   title: "New campaign",
   note: "step 2 of 2",
   question: "Who do you want to reach, and why now?",
-  placeholder: "Managed print dealers in the Midlands who resell service contracts",
   edit: "Edit",
   readIt: "Read it",
   understood: "Here is what Relay understood. Fix anything, then start the research.",
@@ -366,24 +365,31 @@ export const startCopy = {
   channelLinkedin: "LinkedIn",
   channelCalls: "Calls",
 
-  /** Who exactly (research v3.2 scope): each only when the rep adds it. */
-  fieldWhoExactly: "Who exactly",
-  whoExactlyHint: "Only what you add here limits the research. Leave the rest to Relay.",
-  fieldAlsoInclude: "Also include",
-  fieldPlaces: "Places",
-  placePlaceholder: "Orkney",
+  /**
+   * Hard limits (research v3.2 scope): boundaries research must not cross,
+   * each only when the rep adds it. Research works out the rest itself.
+   */
+  limitsTitle: "Add hard limits (optional)",
+  limitsHint:
+    "Only use these for boundaries Relay must not cross. Research will work out the kinds of organisation, company sizes and roles worth targeting.",
+  limitsNone: "No hard limits. Research can explore within your brief.",
+  /** The closed section's summary: "Limits: Orkney · veterinary practice · 50 to 250 people employed". */
+  limitsLead: "Limits:",
+  limitsNever: "never",
+  limitsShow: "Show",
+  limitsHide: "Hide",
+  fieldAlsoInclude: "Also search in",
+  fieldPlaces: "Only these places",
   aliasesLabel: "Also called",
   aliasesPlaceholder: "Other names, separated by commas",
-  fieldOrgTypes: "Kinds of organisation",
-  orgTypePlaceholder: "veterinary practice",
-  fieldSize: "Size",
+  fieldOrgTypes: "Only these kinds of organisation",
+  fieldSize: "Only this size",
   sizeUnitLabel: "Counted in",
   sizeFrom: "From",
   sizeTo: "To",
   sizeBackwards: "The first size is bigger than the second.",
-  fieldRolesInclude: "Roles to reach",
-  fieldRolesExclude: "Roles to leave out",
-  rolePlaceholder: "practice manager",
+  fieldRolesInclude: "Only these roles",
+  fieldRolesExclude: "Never these roles",
   add: "Add",
   remove: "Remove",
   /** The mark on a chip's remove button; the button's name is `remove` and the term. */

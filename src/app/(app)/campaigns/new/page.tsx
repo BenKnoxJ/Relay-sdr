@@ -1,6 +1,5 @@
 import { StartForm } from "@/components/campaigns/StartForm";
 import { HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, startFromSentence } from "@/lib/campaigns/start";
-import { getProfile } from "@/lib/fixtures/repProfile";
 import { serverCaller } from "@/server/api/caller";
 
 import { startCampaign } from "./actions";
@@ -8,10 +7,11 @@ import { startCampaign } from "./actions";
 /**
  * Start (master doc §23.1d, mock 3d).
  *
- * Two things this page resolves on the server. Whether the rep's mailbox is
+ * The page resolves one thing on the server: whether the rep's mailbox is
  * connected, read from the connections router, so "Start research" is enabled
- * for real. And the rep's Calls default (Settings §23.1f, card 4), read once
- * from the profile adapter and folded into the pre-fill.
+ * for real. Calls start off: there is no saved Calls preference yet, and a
+ * default read from a fixture would put a channel in the brief the rep never
+ * chose.
  *
  * The sentence arrives in the query string when the rep came from Home's brief
  * box, and is empty when they pressed "New campaign". Pressing Start submits
@@ -24,7 +24,6 @@ export default async function NewCampaignPage({
 }) {
   const caller = await serverCaller();
   const mailbox = await caller.connections.get();
-  const { callByDefault } = getProfile();
   const params = await searchParams;
 
   // `String(…)` and not a cast: a repeated parameter arrives as an array, and
@@ -42,7 +41,7 @@ export default async function NewCampaignPage({
     <StartForm
       key={said}
       sentence={said}
-      prefilled={startFromSentence(said, { callByDefault })}
+      prefilled={startFromSentence(said)}
       products={PRODUCTS}
       regions={REGIONS}
       howMany={HOW_MANY}

@@ -1,20 +1,21 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { StartForm } from "@/components/campaigns/StartForm";
+import { toResearchBrief } from "@/lib/campaigns/brief";
 import {
+  EMPTY_SCOPE,
   HOW_LONG,
   HOW_MANY,
   PRODUCTS,
   REGIONS,
   countryName,
   startFromSentence,
-  type StartDefaults,
   type StartResult,
   type StartSubmission,
 } from "@/lib/campaigns/start";
+import type { BriefFields } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
-import { getProfile, resetProfile, saveProfile } from "@/lib/fixtures/repProfile";
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -25,7 +26,7 @@ const SENTENCE =
 
 const onStart = vi.fn<(submission: StartSubmission) => Promise<StartResult>>();
 
-function start(props: { sentence?: string; connected?: boolean; defaults?: StartDefaults } = {}) {
+function start(props: { sentence?: string; connected?: boolean } = {}) {
   const sentence = props.sentence ?? SENTENCE;
   push.mockClear();
   onStart.mockReset();
@@ -33,7 +34,7 @@ function start(props: { sentence?: string; connected?: boolean; defaults?: Start
   return render(
     <StartForm
       sentence={sentence}
-      prefilled={startFromSentence(sentence, props.defaults)}
+      prefilled={startFromSentence(sentence)}
       products={PRODUCTS}
       regions={REGIONS}
       howMany={HOW_MANY}
@@ -53,12 +54,22 @@ const sent = (): StartSubmission => {
   return call[0];
 };
 
-/** Type a term into one of Who exactly's lists and add it. */
+const limits = () => screen.getByTestId("hard-limits");
+const limitsToggle = () => limits().querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+const limitsFields = () => document.getElementById("hard-limits-fields")!;
+const openLimits = () => {
+  if (limitsToggle().getAttribute("aria-expanded") !== "true") fireEvent.click(limitsToggle());
+};
+
+/** Type a term into one of the hard limits' lists and add it. */
 function addTerm(label: string, term: string) {
   const input = screen.getByLabelText(label);
   fireEvent.change(input, { target: { value: term } });
   fireEvent.click(within(input.parentElement!).getByRole("button", { name: startCopy.add }));
 }
+
+/** The card's fields outside the hard limits. */
+const cardFields = () => screen.getAllByTestId("start-field").filter((field) => !limits().contains(field));
 
 /**
  * Start (§23.1d, mock 3d): two steps on one page, every field a picker.
@@ -69,17 +80,29 @@ function addTerm(label: string, term: string) {
  * carry the right default.
  */
 describe("Start", () => {
-  it("shows the sentence, then the card Relay filled from it, then who exactly", () => {
+  it("shows the sentence, then the card Relay filled from it, with the hard limits closed", () => {
     start();
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(startCopy.title);
     expect(screen.getByText(startCopy.note)).toBeDefined();
-    // Twice: the sentence itself, and the Who field it pre-filled.
-    expect(screen.getAllByText(SENTENCE).length).toBeGreaterThan(0);
     expect(screen.getByText(startCopy.understood)).toBeDefined();
-    // Six signed fields, and the seven of who exactly.
-    expect(screen.getAllByTestId("start-field")).toHaveLength(13);
-    expect(within(screen.getByTestId("who-exactly")).getAllByTestId("start-field")).toHaveLength(7);
+    // Product, motion, region, how many, channels and the customers question.
+    expect(cardFields()).toHaveLength(6);
+    expect(within(limits()).getAllByTestId("start-field")).toHaveLength(6);
+
+    expect(limitsToggle().textContent).toContain(startCopy.limitsTitle);
+    expect(limitsToggle().getAttribute("aria-expanded")).toBe("false");
+    expect(limitsFields().hidden).toBe(true);
+    expect(screen.getByTestId("limits-summary").textContent).toBe(startCopy.limitsNone);
+  });
+
+  it("has one Who: the rep's sentence, with no second box to change it in", () => {
+    start();
+
+    expect(screen.queryByLabelText(startCopy.fieldWho)).toBeNull();
+    expect(screen.getAllByText(SENTENCE)).toHaveLength(1);
+    expect(document.querySelectorAll("textarea")).toHaveLength(1);
+    expect(screen.getByLabelText(startCopy.fieldCustomers).tagName).toBe("TEXTAREA");
   });
 
   it("offers every value the signed section allows, and nothing else", () => {
@@ -125,13 +148,12 @@ describe("Start", () => {
     // The sentence names no size and no length, so both are Relay's guess.
     expect(startFromSentence(SENTENCE).guessed).toContain("howMany");
     expect(screen.getByLabelText(startCopy.people).className).toContain("border-dashed");
-    expect(screen.getByText(startCopy.guessedHint)).toBeDefined();
+    expect(screen.getAllByText(startCopy.guessedHint).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText(startCopy.people), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText(startCopy.weeks), { target: { value: "4" } });
 
     expect(screen.getByLabelText(startCopy.people).className).not.toContain("border-dashed");
-    expect(screen.queryByText(startCopy.guessedHint)).toBeNull();
   });
 
   it("only reads a number that carries its unit", () => {
@@ -147,29 +169,20 @@ describe("Start", () => {
     expect(said.weeks).toBe(4);
   });
 
-  it("turns calls off when the rep said so, in the words they said it in", () => {
-    const quiet = startFromSentence("care home groups in the South West, email only, no cold calls");
-    expect(quiet.channels).toEqual(["email"]);
-    expect(quiet.guessed).not.toContain("channels");
-
-    const loud = startFromSentence("ops directors at UK logistics firms, call them on day 3");
-    expect(loud.channels).toEqual(["email", "calls"]);
-  });
-
-  it("keeps the defaults §23.1d names when the sentence says nothing, and guesses nothing about who exactly", () => {
+  it("keeps the defaults §23.1d names when the sentence says nothing, and guesses no limit", () => {
     const draft = startFromSentence("");
 
     expect(draft.region).toBe(REGIONS[0]);
     expect(draft.howMany).toBe(20);
     expect(draft.weeks).toBe(3);
-    // Email always on, Calls on by default.
-    expect(draft.channels).toEqual(["email", "calls"]);
+    // Email always on; Calls off until the rep ticks it.
+    expect(draft.channels).toEqual(["email"]);
     expect(draft.product).toBe(PRODUCTS[0]?.name);
-    expect(draft.scope).toEqual({ extraCountries: [], places: [], orgTypes: [], size: null, rolesInclude: [], rolesExclude: [] });
+    expect(draft.scope).toEqual(EMPTY_SCOPE);
     expect(draft.existingCustomers).toBe("");
 
     // A sentence naming a place and a kind of practice still adds nothing: no parsing.
-    expect(startFromSentence("independent vets in Orkney, practice owners").scope.places).toEqual([]);
+    expect(startFromSentence("independent vets in Orkney, practice owners").scope).toEqual(EMPTY_SCOPE);
   });
 
   it("reads a country the sentence names as its code", () => {
@@ -209,40 +222,114 @@ describe("Start", () => {
       expect(screen.queryByLabelText(label)).toBeNull();
     }
   });
+
+  it("shows no example taken from an old test brief, anywhere on the card", () => {
+    const { unmount } = start();
+    openLimits();
+    fireEvent.click(screen.getByRole("button", { name: startCopy.edit }));
+
+    const shown = [...document.querySelectorAll("[placeholder]")].map((element) => element.getAttribute("placeholder"));
+    expect(shown.sort()).toEqual([startCopy.aliasesPlaceholder, startCopy.sizeFrom, startCopy.sizeTo].sort());
+    for (const example of ["Orkney", "veterinary practice", "practice manager", "Managed print dealers"]) {
+      expect(document.body.innerHTML).not.toContain(`placeholder="${example}`);
+    }
+    for (const key of ["placeholder", "placePlaceholder", "orgTypePlaceholder", "rolePlaceholder"]) {
+      expect(key in startCopy).toBe(false);
+    }
+    unmount();
+  });
 });
 
-describe("Pressing Start", () => {
-  it("sends the card as the rep confirmed it, then lands on the new campaign", async () => {
-    start();
-    pressStart();
+/**
+ * Calls start off. There is no saved Calls preference yet, so the chip is the
+ * only way Calls reaches the brief; a sentence is no signal, since the people
+ * Insights360 is sold to talk about calls all day.
+ */
+describe("Calls", () => {
+  const callsChip = () => screen.getAllByTestId("channel-chip")[2];
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
-    expect(onStart).toHaveBeenCalledTimes(1);
-    expect(sent().startRequestId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(sent().brief).toEqual({
+  it("is off when the card opens, and is not sent", async () => {
+    start();
+
+    expect(callsChip()?.textContent).toBe(startCopy.channelCalls);
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(sent().brief.channels).toEqual(["email"]);
+  });
+
+  it("is sent when the rep ticks it, and stops being a guess", async () => {
+    start();
+
+    fireEvent.click(callsChip()!);
+    expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
+    expect(callsChip()?.parentElement?.className).not.toContain("border-dashed");
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(sent().brief.channels).toEqual(["email", "calls"]);
+  });
+
+  it("is never read out of the sentence", () => {
+    expect(startFromSentence("UK law firms who handle a lot of client calls").channels).toEqual(["email"]);
+    expect(startFromSentence("ops directors at UK logistics firms, call them on day 3").channels).toEqual(["email"]);
+    // Nothing said about the channels, so they are still Relay's guess.
+    expect(startFromSentence("ops directors at UK logistics firms, call them on day 3").guessed).toContain("channels");
+  });
+
+  it("keeps what the sentence says outright about email and LinkedIn", () => {
+    const quiet = startFromSentence("care home groups in the South West, email only, no cold calls");
+    expect(quiet.channels).toEqual(["email"]);
+    expect(quiet.guessed).not.toContain("channels");
+
+    const linkedin = startFromSentence("finance directors on LinkedIn");
+    expect(linkedin.channels).toEqual(["email", "linkedin"]);
+    expect(linkedin.guessed).not.toContain("channels");
+  });
+});
+
+describe("Hard limits", () => {
+  it("open on request, say what they are for, and close again", () => {
+    start();
+
+    openLimits();
+    expect(limitsToggle().getAttribute("aria-expanded")).toBe("true");
+    expect(limitsFields().hidden).toBe(false);
+    expect(screen.getByText(startCopy.limitsHint)).toBeDefined();
+    expect(screen.queryByTestId("limits-summary")).toBeNull();
+    expect(within(limits()).getAllByTestId("start-field").map((field) => field.firstChild?.textContent)).toEqual([
+      startCopy.fieldAlsoInclude,
+      startCopy.fieldSize,
+      startCopy.fieldPlaces,
+      startCopy.fieldOrgTypes,
+      startCopy.fieldRolesInclude,
+      startCopy.fieldRolesExclude,
+    ]);
+
+    fireEvent.click(limitsToggle());
+    expect(limitsToggle().getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByTestId("limits-summary").textContent).toBe(startCopy.limitsNone);
+  });
+
+  it("send no scope at all when none is set, so research reads only the brief", async () => {
+    start({ sentence: "UK law firms who handle a lot of client calls" });
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+
+    expect(sent().brief.scope).toEqual(EMPTY_SCOPE);
+    expect(toResearchBrief(sent().brief)).toEqual({
       product: "Insights360",
-      motion: "channel",
-      who: SENTENCE,
+      motion: "direct",
+      who: "UK law firms who handle a lot of client calls",
       region: "GB",
       howMany: 20,
       weeks: 3,
-      channels: ["email", "calls"],
-      scope: { extraCountries: [], places: [], orgTypes: [], size: null, rolesInclude: [], rolesExclude: [] },
-      existingCustomers: "",
+      channels: ["email"],
     });
   });
 
-  it("keeps who exactly as the rep wrote it", async () => {
+  it("send each limit the rep added, and nothing it did not, in the same scope as before", async () => {
     start();
-    fireEvent.change(screen.getByLabelText(startCopy.fieldWho), { target: { value: "  Vets, Orkney.  Owners only " } });
-    pressStart();
-
-    await waitFor(() => expect(onStart).toHaveBeenCalled());
-    expect(sent().brief.who).toBe("  Vets, Orkney.  Owners only ");
-  });
-
-  it("sends each part of who exactly the rep added, and nothing it did not", async () => {
-    start();
+    openLimits();
 
     fireEvent.click(screen.getByRole("button", { name: countryName("IE") }));
     fireEvent.change(screen.getByLabelText(startCopy.fieldPlaces), { target: { value: "Orkney" } });
@@ -271,10 +358,38 @@ describe("Pressing Start", () => {
       rolesExclude: ["receptionist"],
     });
     expect(sent().brief.existingCustomers).toBe("Two practices in Kirkwall");
+    expect(toResearchBrief(sent().brief).scope).toEqual({
+      countries: ["GB", "IE"],
+      places: [{ name: "Orkney", aliases: ["Orkney Islands", "Kirkwall"] }],
+      orgTypes: ["veterinary practice"],
+      size: { unit: "employees", min: 5, max: 50 },
+      roles: { include: ["practice owner"], exclude: ["receptionist"] },
+    });
   });
 
-  it("takes a term off again", () => {
+  it("are summarised in one line, in the section's order, once closed", () => {
     start();
+    openLimits();
+
+    fireEvent.click(screen.getByRole("button", { name: countryName("IE") }));
+    fireEvent.change(screen.getByLabelText(startCopy.fieldPlaces), { target: { value: "Orkney" } });
+    fireEvent.click(within(screen.getByLabelText(startCopy.fieldPlaces).parentElement!).getByRole("button", { name: startCopy.add }));
+    addTerm(startCopy.fieldOrgTypes, "veterinary practice");
+    fireEvent.change(screen.getByLabelText(startCopy.sizeFrom), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText(startCopy.sizeTo), { target: { value: "250" } });
+    addTerm(startCopy.fieldRolesInclude, "practice owner");
+    addTerm(startCopy.fieldRolesExclude, "receptionist");
+    fireEvent.click(limitsToggle());
+
+    const join = campaignsCopy.noteJoin;
+    expect(screen.getByTestId("limits-summary").textContent).toBe(
+      `${startCopy.limitsLead} ${countryName("IE")}${join}Orkney${join}veterinary practice${join}50 ${campaignsCopy.sizeTo} 250 ${campaignsCopy.sizeUnits.employees}${join}practice owner${join}${startCopy.limitsNever} receptionist`,
+    );
+  });
+
+  it("take a term off again", () => {
+    start();
+    openLimits();
     addTerm(startCopy.fieldOrgTypes, "veterinary practice");
     expect(screen.getAllByTestId("term-chip")).toHaveLength(1);
 
@@ -285,8 +400,9 @@ describe("Pressing Start", () => {
     expect(screen.queryAllByTestId("term-chip")).toHaveLength(0);
   });
 
-  it("never offers the region as an extra country, and drops it when the region moves to it", async () => {
+  it("never offer the region as another country, and drop it when the region moves to it", async () => {
     start();
+    openLimits();
     expect(screen.getAllByTestId("country-chip").map((chip) => chip.textContent)).toEqual([countryName("IE"), countryName("US")]);
 
     fireEvent.click(screen.getByRole("button", { name: countryName("IE") }));
@@ -299,13 +415,60 @@ describe("Pressing Start", () => {
     expect(sent().brief.scope.extraCountries).toEqual([]);
   });
 
-  it("will not start on a size that runs backwards, and says why", () => {
+  it("will not start on a size that runs backwards, and say why", () => {
     start();
+    openLimits();
     fireEvent.change(screen.getByLabelText(startCopy.sizeFrom), { target: { value: "50" } });
     fireEvent.change(screen.getByLabelText(startCopy.sizeTo), { target: { value: "5" } });
 
     expect(screen.getByText(startCopy.sizeBackwards)).toBeDefined();
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("leave the customers question outside them: it is a hint for research, not a limit", () => {
+    start();
+
+    expect(limits().contains(screen.getByLabelText(startCopy.fieldCustomers))).toBe(false);
+  });
+});
+
+describe("Pressing Start", () => {
+  it("sends the card as the rep confirmed it, then lands on the new campaign", async () => {
+    start();
+    pressStart();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(sent().startRequestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sent().brief).toEqual({
+      product: "Insights360",
+      motion: "channel",
+      who: SENTENCE,
+      region: "GB",
+      howMany: 20,
+      weeks: 3,
+      channels: ["email"],
+      scope: EMPTY_SCOPE,
+      existingCustomers: "",
+    });
+  });
+
+  it("sends the sentence as who, in the rep's words", async () => {
+    start({ sentence: "  Vets, Orkney.  Owners only " });
+    pressStart();
+
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(sent().brief.who).toBe("Vets, Orkney.  Owners only");
+  });
+
+  it("waits while the sentence is open, since the card still holds the last one read", () => {
+    start();
+
+    fireEvent.click(screen.getByRole("button", { name: startCopy.edit }));
+    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: startCopy.readIt }));
+    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
   });
 
   it("shows the line it is given, and a second press sends the same request id", async () => {
@@ -351,91 +514,6 @@ describe("Editing the sentence", () => {
   });
 });
 
-/**
- * The rep's Calls default (§23.1d Channels ↔ §23.1f card 4). Settings owns
- * the toggle; Start reads it once, on the server, as the default for the
- * Calls chip. A default and not a lock: the sentence wins when it mentions
- * calls, and the chip on the form wins over both for that one campaign.
- */
-describe("The rep's Calls default", () => {
-  afterEach(() => {
-    resetProfile();
-  });
-
-  const callsChip = () => screen.getAllByTestId("channel-chip")[2];
-  const channelsFrame = () => callsChip()?.parentElement;
-
-  it("lands with Calls ticked when the default is on", () => {
-    start({ defaults: { callByDefault: true } });
-
-    expect(callsChip()?.textContent).toBe(startCopy.channelCalls);
-    expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
-  });
-
-  it("lands with Calls unticked when the default is off, in the same words", () => {
-    start({ defaults: { callByDefault: false } });
-
-    expect(callsChip()?.textContent).toBe(startCopy.channelCalls);
-    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
-    // Still Relay's guess, drawn dashed: the sentence said nothing about calls.
-    expect(channelsFrame()?.className).toContain("border-dashed");
-    // Email is still always on, and the chip count is unchanged.
-    expect(screen.getAllByTestId("channel-chip")).toHaveLength(3);
-    expect(screen.getAllByTestId("channel-chip")[0]?.getAttribute("aria-pressed")).toBe("true");
-  });
-
-  it("is on when nothing was said about it, as §23.1d names the default", () => {
-    expect(startFromSentence(SENTENCE).channels).toContain("calls");
-    expect(startFromSentence(SENTENCE, {}).channels).toContain("calls");
-  });
-
-  it("lets the sentence win over the toggle, both ways", () => {
-    const quiet = startFromSentence("care home groups in the South West, email only, no cold calls", {
-      callByDefault: true,
-    });
-    expect(quiet.channels).toEqual(["email"]);
-
-    const loud = startFromSentence("ops directors at UK logistics firms, call them on day 3", {
-      callByDefault: false,
-    });
-    expect(loud.channels).toEqual(["email", "calls"]);
-
-    // A sentence that names LinkedIn and not calls has not spoken about calls.
-    const linkedin = startFromSentence("finance directors on LinkedIn", { callByDefault: false });
-    expect(linkedin.channels).toEqual(["email", "linkedin"]);
-  });
-
-  it("takes the rep's choice on the form for this campaign, and leaves the profile alone", async () => {
-    saveProfile({ callByDefault: false });
-    start({ defaults: { callByDefault: getProfile().callByDefault } });
-
-    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
-    const chip = callsChip();
-    if (chip !== undefined) fireEvent.click(chip);
-
-    // The form carries the rep's value: ticked, and no longer a guess.
-    expect(callsChip()?.getAttribute("aria-pressed")).toBe("true");
-    expect(channelsFrame()?.className).not.toContain("border-dashed");
-
-    pressStart();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp_1?started=1"));
-    expect(sent().brief.channels).toEqual(["email", "calls"]);
-
-    // The profile is the default, not a lock, and Start never writes it.
-    expect(getProfile().callByDefault).toBe(false);
-  });
-
-  it("can be turned off on the form when the default is on, the same way", () => {
-    start({ defaults: { callByDefault: true } });
-
-    const chip = callsChip();
-    if (chip !== undefined) fireEvent.click(chip);
-
-    expect(callsChip()?.getAttribute("aria-pressed")).toBe("false");
-    expect(getProfile().callByDefault).toBe(true);
-  });
-});
-
 /** Edit brief (orchestrator A1, item 5): Start's card on a campaign's current brief. */
 describe("Edit brief", () => {
   const current = {
@@ -457,7 +535,7 @@ describe("Edit brief", () => {
     existingCustomers: "",
   };
 
-  function editing(connected = false) {
+  function editing(connected = false, brief: BriefFields = current) {
     push.mockClear();
     refresh.mockClear();
     onStart.mockReset();
@@ -465,7 +543,7 @@ describe("Edit brief", () => {
     return render(
       <StartForm
         sentence=""
-        prefilled={{ ...current, guessed: [] }}
+        prefilled={{ ...brief, guessed: [] }}
         products={PRODUCTS}
         regions={REGIONS}
         howMany={HOW_MANY}
@@ -477,7 +555,7 @@ describe("Edit brief", () => {
     );
   }
 
-  it("opens on the current brief, with no sentence step and nothing guessed", () => {
+  it("opens on the current brief, with no sentence step, nothing guessed and its own Who", () => {
     editing();
 
     expect(screen.getByRole("heading", { name: startCopy.editTitle })).toBeDefined();
@@ -486,11 +564,25 @@ describe("Edit brief", () => {
     expect(screen.queryByText(startCopy.understood)).toBeNull();
     expect(screen.queryByRole("button", { name: startCopy.readIt })).toBeNull();
     expect((screen.getByLabelText(startCopy.fieldWho) as HTMLTextAreaElement).value).toBe(current.who);
+    expect(screen.getByRole("link", { name: startCopy.editCancel }).getAttribute("href")).toBe("/campaigns/camp_1");
+  });
+
+  it("opens the hard limits when the brief has them, so a locked limit is never hidden", () => {
+    editing();
+
+    expect(limitsToggle().getAttribute("aria-expanded")).toBe("true");
+    expect(limitsFields().hidden).toBe(false);
     // The rep's own terms, as chips: the place (with its other names) and the kind of organisation.
     const chips = screen.getAllByTestId("term-chip").map((chip) => chip.firstChild?.textContent ?? "");
     expect(chips.some((chip) => chip.startsWith("Orkney") && chip.includes("Kirkwall"))).toBe(true);
     expect(chips).toContain("veterinary practice");
-    expect(screen.getByRole("link", { name: startCopy.editCancel }).getAttribute("href")).toBe("/campaigns/camp_1");
+  });
+
+  it("keeps them closed when the brief has none", () => {
+    editing(false, { ...current, scope: EMPTY_SCOPE });
+
+    expect(limitsToggle().getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByTestId("limits-summary").textContent).toBe(startCopy.limitsNone);
   });
 
   it("sends the rep's changed fields, without waiting on a mailbox, and goes back to the campaign", async () => {

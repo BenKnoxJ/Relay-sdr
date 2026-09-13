@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
+import { hasLimits, limitsLine } from "@/lib/campaigns/briefLines";
 import {
   countryName,
   SIZE_UNITS,
@@ -23,16 +24,21 @@ import { cn } from "@/lib/utils";
 /**
  * Start (§23.1d, mock 3d): two steps on one page, no wizard.
  *
- * **Every field is a picker**, except the two that are the rep's own words
- * (Who, and the optional customers question) and the terms under Who exactly,
- * which are the rep's own words too. A field the sentence did not cover is
- * drawn dashed with the default already chosen, so the rep can see what Relay
- * guessed rather than what it asked.
+ * **Every field is a picker**, except the rep's own words: the sentence, the
+ * optional customers question, and any hard limit they type. A field the
+ * sentence did not cover is drawn dashed with the default already chosen, so
+ * the rep can see what Relay guessed rather than what it asked.
  *
- * **Who exactly** is research's scope (v3.2, note 28): countries beyond the
- * region, places, kinds of organisation, size, roles to reach and to leave out.
- * It starts empty and nothing in it is guessed: only what the rep adds limits
- * the research.
+ * **Who** is the sentence, verbatim. On a new campaign the sentence is the one
+ * place to change it (Edit, then Read it); Edit brief has no sentence step, so
+ * it shows Who as a field of its own.
+ *
+ * **Hard limits** are research's scope (v3.2, note 28): countries beyond the
+ * region, places, kinds of organisation, size, roles to reach and roles to
+ * leave out. They are boundaries, not a description of the buyer, which
+ * research works out for itself. The section is closed and empty unless the
+ * brief already has a limit, and then it opens, so a locked limit is never
+ * hidden.
  *
  * Nothing is spent here. "Start research" makes the campaign and asks for its
  * research, then moves the rep to the campaign page.
@@ -136,7 +142,7 @@ function TermList({
   onChange,
 }: {
   label: string;
-  placeholder: string;
+  placeholder?: string;
   values: string[];
   onChange: (values: string[]) => void;
 }) {
@@ -203,7 +209,6 @@ function PlaceList({ places, onChange }: { places: Place[]; onChange: (places: P
         <input
           aria-label={startCopy.fieldPlaces}
           value={name}
-          placeholder={startCopy.placePlaceholder}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={onEnter(add)}
           className={pickerClass(false)}
@@ -266,10 +271,6 @@ export function StartForm({
    * A prop and not a call, because §23.1d runs the pre-fill once, on Start:
    * re-reading the sentence is a navigation back to this page with the new
    * sentence on it, which is what the Edit button does.
-   *
-   * The rep's Calls default (Settings §23.1f) is already in here. The chip is
-   * a default and not a lock, so the rep's tap on it wins for this campaign
-   * and the profile is left as it was.
    */
   prefilled: BriefDraft;
   products: Product[];
@@ -294,6 +295,8 @@ export function StartForm({
   const [sizeUnit, setSizeUnit] = useState<SizeUnit>(prefilled.scope.size?.unit ?? "employees");
   const [sizeMin, setSizeMin] = useState(prefilled.scope.size?.min?.toString() ?? "");
   const [sizeMax, setSizeMax] = useState(prefilled.scope.size?.max?.toString() ?? "");
+  // Open when the brief already has a limit (Edit brief, or after a widening), so it is never hidden.
+  const [limitsOpen, setLimitsOpen] = useState(() => hasLimits(prefilled.scope));
   // Minted once per card: a second press of Start sends the same id, and the
   // server answers it with the campaign the first press made. Edit brief's
   // press is made the same change again the same way.
@@ -328,6 +331,17 @@ export function StartForm({
   const min = wholeNumber(sizeMin);
   const max = wholeNumber(sizeMax);
   const sizeBackwards = min !== undefined && max !== undefined && min > max;
+  // A size is only a constraint when the rep typed an end to it.
+  const size: BriefScope["size"] =
+    min === undefined && max === undefined
+      ? null
+      : { unit: sizeUnit, ...(min === undefined ? {} : { min }), ...(max === undefined ? {} : { max }) };
+  const scope: BriefScope = {
+    ...draft.scope,
+    extraCountries: draft.scope.extraCountries.filter((code) => code !== draft.region),
+    size,
+  };
+  const limits = limitsLine(scope);
 
   const start = async () => {
     if (pending) return;
@@ -341,15 +355,7 @@ export function StartForm({
       howMany: draft.howMany,
       weeks: draft.weeks,
       channels: draft.channels,
-      scope: {
-        ...draft.scope,
-        extraCountries: draft.scope.extraCountries.filter((code) => code !== draft.region),
-        // A size is only a constraint when the rep typed an end to it.
-        size:
-          min === undefined && max === undefined
-            ? null
-            : { unit: sizeUnit, ...(min === undefined ? {} : { min }), ...(max === undefined ? {} : { max }) },
-      },
+      scope,
       existingCustomers: draft.existingCustomers,
     };
     try {
@@ -385,7 +391,6 @@ export function StartForm({
                   aria-label={startCopy.question}
                   value={said}
                   autoFocus
-                  placeholder={startCopy.placeholder}
                   onChange={(event) => setSaid(event.target.value)}
                   className="type-small flex-1 bg-transparent focus-visible:outline-none"
                 />
@@ -464,15 +469,17 @@ export function StartForm({
             </div>
           </Field>
 
-          <Field label={startCopy.fieldWho} wide>
-            <textarea
-              aria-label={startCopy.fieldWho}
-              value={draft.who}
-              onChange={(event) => set("who", event.target.value)}
-              placeholder={startCopy.placeholder}
-              className={pickerClass(false)}
-            />
-          </Field>
+          {/* A new campaign's Who is the sentence above; only Edit brief, which has no sentence, shows it here. */}
+          {edit === undefined ? null : (
+            <Field label={startCopy.fieldWho} wide>
+              <textarea
+                aria-label={startCopy.fieldWho}
+                value={draft.who}
+                onChange={(event) => set("who", event.target.value)}
+                className={pickerClass(false)}
+              />
+            </Field>
+          )}
 
           <Field label={startCopy.fieldRegion}>
             <select
@@ -543,120 +550,137 @@ export function StartForm({
               ))}
             </div>
           </Field>
+
+          <Field label={startCopy.fieldCustomers} hint={startCopy.customersHint} wide>
+            <textarea
+              aria-label={startCopy.fieldCustomers}
+              value={draft.existingCustomers}
+              onChange={(event) => set("existingCustomers", event.target.value)}
+              className={pickerClass(false)}
+            />
+          </Field>
         </div>
 
-        {/* Who exactly (research v3.2 scope): empty until the rep adds to it. */}
-        <div data-testid="who-exactly" className="mt-5 border-t border-line pt-4">
-          <p className="type-label mb-1">{startCopy.fieldWhoExactly}</p>
-          <p className="type-small mb-3 text-muted">{startCopy.whoExactlyHint}</p>
+        {/* Hard limits (research v3.2 scope): boundaries only, empty until the rep adds one. */}
+        <div data-testid="hard-limits" className="mt-5 border-t border-line pt-4">
+          <button
+            type="button"
+            aria-expanded={limitsOpen}
+            aria-controls="hard-limits-fields"
+            onClick={() => setLimitsOpen((open) => !open)}
+            className="flex min-h-6 w-full items-center justify-between gap-3 rounded-input text-left focus-visible:outline-none focus-visible:ring-2"
+          >
+            <span className="type-label">{startCopy.limitsTitle}</span>
+            <span className="text-13 font-semibold text-action">{limitsOpen ? startCopy.limitsHide : startCopy.limitsShow}</span>
+          </button>
+          {limitsOpen ? null : (
+            <p data-testid="limits-summary" className="type-small mt-1 text-muted">
+              {limits ?? startCopy.limitsNone}
+            </p>
+          )}
 
-          <div className="grid gap-grid wide:grid-cols-2">
-            <Field label={startCopy.fieldAlsoInclude}>
-              <div className="flex flex-wrap gap-chips">
-                {regions
-                  .filter((code) => code !== draft.region)
-                  .map((code) => {
-                    const on = draft.scope.extraCountries.includes(code);
-                    return (
-                      <button
-                        key={code}
-                        type="button"
-                        data-testid="country-chip"
-                        aria-pressed={on}
-                        onClick={() =>
-                          setScope({
-                            extraCountries: on
-                              ? draft.scope.extraCountries.filter((other) => other !== code)
-                              : [...draft.scope.extraCountries, code],
-                          })
-                        }
-                        className={chipClass(on)}
-                      >
-                        {countryName(code)}
-                      </button>
-                    );
-                  })}
-              </div>
-            </Field>
+          <div id="hard-limits-fields" hidden={!limitsOpen}>
+            <p className="type-small mb-3 mt-1 text-muted">{startCopy.limitsHint}</p>
+            <div className="grid gap-grid wide:grid-cols-2">
+              <Field label={startCopy.fieldAlsoInclude}>
+                <div className="flex flex-wrap gap-chips">
+                  {regions
+                    .filter((code) => code !== draft.region)
+                    .map((code) => {
+                      const on = draft.scope.extraCountries.includes(code);
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          data-testid="country-chip"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setScope({
+                              extraCountries: on
+                                ? draft.scope.extraCountries.filter((other) => other !== code)
+                                : [...draft.scope.extraCountries, code],
+                            })
+                          }
+                          className={chipClass(on)}
+                        >
+                          {countryName(code)}
+                        </button>
+                      );
+                    })}
+                </div>
+              </Field>
 
-            <Field label={startCopy.fieldSize} hint={sizeBackwards ? startCopy.sizeBackwards : undefined}>
-              <div className="flex gap-chips">
-                <input
-                  aria-label={startCopy.sizeFrom}
-                  inputMode="numeric"
-                  value={sizeMin}
-                  placeholder={startCopy.sizeFrom}
-                  onChange={(event) => setSizeMin(event.target.value)}
-                  className={pickerClass(false)}
+              <Field label={startCopy.fieldSize} hint={sizeBackwards ? startCopy.sizeBackwards : undefined}>
+                <div className="flex gap-chips">
+                  <input
+                    aria-label={startCopy.sizeFrom}
+                    inputMode="numeric"
+                    value={sizeMin}
+                    placeholder={startCopy.sizeFrom}
+                    onChange={(event) => setSizeMin(event.target.value)}
+                    className={cn(pickerClass(false), "min-w-0 flex-1")}
+                  />
+                  <input
+                    aria-label={startCopy.sizeTo}
+                    inputMode="numeric"
+                    value={sizeMax}
+                    placeholder={startCopy.sizeTo}
+                    onChange={(event) => setSizeMax(event.target.value)}
+                    className={cn(pickerClass(false), "min-w-0 flex-1")}
+                  />
+                  <select
+                    aria-label={startCopy.sizeUnitLabel}
+                    value={sizeUnit}
+                    onChange={(event) => setSizeUnit(event.target.value as SizeUnit)}
+                    // Its own width, so the longest unit ("people employed") is read in full; the two numbers share the rest.
+                    className={cn(pickerClass(false), "w-auto shrink-0")}
+                  >
+                    {SIZE_UNITS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {campaignsCopy.sizeUnits[unit]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </Field>
+
+              <Field label={startCopy.fieldPlaces} wide>
+                <PlaceList places={draft.scope.places} onChange={(places) => setScope({ places })} />
+              </Field>
+
+              <Field label={startCopy.fieldOrgTypes} wide>
+                <TermList
+                  label={startCopy.fieldOrgTypes}
+                  values={draft.scope.orgTypes}
+                  onChange={(orgTypes) => setScope({ orgTypes })}
                 />
-                <input
-                  aria-label={startCopy.sizeTo}
-                  inputMode="numeric"
-                  value={sizeMax}
-                  placeholder={startCopy.sizeTo}
-                  onChange={(event) => setSizeMax(event.target.value)}
-                  className={pickerClass(false)}
+              </Field>
+
+              <Field label={startCopy.fieldRolesInclude}>
+                <TermList
+                  label={startCopy.fieldRolesInclude}
+                  values={draft.scope.rolesInclude}
+                  onChange={(rolesInclude) => setScope({ rolesInclude })}
                 />
-                <select
-                  aria-label={startCopy.sizeUnitLabel}
-                  value={sizeUnit}
-                  onChange={(event) => setSizeUnit(event.target.value as SizeUnit)}
-                  className={pickerClass(false)}
-                >
-                  {SIZE_UNITS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {campaignsCopy.sizeUnits[unit]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </Field>
+              </Field>
 
-            <Field label={startCopy.fieldPlaces} wide>
-              <PlaceList places={draft.scope.places} onChange={(places) => setScope({ places })} />
-            </Field>
-
-            <Field label={startCopy.fieldOrgTypes} wide>
-              <TermList
-                label={startCopy.fieldOrgTypes}
-                placeholder={startCopy.orgTypePlaceholder}
-                values={draft.scope.orgTypes}
-                onChange={(orgTypes) => setScope({ orgTypes })}
-              />
-            </Field>
-
-            <Field label={startCopy.fieldRolesInclude}>
-              <TermList
-                label={startCopy.fieldRolesInclude}
-                placeholder={startCopy.rolePlaceholder}
-                values={draft.scope.rolesInclude}
-                onChange={(rolesInclude) => setScope({ rolesInclude })}
-              />
-            </Field>
-
-            <Field label={startCopy.fieldRolesExclude}>
-              <TermList
-                label={startCopy.fieldRolesExclude}
-                placeholder={startCopy.rolePlaceholder}
-                values={draft.scope.rolesExclude}
-                onChange={(rolesExclude) => setScope({ rolesExclude })}
-              />
-            </Field>
-
-            <Field label={startCopy.fieldCustomers} hint={startCopy.customersHint} wide>
-              <textarea
-                aria-label={startCopy.fieldCustomers}
-                value={draft.existingCustomers}
-                onChange={(event) => set("existingCustomers", event.target.value)}
-                className={pickerClass(false)}
-              />
-            </Field>
+              <Field label={startCopy.fieldRolesExclude}>
+                <TermList
+                  label={startCopy.fieldRolesExclude}
+                  values={draft.scope.rolesExclude}
+                  onChange={(rolesExclude) => setScope({ rolesExclude })}
+                />
+              </Field>
+            </div>
           </div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
           <PillButton
-            disabled={(edit === undefined && !mailboxConnected) || pending || sizeBackwards || draft.who.trim() === ""}
+            disabled={
+              // The sentence is Who: while its box is open, the card still holds the last one read.
+              (edit === undefined && (!mailboxConnected || editing)) || pending || sizeBackwards || draft.who.trim() === ""
+            }
             onClick={() => void start()}
           >
             {edit === undefined

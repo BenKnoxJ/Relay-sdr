@@ -13,6 +13,6 @@ Start's card, after the live smoke test showed reps being asked to describe the 
 
 Taken from the development server on seeded data. Nothing was submitted and no research ran.
 
-**Known, not changed here:**
-- The size unit select is too narrow at desktop width and clips "people employed". It was the same before this change.
-- The top nav overflows at 390px. That is deferred shell work.
+The size unit select takes its own width, so "people employed" reads in full at both widths; the two number boxes share what is left.
+
+**Known, not changed here:** the top nav overflows at 390px. That is deferred shell work.

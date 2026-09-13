@@ -618,7 +618,7 @@ export function StartForm({
                     value={sizeMin}
                     placeholder={startCopy.sizeFrom}
                     onChange={(event) => setSizeMin(event.target.value)}
-                    className={pickerClass(false)}
+                    className={cn(pickerClass(false), "min-w-0 flex-1")}
                   />
                   <input
                     aria-label={startCopy.sizeTo}
@@ -626,13 +626,14 @@ export function StartForm({
                     value={sizeMax}
                     placeholder={startCopy.sizeTo}
                     onChange={(event) => setSizeMax(event.target.value)}
-                    className={pickerClass(false)}
+                    className={cn(pickerClass(false), "min-w-0 flex-1")}
                   />
                   <select
                     aria-label={startCopy.sizeUnitLabel}
                     value={sizeUnit}
                     onChange={(event) => setSizeUnit(event.target.value as SizeUnit)}
-                    className={pickerClass(false)}
+                    // Its own width, so the longest unit ("people employed") is read in full; the two numbers share the rest.
+                    className={cn(pickerClass(false), "w-auto shrink-0")}
                   >
                     {SIZE_UNITS.map((unit) => (
                       <option key={unit} value={unit}>

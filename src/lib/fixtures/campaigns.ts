@@ -150,7 +150,7 @@ function isRunning(state: CampaignState): boolean {
 const NO_PROGRESS = { found: 0, drafted: 0, approved: 0, sent: 0, replied: 0 };
 const NO_OUTCOMES = { warm: 0, meetings: 0 };
 /** A sample's actions are its own (Confirm, Pause, Widen change the screen and nothing else), so none of the real ones is offered. */
-const SAMPLE = { live: false, failure: null, briefVersion: 1, can: { widen: false, edit: false, retry: false }, widenings: null };
+const SAMPLE = { live: false, failure: null, briefVersion: 1, can: { widen: false, edit: false, retry: false }, widenings: null, overview: null };
 
 /**
  * The samples, newest first. `inList` is the signed list's three rows (mock

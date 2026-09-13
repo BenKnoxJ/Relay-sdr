@@ -97,7 +97,7 @@ function PlanCard({
         research being on the page and being available on the page.
       */
       className={cn(
-        "rounded-input border border-line bg-ground p-4",
+        "min-w-0 rounded-input border border-line bg-ground p-4 [overflow-wrap:anywhere]",
         open ? "wide:col-span-2" : null,
         dashed ? "border-dashed" : null,
       )}

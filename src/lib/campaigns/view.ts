@@ -83,6 +83,7 @@ export function toCampaign(record: CampaignRecord): Campaign {
     ...nextFor(state, counts),
     brief,
     pack: research.state === "planReady" || research.state === "stopped" ? research.pack : null,
+    overview: research.state === "planReady" ? research.overview : null,
     plan: null,
     progress: null,
     people: null,

@@ -2,7 +2,8 @@ import type { JobStatus } from "@prisma/client";
 
 import { moduleItems, planCards, researchRawSchema, type Item } from "../../../agents/research/output.schema";
 
-import type { CampaignPack, ResearchFailure } from "./types";
+import { overviewOf } from "./overview";
+import type { CampaignOverview, CampaignPack, ResearchFailure } from "./types";
 
 /**
  * Where a campaign's research is, from the two records that know
@@ -36,7 +37,7 @@ export type ResearchJobSnapshot = { status: JobStatus; error: string | null };
 export type ResearchView =
   | { state: "researching" }
   | { state: "failed"; failure: ResearchFailure }
-  | { state: "planReady"; pack: CampaignPack }
+  | { state: "planReady"; pack: CampaignPack; overview: CampaignOverview }
   | { state: "stopped"; pack: CampaignPack };
 
 export function deriveResearch(job: ResearchJobSnapshot | null, event: { after: unknown } | null): ResearchView {
@@ -86,7 +87,7 @@ function fromEvent(after: unknown): ResearchView {
   if (!parsed.success) return { state: "failed", failure: "bad_output" };
   const pack = parsed.data;
   const view = planCards(pack);
-  if (pack.insufficient === undefined) return { state: "planReady", pack: view };
+  if (pack.insufficient === undefined) return { state: "planReady", pack: view, overview: overviewOf(pack) };
 
   const byId = new Map([...moduleItems(pack, "m00"), ...moduleItems(pack, "m01")].map((item) => [item.id, item]));
   const stopEvidence = pack.insufficient.evidenceIds

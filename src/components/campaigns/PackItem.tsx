@@ -121,7 +121,7 @@ export function PackItem({ item, quoteFirst = false }: { item: Item; quoteFirst?
   return (
     <div data-testid="pack-item" className="flex items-start gap-2.5 py-1.5">
       <ConfidenceChip confidence={item.confidence} />
-      <span className="type-small">
+      <span className="type-small min-w-0 [overflow-wrap:anywhere]">
         {lead}
         <SourceLine item={item} />
       </span>
@@ -134,7 +134,7 @@ export function PackPhrase({ phrase }: { phrase: Phrase }) {
   return (
     <div data-testid="pack-item" className="flex items-start gap-2.5 py-1.5">
       <ConfidenceChip confidence={phrase.confidence} />
-      <span className="type-small">
+      <span className="type-small min-w-0 [overflow-wrap:anywhere]">
         <span className="font-semibold">{campaignsCopy.sayThis}</span> “{phrase.say}”
         {phrase.notThis === undefined ? null : (
           <>

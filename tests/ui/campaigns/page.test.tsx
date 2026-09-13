@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CampaignPage } from "@/components/campaigns/CampaignPage";
@@ -173,26 +173,22 @@ describe("a real campaign", () => {
     fireEvent.click(confirm);
     expect(currentStep()).toBe(campaignsCopy.stepPlanReady);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.confirmLater);
-    expect(screen.getAllByTestId("plan-card")).toHaveLength(5);
+    // A real plan is the Overview (task 18); the plan cards are for the samples only.
+    expect(screen.getByTestId("overview")).toBeDefined();
+    expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
     // No people, credits or sending window: none of them exists before lead gen.
     expect(screen.queryAllByTestId("plan-fact")).toHaveLength(0);
     expect(screen.queryByTestId("plan-partial")).toBeNull();
   });
 
-  it("names the kind of buyer the hook and the targeting are for", () => {
+  it("starts with the kind of buyer research ranks first, and offers Edit brief from the plan", () => {
     const live = liveCampaign("complete");
-    const chosen = live.pack?.archetypes.find((group) => group.id === live.pack?.chosenArchetypeId);
-    expect(chosen).toBeDefined();
+    expect(live.overview?.startWith).not.toBeNull();
     render(<CampaignPage campaign={live} />);
 
-    for (const card of screen.getAllByTestId("plan-card")) fireEvent.click(within(card).getAllByRole("button")[0]!);
-    const labels = screen.getAllByTestId("plan-for").map((line) => line.textContent);
-    expect(labels.length).toBeGreaterThanOrEqual(1);
-    expect(new Set(labels)).toEqual(new Set([`${campaignsCopy.forGroup} ${chosen?.name}`]));
-    // Each open card offers Edit brief, to the same page the brief card does.
-    const fromCards = screen.getAllByRole("link", { name: campaignsCopy.editBrief });
-    expect(fromCards.length).toBeGreaterThan(1);
-    expect(new Set(fromCards.map((link) => link.getAttribute("href")))).toEqual(new Set([`/campaigns/${live.id}/edit`]));
+    expect(screen.getByTestId("overview-start-with").textContent).toContain(live.overview?.startWith?.groupName ?? "missing");
+    expect(screen.getByTestId("overview-edit-brief").getAttribute("href")).toBe(`/campaigns/${live.id}/edit`);
+    expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe(`/campaigns/${live.id}/edit`);
   });
 
   it("on Plan ready, offers Edit brief on the brief card, and keeps finding people out of reach", () => {

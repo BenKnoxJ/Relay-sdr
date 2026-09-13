@@ -109,7 +109,13 @@ export function toCampaign(record: CampaignRecord): Campaign {
 export function toCampaignResearch(record: CampaignRecord): CampaignResearchPage {
   const campaign = toCampaign(record);
   const pack = campaign.state === "planReady" && record.event !== null ? storedPack(record.event.after) : null;
-  return { id: campaign.id, name: campaign.name, research: pack === null ? null : researchSections(pack) };
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    brief: campaign.brief,
+    summary: campaign.overview === null ? null : { inShort: campaign.overview.inShort, startWith: campaign.overview.startWith },
+    research: pack === null ? null : researchSections(pack),
+  };
 }
 
 /**

@@ -248,6 +248,32 @@ describe("campaigns.research", () => {
     expect(page.research?.who.groups.every((group) => group.rank === null && group.whyNow === null)).toBe(true);
   });
 
+  it("opens the printed pack with what the campaign page shows: the same brief, In short and Start with", async () => {
+    const { id, job } = await started();
+    await finish(job, completePack(), "complete");
+    const campaign = await caller(rep()).campaigns.get({ id });
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(page.brief).toEqual(campaign.brief);
+    expect(page.summary).toEqual({ inShort: campaign.overview?.inShort, startWith: campaign.overview?.startWith });
+  });
+
+  it("@proof is a read and nothing more: the page and its printed pack write no Event, job, run or change", async () => {
+    const { id, job } = await started();
+    await finish(job, completePack(), "complete");
+    const everything = async () => ({
+      campaigns: await prisma.campaign.findMany({ select: { id: true, briefVersion: true, brief: true, updatedAt: true } }),
+      events: await prisma.event.count(),
+      jobs: await prisma.job.findMany({ select: { id: true, status: true, attempts: true, updatedAt: true } }),
+      runs: await prisma.agentRun.count(),
+      steps: await prisma.agentRunStep.count(),
+      sideEffects: await prisma.sideEffect.count(),
+    });
+    const before = await everything();
+    await caller(rep()).campaigns.research({ id });
+    await caller(rep()).campaigns.research({ id });
+    expect(await everything()).toEqual(before);
+  });
+
   it("@proof shows a campaign's research to its owner only: another rep and another org get NOT_FOUND", async () => {
     await ensureUser(prisma, boss());
     const { id, job } = await started(rep());

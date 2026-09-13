@@ -50,8 +50,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="px-6 pb-7 pt-card-rail">
-      <Nav role={who.role} initials={initialsFor(who.name, who.email)} hasCampaign={who.hasCampaign} />
+    // On paper the app's frame is left out: its padding and the nav are for moving around the screen.
+    <div className="px-6 pb-7 pt-card-rail print:p-0">
+      <div className="print:hidden">
+        <Nav role={who.role} initials={initialsFor(who.name, who.email)} hasCampaign={who.hasCampaign} />
+      </div>
       <main>{children}</main>
     </div>
   );

@@ -20,3 +20,26 @@
     color: var(--relay-ink);
   }
 }
+
+/*
+ * Paper (task 20). The dot grid belongs to the screen's ground, not a page.
+ * The printed research pack keeps its tints and marks when the print dialog's
+ * background graphics are off; nothing in it relies on them, since every
+ * caution and confidence is also a word and a border. Its headings stay with
+ * what follows them, and no paragraph leaves one line behind.
+ */
+@media print {
+  body {
+    background: none;
+  }
+  .relay-pack {
+    print-color-adjust: exact;
+  }
+  .relay-pack :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+  .relay-pack :is(p, li, dd) {
+    orphans: 3;
+    widows: 3;
+  }
+}

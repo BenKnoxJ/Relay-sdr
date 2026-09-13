@@ -167,7 +167,7 @@ export function PackItem({ item, quoteFirst = false, withQuote = false }: { item
   const who = [item.speaker, item.role].filter((part) => part !== undefined).join(", ");
 
   return (
-    <div data-testid="pack-item" className="flex items-start gap-2.5 py-1.5">
+    <div data-testid="pack-item" className="flex break-inside-avoid items-start gap-2.5 py-1.5">
       <ConfidenceChip confidence={item.confidence} />
       <span className="type-small min-w-0 [overflow-wrap:anywhere]">
         {lead}
@@ -185,7 +185,7 @@ export function PackItem({ item, quoteFirst = false, withQuote = false }: { item
 /** A phrase: what to say, what not to say, and the same source line. */
 export function PackPhrase({ phrase }: { phrase: Phrase }) {
   return (
-    <div data-testid="pack-item" className="flex items-start gap-2.5 py-1.5">
+    <div data-testid="pack-item" className="flex break-inside-avoid items-start gap-2.5 py-1.5">
       <ConfidenceChip confidence={phrase.confidence} />
       <span className="type-small min-w-0 [overflow-wrap:anywhere]">
         <span className="font-semibold">{campaignsCopy.sayThis}</span> “{phrase.say}”

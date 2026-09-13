@@ -72,16 +72,39 @@ describe("What Relay learned", () => {
     }
   });
 
-  it("opens all eleven with Expand all and closes them with Collapse all, and nothing inside them", () => {
+  it("opens all eleven with Expand all and closes them with Collapse all, and nothing inside them", async () => {
     draw();
     const inner = () => [...screen.getByTestId("research").querySelectorAll("details:not([data-research-section])")].map((details) => (details as HTMLDetailsElement).open);
     const before = inner();
     fireEvent.click(screen.getAllByTestId("expand-all")[0]!);
     expect(sections().every((section) => section.open)).toBe(true);
     expect(inner()).toEqual(before);
+    // Collapse all has something to do once the parts report they are open.
+    await waitFor(() => expect((screen.getAllByTestId("collapse-all")[0] as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getAllByTestId("collapse-all")[0]!);
     expect(sections().every((section) => !section.open)).toBe(true);
     expect(inner()).toEqual(before);
+  });
+
+  it("mutes Collapse all when every part is closed and Expand all when every part is open", async () => {
+    draw();
+    const expand = () => screen.getAllByTestId("expand-all") as HTMLButtonElement[];
+    const collapse = () => screen.getAllByTestId("collapse-all") as HTMLButtonElement[];
+    await waitFor(() => expect(collapse().every((button) => button.disabled)).toBe(true));
+    expect(expand().every((button) => !button.disabled)).toBe(true);
+
+    fireEvent.click(expand()[0]!);
+    await waitFor(() => expect(expand().every((button) => button.disabled)).toBe(true));
+    expect(collapse().every((button) => !button.disabled)).toBe(true);
+
+    // One part closed by hand: both have something to do again.
+    fireEvent.click(sections()[0]!.querySelector("summary")!);
+    await waitFor(() => expect(expand().every((button) => !button.disabled)).toBe(true));
+    expect(collapse().every((button) => !button.disabled)).toBe(true);
+
+    fireEvent.click(collapse()[0]!);
+    await waitFor(() => expect(collapse().every((button) => button.disabled)).toBe(true));
+    expect(sections().every((section) => !section.open)).toBe(true);
   });
 
   it("keeps the groups inside a part as they were: research's rank 1 open, the rest one click away", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import type { ResearchPart } from "@/lib/campaigns/types";
 import { researchCopy } from "@/lib/copy/research";
@@ -27,6 +27,31 @@ function setAll(open: boolean): void {
   });
 }
 
+/** How many of the parts that can open are open: all, none, or some. */
+function openState(): "all" | "none" | "some" {
+  const sections = [...document.querySelectorAll<HTMLDetailsElement>(SECTION)];
+  const open = sections.filter((section) => section.open).length;
+  return open === 0 ? "none" : open === sections.length ? "all" : "some";
+}
+
+/**
+ * Follows the parts as they open and close, however that happens (a
+ * summary, a link, Expand all), so each button can say it has nothing to do.
+ * `toggle` does not bubble, so it is heard on the way down.
+ */
+function useOpenState(): "all" | "none" | "some" {
+  const [state, setState] = useState<"all" | "none" | "some">("none");
+  useEffect(() => {
+    const update = (event?: Event) => {
+      if (event === undefined || (event.target instanceof HTMLElement && event.target.matches(SECTION))) setState(openState());
+    };
+    update();
+    document.addEventListener("toggle", update, true);
+    return () => document.removeEventListener("toggle", update, true);
+  }, []);
+  return state;
+}
+
 /** Open whatever an id lands on: a part's own section, and every closed group or "Show" around it. */
 function reveal(id: string): HTMLElement | null {
   const target = document.getElementById(id);
@@ -49,15 +74,17 @@ function go(id: string): void {
 }
 
 const buttonClass =
-  "type-small inline-flex min-h-6 items-center rounded-pill border border-line bg-panel px-3 py-1 font-semibold text-action focus-visible:outline-none focus-visible:ring-2";
+  "type-small inline-flex min-h-6 items-center rounded-pill border border-line bg-panel px-3 py-1 font-semibold text-action focus-visible:outline-none focus-visible:ring-2 disabled:cursor-default disabled:text-muted disabled:opacity-60";
 
+/** Expand all and Collapse all, each muted and out of the tab order when every part is already as it would leave them. */
 function Buttons() {
+  const state = useOpenState();
   return (
     <div className="flex flex-wrap gap-1.5">
-      <button type="button" data-testid="expand-all" onClick={() => setAll(true)} className={buttonClass}>
+      <button type="button" data-testid="expand-all" disabled={state === "all"} onClick={() => setAll(true)} className={buttonClass}>
         {researchCopy.expandAll}
       </button>
-      <button type="button" data-testid="collapse-all" onClick={() => setAll(false)} className={buttonClass}>
+      <button type="button" data-testid="collapse-all" disabled={state === "none"} onClick={() => setAll(false)} className={buttonClass}>
         {researchCopy.collapseAll}
       </button>
     </div>

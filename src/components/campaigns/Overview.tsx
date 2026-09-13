@@ -34,6 +34,14 @@ const KINDS: Record<CampaignOverview["gaps"][number]["kind"], string> = {
   "out-of-budget": campaignsCopy.kindOutOfBudget,
 };
 
+/**
+ * What the pains part shows before "Show all pains and language": the rank-1
+ * group's first two pains (research lists them most acute first) and one of
+ * its buyers' own phrases. Everything else is one click away.
+ */
+const PAINS_FIRST = 2;
+const WORDS_FIRST = 1;
+
 /** A url's last character is never the full stop or comma that ends the sentence it sits in. */
 const URL = /(https?:\/\/[^\s)\]]*[^\s)\].,;:!?])/g;
 
@@ -72,7 +80,7 @@ function More({ label, testId, children }: { label: string; testId: string; chil
         onClick={() => setOpen(!open)}
         className="type-small inline-flex min-h-6 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
       >
-        {open ? campaignsCopy.planHide : campaignsCopy.planShow} {label}
+        {open ? campaignsCopy.overviewHide : campaignsCopy.overviewShow} {label}
       </button>
       {open ? <div className="mt-1.5">{children}</div> : null}
     </div>
@@ -111,7 +119,12 @@ export function Overview({ overview, editHref }: { overview: CampaignOverview; e
             <ul className="grid gap-1.5">
               {overview.inShort.lines.map((line, index) => (
                 <li key={index} data-testid="in-short-line" className="type-small">
-                  {line}
+                  {c.inShortLines[index] === undefined ? null : (
+                    <span data-testid="in-short-label" className="type-label mb-0.5 block text-muted">
+                      {c.inShortLines[index]}
+                    </span>
+                  )}
+                  <span data-testid="in-short-text">{line}</span>
                 </li>
               ))}
             </ul>
@@ -182,7 +195,7 @@ export function Overview({ overview, editHref }: { overview: CampaignOverview; e
             <p className="type-small mb-1 text-muted">
               {c.forGroup} {overview.pain.groupName}
             </p>
-            {overview.pain.pains.map((pain) => (
+            {overview.pain.pains.slice(0, PAINS_FIRST).map((pain) => (
               <PackItem key={pain.id} item={pain} quoteFirst />
             ))}
             <p className="type-small mt-2 font-semibold">{c.buyerWordsLabel}</p>
@@ -190,18 +203,39 @@ export function Overview({ overview, editHref }: { overview: CampaignOverview; e
               {overview.pain.buyerWords.length === 0 ? (
                 <p className="type-small text-muted">{c.noBuyerWords}</p>
               ) : (
-                overview.pain.buyerWords.map((phrase) => <PackPhrase key={phrase.id} phrase={phrase} />)
+                overview.pain.buyerWords.slice(0, WORDS_FIRST).map((phrase) => <PackPhrase key={phrase.id} phrase={phrase} />)
               )}
             </div>
-            {overview.pain.otherVoices.length === 0 ? null : (
-              <>
-                <p className="type-small mt-2 font-semibold">{c.otherVoicesLabel}</p>
-                <div data-testid="other-voices">
-                  {overview.pain.otherVoices.map((phrase) => (
-                    <PackPhrase key={phrase.id} phrase={phrase} />
+            {overview.pain.pains.length <= PAINS_FIRST &&
+            overview.pain.buyerWords.length <= WORDS_FIRST &&
+            overview.pain.otherVoices.length === 0 ? null : (
+              <More label={c.allPainsAndLanguage} testId="pain-more">
+                <div data-testid="more-pains">
+                  {overview.pain.pains.slice(PAINS_FIRST).map((pain) => (
+                    <PackItem key={pain.id} item={pain} quoteFirst />
                   ))}
                 </div>
-              </>
+                {overview.pain.buyerWords.length <= WORDS_FIRST ? null : (
+                  <>
+                    <p className="type-small mt-2 font-semibold">{c.buyerWordsLabel}</p>
+                    <div data-testid="more-buyer-words">
+                      {overview.pain.buyerWords.slice(WORDS_FIRST).map((phrase) => (
+                        <PackPhrase key={phrase.id} phrase={phrase} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                {overview.pain.otherVoices.length === 0 ? null : (
+                  <>
+                    <p className="type-small mt-2 font-semibold">{c.otherVoicesLabel}</p>
+                    <div data-testid="other-voices">
+                      {overview.pain.otherVoices.map((phrase) => (
+                        <PackPhrase key={phrase.id} phrase={phrase} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </More>
             )}
           </Part>
         )}
@@ -251,11 +285,19 @@ export function Overview({ overview, editHref }: { overview: CampaignOverview; e
                 </ol>
               </>
             )}
+            {overview.checkFirst.more.length === 0 ? null : (
+              <More label={c.allQuestions} testId="questions-more">
+                <ol start={overview.checkFirst.questions.length + 1} className="list-decimal pl-5">
+                  {overview.checkFirst.more.map((question) => (
+                    <li key={question.id} data-testid="check-first-more-question" className="type-small">
+                      {question.question}
+                    </li>
+                  ))}
+                </ol>
+              </More>
+            )}
             {overview.gaps.length === 0 && overview.contradictions.length === 0 ? null : (
-              <More
-                label={`${c.allGapsLabel} (${overview.gaps.length})${overview.contradictions.length === 0 ? "" : `${c.noteJoin}${c.againstLabel} (${overview.contradictions.length})`}`}
-                testId="gaps-more"
-              >
+              <More label={c.allGapsLabel} testId="gaps-more">
                 {overview.gaps.map((gap) => (
                   <div key={gap.id} data-testid="overview-gap" className="mb-2.5">
                     <p className="type-small">

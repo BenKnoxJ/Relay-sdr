@@ -73,12 +73,16 @@ export type CampaignOverview = {
     roles: { part: "signs" | "champions" | "runs"; title: string }[];
     first: boolean;
   }[];
-  /** The rank-1 group's pains (m05), its buyers' own words (m06), and anyone else's words kept apart. */
+  /** The rank-1 group's pains (m05, most acute first), its buyers' own words (m06), and anyone else's words kept apart. */
   pain: { groupName: string; pains: Item[]; buyerWords: Phrase[]; otherVoices: Phrase[] } | null;
   /** Research's example firms (m04), each with the group it was found for and its size as research knows it. */
   firms: { groupName: string; firms: SeedFirm[] }[];
-  /** The biggest unknown, and at most three questions to settle first (m18). */
-  checkFirst: { summary: string | null; questions: { id: string; question: string; whyItMatters: string }[] };
+  /** The biggest unknown, the three questions to settle first (m18), and the rest research recommends asking. */
+  checkFirst: {
+    summary: string | null;
+    questions: { id: string; question: string; whyItMatters: string }[];
+    more: { id: string; question: string; whyItMatters: string }[];
+  };
   /** Every gap and everything that argues against the case, whole, for the research view to come. */
   gaps: ResearchGap[];
   contradictions: ResearchContradiction[];

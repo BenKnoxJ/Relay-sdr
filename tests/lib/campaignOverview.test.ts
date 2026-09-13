@@ -70,7 +70,7 @@ describe("Start with", () => {
 describe("Pains and buyer language", () => {
   it("is the rank-1 group's own pains, not the summary's who-to-reach line", () => {
     const own = completeModule(pack, "m05")!.perArchetype.find((p) => p.archetypeId === rankOne.archetypeId)!.pains;
-    expect(overview.pain?.pains.map((pain) => pain.id)).toEqual(own.slice(0, 3).map((pain) => pain.id));
+    expect(overview.pain?.pains.map((pain) => pain.id)).toEqual(own.map((pain) => pain.id));
     expect(JSON.stringify(overview.pain)).not.toContain(summary.lines[0]!);
   });
 
@@ -106,6 +106,9 @@ describe("the rest of the Overview", () => {
       expect(question).not.toMatch(/https?:\/\//);
     }
     expect(verificationQuestions(pack, 1)).toHaveLength(1);
+    // The rest research recommends, in the same order, one click away.
+    expect([...overview.checkFirst.questions, ...overview.checkFirst.more].map((q) => q.question)).toEqual(asked);
+    expect(overview.checkFirst.more).toHaveLength(asked.length - 3);
     expect(overview.checkFirst.summary).toBe(summary.lines[3]);
     expect(overview.checkFirst.summary).toMatch(/^Biggest unknown/);
   });

@@ -25,8 +25,8 @@ import type { CampaignOverview } from "./types";
  */
 const BIGGEST_UNKNOWN = 3;
 
-/** How many of the rank-1 group's pains the Overview shows. Research lists them most acute first. */
-const PAINS_SHOWN = 3;
+/** How many first-call questions lead Check first. */
+const FIRST_QUESTIONS = 3;
 
 export function overviewOf(pack: PackShape): CampaignOverview {
   const summary = completeModule(pack, "repSummary");
@@ -49,6 +49,8 @@ export function overviewOf(pack: PackShape): CampaignOverview {
   const topName = top === undefined ? undefined : groupName(pack, top.archetypeId);
   const pains = top === undefined ? [] : (completeModule(pack, "m05")?.perArchetype.find((entry) => entry.archetypeId === top.archetypeId)?.pains ?? []);
   const language = top === undefined ? { buyer: [], others: [] } : buyerLanguage(pack, top.archetypeId);
+  // Every question research recommends, in its own order: the first three lead, the rest are one click away.
+  const questions = verificationQuestions(pack, Number.POSITIVE_INFINITY);
 
   return {
     inShort: { lines: [...(summary?.lines ?? [])], verdict: completeModule(pack, "execSummary")?.verdict ?? null },
@@ -61,9 +63,13 @@ export function overviewOf(pack: PackShape): CampaignOverview {
     pain:
       topName === undefined || pains.length === 0
         ? null
-        : { groupName: topName, pains: pains.slice(0, PAINS_SHOWN), buyerWords: language.buyer, otherVoices: language.others },
+        : { groupName: topName, pains: [...pains], buyerWords: language.buyer, otherVoices: language.others },
     firms: seedFirmsByGroup(pack).map(({ groupName: name, firms }) => ({ groupName: name, firms })),
-    checkFirst: { summary: summary?.lines[BIGGEST_UNKNOWN] ?? null, questions: verificationQuestions(pack, 3) },
+    checkFirst: {
+      summary: summary?.lines[BIGGEST_UNKNOWN] ?? null,
+      questions: questions.slice(0, FIRST_QUESTIONS),
+      more: questions.slice(FIRST_QUESTIONS),
+    },
     gaps: researchGaps(pack),
     contradictions: researchContradictions(pack),
     // A stopped pack is partial too, and has its own card; this is only a plan a limit cut short.

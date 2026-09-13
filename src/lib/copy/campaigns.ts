@@ -182,6 +182,13 @@ export const campaignsCopy = {
    * are research's examples: nobody has been found before the rep confirms.
    */
   inShortLabel: "In short",
+  /** A scan label for each rep summary line, by place: who to reach, why now, what to open with, the biggest unknown, the size of it. */
+  inShortLines: ["Who", "Why now", "Opening", "Biggest unknown", "Opportunity"],
+  /** The Overview's disclosures open more of the same part in place. */
+  overviewShow: "Show",
+  overviewHide: "Hide",
+  allPainsAndLanguage: "all pains and language",
+  allQuestions: "all questions Relay recommends asking",
   inShortView: "Relay's view:",
   basedOn: "Based on",
   startWithLabel: "Start with",
@@ -207,7 +214,7 @@ export const campaignsCopy = {
   sizeUnknown: "Size not known. Check before contacting.",
   checkFirstLabel: "Check first",
   checkFirstAsk: "Ask on the first call",
-  allGapsLabel: "everything Relay could not settle",
+  allGapsLabel: "everything Relay couldn't settle",
   againstLabel: "What argues against it",
   whyItMatters: "Why it matters:",
   askOnCall: "Ask:",

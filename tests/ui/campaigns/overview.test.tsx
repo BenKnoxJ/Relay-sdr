@@ -42,7 +42,8 @@ describe("the Overview", () => {
 
   it("gives the five summary lines one by one, research's view, and the real source count", () => {
     draw();
-    expect(screen.getAllByTestId("in-short-line").map((line) => line.textContent)).toEqual(summary.lines);
+    expect(screen.getAllByTestId("in-short-text").map((line) => line.textContent)).toEqual(summary.lines);
+    expect(screen.getAllByTestId("in-short-label").map((label) => label.textContent)).toEqual([...campaignsCopy.inShortLines]);
     expect(screen.getByTestId("in-short-view").textContent).toContain(completeModule(pack, "execSummary")!.verdict);
     expect(screen.getByTestId("overview-sources").textContent).toBe(`${campaignsCopy.basedOn} 78 ${campaignsCopy.fromSources}`);
   });
@@ -61,9 +62,22 @@ describe("the Overview", () => {
     expect(pain.textContent).not.toContain(summary.lines[0]!);
     const buyerWords = within(pain).getByTestId("buyer-words").textContent ?? "";
     for (const phrase of overview.pain!.otherVoices) expect(buyerWords).not.toContain(phrase.say);
+    fireEvent.click(screen.getByTestId("pain-more"));
     const others = within(pain).getByTestId("other-voices").textContent ?? "";
     for (const phrase of overview.pain!.otherVoices) expect(others).toContain(phrase.say);
     expect(pain.textContent).toContain(campaignsCopy.otherVoicesLabel);
+  });
+
+  it("shows two pains and one buyer phrase first, and the rest behind one show", () => {
+    draw();
+    const pain = screen.getByTestId("overview-pain");
+    expect(within(pain).getAllByTestId("pack-item")).toHaveLength(3);
+    expect(within(pain).queryByTestId("other-voices")).toBeNull();
+    expect(screen.getByTestId("pain-more").textContent).toBe(`${campaignsCopy.overviewShow} ${campaignsCopy.allPainsAndLanguage}`);
+
+    fireEvent.click(screen.getByTestId("pain-more"));
+    const { pains, buyerWords, otherVoices } = overview.pain!;
+    expect(within(pain).getAllByTestId("pack-item")).toHaveLength(pains.length + buyerWords.length + otherVoices.length);
   });
 
   it("shows research's example firms as examples, with an unknown size said as unknown", () => {
@@ -76,7 +90,11 @@ describe("the Overview", () => {
 
   it("asks at most three questions first, and shows no url and no search anywhere", () => {
     draw();
-    expect(screen.getAllByTestId("check-first-question").length).toBeLessThanOrEqual(3);
+    expect(screen.getAllByTestId("check-first-question")).toHaveLength(3);
+    expect(screen.queryAllByTestId("check-first-more-question")).toHaveLength(0);
+    fireEvent.click(screen.getByTestId("questions-more"));
+    expect(screen.getAllByTestId("check-first-more-question").map((item) => item.textContent)).toEqual(overview.checkFirst.more.map((q) => q.question));
+    expect(screen.getByTestId("gaps-more").textContent).toBe(`${campaignsCopy.overviewShow} ${campaignsCopy.allGapsLabel}`);
     expect(screen.getByTestId("overview-check-first").textContent).toContain(summary.lines[3]!);
     openAll();
     const text = screen.getByTestId("overview").textContent ?? "";

@@ -175,6 +175,43 @@ export const campaignsCopy = {
 
   /** The plan section, which is the research surface (§23.1c). */
   planLabel: "The plan, and the research behind it",
+
+  /**
+   * The campaign Overview (task 18): research's findings in six parts, each a
+   * lookup into the pack. Groups are kinds of buyer to aim at, and the firms
+   * are research's examples: nobody has been found before the rep confirms.
+   */
+  inShortLabel: "In short",
+  inShortView: "Relay's view:",
+  basedOn: "Based on",
+  startWithLabel: "Start with",
+  startAngle: "Lead with",
+  startWhyNow: "Why now",
+  startWrongIf: "Not the right call if",
+  startChannels: "Suits",
+  groupsLabel: "Buyer groups",
+  groupsNote: "The kinds of organisation and role to aim at. Nobody has been found yet.",
+  startHere: "Start here",
+  groupSize: "Size:",
+  groupSituation: "their situation",
+  roleParts: { runs: "Runs it", champions: "Champions it", signs: "Signs it off" },
+  painLabel: "Pains and buyer language",
+  buyerWordsLabel: "In buyers' own words",
+  otherVoicesLabel: "How the regulator and suppliers put it, not buyers",
+  noBuyerWords: "Research found none of this group's own words.",
+  firmsLabel: "Example firms",
+  firmsNote: "Firms research found that fit each group. Examples, not your people: Relay finds those after you confirm.",
+  firmsWhy: "why they fit",
+  sizeConfirmed: "confirmed",
+  sizeEstimated: "estimated",
+  sizeUnknown: "Size not known. Check before contacting.",
+  checkFirstLabel: "Check first",
+  checkFirstAsk: "Ask on the first call",
+  allGapsLabel: "everything Relay could not settle",
+  againstLabel: "What argues against it",
+  whyItMatters: "Why it matters:",
+  askOnCall: "Ask:",
+  meaningLabel: "What it means:",
   planShow: "show",
   planHide: "hide",
   cardWho: "Who we found",

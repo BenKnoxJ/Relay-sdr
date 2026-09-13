@@ -1,6 +1,7 @@
-import type { Item, PlanCards } from "../../../agents/research/output.schema";
+import type { Item, Phrase, PlanCards } from "../../../agents/research/output.schema";
 
 import type { CampaignState } from "./state";
+import type { ResearchContradiction, ResearchGap, SeedFirm } from "./packSelectors";
 
 /**
  * The shapes the campaign screens are drawn from.
@@ -51,6 +52,40 @@ export type BriefFields = {
 /** What the campaign page draws from research: the plan-card view, and on a stop the items the stop cites. */
 export type CampaignPack = PlanCards & { stopEvidence?: Item[] };
 
+/**
+ * The campaign Overview (task 18): research's own findings in the six parts a
+ * rep decides on, read from the stored pack by `overview.ts` through the
+ * shared selectors in `packSelectors.ts`. Nothing in it is reworded.
+ */
+export type CampaignOverview = {
+  /** The rep summary's five lines, each its own statement, and research's view of whether the market is worth it. */
+  inShort: { lines: string[]; verdict: string | null };
+  /** The sources the research rests on (m19). */
+  sources: number;
+  /** The campaign research ranks first (m16, rank 1), with its own dated reason and when it is the wrong call. */
+  startWith: { groupName: string; angle: string; whyNow: string; wrongIf: string; channels: string[] } | null;
+  /** The kinds of buyer (m03), ranked as research ranks the campaigns. Targets to aim at, not people found. */
+  groups: {
+    id: string;
+    name: string;
+    situation: string;
+    sizeRange: string;
+    roles: { part: "signs" | "champions" | "runs"; title: string }[];
+    first: boolean;
+  }[];
+  /** The rank-1 group's pains (m05), its buyers' own words (m06), and anyone else's words kept apart. */
+  pain: { groupName: string; pains: Item[]; buyerWords: Phrase[]; otherVoices: Phrase[] } | null;
+  /** Research's example firms (m04), each with the group it was found for and its size as research knows it. */
+  firms: { groupName: string; firms: SeedFirm[] }[];
+  /** The biggest unknown, and at most three questions to settle first (m18). */
+  checkFirst: { summary: string | null; questions: { id: string; question: string; whyItMatters: string }[] };
+  /** Every gap and everything that argues against the case, whole, for the research view to come. */
+  gaps: ResearchGap[];
+  contradictions: ResearchContradiction[];
+  /** The parts a limit left unwritten, by the pack's own names (shown in a rep's words). */
+  partial: string[];
+};
+
 /** The scope dimension a widening option widens (research v3.2, note 28). */
 export type WidenDimension = "region" | "size" | "sector" | "role";
 
@@ -98,6 +133,8 @@ export type Campaign = CampaignSummary & {
   brief: BriefFields;
   /** The research behind the plan. Absent while research is still reading, or when it did not finish. */
   pack: CampaignPack | null;
+  /** The Overview of a real campaign's finished plan. Null on a sample, a stop, and while research reads. */
+  overview: CampaignOverview | null;
   plan: {
     people: number;
     companies: number;

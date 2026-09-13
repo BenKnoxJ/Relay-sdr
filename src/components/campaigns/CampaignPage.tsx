@@ -14,6 +14,7 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 
 import { AskRelay } from "./AskRelay";
 import { BriefCard } from "./BriefCard";
+import { Overview } from "./Overview";
 import { PlanSection } from "./PlanCards";
 import { ProgressCounts } from "./ProgressCounts";
 import { StateRow } from "./StateRow";
@@ -135,7 +136,10 @@ export function CampaignPage({
   );
 
   const plan =
-    campaign.pack === null ||
+    // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
+    campaign.overview !== null && state === "planReady" ? (
+      <Overview overview={campaign.overview} editHref={editHref} />
+    ) : campaign.pack === null ||
     state === "stopped" ||
     state === "researching" ||
     state === "brief" ||

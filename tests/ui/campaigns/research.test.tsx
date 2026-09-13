@@ -249,6 +249,21 @@ describe("What Relay learned", () => {
 });
 
 describe("What Relay learned, when a limit cut the research short", () => {
+  it("opens a part that holds only the lines a check could forget: measures, the ideal buyer, prices", () => {
+    const bare = researchSections(partialPack());
+    const only: typeof bare = {
+      ...bare,
+      market: { ...bare.market, theCase: null, timeline: [], alsoExpected: [], segments: [], size: [], bodies: [], measures: ["Complaints per 1,000 policies, published half-yearly."] },
+      who: { ...bare.who, intro: null, groups: [], boundaries: null, idealCompany: [], groupBoundaries: [], idealBuyer: ["The person who owns the QA scorecard."], disqualifiers: [] },
+      competition: { ...bare.competition, view: null, doNothing: null, competitors: [], adjacent: [], prices: [{ key: "price-0", name: "An offer", price: "From £5" }] },
+    };
+    draw(only);
+    for (const part of ["market", "who", "competition"]) expect(screen.getByTestId(`section-${part}`)).toBeDefined();
+    expect(pageText()).toContain("Complaints per 1,000 policies");
+    expect(pageText()).toContain("The person who owns the QA scorecard.");
+    expect(pageText()).toContain("From £5");
+  });
+
   it("draws what was written, and says plainly which parts were not", () => {
     draw(researchSections(partialPack()));
     expect(screen.getByTestId("research-partial").textContent).toContain(campaignsCopy.planPartial);

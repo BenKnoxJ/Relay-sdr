@@ -44,6 +44,20 @@ describe("readable: research's words with the internal names taken out", () => {
     const text = "See sabre.co.uk and https://www.fca.org.uk/data/complaints-data for the m-class personal lines.";
     expect(readable(text)).toBe(text);
   });
+
+  it("never takes a host whose middle label is a fact kind for a fact id", () => {
+    for (const text of [
+      "Read trust.compliance.io for the policy.",
+      "See docs.integration.my-site.com today.",
+      "The page https://help.proof.example-site.org/audit says so.",
+      "Mail qa@team.feature.some-host.net about it.",
+    ]) {
+      expect(readable(text)).toBe(text);
+    }
+    expect(readable("Only i360.integration.3cx-automated-feed and i360.price.per-seat-plans, as the facts say.")).toBe(
+      "Only a fact about the product, as the facts say.",
+    );
+  });
 });
 
 describe("The market and why now", () => {
@@ -92,6 +106,16 @@ describe("Who to target", () => {
     expect(research.who.groups.map((group) => group.name)).toEqual(overview.groups.map((group) => group.name));
     expect(research.who.groups[0]?.rank).toBe(1);
     expect(research.who.groups[0]?.whyNow).toBe(overview.startWith?.whyNow);
+  });
+
+  it("shows a boundary two groups echo, and no part of the market states, once, under the first", () => {
+    const twice = JSON.parse(JSON.stringify(pack)) as PackShape;
+    const m04 = completeModule(twice, "m04")!;
+    const line = "Firms that are part of a wider group must be sized as the UK claims unit, not the group.";
+    m04.perArchetype[1]!.hardFiltersEchoed.push(line);
+    m04.perArchetype[2]!.hardFiltersEchoed.push(line);
+    const drawn = researchSections(twice).who.groupBoundaries;
+    expect(drawn.flatMap((entry) => entry.lines).filter((shown) => shown === line)).toHaveLength(1);
   });
 
   it("shows each hard boundary once, however many parts of the pack echo it", () => {

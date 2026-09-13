@@ -301,7 +301,7 @@ function Market({ research }: { research: CampaignResearch }) {
   const past = m.timeline.filter((entry) => entry.comingUp !== true);
   const coming = m.timeline.filter((entry) => entry.comingUp === true);
   const split = m.timeline.some((entry) => entry.comingUp !== null);
-  const empty = m.theCase === null && m.timeline.length === 0 && m.segments.length === 0 && m.size.length === 0;
+  const empty = m.theCase === null && m.timeline.length === 0 && m.alsoExpected.length === 0 && m.segments.length === 0 && m.size.length === 0 && m.measures.length === 0 && m.bodies.length === 0;
   return (
     <Part part="market" research={research} empty={empty}>
       {m.theCase === null ? null : (
@@ -399,7 +399,7 @@ function Market({ research }: { research: CampaignResearch }) {
 function Who({ research }: { research: CampaignResearch }) {
   const w = research.who;
   const c = campaignsCopy;
-  const empty = w.groups.length === 0 && w.boundaries === null && w.idealCompany.length === 0;
+  const empty = w.intro === null && w.groups.length === 0 && w.boundaries === null && w.idealCompany.length === 0 && w.idealBuyer.length === 0 && w.disqualifiers.length === 0;
   return (
     <Part part="who" research={research} empty={empty}>
       {w.intro === null ? null : <p className="type-body mb-2">{w.intro}</p>}
@@ -819,7 +819,7 @@ function Competition({ research }: { research: CampaignResearch }) {
   const m = research.competition;
   const cols = researchCopy.priceCols;
   return (
-    <Part part="competition" research={research} empty={m.competitors.length === 0 && m.doNothing === null && m.view === null}>
+    <Part part="competition" research={research} empty={m.competitors.length === 0 && m.doNothing === null && m.view === null && m.prices.length === 0 && m.adjacent.length === 0}>
       {m.view === null ? null : (
         <>
           <Sub>{researchCopy.viewLabel}</Sub>

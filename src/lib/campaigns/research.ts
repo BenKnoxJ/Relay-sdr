@@ -104,6 +104,7 @@ function timelineOf(pack: PackShape, asOf: string | null): { timeline: TimelineE
       comingUp: null,
     }),
   );
+  // Two events on one day: the first research listed takes that day's triggers. The order is research's, not a judgement of relevance.
   const onDay = new Map<string, Extract<TimelineEntry, { kind: "event" }>>();
   for (const event of events) if (event.date.length === 10 && !onDay.has(event.date)) onDay.set(event.date, event);
 
@@ -219,10 +220,17 @@ export function researchSections(pack: PackShape): CampaignResearch {
       ...(m09?.brandConstraints ?? []),
     ].map(same),
   );
+  // A line one group echoes is shown under that group and no other: each accepted line joins the set.
   const groupBoundaries = (m04?.perArchetype ?? []).flatMap((targeting) => {
     const group = place.get(targeting.archetypeId);
-    const lines = targeting.hardFiltersEchoed.filter((line) => !shownOnce.has(same(line))).map(readable);
-    return group === undefined || lines.length === 0 ? [] : [{ group, lines }];
+    if (group === undefined) return [];
+    const lines = targeting.hardFiltersEchoed.filter((line) => {
+      const key = same(line);
+      if (shownOnce.has(key)) return false;
+      shownOnce.add(key);
+      return true;
+    });
+    return lines.length === 0 ? [] : [{ group, lines: lines.map(readable) }];
   });
 
   // --- Lines from the sources: one repeated for a later group is shown under the first.

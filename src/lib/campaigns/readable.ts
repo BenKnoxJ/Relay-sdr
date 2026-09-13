@@ -14,10 +14,12 @@ import type { ResearchContradiction, ResearchGap } from "./packSelectors";
 /**
  * A fact id as the facts files spell them: product, kind, slug
  * (`i360.boundary.no-compliance-evidence-packs`), sometimes in backticks.
- * Held to the facts files' own kinds, so a domain such as `sabre.co.uk` is
- * never mistaken for one.
+ * Held to the facts files' own kinds, and to their slugs, which are always
+ * hyphenated words: a host such as `trust.compliance.io` or
+ * `docs.integration.my-site.com` is never mistaken for one, because a fact id
+ * is neither part of a longer name nor followed by another label.
  */
-const FACT_ID = "`?[a-z0-9]+\\.(?:product|feature|price|integration|boundary|proof|compliance)\\.[a-z0-9]+(?:[.-][a-z0-9]+)*`?";
+const FACT_ID = "`?(?<![\\w.@/-])[a-z0-9]+\\.(?:product|feature|price|integration|boundary|proof|compliance)\\.[a-z0-9]+(?:-[a-z0-9]+)+(?![\\w/-]|\\.[a-z0-9])`?";
 const FACT_LIST = `${FACT_ID}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)${FACT_ID})*`;
 /** Fact ids cited in brackets: "(i360.product.x, i360.feature.y)". Dropped: the sentence stands without them. */
 const FACT_CITATION = new RegExp(`\\s*\\(\\s*${FACT_LIST}\\s*\\)`, "g");

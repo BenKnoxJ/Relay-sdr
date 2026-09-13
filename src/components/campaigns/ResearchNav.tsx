@@ -70,7 +70,7 @@ function go(id: string): void {
   const target = reveal(id);
   if (target === null) return;
   window.history.pushState(null, "", `#${id}`);
-  target.scrollIntoView?.({ block: "start" });
+  window.requestAnimationFrame(() => target.scrollIntoView?.({ block: "start" }));
 }
 
 const buttonClass =

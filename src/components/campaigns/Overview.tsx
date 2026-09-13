@@ -6,8 +6,9 @@ import { useState } from "react";
 import { Card } from "@/components/Card";
 import type { CampaignOverview } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
+import { researchCopy } from "@/lib/copy/research";
 
-import { PackItem, PackPhrase, sourceHost } from "./PackItem";
+import { PackItem, PackPhrase, WithHosts, sourceHost } from "./PackItem";
 
 /**
  * The campaign Overview (§23.1c, amended by task 18): research's findings in
@@ -42,32 +43,6 @@ const KINDS: Record<CampaignOverview["gaps"][number]["kind"], string> = {
 const PAINS_FIRST = 2;
 const WORDS_FIRST = 1;
 
-/** A url's last character is never the full stop or comma that ends the sentence it sits in. */
-const URL = /(https?:\/\/[^\s)\]]*[^\s)\].,;:!?])/g;
-
-/** Research's own sentence, with any url in it shown as its host and linked. */
-function WithHosts({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(URL).map((part, index) =>
-        /^https?:\/\//.test(part) ? (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noreferrer"
-            className="underline focus-visible:outline-none focus-visible:ring-2"
-          >
-            {sourceHost(part)}
-          </a>
-        ) : (
-          <span key={index}>{part}</span>
-        ),
-      )}
-    </>
-  );
-}
-
 /** A "show" / "hide" that opens more of the same part in place. */
 function More({ label, testId, children }: { label: string; testId: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -101,12 +76,26 @@ function sizeLine(size: CampaignOverview["firms"][number]["firms"][number]["size
   return `${size.value} (${size.status === "confirmed" ? campaignsCopy.sizeConfirmed : campaignsCopy.sizeEstimated})`;
 }
 
-export function Overview({ overview, editHref }: { overview: CampaignOverview; editHref?: string }) {
+export function Overview({ overview, editHref, researchHref }: { overview: CampaignOverview; editHref?: string; researchHref?: string }) {
   const c = campaignsCopy;
   const firmCount = overview.firms.reduce((sum, group) => sum + group.firms.length, 0);
 
   return (
-    <Card label={c.planLabel}>
+    <Card
+      label={c.planLabel}
+      // The one way into everything research found (task 19).
+      aside={
+        researchHref === undefined ? undefined : (
+          <Link
+            href={researchHref}
+            data-testid="overview-research-link"
+            className="type-small inline-flex min-h-6 shrink-0 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+          >
+            {researchCopy.openLink}
+          </Link>
+        )
+      }
+    >
       <div data-testid="overview" className="grid min-w-0 gap-4 [overflow-wrap:anywhere]">
         {overview.partial.length === 0 ? null : (
           <p data-testid="plan-partial" className="type-small rounded-input bg-warn-bg px-3 py-2.5 text-warn">

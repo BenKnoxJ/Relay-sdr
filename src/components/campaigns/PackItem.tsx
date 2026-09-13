@@ -62,6 +62,47 @@ export function shortDate(iso: string): string | null {
   return `${Number(match[3])} ${month} ${match[1]}`;
 }
 
+/**
+ * Any date research writes, readably: "2 Apr 2026", "Apr 2026" or "2026".
+ * Anything that is not a date is shown as research wrote it.
+ */
+export function packDate(value: string): string {
+  const full = shortDate(value);
+  if (full !== null) return full;
+  const month = /^(\d{4})-(\d{2})$/.exec(value);
+  if (month !== null) {
+    const name = MONTHS[Number(month[2]) - 1];
+    if (name !== undefined) return `${name} ${month[1]}`;
+  }
+  return value;
+}
+
+/** A url's last character is never the full stop or comma that ends the sentence it sits in. */
+const URL_IN_TEXT = /(https?:\/\/[^\s)\]]*[^\s)\].,;:!?])/g;
+
+/** Research's own sentence, with any url in it shown as its host and linked. */
+export function WithHosts({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(URL_IN_TEXT).map((part, index) =>
+        /^https?:\/\//.test(part) ? (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            className="underline focus-visible:outline-none focus-visible:ring-2"
+          >
+            {sourceHost(part)}
+          </a>
+        ) : (
+          <span key={index}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 /** The grey line under an item: where it came from, and when it was said. */
 function SourceLine({ item }: { item: Item }) {
   const url = item.evidence.urls[0];
@@ -97,7 +138,7 @@ function SourceLine({ item }: { item: Item }) {
  * The confidence pill. `a guess` is the one that reads in the warn colour,
  * because it is the one the rep must not mistake for a finding.
  */
-function ConfidenceChip({ confidence }: { confidence: Item["confidence"] }) {
+export function ConfidenceChip({ confidence }: { confidence: Item["confidence"] }) {
   return (
     <span
       data-testid="confidence"
@@ -115,14 +156,26 @@ function ConfidenceChip({ confidence }: { confidence: Item["confidence"] }) {
   );
 }
 
-export function PackItem({ item, quoteFirst = false }: { item: Item; quoteFirst?: boolean }) {
+/**
+ * `quoteFirst` leads with the source's own words where there are any (the
+ * Overview's pains). `withQuote` keeps research's sentence first and adds the
+ * source's words, and who said them, under it (the research page).
+ */
+export function PackItem({ item, quoteFirst = false, withQuote = false }: { item: Item; quoteFirst?: boolean; withQuote?: boolean }) {
   const lead = quoteFirst && item.quote !== undefined ? `“${item.quote}”` : item.text;
+  const quote = withQuote && !quoteFirst && item.quote !== undefined && item.quote !== item.text ? item.quote : null;
+  const who = [item.speaker, item.role].filter((part) => part !== undefined).join(", ");
 
   return (
     <div data-testid="pack-item" className="flex items-start gap-2.5 py-1.5">
       <ConfidenceChip confidence={item.confidence} />
       <span className="type-small min-w-0 [overflow-wrap:anywhere]">
         {lead}
+        {quote === null ? null : (
+          <span data-testid="pack-quote" className="mt-1 block border-l-2 border-line pl-2.5 italic">
+            “{quote}”{who === "" ? null : <span className="not-italic text-muted"> {who}</span>}
+          </span>
+        )}
         <SourceLine item={item} />
       </span>
     </div>

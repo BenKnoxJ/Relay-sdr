@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { BriefRefusedError, briefFieldsSchema, nameFrom, toResearchBrief, type ResearchBrief } from "@/lib/campaigns/brief";
-import { listCounts, toCampaign, toSummary } from "@/lib/campaigns/view";
+import { listCounts, toCampaign, toCampaignResearch, toSummary } from "@/lib/campaigns/view";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import {
   CampaignChangeRefused,
@@ -139,5 +139,12 @@ export const campaignsRouter = createTRPCRouter({
     const record = await getCampaignForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, id: input.id });
     if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
     return toCampaign(record);
+  }),
+
+  /** What Relay learned (task 19): one of the rep's own campaigns, with its finished research read whole. */
+  research: repProcedure.input(z.object({ id: campaignId }).strict()).query(async ({ ctx, input }) => {
+    const record = await getCampaignForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, id: input.id });
+    if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
+    return toCampaignResearch(record);
   }),
 });

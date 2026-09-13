@@ -226,6 +226,40 @@ describe("campaigns.get and campaigns.list", () => {
  * 4 to 6): the codes and lines a page can show, and what the page is drawn
  * from afterwards. The transactions themselves are `tests/repo/campaignChanges.test.ts`.
  */
+describe("campaigns.research", () => {
+  it("reads a finished plan whole, and gives nothing while research is still reading", async () => {
+    const { id, job } = await started();
+    expect(await caller(rep()).campaigns.research({ id })).toMatchObject({ id, research: null });
+
+    await finish(job, completePack(), "complete");
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(page.id).toBe(id);
+    expect(page.research?.who.groups).toHaveLength(3);
+  });
+
+  it("reads a partial plan too, naming what was not written and ranking nothing research did not rank", async () => {
+    const { id, job } = await started();
+    await finish(job, partialPack(), "partial");
+    expect((await caller(rep()).campaigns.get({ id })).state).toBe("planReady");
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(page.research?.partial).toEqual(partialPack().missingModules);
+    expect(page.research?.unwritten.pains).toEqual(["m05", "m06"]);
+    expect(page.research?.who.groups.length).toBeGreaterThan(0);
+    expect(page.research?.who.groups.every((group) => group.rank === null && group.whyNow === null)).toBe(true);
+  });
+
+  it("@proof shows a campaign's research to its owner only: another rep and another org get NOT_FOUND", async () => {
+    await ensureUser(prisma, boss());
+    const { id, job } = await started(rep());
+    await finish(job, completePack(), "complete");
+
+    expect(await codeOf(caller(boss()).campaigns.research({ id }))).toBe("NOT_FOUND");
+    expect(await codeOf(caller(stranger()).campaigns.research({ id }))).toBe("NOT_FOUND");
+    expect(await codeOf(caller(rep()).campaigns.research({ id: "not-a-campaign" }))).toBe("NOT_FOUND");
+    expect(await codeOf(caller(null).campaigns.research({ id }))).not.toBe("ok");
+  });
+});
+
 describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
   /** Start's card for brief C: veterinary practices in Orkney, the scope the signed stop was made for. */
   const vetsInOrkney = () =>

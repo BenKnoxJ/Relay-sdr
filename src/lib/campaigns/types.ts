@@ -1,7 +1,7 @@
-import type { Item, Phrase, PlanCards } from "../../../agents/research/output.schema";
+import type { Confidence, Item, Phrase, PlanCards } from "../../../agents/research/output.schema";
 
 import type { CampaignState } from "./state";
-import type { ResearchContradiction, ResearchGap, SeedFirm } from "./packSelectors";
+import type { ResearchContradiction, ResearchGap, SeedFirm, Voice } from "./packSelectors";
 
 /**
  * The shapes the campaign screens are drawn from.
@@ -89,6 +89,121 @@ export type CampaignOverview = {
   /** The parts a limit left unwritten, by the pack's own names (shown in a rep's words). */
   partial: string[];
 };
+
+/**
+ * "What Relay learned" (task 19): the whole of a finished pack, read into the
+ * eleven parts a rep reads it in, by `research.ts` through the same shared
+ * selectors as the Overview. Nothing in it is reworded. Internal names (a
+ * part's own id, a fact id) are the only thing taken out of research's text.
+ */
+export type ResearchPart = "market" | "who" | "pains" | "say" | "prove" | "competition" | "companies" | "gather" | "contact" | "gaps" | "sources";
+
+/** A pain as another part points at it: the group's place in the ranked list, and the pain's place in its group's list, both from 1. */
+export type PainRef = { group: number; pain: number };
+
+/** One moment on the market's timeline: a dated event (m13), or a dated trigger (m01) on a day no event covers. */
+export type TimelineEntry =
+  | { kind: "event"; key: string; date: string; what: string; why: string; source: string; alsoReported: Item[]; comingUp: boolean | null }
+  | { kind: "trigger"; key: string; date: string | null; item: Item; comingUp: boolean | null };
+
+export type ResearchAngle = { key: string; text: string; channels: string[]; confidence: Confidence | null; lead: boolean };
+
+export type GapGroupKind = "ask" | "conflict" | "careful" | "verify" | "unreadable";
+export type ResearchFinding = { kind: "gap"; gap: ResearchGap } | { kind: "contradiction"; contradiction: ResearchContradiction };
+
+export type CampaignResearch = {
+  sources: number;
+  /** The day research read its sources, `YYYY-MM-DD`. */
+  researchedOn: string | null;
+  /** The parts a limit left unwritten, pack-wide, by the pack's own names (shown in a rep's words). */
+  partial: string[];
+  /** For each part of the page, which of the pack's parts it draws on were not written. */
+  unwritten: Record<ResearchPart, string[]>;
+  market: {
+    theCase: string | null;
+    timeline: TimelineEntry[];
+    alsoExpected: string[];
+    segments: { key: string; name: string; fit: "HIGH" | "MEDIUM" | "LOW" | "OUT"; why: string; sizeRange?: string; countEstimate?: string }[];
+    size: string[];
+    measures: string[];
+    bodies: { key: string; name: string; role: string; relevance: string; url?: string }[];
+  };
+  who: {
+    intro: string | null;
+    groups: {
+      key: string;
+      name: string;
+      rank: number | null;
+      situation: string;
+      sizeRange: string;
+      dominantPain: Item;
+      roles: { part: "signs" | "champions" | "runs"; title: string; seniority: string; needs: string }[];
+      whyNow: string | null;
+      wrongIf: string | null;
+      deal: { seatRange?: string; plan?: string; yearOneValue?: string; salesCycle?: string; budgetLine?: string; confidence: Confidence; note?: string };
+    }[];
+    idealCompany: string[];
+    idealBuyer: string[];
+    disqualifiers: { who: string; why: string }[];
+    boundaries: { geography: string[]; size: string | null; sectorsIn: string[]; sectorsOut: string[]; firmsOut: string[]; other: string[] } | null;
+    /** Boundaries research echoed for one group that are not already a boundary or a don't-claim, by group place. */
+    groupBoundaries: { group: number; lines: string[] }[];
+  };
+  pains: {
+    groups: { key: string; name: string; pains: Item[]; buyerWords: Phrase[]; otherVoices: { voice: Voice; phrase: Phrase }[] }[];
+  };
+  say: {
+    intro: string | null;
+    groups: { key: string; name: string; angles: ResearchAngle[]; doDont: { use: string; avoid: string; why?: string }[]; verbatim: Item[]; vocabulary: string[] }[];
+  };
+  prove: {
+    groups: {
+      key: string;
+      name: string;
+      answers: { key: string; pain: PainRef | null; capability: string; strength: "direct" | "partial" }[];
+      unanswered: { key: string; pain: PainRef | null; status: string; note?: string }[];
+      objections: { key: string; objection: string; answer: string | null; notToday: boolean }[];
+    }[];
+    proof: { key: string; text: string; note?: string }[];
+    dontClaim: {
+      lead: string[];
+      product: string[];
+      brand: string[];
+      imply: { key: string; pain: PainRef | null; text: string }[];
+      proof: { key: string; text: string; note?: string }[];
+    };
+  };
+  competition: {
+    view: string | null;
+    doNothing: string | null;
+    competitors: { key: string; name: string; url?: string; positioning: string; pricing: string | null; pricingGated: boolean; strengths: string[]; weaknesses: string[]; recentMoves: Item[] }[];
+    prices: { key: string; name: string; price: string; minimum?: string; commitment?: string }[];
+    adjacent: { key: string; name: string; note: string }[];
+  };
+  companies: {
+    groups: {
+      key: string;
+      name: string;
+      firms: SeedFirm[];
+      signs: { key: string; text: string; strength: "HOT" | "WARM"; whereToFind: string; url?: string }[];
+      recipe: { titles: string[]; excludeTitles: string[]; sizeMin: number; sizeMax: number; countries: string[]; industries: string[]; triggers: string[]; locations: string[] };
+      listSources: { key: string; name: string; url: string; note?: string }[];
+    }[];
+  };
+  gather: {
+    kinds: {
+      kind: "event" | "association" | "publication" | "community" | "review-site" | "press";
+      entries: { key: string; name: string; url: string; date: string | null; onTimeline: boolean; audience: string; why: string; groups: string[] }[];
+    }[];
+    discovery: string[];
+  };
+  contact: { channels: { channel: string; rules: { key: string; rule: string; region: string; source: string; bars: boolean }[] }[] };
+  gaps: { groups: { kind: GapGroupKind; findings: ResearchFinding[] }[] };
+  sourceList: { title: string; url: string; accessedAt: string }[];
+};
+
+/** The research page's data: the campaign it belongs to, and the research, or null when there is no finished plan to read. */
+export type CampaignResearchPage = { id: string; name: string; research: CampaignResearch | null };
 
 /** The scope dimension a widening option widens (research v3.2, note 28). */
 export type WidenDimension = "region" | "size" | "sector" | "role";

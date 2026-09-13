@@ -330,3 +330,17 @@ describe("a real campaign", () => {
     expect(fields[campaignsCopy.fieldRolesInclude]).toBeUndefined();
   });
 });
+
+describe("the way into What Relay learned", () => {
+  it("is on a real campaign's finished plan", () => {
+    render(<CampaignPage campaign={liveCampaign("complete")} />);
+    expect(screen.getByTestId("overview-research-link").getAttribute("href")).toBe("/campaigns/camp-complete/research");
+  });
+
+  it("is on no sample, and on no real campaign without a plan", () => {
+    render(<CampaignPage campaign={campaign("managed-print-partners-midlands")} />);
+    expect(screen.queryByTestId("overview-research-link")).toBeNull();
+    render(<CampaignPage campaign={liveCampaign("stopped")} />);
+    expect(screen.queryByTestId("overview-research-link")).toBeNull();
+  });
+});

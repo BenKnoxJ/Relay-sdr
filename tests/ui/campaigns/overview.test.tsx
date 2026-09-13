@@ -6,6 +6,7 @@ import fixture from "../../../fixtures/research/smoke-a-insurance-direct-2026-09
 import { Overview } from "@/components/campaigns/Overview";
 import { overviewOf } from "@/lib/campaigns/overview";
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { researchCopy } from "@/lib/copy/research";
 
 /**
  * The Overview as a rep reads it, drawn from the smoke-test pack. What is
@@ -113,6 +114,12 @@ describe("the Overview", () => {
     for (const gap of overview.gaps) expect(screen.getByTestId("overview").textContent).toContain(gap.whyItMatters);
   });
 
+  it("shows no fact id or internal part name, with everything open", () => {
+    draw();
+    openAll();
+    expect(screen.getByTestId("overview").textContent).not.toMatch(/i360\.|\bm[01]\d\b|archetype/i);
+  });
+
   it("gives every item it shows a source and a confidence word", () => {
     draw();
     openAll();
@@ -137,5 +144,17 @@ describe("the Overview", () => {
   it("offers Edit brief", () => {
     draw();
     expect(screen.getByTestId("overview-edit-brief").getAttribute("href")).toBe("/campaigns/camp_1/edit");
+  });
+
+  it("offers one way into everything research found, and none when it is not given one", () => {
+    render(<Overview overview={overview} researchHref="/campaigns/camp_1/research" />);
+    const link = screen.getByTestId("overview-research-link");
+    expect(link.getAttribute("href")).toBe("/campaigns/camp_1/research");
+    expect(link.textContent).toBe(researchCopy.openLink);
+  });
+
+  it("has no way into the research view without a page to go to", () => {
+    draw();
+    expect(screen.queryByTestId("overview-research-link")).toBeNull();
   });
 });

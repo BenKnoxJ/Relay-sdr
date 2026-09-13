@@ -1,6 +1,6 @@
 import type { JobStatus } from "@prisma/client";
 
-import { moduleItems, planCards, researchRawSchema, type Item } from "../../../agents/research/output.schema";
+import { moduleItems, planCards, researchRawSchema, type Item, type PackShape } from "../../../agents/research/output.schema";
 
 import { overviewOf } from "./overview";
 import type { CampaignOverview, CampaignPack, ResearchFailure } from "./types";
@@ -82,10 +82,8 @@ export function failureOf(error: string | null): ResearchFailure {
  * stop citing anything else, so every id resolves.
  */
 function fromEvent(after: unknown): ResearchView {
-  const raw = after !== null && typeof after === "object" ? (after as { pack?: unknown }).pack : undefined;
-  const parsed = researchRawSchema.safeParse(raw);
-  if (!parsed.success) return { state: "failed", failure: "bad_output" };
-  const pack = parsed.data;
+  const pack = storedPack(after);
+  if (pack === null) return { state: "failed", failure: "bad_output" };
   const view = planCards(pack);
   if (pack.insufficient === undefined) return { state: "planReady", pack: view, overview: overviewOf(pack) };
 
@@ -94,4 +92,11 @@ function fromEvent(after: unknown): ResearchView {
     .map((id) => byId.get(id))
     .filter((item): item is Item => item !== undefined);
   return { state: "stopped", pack: { ...view, stopEvidence } };
+}
+
+/** The pack on a `research.completed` Event as the screens read it (`researchRawSchema`), or null when there is none they can read. */
+export function storedPack(after: unknown): PackShape | null {
+  const raw = after !== null && typeof after === "object" ? (after as { pack?: unknown }).pack : undefined;
+  const parsed = researchRawSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }

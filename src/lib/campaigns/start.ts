@@ -75,6 +75,9 @@ export type WidenSubmission = ChangeTarget & { optionIndex: number; requestId: s
 /** Try again: the id that makes a second press the same retry. */
 export type RetrySubmission = ChangeTarget & { requestId: string };
 
+/** A chosen industry from a Needs you: the term research wrote, the plain-words label chosen, and the id that makes a second press the same choice. */
+export type ChooseIndustrySubmission = ChangeTarget & { requestId: string; term: string; label: string };
+
 /**
  * Start's pre-fill, as a keyword mapping.
  *

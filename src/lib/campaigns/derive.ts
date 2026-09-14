@@ -2,6 +2,8 @@ import type { JobStatus } from "@prisma/client";
 
 import { moduleItems, planCards, researchRawSchema, type Item, type PackShape } from "../../../agents/research/output.schema";
 
+import { haltSchema, leadgenOutputSchema, type Halt, type Pick } from "../../../agents/leadgen/output.schema";
+
 import { overviewOf } from "./overview";
 import type { CampaignOverview, CampaignPack, ResearchFailure } from "./types";
 
@@ -99,4 +101,68 @@ export function storedPack(after: unknown): PackShape | null {
   const raw = after !== null && typeof after === "object" ? (after as { pack?: unknown }).pack : undefined;
   const parsed = researchRawSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Where finding people is, once a version is confirmed (lead gen v2.1 §11,
+ * extending orchestrator A1 item 8): read off the latest lead gen job at the
+ * version and that job's result Event, never stored.
+ *
+ * | job                 | result Event     | state            |
+ * |---------------------|------------------|------------------|
+ * | queued or running   | none             | findingPeople    |
+ * | any                 | leadgen.picked   | peopleFound      |
+ * | any                 | leadgen.halted   | peopleNeedsYou   |
+ * | failed or cancelled | none             | peopleNeedsYou   |
+ * | done, or none       | none             | peopleNeedsYou   |
+ */
+export type LeadGenState =
+  | { state: "findingPeople" }
+  | { state: "peopleFound"; pick: Pick }
+  | {
+      state: "peopleNeedsYou";
+      reason: Halt["reason"] | "failed";
+      field?: string;
+      term?: string;
+      choices: string[];
+      /** Try again is offered: a busy provider, a timeout, or a failed job. */
+      retryable: boolean;
+      /** The rep can choose an industry and search with it. */
+      choosable: boolean;
+    };
+
+export function deriveLeadGen(job: ResearchJobSnapshot | null, result: { kind: string; after: unknown } | null): LeadGenState {
+  const output = result !== null && result.after !== null && typeof result.after === "object" ? (result.after as { output?: unknown }).output : undefined;
+  const failed = (retryable: boolean): LeadGenState => ({ state: "peopleNeedsYou", reason: "failed", choices: [], retryable, choosable: false });
+  if (result?.kind === "leadgen.picked") {
+    const parsed = leadgenOutputSchema.safeParse(output);
+    return parsed.success && parsed.data.phase === "pick" ? { state: "peopleFound", pick: parsed.data } : failed(false);
+  }
+  if (result?.kind === "leadgen.halted") {
+    const parsed = haltSchema.safeParse(output);
+    if (!parsed.success) return failed(false);
+    const halt = parsed.data;
+    return {
+      state: "peopleNeedsYou",
+      reason: halt.reason,
+      ...(halt.field === undefined ? {} : { field: halt.field }),
+      ...(halt.term === undefined ? {} : { term: halt.term }),
+      choices: halt.choices ?? [],
+      retryable: halt.reason === "provider_busy" || halt.reason === "took_too_long",
+      choosable: halt.reason === "choose_industry" && (halt.choices ?? []).length > 0,
+    };
+  }
+  if (job === null) return failed(false);
+  switch (job.status) {
+    case "queued":
+    case "running":
+      return { state: "findingPeople" };
+    case "failed":
+    case "cancelled":
+      return failureOf(job.error) === "took_too_long"
+        ? { state: "peopleNeedsYou", reason: "took_too_long", choices: [], retryable: true, choosable: false }
+        : failed(true);
+    case "done":
+      return failed(false);
+  }
 }

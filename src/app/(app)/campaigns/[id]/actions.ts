@@ -2,7 +2,7 @@
 
 import { TRPCError } from "@trpc/server";
 
-import type { ChangeTarget, RetrySubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -15,7 +15,16 @@ import { isRefusal, serverCaller } from "@/server/api/caller";
  * shown to a rep as though it were copy.
  */
 
-const LINES: readonly string[] = [campaignsCopy.changedSince, campaignsCopy.cannotChange, campaignsCopy.briefUnchanged, startCopy.cannotStart];
+const LINES: readonly string[] = [
+  campaignsCopy.changedSince,
+  campaignsCopy.cannotChange,
+  campaignsCopy.briefUnchanged,
+  startCopy.cannotStart,
+  campaignsCopy.confirmNotAvailable,
+  campaignsCopy.confirmNoGroup,
+  campaignsCopy.confirmNoRecipe,
+  campaignsCopy.confirmOverCap,
+];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {
   try {
@@ -70,6 +79,41 @@ export async function editBrief(target: ChangeTarget, submission: StartSubmissio
       fromBriefVersion: target.briefVersion,
       requestId: submission.startRequestId,
       brief: submission.brief,
+    }),
+  );
+}
+
+/** Confirm plan: the first spend gate (lead gen v2.1 §6). */
+export async function confirmPlan(submission: RetrySubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.confirm({
+      campaignId: submission.campaignId,
+      fromBriefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+    }),
+  );
+}
+
+/** Try again on finding people. */
+export async function retryPeople(submission: RetrySubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.retryPeople({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+    }),
+  );
+}
+
+/** Search with the industry the rep chose. */
+export async function chooseIndustry(submission: ChooseIndustrySubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.chooseIndustry({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+      term: submission.term,
+      label: submission.label,
     }),
   );
 }

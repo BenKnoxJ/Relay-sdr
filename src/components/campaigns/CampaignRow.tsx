@@ -35,7 +35,7 @@ export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
         tone={
           campaign.state === "running"
             ? "ok"
-            : campaign.state === "stopped" || campaign.state === "failed"
+            : campaign.state === "stopped" || campaign.state === "failed" || campaign.state === "peopleNeedsYou"
               ? "warn"
               : "default"
         }

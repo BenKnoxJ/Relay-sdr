@@ -4,7 +4,7 @@ import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign } from "@/server/campaigns";
 
-import { retryResearch, widenResearch } from "./actions";
+import { chooseIndustry, confirmPlan, retryPeople, retryResearch, widenResearch } from "./actions";
 
 /**
  * One campaign (master doc §23.1c, mock 3b and 3c).
@@ -29,7 +29,14 @@ export default async function CampaignDetailPage({
   // bought or sent (§23.1d); a widening, an edit and Try again say Relay is
   // looking again. The line is shown on arrival.
   const query = await searchParams;
-  const banner = query.started === "1" ? campaignsCopy.toastStarted : query.again === "1" ? campaignsCopy.toastLookingAgain : null;
+  const banner =
+    query.started === "1"
+      ? campaignsCopy.toastStarted
+      : query.again === "1"
+        ? campaignsCopy.toastLookingAgain
+        : query.confirmed === "1"
+          ? campaignsCopy.toastFinding
+          : null;
 
   return (
     <CampaignPage
@@ -39,6 +46,9 @@ export default async function CampaignDetailPage({
       banner={banner}
       onWiden={widenResearch}
       onRetry={retryResearch}
+      onConfirm={confirmPlan}
+      onRetryPeople={retryPeople}
+      onChooseIndustry={chooseIndustry}
     />
   );
 }

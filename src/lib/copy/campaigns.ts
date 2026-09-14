@@ -110,6 +110,67 @@ export const campaignsCopy = {
   confirmLater:
     "Finding people comes next. Confirming will start a search that uses credits, up to a limit you approve. Emails are only bought when you reveal them.",
 
+  /**
+   * Confirm plan and finding people (lead gen v2.1 §6, §11, §12). Confirm is
+   * the first spend gate: a search capped at the limit shown. Reveal emails is
+   * the second, drawn and not yet pressable.
+   */
+  confirmNote: "Confirming starts a search that uses credits, up to the limit below. Emails are only bought when you reveal them.",
+  actionConfirming: "Confirming",
+  confirmLabel: "Confirming the plan",
+  confirmFor: "Finds people in",
+  confirmSearch: "Search up to",
+  confirmCredits: "credits",
+  confirmSample: "Sample people and sample credits: this environment has no live people provider.",
+  confirmLawful: "Lawful basis you confirm",
+  confirmNotAvailable: "Finding people isn't switched on here yet.",
+  confirmNoGroup: "Research didn't rank a kind of buyer to start with. Edit the brief and Relay looks again.",
+  confirmNoRecipe: "Research didn't say who to search for in the kind of buyer it ranks first. Edit the brief and Relay looks again.",
+  confirmOverCap: "The search limit is more than the credits available.",
+  findingNote: "Relay is finding people now. Nothing is revealed or sent.",
+  chipPeopleFound: "People found",
+  nextFindingPeopleLive: "finding people now",
+  nextPeopleFound: "check the people found",
+  nextPeopleNeedsYou: "finding people needs you",
+  stepFindingNeedsYou: "Finding people · needs you",
+  actionReveal: "Reveal emails",
+  revealLater: "Revealing emails comes next. Nothing has been bought yet.",
+  peopleFoundLabel: "People found",
+  peopleFoundOf: "of",
+  peopleFoundFor: "For",
+  shortfallCapReached: "The search reached the credit limit you approved before it found everyone.",
+  shortfallNoMore: "The search ran out of people who fit the plan.",
+  peopleReusedChip: "Already known",
+  peopleHeldBack: "held back by your rules.",
+  spendUsed: "Search used",
+  spendOf: "of",
+  spendCredits: "credits.",
+  spendHeld: "more are held until the charge is confirmed.",
+  spendSample: "Sample credits, not a live balance.",
+  revealAbout: "Revealing their emails would use about",
+  revealCredits: "credits.",
+  revealReused: "already known cost nothing.",
+  editWarning: "Changing the brief discards this selection. Credits already spent stay on the record, and another search may spend more.",
+  haltNoCandidates: "Relay found nobody who fits the plan within the credit limit.",
+  haltUnmappable: "Relay couldn't search for this without widening the plan:",
+  haltWouldWiden: "Relay couldn't search the size range without widening it.",
+  haltChooseIndustry: "Relay couldn't match this kind of organisation exactly:",
+  haltChooseHint: "Choose the closest, and Relay searches with it. Nothing else changes.",
+  haltOverCap: "One search would cost more than the credit limit allows.",
+  haltBalance: "Relay couldn't read the credit balance.",
+  haltBusy: "The people search service was busy.",
+  haltTooLong: "The search took longer than it should.",
+  haltFailed: "Finding people didn't finish.",
+  haltNextRetry: "Try again, or edit the brief.",
+  haltNextEdit: "Edit the brief, and Relay looks again.",
+  actionSearchWith: "Search with this",
+  actionSearching: "Searching",
+  answerWaitingPeopleNeedsYou: "You. The reason is at the top of the page.",
+  answerWaitingPeopleFound: "Nothing yet. Revealing emails comes next.",
+  answerWaitingFinding: "Nothing. Relay is finding people.",
+  /** Where Confirm plan lands the rep. */
+  toastFinding: "Plan confirmed. Relay is finding people now. Nothing is revealed or sent.",
+
   /** The brief card (mock 3b), five fields read only. */
   briefLabel: "The brief",
   fieldProduct: "Product",
@@ -202,6 +263,8 @@ export const campaignsCopy = {
   startChannels: "Suits",
   groupsLabel: "Buyer groups",
   groupsNote: "The kinds of organisation and role to aim at. Nobody has been found yet.",
+  /** Once the plan is confirmed, the search may have found people: the note no longer says it has not. */
+  groupsNoteConfirmed: "The kinds of organisation and role to aim at.",
   startHere: "Start here",
   groupSize: "Size:",
   groupSituation: "their situation",
@@ -212,6 +275,7 @@ export const campaignsCopy = {
   noBuyerWords: "Research found none of this group's own words.",
   firmsLabel: "Example firms",
   firmsNote: "Firms research found that fit each group. Examples, not your people: Relay finds those after you confirm.",
+  firmsNoteConfirmed: "Firms research found that fit each group. Examples, not your people.",
   firmsWhy: "why they fit",
   sizeConfirmed: "confirmed",
   sizeEstimated: "estimated",
@@ -324,9 +388,13 @@ export const campaignsCopy = {
   sendingADay: "a day,",
   sendingTo: "to",
   sendingFrom: "from",
-  /** The lawful-basis text a rep confirms. Nothing records it yet, so nothing here says it was recorded. */
+  /**
+   * The lawful-basis text a rep confirms, shown on the Confirm card. Confirm
+   * stores this exact text, with the rep, the time and the brief version, in
+   * the `campaign.confirmed` Event (lead gen v2.1 §12). Not an LIA.
+   */
   lawfulBasis: "Legitimate interest: B2B offer, opt out in every email",
-  /** Lead gen v2.1 §12: shown once Confirm stores the rep's lawful-basis text. Not an LIA. */
+  /** Lead gen v2.1 §12: the label for that stored record, never an LIA. No screen shows the record yet. */
   lawfulBasisConfirmed: "Lawful basis confirmed",
 
   /** Progress: counts only (§23.1c). */
@@ -345,6 +413,8 @@ export const campaignsCopy = {
   /** Lead gen v2.1 §6: the search after Confirm uses credits; emails are bought only on Reveal emails. */
   peopleBeforeConfirm:
     "Found after you confirm, by a search that uses credits up to the limit you approve. Emails are only bought when you reveal them.",
+  /** After Confirm, before anyone is chosen: the search has been approved, so not "after you confirm". */
+  peopleAfterConfirm: "Nobody is chosen yet. Emails are only bought when you reveal them.",
   /** Progress before anyone has been found: words, not five zeros that read like work done. */
   progressNone: "No people have been found yet. Nothing has been sent.",
   /** The list row's count before anyone has been contacted. */

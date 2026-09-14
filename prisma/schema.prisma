@@ -70,6 +70,11 @@ model Org {
   productFactsVersion ProductFactsVersion[]
   sideEffects         SideEffect[]
   campaigns           Campaign[]
+  people              Person[]
+  providerIdentities  ProviderIdentity[]
+  campaignPeople      CampaignPerson[]
+  contactSuppressions ContactSuppression[]
+  creditLedger        CreditLedgerEntry[]
 
   @@map("orgs")
 }
@@ -241,6 +246,8 @@ model Campaign {
   org       Org   @relation(fields: [orgId], references: [id], onDelete: Restrict)
   ownerUser User  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
   jobs      Job[]
+  people    CampaignPerson[]
+  credits   CreditLedgerEntry[]
 
   @@unique([orgId, startRequestId])
   @@index([orgId, ownerUserId, createdAt])
@@ -294,6 +301,8 @@ model Job {
   campaign    Campaign?    @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   agentRuns   AgentRun[]
   sideEffects SideEffect[]
+  people      CampaignPerson[]
+  credits     CreditLedgerEntry[]
 
   /// Scoped to the org, not global. An idempotency key is derived from what
   /// the job is about ("send touch 1 to this person"), so two tenants can
@@ -435,4 +444,190 @@ model SideEffect {
   @@index([orgId, at])
   @@index([jobId])
   @@map("side_effects")
+}
+
+// ── People and credits (lead gen v2.1 §6, §9) ────────────────────────────────
+
+enum ProviderIdentityStatus {
+  usable
+  no_email
+  invalid_id
+  wrong_person
+
+  @@map("provider_identity_status")
+}
+
+enum CampaignPersonStatus {
+  chosen
+  spare
+
+  @@map("campaign_person_status")
+}
+
+enum CampaignPersonSource {
+  bought
+  reused
+
+  @@map("campaign_person_source")
+}
+
+enum ContactSuppressionKind {
+  email
+  domain
+
+  @@map("contact_suppression_kind")
+}
+
+enum ContactSuppressionReason {
+  opted_out
+  dnc
+
+  @@map("contact_suppression_reason")
+}
+
+enum CreditKind {
+  search
+  reveal
+
+  @@map("credit_kind")
+}
+
+enum CreditState {
+  reserved
+  reconciled
+  unreconciled
+
+  @@map("credit_state")
+}
+
+/// The org's canonical human/contact with a revealed email (lead gen v2.1 §9).
+/// Whether that email is usable is decided per campaign, never stored here.
+/// The email is kept lower case (a CHECK in the migration), so one address is
+/// one Person.
+model Person {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  email     String
+  /// `work`, `personal` or `unknown`, as the reveal reported it.
+  emailType String   @map("email_type")
+  /// The provider's own grade word. Its vocabulary is unverified (v2.1 §7).
+  grade     String?
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org                Org                @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  providerIdentities ProviderIdentity[]
+  campaignPeople     CampaignPerson[]
+
+  @@unique([orgId, email])
+  @@map("people")
+}
+
+/// One provider record, org-scoped: which Person it is, or why it is unusable
+/// (v2.1 §9). An unusable record stops Relay buying that record again and says
+/// nothing about the human reached through another one.
+model ProviderIdentity {
+  id         String                 @id @default(cuid())
+  orgId      String                 @map("org_id")
+  provider   Provider
+  providerId String                 @map("provider_id")
+  personId   String?                @map("person_id")
+  status     ProviderIdentityStatus @default(usable)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  updatedAt  DateTime               @updatedAt @map("updated_at")
+
+  org    Org     @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  person Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([orgId, provider, providerId])
+  @@map("provider_identities")
+}
+
+/// A campaign's enrolment/candidate record (v2.1 §9). It starts from a
+/// provider record; `personId` is set once the identity resolves to a Person.
+/// One canonical human is never enrolled twice in one campaign's brief
+/// version: a partial unique index in the migration.
+///
+/// `preview` is the provider's row as it came, raw domain included: the
+/// registrable domain is only `companyKey`, for matching.
+model CampaignPerson {
+  id           String               @id @default(cuid())
+  orgId        String               @map("org_id")
+  campaignId   String               @map("campaign_id")
+  briefVersion Int                  @map("brief_version")
+  /// The lead gen job that found this candidate.
+  jobId        String               @map("job_id")
+  provider     Provider
+  providerId   String               @map("provider_id")
+  personId     String?              @map("person_id")
+  status       CampaignPersonStatus
+  source       CampaignPersonSource
+  rank         Int
+  score        Int
+  whyPicked    String               @map("why_picked")
+  companyKey   String               @map("company_key")
+  preview      Json
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  org      Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  job      Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  person   Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([orgId, campaignId, briefVersion, provider, providerId])
+  @@index([orgId, campaignId, briefVersion, rank])
+  @@map("campaign_people")
+}
+
+/// The only org-wide human/contact suppression (v2.1 §9): opt-out and
+/// do-not-contact. Campaign-specific holds are never written here.
+model ContactSuppression {
+  id        String                   @id @default(cuid())
+  orgId     String                   @map("org_id")
+  kind      ContactSuppressionKind
+  /// An email (lower case) or a registrable domain.
+  value     String
+  reason    ContactSuppressionReason
+  /// Where it came from, e.g. `zoho` or `reply`.
+  source    String
+  createdAt DateTime                 @default(now()) @map("created_at")
+  updatedAt DateTime                 @updatedAt @map("updated_at")
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Restrict)
+
+  @@unique([orgId, kind, value])
+  @@map("contact_suppressions")
+}
+
+/// One provider charge, reserved before the call at its documented worst
+/// case and reconciled to what the provider reported (v2.1 §6). An unknown
+/// outcome stays at its worst case. Written under a lock on the org row, so
+/// two runs in one org cannot both spend the same credits.
+model CreditLedgerEntry {
+  id             String      @id @default(cuid())
+  orgId          String      @map("org_id")
+  campaignId     String      @map("campaign_id")
+  briefVersion   Int         @map("brief_version")
+  /// The `campaign.confirmed` Event whose cap this spend counts against.
+  confirmEventId String      @map("confirm_event_id")
+  jobId          String      @map("job_id")
+  kind           CreditKind
+  /// The request's own key; a retry is a new key.
+  key            String
+  worstCase      Int         @map("worst_case")
+  charged        Int?
+  state          CreditState @default(reserved)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  org      Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  job      Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@unique([orgId, key])
+  @@index([orgId, confirmEventId])
+  @@index([orgId, createdAt])
+  @@map("credit_ledger")
 }

@@ -235,7 +235,65 @@ export type WidenChoice = {
 };
 
 /** What the rep can ask of research from where the campaign is (orchestrator A1, items 4 to 6). */
-export type ResearchActions = { widen: boolean; edit: boolean; retry: boolean };
+export type ResearchActions = {
+  widen: boolean;
+  edit: boolean;
+  retry: boolean;
+  /** Confirm plan can be pressed: finding people is set up and the version is not yet confirmed. */
+  confirm?: boolean;
+  /** Try again on finding people (lead gen v2.1 §11). */
+  retryPeople?: boolean;
+  /** Choose an industry and search with it (lead gen v2.1 §5). */
+  chooseIndustry?: boolean;
+};
+
+/** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
+export type ConfirmPlanView = {
+  /** False where finding people is not set up: Confirm is drawn and cannot be pressed. */
+  available: boolean;
+  /** The kind of buyer the search is for: the one research ranks first. */
+  groupName: string | null;
+  /** The search credit limit Confirm approves; null where finding people is not set up. */
+  searchCreditCap: number | null;
+  /** True when people and credits are samples, never a live account. */
+  sample: boolean;
+  /** The lawful-basis words the rep confirms. */
+  lawfulBasis: string;
+};
+
+/** One person in People found, as the rep reads them: no provider ids, no taxonomy. */
+export type FoundPersonView = {
+  id: string;
+  rank: number;
+  name: string;
+  title: string;
+  company: string;
+  city: string | null;
+  whyPicked: string;
+  /** Relay already holds a usable email for them: nothing to buy. */
+  reused: boolean;
+};
+
+/** People found, X of N (lead gen v2.1 §4, §11). */
+export type PeopleFoundView = {
+  groupName: string;
+  found: { n: number; ofM: number };
+  shortfall: "cap_reached" | "no_more_results" | null;
+  people: FoundPersonView[];
+  onHold: number;
+  spend: { charged: number; reserved: number; cap: number };
+  /** Reveal emails would buy this many, for about this many credits; reused people cost nothing. */
+  revealEstimate: { toBuy: number; reused: number; credits: number };
+  sample: boolean;
+};
+
+/** Why finding people needs the rep (lead gen v2.1 §11), in words, with any plain-words choices. */
+export type PeopleNeedsYouView = {
+  reason: string;
+  line: string;
+  term: string | null;
+  choices: string[];
+};
 
 /** Why research did not finish, in the words of orchestrator §7 (amended A1). */
 export type ResearchFailure = "took_too_long" | "bad_output" | "failed" | "not_started";
@@ -297,6 +355,14 @@ export type Campaign = CampaignSummary & {
   briefVersion: number;
   /** What the rep can ask of research from here. All false on a sample: its actions are its own. */
   can: ResearchActions;
+  /** Plan ready: what Confirm plan does. Absent on samples. */
+  confirmPlan?: ConfirmPlanView | null;
+  /** People found: the persisted result. */
+  peopleFound?: PeopleFoundView | null;
+  /** Finding people needs the rep. */
+  peopleNeedsYou?: PeopleNeedsYouView | null;
+  /** Credits have been spent at this version, so Edit brief warns before it discards the selection. */
+  spentAtThisVersion?: boolean;
   /** On a stop, research's widening options as the rep chooses between them. Null in every other state. */
   widenings: WidenChoice[] | null;
 };

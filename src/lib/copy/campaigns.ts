@@ -127,6 +127,8 @@ export const campaignsCopy = {
   confirmNoGroup: "Research didn't rank a kind of buyer to start with. Edit the brief and Relay looks again.",
   confirmNoRecipe: "Research didn't say who to search for in the kind of buyer it ranks first. Edit the brief and Relay looks again.",
   confirmOverCap: "The search limit is more than the credits available.",
+  /** Confirm could not read the credit balance, so nothing was started (lead gen v2.1 §6). */
+  confirmBalanceUnavailable: "Relay couldn't read the credit balance, so nothing has started. Try again in a minute.",
   findingNote: "Relay is finding people now. Nothing is revealed or sent.",
   chipPeopleFound: "People found",
   nextFindingPeopleLive: "finding people now",

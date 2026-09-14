@@ -43,6 +43,23 @@ export const DOCUMENTED_UNVERIFIED_PRICING: SearchPricing = {
   revealPerEmail: 1,
 };
 
+/**
+ * Lusha V3 on this account, as the zero-spend check read it on 2026-09-14.
+ * `GET /v3/account/usage` prices `contactSearch` at 1 credit per 25 results,
+ * and a search an earlier client recorded was charged 1 for 24 results. The
+ * public docs say "charged per result". The two disagree, so the worst case
+ * stays the larger of them (1 per result, minimum 1 a request) until the first
+ * paid search settles it; the id says the conflict is unsettled. The same
+ * numbers as the documented model: only what they rest on has changed.
+ */
+export const LUSHA_V3_PRICING: SearchPricing = {
+  id: "lusha-v3-2026-09-14-account-per-25-docs-per-result-unsettled",
+  perResult: 1,
+  perBlock: { size: 25, credits: 1 },
+  minimumPerRequest: 1,
+  revealPerEmail: 1,
+};
+
 /** The most any documented model could charge for one request of `pageSize` results. */
 export function documentedWorstCaseCharge(pageSize: number, pricing: SearchPricing): number {
   if (!Number.isInteger(pageSize) || pageSize < 1) throw new Error("documentedWorstCaseCharge: pageSize is a positive whole number");

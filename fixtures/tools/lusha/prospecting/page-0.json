@@ -1,0 +1,505 @@
+{
+  "endpoint": "POST /v3/contacts/prospecting",
+  "fetchedAt": "2026-09-14T16:00:00.000Z",
+  "source": "Synthetic, in the V3 response shape recorded earlier: fictional people at fictional firms on .example domains. Not a Lusha answer.",
+  "sanitised": false,
+  "body": {
+    "requestId": "fixture-page-0",
+    "results": [
+      {
+        "id": "fx-001",
+        "firstName": "Alex",
+        "lastName": "Morgan",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-northfield",
+          "name": "Northfield Motor Insurance",
+          "domain": "northfield-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Leeds"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-alex-morgan"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 10
+          }
+        ]
+      },
+      {
+        "id": "fx-002",
+        "firstName": "Priya",
+        "lastName": "Shah",
+        "jobTitle": {
+          "title": "Claims Operations Director",
+          "seniority": "Director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-northfield",
+          "name": "Northfield Motor Insurance",
+          "domain": "northfield-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Leeds"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-priya-shah"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-003",
+        "firstName": "Tom",
+        "lastName": "Reilly",
+        "jobTitle": {
+          "title": "Head of Motor Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-harbourline",
+          "name": "Harbourline Insurance",
+          "domain": "www.harbourline.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Manchester"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-tom-reilly"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 10
+          }
+        ]
+      },
+      {
+        "id": "fx-004",
+        "firstName": "Grace",
+        "lastName": "Okafor",
+        "jobTitle": {
+          "title": "Complaints Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-harbourline",
+          "name": "Harbourline Insurance",
+          "domain": "www.harbourline.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Manchester"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-grace-okafor"
+        },
+        "has": [
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "phones",
+            "credits": 10
+          }
+        ]
+      },
+      {
+        "id": "fx-005",
+        "firstName": "Daniel",
+        "lastName": "Hughes",
+        "jobTitle": {
+          "title": "Claims Quality Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-calder",
+          "name": "Calder Specialist Motor",
+          "domain": "calder-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Halifax"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-daniel-hughes"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 0
+          }
+        ]
+      },
+      {
+        "id": "fx-006",
+        "firstName": "Sofia",
+        "lastName": "Rossi",
+        "jobTitle": {
+          "title": "Quality Assurance Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-calder",
+          "name": "Calder Specialist Motor",
+          "domain": "calder-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Halifax"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-sofia-rossi"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-007",
+        "firstName": "James",
+        "lastName": "Wright",
+        "jobTitle": {
+          "title": "Claims Handler",
+          "seniority": "Entry",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-kestrel",
+          "name": "Kestrel Motor",
+          "domain": "kestrel-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Bristol"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-james-wright"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-008",
+        "firstName": "Emma",
+        "lastName": "Clarke",
+        "jobTitle": {
+          "title": "Head of Customer Relations",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-kestrel",
+          "name": "Kestrel Motor",
+          "domain": "kestrel-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Bristol"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-emma-clarke"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-009",
+        "firstName": "Liam",
+        "lastName": "Byrne",
+        "jobTitle": {
+          "title": "Claims Director",
+          "seniority": "Director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-liffey",
+          "name": "Liffey Motor Insurance",
+          "domain": "liffey-motor.example"
+        },
+        "location": {
+          "country": "Ireland",
+          "state": "Leinster",
+          "city": "Dublin"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-liam-byrne"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-010",
+        "firstName": "Hannah",
+        "lastName": "Price",
+        "jobTitle": {
+          "title": "Chief Operating Officer",
+          "seniority": "C-Level",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-pennine",
+          "name": "Pennine Insurance Services",
+          "domain": "pennine-insurance.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-hannah-price"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-011",
+        "firstName": "Owen",
+        "lastName": "Davies",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-pennine",
+          "name": "Pennine Insurance Services",
+          "domain": "pennine-insurance.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-owen-davies"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-012",
+        "firstName": "Chloe",
+        "lastName": "Evans",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-pennine",
+          "name": "Pennine Insurance Services",
+          "domain": "pennine-insurance.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-chloe-evans"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-013",
+        "firstName": "Ravi",
+        "lastName": "Patel",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-pennine",
+          "name": "Pennine Insurance Services",
+          "domain": "pennine-insurance.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-ravi-patel"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      },
+      {
+        "id": "fx-014",
+        "firstName": "Megan",
+        "lastName": "Ellis",
+        "jobTitle": {
+          "title": "Motor Claims Lead",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "fx-co-solent",
+          "name": "Solent Motor Underwriting"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Southampton"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/fx-megan-ellis"
+        },
+        "has": [
+          "emails"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          }
+        ]
+      }
+    ],
+    "billing": {
+      "creditsCharged": 1,
+      "resultsReturned": 14
+    },
+    "pagination": {
+      "page": 0,
+      "size": 20,
+      "total": 14
+    }
+  }
+}

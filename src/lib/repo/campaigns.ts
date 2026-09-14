@@ -238,7 +238,9 @@ export type ChangeRefusal =
   /** Research has not reached a plan. */
   | "research_not_ready"
   /** The search limit is more than the credits available. */
-  | "over_cap";
+  | "over_cap"
+  /** The provider's credit balance could not be read, so nothing was frozen or started. */
+  | "balance_unavailable";
 
 export class CampaignChangeRefused extends Error {
   constructor(
@@ -608,7 +610,13 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
   const setup = input.setup;
   if (setup === null) throw new CampaignChangeRefused("not_available");
   required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, CAMPAIGN_CONFIRMED);
-  const balance = await setup.readBalance(input.orgId);
+  let balance: Awaited<ReturnType<typeof setup.readBalance>>;
+  try {
+    balance = await setup.readBalance(input.orgId);
+  } catch {
+    // Never a guessed balance: without one the spend invariant has nothing to hold against.
+    throw new CampaignChangeRefused("balance_unavailable");
+  }
   const confirmedAt = (input.now ?? (() => new Date()))();
 
   return change(db, input, CAMPAIGN_CONFIRMED, async (tx) => {

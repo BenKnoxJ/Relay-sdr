@@ -88,9 +88,10 @@ function setup(over: Partial<LeadGenSetup> = {}): LeadGenSetup {
     sample: true,
     searchCreditCap: 40,
     pricingAssumptions: DOCUMENTED_UNVERIFIED_PRICING.id,
+    pricing: DOCUMENTED_UNVERIFIED_PRICING,
     // A minute ago, so every reservation this test makes is after the snapshot.
     readBalance: async () => ({ remaining: 100, readAt: new Date(Date.now() - 60_000), source: "sample" }),
-    environment: () => {
+    environment: async () => {
       throw new Error("tests hand the handler its provider");
     },
     ...over,
@@ -142,6 +143,18 @@ const campaignView = async (campaign: CampaignRow) => {
 };
 
 describe("Confirm plan", () => {
+  it("@proof refuses with balance_unavailable when the balance cannot be read, and freezes and starts nothing", async () => {
+    const campaign = await planned();
+    const down = setup({
+      readBalance: async () => {
+        throw new Error("usage read failed");
+      },
+    });
+    expect(await refusalOf(confirm(campaign, { setup: down }))).toBe("balance_unavailable");
+    expect(await prisma.event.count({ where: { kind: CAMPAIGN_CONFIRMED } })).toBe(0);
+    expect(await prisma.job.count({ where: { kind: LEAD_GEN_JOB } })).toBe(0);
+  });
+
   it("@proof freezes the handoff and the lawful basis, and enqueues exactly one lead gen job; a repeated press is the same press", async () => {
     const campaign = await planned();
     const requestId = randomUUID();

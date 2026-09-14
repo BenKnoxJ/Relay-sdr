@@ -1,0 +1,46 @@
+{
+  "endpoint": "GET /v3/companies/prospecting/filters/sizes",
+  "fetchedAt": "2026-09-14T15:46:40.141Z",
+  "source": "Recorded by the zero-spend metadata check (no credits used).",
+  "rawSha256": "5c90ac5dca9e7ef3313ff1e11d1854178212e9b7392b49ad00a0a74e457bed8d",
+  "sanitised": false,
+  "body": {
+    "values": [
+      {
+        "min": 1,
+        "max": 10
+      },
+      {
+        "min": 11,
+        "max": 50
+      },
+      {
+        "min": 51,
+        "max": 200
+      },
+      {
+        "min": 201,
+        "max": 500
+      },
+      {
+        "min": 501,
+        "max": 1000
+      },
+      {
+        "min": 1001,
+        "max": 5000
+      },
+      {
+        "min": 5001,
+        "max": 10000
+      },
+      {
+        "min": 10001,
+        "max": 100000
+      },
+      {
+        "min": 100001
+      }
+    ]
+  }
+}

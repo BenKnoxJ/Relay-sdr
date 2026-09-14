@@ -37,8 +37,8 @@ import type { Handler } from "@/worker/handlers/index";
  */
 
 export type LeadGenHandlerDeps = {
-  /** The provider and vocabulary for a handoff, or null where none is set up. */
-  environment: (handoff: LeadGenHandoffV1) => LeadGenEnvironment | null;
+  /** The provider and vocabulary for a handoff, or null where none is set up. A live provider reads its metadata here. */
+  environment: (handoff: LeadGenHandoffV1) => LeadGenEnvironment | null | Promise<LeadGenEnvironment | null>;
   crm: CrmCheck;
   pricing?: SearchPricing;
   retry?: FindPeopleDeps["retry"];
@@ -49,6 +49,7 @@ export function defaultLeadGenDeps(): LeadGenHandlerDeps {
   return {
     environment: (handoff) => (setup === null ? null : setup.environment(handoff)),
     crm: zohoCrmCheck(services().zoho),
+    ...(setup === null ? {} : { pricing: setup.pricing }),
   };
 }
 
@@ -78,7 +79,7 @@ export function leadGenHandler(deps: LeadGenHandlerDeps = defaultLeadGenDeps()):
     const pricing = deps.pricing ?? DOCUMENTED_UNVERIFIED_PRICING;
     if (pricing.id !== handoff.spend.pricingAssumptions) throw new TerminalError("lead gen: the pricing model is not the one Confirm froze");
 
-    const environment = deps.environment(handoff);
+    const environment = await deps.environment(handoff);
     if (environment === null) throw new TerminalError("lead gen: no people provider is set up");
 
     const knowledge = await loadOrgKnowledge(db, scope);

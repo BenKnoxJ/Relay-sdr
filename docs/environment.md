@@ -36,9 +36,13 @@ RELAY_WORKER_LEASE_MS=""
 # How long a draining worker lets an in-flight handler finish after SIGTERM
 # (default 540000). Must stay inside the unit's TimeoutStopSec.
 RELAY_WORKER_DRAIN_MS=""
-# Lead gen: `sample` (development and test only) makes up people and credits; unset, finding people is off.
+# Lead gen: `lusha` is Lusha V3; `sample` (development and test only) makes up people and credits; unset, finding people is off.
 RELAY_LEADGEN_PROVIDER=""
+# Required with `lusha`: the search credit limit a Confirm approves.
 RELAY_LEADGEN_SEARCH_CAP=""
+# Lusha's API key, for `lusha` under INTEGRATIONS=live. Under INTEGRATIONS=mock
+# (development and test only) Lusha answers from fixtures/tools/lusha and needs no key.
+LUSHA_API_KEY=""
 
 # --- auth (Clerk) ---------------------------------------------------------
 CLERK_SECRET_KEY=""

@@ -202,8 +202,19 @@ export type CampaignResearch = {
   sourceList: { title: string; url: string; accessedAt: string }[];
 };
 
-/** The research page's data: the campaign it belongs to, and the research, or null when there is no finished plan to read. */
-export type CampaignResearchPage = { id: string; name: string; research: CampaignResearch | null };
+/**
+ * The research page's data: the campaign it belongs to, and the research, or
+ * null when there is no finished plan to read. The brief and the Overview's
+ * opening (In short, Start with) are what the printed pack opens with (task
+ * 20): the same values the campaign page shows, not read again.
+ */
+export type CampaignResearchPage = {
+  id: string;
+  name: string;
+  brief: BriefFields;
+  summary: Pick<CampaignOverview, "inShort" | "startWith"> | null;
+  research: CampaignResearch | null;
+};
 
 /** The scope dimension a widening option widens (research v3.2, note 28). */
 export type WidenDimension = "region" | "size" | "sector" | "role";

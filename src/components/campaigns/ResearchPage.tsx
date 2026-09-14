@@ -7,6 +7,7 @@ import { researchCopy } from "@/lib/copy/research";
 import { cn } from "@/lib/utils";
 
 import { ConfidenceChip, PackItem, PackPhrase, WithHosts, packDate, shortDate, sourceHost } from "./PackItem";
+import { PrintPack } from "./PrintPack";
 import { ResearchNav } from "./ResearchNav";
 
 /**
@@ -20,6 +21,10 @@ import { ResearchNav } from "./ResearchNav";
  * all. Nothing here asks anything of the server. Every string of research's is shown as research
  * wrote it (`research.ts` takes out internal names and nothing else); a url is
  * only ever where a link goes, never text on the page.
+ *
+ * The eleven parts are drawn through a `Kit`, so the printed pack
+ * (`ResearchReport`, task 20) draws the same parts from the same research,
+ * laid out for paper. On paper this page is hidden and the pack is shown.
  */
 
 /** The sources shown before "Show all". */
@@ -34,6 +39,23 @@ const CHANNELS: Record<string, string> = {
 const channelList = (channels: readonly string[]) => channels.map((channel) => CHANNELS[channel] ?? channel).join(", ");
 const country = (code: string) => (campaignsCopy.countries as Record<string, string>)[code] ?? code;
 const painAnchor = (ref: PainRef) => `pain-${ref.group}-${ref.pain}`;
+
+/**
+ * How a part and the lists inside it are laid out. The page opens and closes
+ * them (`WEB`); the printed pack (`ResearchReport`) lays every one of them out
+ * in full, with nothing to open. The parts themselves are the same code either
+ * way, so the paper and the screen cannot disagree about what research found.
+ */
+export type Kit = {
+  print: boolean;
+  Part: (props: { part: ResearchPart; research: CampaignResearch; empty: boolean; children: React.ReactNode }) => React.ReactNode;
+  More: (props: { label: string; testId: string; children: React.ReactNode }) => React.ReactNode;
+  Group: (props: { name: string; open: boolean; testId: string; meta?: string; children: React.ReactNode }) => React.ReactNode;
+  /** An id on this page. The pack prints beside the page, so its ids are its own. */
+  id: (id: string) => string;
+};
+
+type SectionProps = { research: CampaignResearch; kit: Kit };
 
 /** Opens more of the same part in place. The label reads "Show …" closed and "Hide …" open, with no script. */
 function More({ label, testId, children }: { label: string; testId: string; children: React.ReactNode }) {
@@ -50,7 +72,7 @@ function More({ label, testId, children }: { label: string; testId: string; chil
 }
 
 function Sub({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <h3 className={cn("type-label mb-1.5 mt-4 first:mt-0", className)}>{children}</h3>;
+  return <h3 className={cn("type-label mb-1.5 mt-4 first:mt-0 print:break-after-avoid", className)}>{children}</h3>;
 }
 
 /**
@@ -93,14 +115,14 @@ function HostLink({ url, children }: { url: string; children?: React.ReactNode }
   );
 }
 
-const count = (n: number, [one, many]: readonly [string, string]) => `${n} ${n === 1 ? one : many}`;
+export const count = (n: number, [one, many]: readonly [string, string]) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * What a closed part says about itself: counts of what it holds, read off the
  * same data the part draws when it opens. Nothing is summarised; a count is a
  * count.
  */
-function previewOf(part: ResearchPart, research: CampaignResearch): { text: string; warn?: boolean }[] {
+export function previewOf(part: ResearchPart, research: CampaignResearch): { text: string; warn?: boolean }[] {
   const p = researchCopy.preview;
   const groups = (n: number) => `${p.across} ${count(n, p.groups)}`;
   switch (part) {
@@ -194,6 +216,16 @@ function previewOf(part: ResearchPart, research: CampaignResearch): { text: stri
   }
 }
 
+/** A part's preview as it is shown. A count of nothing is left out: on a run cut short, "0 objections" would read as a finding when the part was never written. */
+export function previewSegments(part: ResearchPart, research: CampaignResearch): { text: string; warn?: boolean }[] {
+  return previewOf(part, research).filter((segment) => !/^0\b/.test(segment.text));
+}
+
+/** What a part research did not write, or wrote only some of, says about it: in a rep's words, never the pack's own names. */
+export function unwrittenNames(missing: readonly string[]): string {
+  return missing.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ");
+}
+
 /**
  * One of the eleven parts. Closed by default: its title, what it holds, and
  * "View …". Opened, everything the part has, with its own groups and "Show"s
@@ -202,9 +234,8 @@ function previewOf(part: ResearchPart, research: CampaignResearch): { text: stri
  */
 function Part({ part, research, empty, children }: { part: ResearchPart; research: CampaignResearch; empty: boolean; children: React.ReactNode }) {
   const missing = research.unwritten[part];
-  const names = missing.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ");
-  // A count of nothing is left out: on a run cut short, "0 objections" would read as a finding when the part was never written.
-  const preview = previewOf(part, research).filter((segment) => !/^0\b/.test(segment.text));
+  const names = unwrittenNames(missing);
+  const preview = previewSegments(part, research);
   const label = researchCopy.viewLabels[part];
   return (
     <section
@@ -252,11 +283,11 @@ function Part({ part, research, empty, children }: { part: ResearchPart; researc
   );
 }
 
-function PainLink({ research, pain }: { research: CampaignResearch; pain: PainRef | null }) {
+function PainLink({ research, pain, kit }: { research: CampaignResearch; pain: PainRef | null; kit: Kit }) {
   if (pain === null) return null;
   const group = research.who.groups[pain.group - 1]?.name;
   return (
-    <a href={`#${painAnchor(pain)}`} className="font-semibold text-action underline focus-visible:outline-none focus-visible:ring-2">
+    <a href={`#${kit.id(painAnchor(pain))}`} className="font-semibold text-action underline focus-visible:outline-none focus-visible:ring-2">
       {researchCopy.painWord} {pain.pain}
       {group === undefined ? null : `, ${group}`}
     </a>
@@ -265,10 +296,10 @@ function PainLink({ research, pain }: { research: CampaignResearch; pain: PainRe
 
 // ---------------------------------------------------------------------------
 
-function TimelineRow({ entry }: { entry: TimelineEntry }) {
+function TimelineRow({ entry, kit }: { entry: TimelineEntry; kit: Kit }) {
   const date = entry.date === null ? researchCopy.undated : packDate(entry.date);
   return (
-    <li data-testid="timeline-entry" className="grid min-w-0 gap-x-3 border-t border-line py-2 first:border-t-0 wide:grid-cols-[7.5rem_minmax(0,1fr)]">
+    <li data-testid="timeline-entry" className="grid min-w-0 gap-x-3 border-t border-line py-2 first:border-t-0 wide:grid-cols-[7.5rem_minmax(0,1fr)] print:grid-cols-[7.5rem_minmax(0,1fr)]">
       <span data-testid="timeline-date" className="type-mono text-13 text-muted">
         {date}
       </span>
@@ -284,11 +315,11 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
             <HostLink url={entry.source} />
           </p>
           {entry.alsoReported.length === 0 ? null : (
-            <More label={`${entry.alsoReported.length} ${researchCopy.alsoReported}`} testId="also-reported">
+            <kit.More label={`${entry.alsoReported.length} ${researchCopy.alsoReported}`} testId="also-reported">
               {entry.alsoReported.map((item) => (
                 <PackItem key={item.id} item={item} withQuote />
               ))}
-            </More>
+            </kit.More>
           )}
         </div>
       )}
@@ -296,14 +327,14 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
   );
 }
 
-function Market({ research }: { research: CampaignResearch }) {
+function Market({ research, kit }: SectionProps) {
   const m = research.market;
   const past = m.timeline.filter((entry) => entry.comingUp !== true);
   const coming = m.timeline.filter((entry) => entry.comingUp === true);
   const split = m.timeline.some((entry) => entry.comingUp !== null);
   const empty = m.theCase === null && m.timeline.length === 0 && m.alsoExpected.length === 0 && m.segments.length === 0 && m.size.length === 0 && m.measures.length === 0 && m.bodies.length === 0;
   return (
-    <Part part="market" research={research} empty={empty}>
+    <kit.Part part="market" research={research} empty={empty}>
       {m.theCase === null ? null : (
         <>
           <Sub>{researchCopy.theCase}</Sub>
@@ -321,16 +352,16 @@ function Market({ research }: { research: CampaignResearch }) {
           {split ? (
             <>
               <p className="type-small mt-2 font-semibold">{researchCopy.alreadyHappened}</p>
-              <ol>{past.map((entry) => <TimelineRow key={entry.key} entry={entry} />)}</ol>
+              <ol>{past.map((entry) => <TimelineRow key={entry.key} entry={entry} kit={kit} />)}</ol>
               {coming.length === 0 ? null : (
                 <>
                   <p className="type-small mt-3 font-semibold">{researchCopy.comingUp}</p>
-                  <ol>{coming.map((entry) => <TimelineRow key={entry.key} entry={entry} />)}</ol>
+                  <ol>{coming.map((entry) => <TimelineRow key={entry.key} entry={entry} kit={kit} />)}</ol>
                 </>
               )}
             </>
           ) : (
-            <ol>{m.timeline.map((entry) => <TimelineRow key={entry.key} entry={entry} />)}</ol>
+            <ol>{m.timeline.map((entry) => <TimelineRow key={entry.key} entry={entry} kit={kit} />)}</ol>
           )}
           {m.alsoExpected.length === 0 ? null : (
             <>
@@ -343,9 +374,9 @@ function Market({ research }: { research: CampaignResearch }) {
       {m.segments.length === 0 ? null : (
         <>
           <Sub>{researchCopy.segmentsLabel}</Sub>
-          <ul className="grid gap-chips wide:grid-cols-2">
+          <ul className="grid gap-chips wide:grid-cols-2 print:grid-cols-2">
             {m.segments.map((segment) => (
-              <li key={segment.key} data-testid="market-segment" className="min-w-0 rounded-input border border-line bg-ground p-3">
+              <li key={segment.key} data-testid="market-segment" className="min-w-0 break-inside-avoid rounded-input border border-line bg-ground p-3">
                 <p className="type-small font-semibold">{segment.name}</p>
                 <p className={cn("type-small", segment.fit === "OUT" ? "text-warn" : segment.fit === "HIGH" ? "text-action" : "text-muted")}>
                   {researchCopy.fit[segment.fit]}
@@ -369,12 +400,12 @@ function Market({ research }: { research: CampaignResearch }) {
         </>
       )}
       {m.measures.length === 0 ? null : (
-        <More label={researchCopy.measuresLabel} testId="market-measures">
+        <kit.More label={researchCopy.measuresLabel} testId="market-measures">
           <Lines lines={m.measures} />
-        </More>
+        </kit.More>
       )}
       {m.bodies.length === 0 ? null : (
-        <More label={researchCopy.bodiesLabel} testId="market-bodies">
+        <kit.More label={researchCopy.bodiesLabel} testId="market-bodies">
           <ul className="grid gap-2">
             {m.bodies.map((body) => (
               <li key={body.key} className="type-small">
@@ -390,18 +421,18 @@ function Market({ research }: { research: CampaignResearch }) {
               </li>
             ))}
           </ul>
-        </More>
+        </kit.More>
       )}
-    </Part>
+    </kit.Part>
   );
 }
 
-function Who({ research }: { research: CampaignResearch }) {
+function Who({ research, kit }: SectionProps) {
   const w = research.who;
   const c = campaignsCopy;
   const empty = w.intro === null && w.groups.length === 0 && w.boundaries === null && w.idealCompany.length === 0 && w.idealBuyer.length === 0 && w.disqualifiers.length === 0;
   return (
-    <Part part="who" research={research} empty={empty}>
+    <kit.Part part="who" research={research} empty={empty}>
       {w.intro === null ? null : <p className="type-body mb-2">{w.intro}</p>}
       {w.groups.length === 0 ? null : (
         <>
@@ -410,7 +441,7 @@ function Who({ research }: { research: CampaignResearch }) {
             {w.groups.map((group, index) => {
               const extra = w.groupBoundaries.find((entry) => entry.group === index + 1)?.lines ?? [];
               return (
-                <GroupBlock
+                <kit.Group
                   key={group.key}
                   name={group.name}
                   open={index === 0}
@@ -421,7 +452,7 @@ function Who({ research }: { research: CampaignResearch }) {
                   <Sub className="mt-3">{researchCopy.dominantPain}</Sub>
                   <PackItem item={group.dominantPain} withQuote />
                   {group.whyNow === null && group.wrongIf === null ? null : (
-                    <dl className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 wide:grid-cols-[auto_minmax(0,1fr)]">
+                    <dl className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 wide:grid-cols-[auto_minmax(0,1fr)] print:grid-cols-[auto_minmax(0,1fr)]">
                       {(
                         [
                           [c.startWhyNow, group.whyNow],
@@ -449,10 +480,10 @@ function Who({ research }: { research: CampaignResearch }) {
                       </li>
                     ))}
                   </ul>
-                  <More label={researchCopy.deal} testId="group-deal">
+                  <kit.More label={researchCopy.deal} testId="group-deal">
                     <div className="flex items-start gap-2.5">
                       <ConfidenceChip confidence={group.deal.confidence} />
-                      <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 wide:grid-cols-[auto_minmax(0,1fr)]">
+                      <dl className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 wide:grid-cols-[auto_minmax(0,1fr)] print:grid-cols-[auto_minmax(0,1fr)]">
                         {(Object.keys(researchCopy.dealFields) as (keyof typeof researchCopy.dealFields)[]).map((field) =>
                           group.deal[field] === undefined ? null : (
                             <div key={field} className="contents">
@@ -464,7 +495,7 @@ function Who({ research }: { research: CampaignResearch }) {
                       </dl>
                     </div>
                     {group.deal.note === undefined ? null : <p className="type-small mt-1.5 text-muted">{group.deal.note}</p>}
-                  </More>
+                  </kit.More>
                   {extra.length === 0 ? null : (
                     <>
                       <Sub className="mt-3">
@@ -473,7 +504,7 @@ function Who({ research }: { research: CampaignResearch }) {
                       <Lines lines={extra} testId="boundary" />
                     </>
                   )}
-                </GroupBlock>
+                </kit.Group>
               );
             })}
           </div>
@@ -496,7 +527,7 @@ function Who({ research }: { research: CampaignResearch }) {
           <Sub>{researchCopy.notAFit}</Sub>
           <ul className="grid gap-1.5">
             {w.disqualifiers.map((entry, index) => (
-              <li key={index} data-testid="disqualifier" className="type-small">
+              <li key={index} data-testid="disqualifier" className="type-small break-inside-avoid">
                 <span className="font-semibold">{entry.who}</span>
                 <span className="block text-muted">{entry.why}</span>
               </li>
@@ -508,7 +539,7 @@ function Who({ research }: { research: CampaignResearch }) {
         <div data-testid="boundaries">
           <Sub>{researchCopy.boundariesLabel}</Sub>
           <p className="type-small mb-1.5 text-muted">{researchCopy.boundariesNote}</p>
-          <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 wide:grid-cols-[auto_minmax(0,1fr)]">
+          <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 wide:grid-cols-[auto_minmax(0,1fr)] print:grid-cols-[auto_minmax(0,1fr)]">
             {(
               [
                 ["geography", w.boundaries.geography],
@@ -531,31 +562,46 @@ function Who({ research }: { research: CampaignResearch }) {
           </dl>
         </div>
       )}
-    </Part>
+    </kit.Part>
   );
 }
 
-function Pains({ research }: { research: CampaignResearch }) {
+/**
+ * How many of a group's phrases are buyers' own and how many are others'. A
+ * count of nothing is left out, as in a part's preview: on a run cut short
+ * before buyers' words were written, "0 in buyers' own words" would read as a
+ * finding.
+ */
+function groupVoices(group: CampaignResearch["pains"]["groups"][number]): string | undefined {
+  const counts = [
+    [group.buyerWords.length, researchCopy.buyerCount],
+    [group.otherVoices.length, researchCopy.otherCount],
+  ] as const;
+  const shown = counts.filter(([n]) => n > 0).map(([n, label]) => `${n} ${label}`);
+  return shown.length === 0 ? undefined : shown.join(campaignsCopy.noteJoin);
+}
+
+function Pains({ research, kit }: SectionProps) {
   const c = campaignsCopy;
   return (
-    <Part part="pains" research={research} empty={research.pains.groups.length === 0}>
+    <kit.Part part="pains" research={research} empty={research.pains.groups.length === 0}>
       <div className="grid gap-chips">
         {research.pains.groups.map((group) => {
           const place = Number(group.key.replace("group-", ""));
           return (
-            <GroupBlock
+            <kit.Group
               key={group.key}
               name={group.name}
               open={place === 1}
               testId="pain-group"
-              meta={`${group.buyerWords.length} ${researchCopy.buyerCount}${c.noteJoin}${group.otherVoices.length} ${researchCopy.otherCount}`}
+              meta={groupVoices(group)}
             >
               {group.pains.length === 0 ? null : (
                 <>
                   <Sub>{researchCopy.painsLabel}</Sub>
                   <ol className="grid">
                     {group.pains.map((pain, index) => (
-                      <li key={pain.id} id={painAnchor({ group: place, pain: index + 1 })} data-testid="research-pain" className="flex scroll-mt-4 gap-2">
+                      <li key={pain.id} id={kit.id(painAnchor({ group: place, pain: index + 1 }))} data-testid="research-pain" className="flex scroll-mt-4 gap-2">
                         <span className="type-mono pt-2 text-13 text-muted">{index + 1}.</span>
                         <div className="min-w-0 flex-1">
                           <PackItem item={pain} withQuote />
@@ -584,18 +630,18 @@ function Pains({ research }: { research: CampaignResearch }) {
                   ))}
                 </div>
               )}
-            </GroupBlock>
+            </kit.Group>
           );
         })}
       </div>
-    </Part>
+    </kit.Part>
   );
 }
 
-function Say({ research }: { research: CampaignResearch }) {
+function Say({ research, kit }: SectionProps) {
   const s = research.say;
   return (
-    <Part part="say" research={research} empty={s.groups.length === 0 && s.intro === null}>
+    <kit.Part part="say" research={research} empty={s.groups.length === 0 && s.intro === null}>
       {s.intro === null ? null : (
         <>
           <Sub>{researchCopy.position}</Sub>
@@ -604,7 +650,7 @@ function Say({ research }: { research: CampaignResearch }) {
       )}
       <div className="mt-4 grid gap-chips">
         {s.groups.map((group, index) => (
-          <GroupBlock key={group.key} name={group.name} open={index === 0} testId="say-group">
+          <kit.Group key={group.key} name={group.name} open={index === 0} testId="say-group">
             {group.angles.length === 0 ? null : (
               <>
                 <Sub>{researchCopy.anglesLabel}</Sub>
@@ -613,7 +659,7 @@ function Say({ research }: { research: CampaignResearch }) {
                     <li
                       key={angle.key}
                       data-testid="research-angle"
-                      className={cn("min-w-0 rounded-input p-3", angle.lead ? "border border-action bg-soft" : "border border-line")}
+                      className={cn("min-w-0 break-inside-avoid rounded-input p-3", angle.lead ? "border border-action bg-soft" : "border border-line")}
                     >
                       {angle.lead ? <p className="type-label mb-1 text-action">{researchCopy.leadWith}</p> : null}
                       <p className="type-small">{angle.text}</p>
@@ -670,36 +716,36 @@ function Say({ research }: { research: CampaignResearch }) {
                 </ul>
               </>
             )}
-          </GroupBlock>
+          </kit.Group>
         ))}
       </div>
-    </Part>
+    </kit.Part>
   );
 }
 
-function Prove({ research }: { research: CampaignResearch }) {
+function Prove({ research, kit }: SectionProps) {
   const p = research.prove;
   const d = p.dontClaim;
   const dontCount = d.lead.length + d.product.length + d.brand.length + d.imply.length + d.proof.length;
   return (
-    <Part part="prove" research={research} empty={p.groups.length === 0 && p.proof.length === 0 && dontCount === 0}>
+    <kit.Part part="prove" research={research} empty={p.groups.length === 0 && p.proof.length === 0 && dontCount === 0}>
       <div className="grid gap-chips">
         {p.groups.map((group, index) => (
-          <GroupBlock key={group.key} name={group.name} open={index === 0} testId="prove-group">
+          <kit.Group key={group.key} name={group.name} open={index === 0} testId="prove-group">
             {group.answers.length === 0 ? null : (
               <>
                 <Sub>{researchCopy.answersLabel}</Sub>
                 <ul className="grid gap-2">
                   {group.answers.map((answer) => (
-                    <li key={answer.key} data-testid="research-answer" className="type-small">
+                    <li key={answer.key} data-testid="research-answer" className="type-small break-inside-avoid">
                       <span className="block text-muted">
-                        <PainLink research={research} pain={answer.pain} />
+                        <PainLink research={research} kit={kit} pain={answer.pain} />
                         {answer.pain === null ? null : campaignsCopy.noteJoin}
                         <span className={answer.strength === "direct" ? "text-action" : "text-warn"}>{researchCopy.strength[answer.strength]}</span>
                         {answer.strength === "partial" ? (
                           <>
                             {campaignsCopy.noteJoin}
-                            <a href="#dont-claim" className="underline focus-visible:outline-none focus-visible:ring-2">
+                            <a href={`#${kit.id("dont-claim")}`} className="underline focus-visible:outline-none focus-visible:ring-2">
                               {researchCopy.seeLimits}
                             </a>
                           </>
@@ -716,9 +762,9 @@ function Prove({ research }: { research: CampaignResearch }) {
                 <Sub className="mt-3">{researchCopy.unansweredLabel}</Sub>
                 <ul className="grid gap-2">
                   {group.unanswered.map((entry) => (
-                    <li key={entry.key} data-testid="research-unanswered" className="type-small">
+                    <li key={entry.key} data-testid="research-unanswered" className="type-small break-inside-avoid">
                       <span className="block">
-                        <PainLink research={research} pain={entry.pain} />
+                        <PainLink research={research} kit={kit} pain={entry.pain} />
                       </span>
                       <span className="block text-muted">{entry.status}</span>
                       {entry.note === undefined ? null : <span className="block">{entry.note}</span>}
@@ -732,7 +778,7 @@ function Prove({ research }: { research: CampaignResearch }) {
                 <Sub className="mt-3">{researchCopy.objectionsLabel}</Sub>
                 <ul className="grid gap-2">
                   {group.objections.map((objection) => (
-                    <li key={objection.key} data-testid="research-objection" className="type-small">
+                    <li key={objection.key} data-testid="research-objection" className="type-small break-inside-avoid">
                       <span className="block font-semibold">“{objection.objection}”</span>
                       {objection.notToday ? <span className="mr-1.5 font-semibold text-warn">{researchCopy.notToday}.</span> : null}
                       {objection.answer === null ? <span className="text-muted">{researchCopy.noAnswer}</span> : objection.answer}
@@ -741,7 +787,7 @@ function Prove({ research }: { research: CampaignResearch }) {
                 </ul>
               </>
             )}
-          </GroupBlock>
+          </kit.Group>
         ))}
       </div>
       {p.proof.length === 0 ? null : (
@@ -749,7 +795,7 @@ function Prove({ research }: { research: CampaignResearch }) {
           <Sub className="mt-5">{researchCopy.proofLabel}</Sub>
           <ul className="grid gap-2">
             {p.proof.map((proof) => (
-              <li key={proof.key} data-testid="research-proof" className="type-small">
+              <li key={proof.key} data-testid="research-proof" className="type-small break-inside-avoid">
                 {proof.text}
                 {proof.note === undefined ? null : (
                   <span className="block text-muted">
@@ -762,7 +808,7 @@ function Prove({ research }: { research: CampaignResearch }) {
         </>
       )}
       {dontCount === 0 ? null : (
-        <div id="dont-claim" data-testid="dont-claim" className="mt-5 scroll-mt-4 rounded-input border border-warn bg-warn-bg p-3">
+        <div id={kit.id("dont-claim")} data-testid="dont-claim" className="mt-5 scroll-mt-4 rounded-input border border-warn bg-warn-bg p-3">
           <h3 className="type-name text-warn">{researchCopy.dontClaimLabel}</h3>
           <p className="type-small mb-2 text-muted">{researchCopy.dontClaimNote}</p>
           {(
@@ -788,7 +834,7 @@ function Prove({ research }: { research: CampaignResearch }) {
                     {entry.text}
                     {entry.pain === null ? null : (
                       <span className="block text-muted">
-                        {researchCopy.forLabel} <PainLink research={research} pain={entry.pain} />
+                        {researchCopy.forLabel} <PainLink research={research} kit={kit} pain={entry.pain} />
                       </span>
                     )}
                   </li>
@@ -811,15 +857,15 @@ function Prove({ research }: { research: CampaignResearch }) {
           )}
         </div>
       )}
-    </Part>
+    </kit.Part>
   );
 }
 
-function Competition({ research }: { research: CampaignResearch }) {
+function Competition({ research, kit }: SectionProps) {
   const m = research.competition;
   const cols = researchCopy.priceCols;
   return (
-    <Part part="competition" research={research} empty={m.competitors.length === 0 && m.doNothing === null && m.view === null && m.prices.length === 0 && m.adjacent.length === 0}>
+    <kit.Part part="competition" research={research} empty={m.competitors.length === 0 && m.doNothing === null && m.view === null && m.prices.length === 0 && m.adjacent.length === 0}>
       {m.view === null ? null : (
         <>
           <Sub>{researchCopy.viewLabel}</Sub>
@@ -848,8 +894,8 @@ function Competition({ research }: { research: CampaignResearch }) {
               <span className="font-semibold">{researchCopy.priceLabel}</span>{" "}
               {competitor.pricing ?? (competitor.pricingGated ? researchCopy.notPublished : null)}
             </p>
-            <More label={researchCopy.strengthsLabel} testId="competitor-more">
-              <div className="grid gap-3 wide:grid-cols-2">
+            <kit.More label={researchCopy.strengthsLabel} testId="competitor-more">
+              <div className="grid gap-3 wide:grid-cols-2 print:grid-cols-2">
                 <div className="min-w-0">
                   <p className="type-small font-semibold">{researchCopy.strongAt}</p>
                   <Lines lines={competitor.strengths} />
@@ -859,7 +905,7 @@ function Competition({ research }: { research: CampaignResearch }) {
                   <Lines lines={competitor.weaknesses} />
                 </div>
               </div>
-            </More>
+            </kit.More>
             {competitor.recentMoves.length === 0 ? null : (
               <>
                 <Sub className="mt-3">{researchCopy.recentMoves}</Sub>
@@ -872,13 +918,13 @@ function Competition({ research }: { research: CampaignResearch }) {
         ))}
       </div>
       {m.prices.length === 0 ? null : (
-        <More label={researchCopy.pricesLabel} testId="competition-prices">
-          <div className="overflow-x-auto">
-            <table className="type-small w-full min-w-[32rem] border-collapse text-left">
+        <kit.More label={researchCopy.pricesLabel} testId="competition-prices">
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="type-small w-full min-w-[32rem] border-collapse text-left print:min-w-0">
               <thead>
                 <tr className="border-b border-line">
                   {[cols.name, cols.price, cols.minimum, cols.commitment].map((col) => (
-                    <th key={col} scope="col" className="py-1.5 pr-3 font-semibold">
+                    <th key={col} scope="col" className={cn("py-1.5 pr-3 font-semibold", col === cols.name && "print:w-[30%]")}>
                       {col}
                     </th>
                   ))}
@@ -886,7 +932,7 @@ function Competition({ research }: { research: CampaignResearch }) {
               </thead>
               <tbody>
                 {m.prices.map((row) => (
-                  <tr key={row.key} className="border-b border-line align-top">
+                  <tr key={row.key} className="break-inside-avoid border-b border-line align-top">
                     <td className="py-1.5 pr-3 font-semibold">{row.name}</td>
                     <td className="py-1.5 pr-3">{row.price}</td>
                     <td className="py-1.5 pr-3">{row.minimum ?? ""}</td>
@@ -896,10 +942,10 @@ function Competition({ research }: { research: CampaignResearch }) {
               </tbody>
             </table>
           </div>
-        </More>
+        </kit.More>
       )}
       {m.adjacent.length === 0 ? null : (
-        <More label={researchCopy.adjacentLabel} testId="competition-adjacent">
+        <kit.More label={researchCopy.adjacentLabel} testId="competition-adjacent">
           <ul className="grid gap-2">
             {m.adjacent.map((entry) => (
               <li key={entry.key} className="type-small">
@@ -908,9 +954,9 @@ function Competition({ research }: { research: CampaignResearch }) {
               </li>
             ))}
           </ul>
-        </More>
+        </kit.More>
       )}
-    </Part>
+    </kit.Part>
   );
 }
 
@@ -919,14 +965,14 @@ function sizeLine(size: CampaignResearch["companies"]["groups"][number]["firms"]
   return `${size.value} (${size.status === "confirmed" ? campaignsCopy.sizeConfirmed : campaignsCopy.sizeEstimated})`;
 }
 
-function Companies({ research }: { research: CampaignResearch }) {
+function Companies({ research, kit }: SectionProps) {
   const c = campaignsCopy;
   return (
-    <Part part="companies" research={research} empty={research.companies.groups.length === 0}>
+    <kit.Part part="companies" research={research} empty={research.companies.groups.length === 0}>
       <p className="type-small mb-3 text-muted">{c.firmsNote}</p>
       <div className="grid gap-chips">
         {research.companies.groups.map((group, index) => (
-          <GroupBlock
+          <kit.Group
             key={group.key}
             name={group.name}
             open={index === 0}
@@ -935,7 +981,7 @@ function Companies({ research }: { research: CampaignResearch }) {
           >
             <ul className="grid gap-chips">
               {group.firms.map((firm) => (
-                <li key={firm.id} data-testid="research-firm" className="min-w-0 rounded-input border border-line p-3">
+                <li key={firm.id} data-testid="research-firm" className="min-w-0 break-inside-avoid rounded-input border border-line p-3">
                   <p className="type-small">
                     <span className="font-semibold">{firm.name}</span>
                     {firm.domain === undefined ? null : <span className="text-muted"> {sourceHost(`https://${firm.domain.replace(/^https?:\/\//, "")}`)}</span>}
@@ -959,8 +1005,8 @@ function Companies({ research }: { research: CampaignResearch }) {
                 </li>
               ))}
             </ul>
-            <More label={researchCopy.findMore} testId="company-recipe">
-              <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 wide:grid-cols-[auto_minmax(0,1fr)]">
+            <kit.More label={researchCopy.findMore} testId="company-recipe">
+              <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 wide:grid-cols-[auto_minmax(0,1fr)] print:grid-cols-[auto_minmax(0,1fr)]">
                 <dt className="type-small font-semibold">{researchCopy.titlesLabel}</dt>
                 <dd className="type-small min-w-0">{group.recipe.titles.join(", ")}</dd>
                 {group.recipe.excludeTitles.length === 0 ? null : (
@@ -1023,26 +1069,26 @@ function Companies({ research }: { research: CampaignResearch }) {
                   </ul>
                 </>
               )}
-            </More>
-          </GroupBlock>
+            </kit.More>
+          </kit.Group>
         ))}
       </div>
-    </Part>
+    </kit.Part>
   );
 }
 
-function Gather({ research }: { research: CampaignResearch }) {
+function Gather({ research, kit }: SectionProps) {
   const g = research.gather;
   const c = campaignsCopy;
   return (
-    <Part part="gather" research={research} empty={g.kinds.length === 0 && g.discovery.length === 0}>
+    <kit.Part part="gather" research={research} empty={g.kinds.length === 0 && g.discovery.length === 0}>
       <div className="grid gap-4">
         {g.kinds.map(({ kind, entries }) => (
           <div key={kind} className="min-w-0">
             <h3 className="type-name">{researchCopy.kinds[kind]}</h3>
-            <ul className="mt-1.5 grid gap-chips wide:grid-cols-2">
+            <ul className="mt-1.5 grid gap-chips wide:grid-cols-2 print:grid-cols-2">
               {entries.map((entry) => (
-                <li key={entry.key} data-testid="venue" className="min-w-0 rounded-input border border-line p-3">
+                <li key={entry.key} data-testid="venue" className="min-w-0 break-inside-avoid rounded-input border border-line p-3">
                   <p className="type-small">
                     <HostLink url={entry.url}>
                       <span className="font-semibold">{entry.name}</span>
@@ -1055,7 +1101,7 @@ function Gather({ research }: { research: CampaignResearch }) {
                       {entry.onTimeline ? (
                         <>
                           {c.noteJoin}
-                          <a href="#market" data-testid="venue-on-timeline" className="underline focus-visible:outline-none focus-visible:ring-2">
+                          <a href={`#${kit.id("market")}`} data-testid="venue-on-timeline" className="underline focus-visible:outline-none focus-visible:ring-2">
                             {researchCopy.onTimeline}
                           </a>
                         </>
@@ -1081,13 +1127,13 @@ function Gather({ research }: { research: CampaignResearch }) {
           <Lines lines={g.discovery} />
         </>
       )}
-    </Part>
+    </kit.Part>
   );
 }
 
-function Contact({ research }: { research: CampaignResearch }) {
+function Contact({ research, kit }: SectionProps) {
   return (
-    <Part part="contact" research={research} empty={research.contact.channels.length === 0}>
+    <kit.Part part="contact" research={research} empty={research.contact.channels.length === 0}>
       <p className="type-small mb-3 text-muted">{researchCopy.contactNote}</p>
       <div className="grid gap-4">
         {research.contact.channels.map(({ channel, rules }) => {
@@ -1108,7 +1154,7 @@ function Contact({ research }: { research: CampaignResearch }) {
                     key={rule.key}
                     data-testid="contact-rule"
                     data-bars={rule.bars ? "true" : "false"}
-                    className={cn("type-small min-w-0 rounded-input p-3", rule.bars ? "border-2 border-warn bg-warn-bg" : "border border-line")}
+                    className={cn("type-small min-w-0 break-inside-avoid rounded-input p-3", rule.bars ? "border-2 border-warn bg-warn-bg" : "border border-line")}
                   >
                     {rule.bars ? <p className="type-label mb-1 text-warn">{researchCopy.restricts}</p> : null}
                     {rule.rule}
@@ -1124,16 +1170,16 @@ function Contact({ research }: { research: CampaignResearch }) {
           );
         })}
       </div>
-    </Part>
+    </kit.Part>
   );
 }
 
-function Finding({ finding }: { finding: ResearchFinding }) {
+function Finding({ finding, kit }: { finding: ResearchFinding; kit: Kit }) {
   const c = campaignsCopy;
   if (finding.kind === "contradiction") {
     const { contradiction } = finding;
     return (
-      <li data-testid="research-contradiction" className="min-w-0 border-t border-line py-2.5 first:border-t-0">
+      <li data-testid="research-contradiction" className="min-w-0 break-inside-avoid border-t border-line py-2.5 first:border-t-0">
         <p className="type-small">
           <WithHosts text={contradiction.text} />
         </p>
@@ -1147,7 +1193,7 @@ function Finding({ finding }: { finding: ResearchFinding }) {
   }
   const { gap } = finding;
   return (
-    <li data-testid="research-gap" className="min-w-0 border-t border-line py-2.5 first:border-t-0">
+    <li data-testid="research-gap" className="min-w-0 break-inside-avoid border-t border-line py-2.5 first:border-t-0">
       <p className="type-small">
         <WithHosts text={gap.text} />
       </p>
@@ -1159,38 +1205,40 @@ function Finding({ finding }: { finding: ResearchFinding }) {
           <span className="font-semibold">{c.askOnCall}</span> {gap.askOnFirstCall}
         </p>
       )}
-      {gap.queriesTried.length === 0 ? null : (
-        <More label={researchCopy.searched} testId="gap-searched">
+      {/* What research searched is how it worked, not what it found: the page keeps it a click away, the pack leaves it out. */}
+      {gap.queriesTried.length === 0 || kit.print ? null : (
+        <kit.More label={researchCopy.searched} testId="gap-searched">
           <Lines lines={gap.queriesTried} testId="gap-query" />
-        </More>
+        </kit.More>
       )}
     </li>
   );
 }
 
-function Gaps({ research }: { research: CampaignResearch }) {
+function Gaps({ research, kit }: SectionProps) {
   return (
-    <Part part="gaps" research={research} empty={research.gaps.groups.length === 0}>
+    <kit.Part part="gaps" research={research} empty={research.gaps.groups.length === 0}>
       <div className="grid gap-4">
         {research.gaps.groups.map(({ kind, findings }) => (
           <div key={kind} data-testid={`gap-group-${kind}`} className="min-w-0">
             <h3 className="type-name">{researchCopy.gapGroups[kind]}</h3>
             <ul>
               {findings.map((finding) => (
-                <Finding key={finding.kind === "gap" ? finding.gap.id : finding.contradiction.id} finding={finding} />
+                <Finding key={finding.kind === "gap" ? finding.gap.id : finding.contradiction.id} finding={finding} kit={kit} />
               ))}
             </ul>
           </div>
         ))}
       </div>
-    </Part>
+    </kit.Part>
   );
 }
 
-function SourceRow({ source, n }: { source: CampaignResearch["sourceList"][number]; n: number }) {
+/** One source. On paper, where a link cannot be followed, the address itself is printed under it, and wraps. */
+function SourceRow({ source, n, print }: { source: CampaignResearch["sourceList"][number]; n: number; print: boolean }) {
   const read = shortDate(source.accessedAt);
   return (
-    <li data-testid="research-source" className="type-small flex min-w-0 gap-2 py-1">
+    <li data-testid="research-source" className="type-small flex min-w-0 break-inside-avoid gap-2 py-1">
       <span className="type-mono w-8 shrink-0 text-right text-13 text-muted">{n}</span>
       <span className="min-w-0">
         <HostLink url={source.url}>{source.title}</HostLink>
@@ -1198,39 +1246,65 @@ function SourceRow({ source, n }: { source: CampaignResearch["sourceList"][numbe
           {sourceHost(source.url)}
           {read === null ? null : `${campaignsCopy.noteJoin}${researchCopy.readOn} ${read}`}
         </span>
+        {print ? (
+          <span data-testid="source-url" className="type-mono block text-11 text-muted [overflow-wrap:anywhere]">
+            {source.url}
+          </span>
+        ) : null}
       </span>
     </li>
   );
 }
 
-function Sources({ research }: { research: CampaignResearch }) {
+function Sources({ research, kit }: SectionProps) {
   const list = research.sourceList;
+  // The page shows the first few and the rest on request; the pack is the reference, so it lists them all.
+  const first = kit.print ? list.length : SOURCES_FIRST;
   return (
-    <Part part="sources" research={research} empty={list.length === 0}>
+    <kit.Part part="sources" research={research} empty={list.length === 0}>
       <ol>
-        {list.slice(0, SOURCES_FIRST).map((source, index) => (
-          <SourceRow key={index} source={source} n={index + 1} />
+        {list.slice(0, first).map((source, index) => (
+          <SourceRow key={index} source={source} n={index + 1} print={kit.print} />
         ))}
       </ol>
-      {list.length <= SOURCES_FIRST ? null : (
-        <More label={`${researchCopy.showAllSources} ${list.length} ${researchCopy.metaSources}`} testId="sources-more">
+      {list.length <= first ? null : (
+        <kit.More label={`${researchCopy.showAllSources} ${list.length} ${researchCopy.metaSources}`} testId="sources-more">
           <ol>
-            {list.slice(SOURCES_FIRST).map((source, index) => (
-              <SourceRow key={index} source={source} n={SOURCES_FIRST + index + 1} />
+            {list.slice(first).map((source, index) => (
+              <SourceRow key={index} source={source} n={first + index + 1} print={kit.print} />
             ))}
           </ol>
-        </More>
+        </kit.More>
       )}
-    </Part>
+    </kit.Part>
   );
 }
+
+/** The page's own way of laying out a part: closed, with its lists a click away. */
+const WEB: Kit = { print: false, Part, More, Group: GroupBlock, id: (id) => id };
+
+/** The eleven parts, in page order. The printed pack draws the same ones, in the same order. */
+export const SECTIONS: { part: ResearchPart; Body: (props: SectionProps) => React.ReactNode }[] = [
+  { part: "market", Body: Market },
+  { part: "who", Body: Who },
+  { part: "pains", Body: Pains },
+  { part: "say", Body: Say },
+  { part: "prove", Body: Prove },
+  { part: "competition", Body: Competition },
+  { part: "companies", Body: Companies },
+  { part: "gather", Body: Gather },
+  { part: "contact", Body: Contact },
+  { part: "gaps", Body: Gaps },
+  { part: "sources", Body: Sources },
+];
 
 // ---------------------------------------------------------------------------
 
 export function ResearchPage({ name, campaignHref, research }: { name: string; campaignHref: string; research: CampaignResearch }) {
   const researched = research.researchedOn === null ? null : shortDate(research.researchedOn);
   return (
-    <div data-testid="research" className="mx-auto grid min-w-0 max-w-[1120px] gap-grid wide:grid-cols-[12rem_minmax(0,1fr)] wide:items-start">
+    // The page is for reading on screen. Printing it prints the pack beside it (`ResearchReport`) instead.
+    <div data-testid="research" className="mx-auto grid min-w-0 max-w-[1120px] gap-grid wide:grid-cols-[12rem_minmax(0,1fr)] wide:items-start print:hidden">
       <ResearchNav placement="side" />
       <div className="grid min-w-0 gap-grid">
         <div className="min-w-0">
@@ -1241,32 +1315,29 @@ export function ResearchPage({ name, campaignHref, research }: { name: string; c
           >
             {researchCopy.back}
           </Link>
-          <PageHeader title={researchCopy.title} className="mb-1 mt-2" />
-          <p className="type-body text-muted [overflow-wrap:anywhere]">{name}</p>
-          <p data-testid="research-meta" className="type-mono mt-1 text-13 text-muted">
-            {research.sources} {research.sources === 1 ? researchCopy.metaSource : researchCopy.metaSources}
-            {researched === null ? null : `${campaignsCopy.noteJoin}${researchCopy.metaResearched} ${researched}`}
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0">
+              <PageHeader title={researchCopy.title} className="mb-1 mt-2" />
+              <p className="type-body text-muted [overflow-wrap:anywhere]">{name}</p>
+              <p data-testid="research-meta" className="type-mono mt-1 text-13 text-muted">
+                {research.sources} {research.sources === 1 ? researchCopy.metaSource : researchCopy.metaSources}
+                {researched === null ? null : `${campaignsCopy.noteJoin}${researchCopy.metaResearched} ${researched}`}
+              </p>
+            </div>
+            <PrintPack name={name} />
+          </div>
           {research.partial.length === 0 ? null : (
             <p data-testid="research-partial" className="type-small mt-3 rounded-input bg-warn-bg px-3 py-2.5 text-warn">
-              {campaignsCopy.planPartial} {research.partial.map((id) => (campaignsCopy.partNames as Record<string, string>)[id] ?? id).join(", ")}.
+              {campaignsCopy.planPartial} {unwrittenNames(research.partial)}.
             </p>
           )}
         </div>
 
         <ResearchNav placement="top" />
 
-        <Market research={research} />
-        <Who research={research} />
-        <Pains research={research} />
-        <Say research={research} />
-        <Prove research={research} />
-        <Competition research={research} />
-        <Companies research={research} />
-        <Gather research={research} />
-        <Contact research={research} />
-        <Gaps research={research} />
-        <Sources research={research} />
+        {SECTIONS.map(({ part, Body }) => (
+          <Body key={part} research={research} kit={WEB} />
+        ))}
       </div>
     </div>
   );

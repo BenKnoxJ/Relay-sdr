@@ -248,6 +248,48 @@ describe("campaigns.research", () => {
     expect(page.research?.who.groups.every((group) => group.rank === null && group.whyNow === null)).toBe(true);
   });
 
+  it("opens the printed pack with what the campaign page shows: the same brief, In short and Start with", async () => {
+    const { id, job } = await started();
+    await finish(job, completePack(), "complete");
+    const campaign = await caller(rep()).campaigns.get({ id });
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(page.brief).toEqual(campaign.brief);
+    expect(page.summary).toEqual({ inShort: campaign.overview?.inShort, startWith: campaign.overview?.startWith });
+  });
+
+  it("@proof puts the campaign's stored brief under the cover's who to reach: the rep's words, not research's reading of them", async () => {
+    const who = "Heads of claims at UK motor insurers, in the rep's own words ";
+    const { id } = await caller(rep()).campaigns.create(startInput({ who }));
+    const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id } });
+    await finish(job, completePack(), "complete");
+
+    const stored = (await prisma.campaign.findUniqueOrThrow({ where: { id } })).brief as { who: string };
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(stored.who).toBe(who);
+    expect(page.brief.who).toBe(stored.who);
+    // None of research's own descriptions of who to reach: the rep summary, the kinds of buyer, the ideal company.
+    expect(page.summary?.inShort.lines).not.toContain(who);
+    expect(page.research?.who.intro).not.toBe(who);
+    expect(page.research?.who.groups.map((group) => group.name)).not.toContain(who);
+  });
+
+  it("@proof is a read and nothing more: the page and its printed pack write no Event, job, run or change", async () => {
+    const { id, job } = await started();
+    await finish(job, completePack(), "complete");
+    const everything = async () => ({
+      campaigns: await prisma.campaign.findMany({ select: { id: true, briefVersion: true, brief: true, updatedAt: true } }),
+      events: await prisma.event.count(),
+      jobs: await prisma.job.findMany({ select: { id: true, status: true, attempts: true, updatedAt: true } }),
+      runs: await prisma.agentRun.count(),
+      steps: await prisma.agentRunStep.count(),
+      sideEffects: await prisma.sideEffect.count(),
+    });
+    const before = await everything();
+    await caller(rep()).campaigns.research({ id });
+    await caller(rep()).campaigns.research({ id });
+    expect(await everything()).toEqual(before);
+  });
+
   it("@proof shows a campaign's research to its owner only: another rep and another org get NOT_FOUND", async () => {
     await ensureUser(prisma, boss());
     const { id, job } = await started(rep());

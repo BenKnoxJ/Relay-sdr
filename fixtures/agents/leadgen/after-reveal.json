@@ -5,7 +5,25 @@
   "recordedAt": "2026-09-09T00:00:00.000Z",
   "live": false,
   "input": {
-    "recipe": {
+    "version": 1,
+    "campaign": {
+      "id": "camp-1",
+      "orgId": "org-1",
+      "ownerUserId": "user-1",
+      "briefVersion": 1,
+      "confirmRequestId": "4d0f6a52-7c1e-4f0e-9a37-2b8c1d5e9f10"
+    },
+    "provenance": {
+      "researchJobId": "job-1",
+      "researchEventId": "evt-1",
+      "outcome": "complete"
+    },
+    "buyerGroup": {
+      "id": "uk-claims-ops",
+      "name": "UK claims operations under a complaints spike",
+      "sourceRank": 1
+    },
+    "targeting": {
       "titles": [
         "Claims Operations Director",
         "Head of Claims"
@@ -20,6 +38,7 @@
       "countries": [
         "GB"
       ],
+      "locations": [],
       "industries": [
         "Insurance"
       ],
@@ -27,28 +46,34 @@
         "new claims leadership"
       ]
     },
-    "howMany": 20,
+    "places": [],
+    "exclusions": {
+      "firms": [],
+      "roles": [],
+      "orgTypes": []
+    },
     "seedFirms": [
       {
         "name": "Northgate Claims Services",
-        "domain": "northgateclaims.co.uk"
+        "domain": "northgateclaims.co.uk",
+        "country": "GB"
       }
     ],
-    "holds": {
-      "customerDomains": [
-        "alreadyours.co.uk"
-      ],
-      "openDealDomains": [],
-      "dncEmails": [],
-      "dncDomains": [],
-      "optedOutEmails": [],
-      "revealedLushaIds": [],
-      "suppressedLushaIds": []
+    "howMany": 10,
+    "perCompanyMax": 3,
+    "spend": {
+      "searchCreditCap": 40,
+      "balanceSnapshot": {
+        "remaining": 100,
+        "readAt": "2026-09-14T09:00:00Z"
+      },
+      "pricingAssumptions": "lusha-public-docs-2026-09-14-unverified"
     },
-    "caps": {
-      "orgCreditsRemaining": 100,
-      "perCompanyMax": 3,
-      "maxPages": 3
+    "lawfulBasis": {
+      "text": "Legitimate interest: B2B offer, opt out in every email",
+      "confirmedByUserId": "user-1",
+      "confirmedAt": "2026-09-14T09:00:00Z",
+      "briefVersion": 1
     }
   },
   "output": {
@@ -68,7 +93,8 @@
         "rank": 1,
         "companyKey": "northgateclaims.co.uk",
         "status": "verified",
-        "email": "helen.marsh@northgateclaims.co.uk"
+        "email": "helen.marsh@northgateclaims.co.uk",
+        "source": "bought"
       },
       {
         "id": "p2",
@@ -84,7 +110,8 @@
         "rank": 2,
         "companyKey": "westburymutual.co.uk",
         "status": "verified",
-        "email": "daniel.okafor@westburymutual.co.uk"
+        "email": "daniel.okafor@westburymutual.co.uk",
+        "source": "bought"
       },
       {
         "id": "p3",
@@ -101,7 +128,8 @@
         "rank": 3,
         "companyKey": "marlowfreight.co.uk",
         "status": "verified",
-        "email": "hannah.lee@marlowfreight.co.uk"
+        "email": "hannah.lee@marlowfreight.co.uk",
+        "source": "bought"
       },
       {
         "id": "p4",
@@ -117,7 +145,8 @@
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 4,
         "companyKey": "ridgewayhaulage.co.uk",
-        "status": "held"
+        "status": "held",
+        "source": "bought"
       },
       {
         "id": "p5",
@@ -133,40 +162,28 @@
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 5,
         "companyKey": "pennineparcels.co.uk",
-        "status": "needs_you"
+        "status": "needs_you",
+        "source": "bought"
       }
     ],
     "ledger": [
       {
-        "lushaId": "l-1001",
-        "credits": 1,
-        "reattached": false
+        "kind": "search",
+        "key": "campaign:camp-1:lead_gen:v1:p0:a1",
+        "credits": 4,
+        "state": "reconciled"
       },
       {
-        "lushaId": "l-1002",
-        "credits": 1,
-        "reattached": false
-      },
-      {
-        "lushaId": "l-1003",
-        "credits": 1,
-        "reattached": false
-      },
-      {
-        "lushaId": "l-1004",
-        "credits": 1,
-        "reattached": false
-      },
-      {
-        "lushaId": "l-1005",
-        "credits": 1,
-        "reattached": false
+        "kind": "reveal",
+        "key": "campaign:camp-1:reveal:v1:b1",
+        "credits": 5,
+        "state": "reconciled"
       }
     ],
     "held": [
       {
         "personId": "p4",
-        "reason": "below_b"
+        "reason": "grade"
       }
     ]
   },

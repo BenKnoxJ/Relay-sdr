@@ -271,6 +271,22 @@ const ADAPTER_DB_RELATIVE = String.raw`^(?=\.)(?:[^/]+\/)*\.\.\/(?:[^/]+\/)*(db|
 
 const SERVICE_ADAPTERS = ["src/lib/services/**/*.{ts,tsx}"];
 
+// ── Lead gen reads the handoff, never Research (leadgen v2.1 §3) ───────────
+const LEADGEN_MESSAGE =
+  "Lead gen reads LeadGenHandoffV1 and nothing of Research: the pack, its modules and its selectors stay behind the campaign boundary (src/lib/campaigns/leadgenHandoff.ts), which is the one place that builds the handoff.";
+
+// Regex rather than glob groups, because the specifiers to catch are relative
+// (`../research/output.schema`, `../../../agents/research/...`) as often as
+// aliased (`@/lib/research`, `@/lib/campaigns/packSelectors`).
+const LEADGEN_ISOLATION = [
+  {
+    regex: String.raw`(^|\/)agents\/research(\/|$)|^@\/lib\/(research|campaigns)(\/|$)|^\.{1,2}\/(?:[^/]+\/)*(research|campaigns)(\/|$)`,
+    message: LEADGEN_MESSAGE,
+  },
+];
+const LEADGEN_AGENT = ["agents/leadgen/**/*.{ts,tsx}"];
+const LEADGEN_CORE = ["src/lib/leadgen/**/*.{ts,tsx}"];
+
 // `no-restricted-imports` only visits static import/export nodes, so
 // `await import("@/lib/db")` walks straight past the ban above — the same gap
 // BOUNDARY_DYNAMIC exists to close for Next and Clerk, and the one that would
@@ -373,6 +389,22 @@ const config = [
         ...BOUNDARY_DYNAMIC,
         ...ADAPTER_DB_DYNAMIC,
       ],
+    },
+  },
+
+  // Lead gen's contract and core: no import of Research or the campaign
+  // boundary. The core is inside `src/lib`, so its block carries the boundary
+  // patterns too, for the same replace-not-merge reason as the adapters.
+  {
+    files: LEADGEN_AGENT,
+    rules: {
+      "no-restricted-imports": ["error", { patterns: LEADGEN_ISOLATION }],
+    },
+  },
+  {
+    files: LEADGEN_CORE,
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [...BOUNDARY_IMPORTS, ...LEADGEN_ISOLATION] }],
     },
   },
 

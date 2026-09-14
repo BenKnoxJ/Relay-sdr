@@ -10,6 +10,19 @@ export const peopleCopy = {
   /** The count line above the rows. */
   people: "people",
 
+  /**
+   * "Why picked", from the parts of the score that fired (leadgen v2.1 §8):
+   * "Exact title match at a firm research found, with an email available."
+   */
+  why: {
+    exactTitle: "Exact title match",
+    relatedTitle: "Related title",
+    seedFirm: "at a firm research found",
+    withEmail: "with an email available",
+    noEmail: "no email found yet",
+    reused: "and Relay already has their email, so no credit is needed",
+  },
+
   /** The email status, from the reveal grade and the verification check. */
   status: {
     verified: "Verified",

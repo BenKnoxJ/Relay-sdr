@@ -5,7 +5,25 @@
   "recordedAt": "2026-09-09T00:00:00.000Z",
   "live": false,
   "input": {
-    "recipe": {
+    "version": 1,
+    "campaign": {
+      "id": "camp-1",
+      "orgId": "org-1",
+      "ownerUserId": "user-1",
+      "briefVersion": 1,
+      "confirmRequestId": "4d0f6a52-7c1e-4f0e-9a37-2b8c1d5e9f10"
+    },
+    "provenance": {
+      "researchJobId": "job-1",
+      "researchEventId": "evt-1",
+      "outcome": "complete"
+    },
+    "buyerGroup": {
+      "id": "uk-claims-ops",
+      "name": "UK claims operations under a complaints spike",
+      "sourceRank": 1
+    },
+    "targeting": {
       "titles": [
         "Claims Operations Director",
         "Head of Claims"
@@ -20,6 +38,7 @@
       "countries": [
         "GB"
       ],
+      "locations": [],
       "industries": [
         "Insurance"
       ],
@@ -27,28 +46,34 @@
         "new claims leadership"
       ]
     },
-    "howMany": 20,
+    "places": [],
+    "exclusions": {
+      "firms": [],
+      "roles": [],
+      "orgTypes": []
+    },
     "seedFirms": [
       {
         "name": "Northgate Claims Services",
-        "domain": "northgateclaims.co.uk"
+        "domain": "northgateclaims.co.uk",
+        "country": "GB"
       }
     ],
-    "holds": {
-      "customerDomains": [
-        "alreadyours.co.uk"
-      ],
-      "openDealDomains": [],
-      "dncEmails": [],
-      "dncDomains": [],
-      "optedOutEmails": [],
-      "revealedLushaIds": [],
-      "suppressedLushaIds": []
+    "howMany": 10,
+    "perCompanyMax": 3,
+    "spend": {
+      "searchCreditCap": 40,
+      "balanceSnapshot": {
+        "remaining": 100,
+        "readAt": "2026-09-14T09:00:00Z"
+      },
+      "pricingAssumptions": "lusha-public-docs-2026-09-14-unverified"
     },
-    "caps": {
-      "orgCreditsRemaining": 100,
-      "perCompanyMax": 3,
-      "maxPages": 3
+    "lawfulBasis": {
+      "text": "Legitimate interest: B2B offer, opt out in every email",
+      "confirmedByUserId": "user-1",
+      "confirmedAt": "2026-09-14T09:00:00Z",
+      "briefVersion": 1
     }
   },
   "output": {
@@ -66,7 +91,8 @@
         "score": 7,
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 1,
-        "companyKey": "northgateclaims.co.uk"
+        "companyKey": "northgateclaims.co.uk",
+        "source": "bought"
       },
       {
         "id": "p2",
@@ -80,7 +106,8 @@
         "score": 6,
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 2,
-        "companyKey": "westburymutual.co.uk"
+        "companyKey": "westburymutual.co.uk",
+        "source": "bought"
       },
       {
         "id": "p3",
@@ -95,7 +122,8 @@
         "score": 6,
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 3,
-        "companyKey": "marlowfreight.co.uk"
+        "companyKey": "marlowfreight.co.uk",
+        "source": "bought"
       }
     ],
     "spare": [
@@ -112,22 +140,30 @@
         "score": 6,
         "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
         "rank": 4,
-        "companyKey": "pennineparcels.co.uk"
+        "companyKey": "pennineparcels.co.uk",
+        "source": "bought"
       }
     ],
-    "estimate": {
-      "pages": 1,
-      "reveals": 3,
-      "credits": 4,
-      "remainingAfter": 96
-    },
     "found": {
-      "n": 5,
-      "ofM": 12
+      "n": 3,
+      "ofM": 10
+    },
+    "shortfall": "cap_reached",
+    "spend": {
+      "searchCreditCap": 40,
+      "charged": 4,
+      "reserved": 0,
+      "pricingAssumptions": "lusha-public-docs-2026-09-14-unverified",
+      "exceededDocumentedWorstCase": false
+    },
+    "revealEstimate": {
+      "toBuy": 3,
+      "reused": 0,
+      "credits": 3
     },
     "holdsApplied": [
       {
-        "reason": "below_b",
+        "reason": "customer",
         "count": 1
       }
     ]

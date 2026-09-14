@@ -13,7 +13,8 @@
     "rank": 1,
     "companyKey": "westburymutual.co.uk",
     "email": "helen.marsh@westburymutual.co.uk",
-    "status": "verified"
+    "status": "verified",
+    "source": "bought"
   },
   "touch": {
     "kind": "email1",

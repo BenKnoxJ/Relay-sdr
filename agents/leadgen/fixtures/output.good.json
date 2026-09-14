@@ -13,7 +13,8 @@
       "score": 7,
       "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
       "rank": 1,
-      "companyKey": "northgateclaims.co.uk"
+      "companyKey": "northgateclaims.co.uk",
+      "source": "bought"
     },
     {
       "id": "p2",
@@ -27,7 +28,8 @@
       "score": 6,
       "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
       "rank": 2,
-      "companyKey": "westburymutual.co.uk"
+      "companyKey": "westburymutual.co.uk",
+      "source": "bought"
     }
   ],
   "spare": [
@@ -43,27 +45,31 @@
       "score": 4,
       "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
       "rank": 3,
-      "companyKey": "calderinsurance.co.uk"
+      "companyKey": "calderinsurance.co.uk",
+      "source": "bought"
     }
   ],
-  "estimate": {
-    "pages": 2,
-    "reveals": 2,
-    "credits": 4,
-    "remainingAfter": 96
-  },
   "found": {
     "n": 2,
-    "ofM": 9
+    "ofM": 20
+  },
+  "shortfall": "no_more_results",
+  "spend": {
+    "searchCreditCap": 40,
+    "charged": 20,
+    "reserved": 0,
+    "pricingAssumptions": "lusha-public-docs-2026-09-14-unverified",
+    "exceededDocumentedWorstCase": false
+  },
+  "revealEstimate": {
+    "toBuy": 2,
+    "reused": 0,
+    "credits": 2
   },
   "holdsApplied": [
     {
       "reason": "customer",
       "count": 3
-    },
-    {
-      "reason": "open_deal",
-      "count": 1
     }
   ]
 }

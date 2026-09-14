@@ -9,6 +9,14 @@ import { getCampaign, type Campaign } from "@/lib/fixtures/campaigns";
 
 import { liveCampaign, type LiveKind } from "./live";
 
+// The complete pack dates its items when its module is imported
+// (`tests/agents/researchPack.ts`), so the clock is fixed before any import,
+// not only before the tests: otherwise its dates move at midnight.
+vi.hoisted(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-12T12:00:00Z"));
+});
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/campaigns",
   useRouter: () => ({ push: () => undefined }),

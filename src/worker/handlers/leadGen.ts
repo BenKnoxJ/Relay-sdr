@@ -20,8 +20,9 @@ import { TerminalError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
 
 /**
- * The `lead_gen` job (lead gen v2.1; orchestrator A2): the signed core, run
- * on the frozen handoff, with its spend and result persisted. The handler
+ * The `lead_gen` job (lead gen v2.1 for a V1 handoff, v2.2 for a V2 one;
+ * orchestrator A2): the signed core, run on the frozen handoff, with its
+ * spend and result persisted. The handler
  * orchestrates and decides nothing the core decides.
  *
  *   1. the input names a Confirm; the handoff is read from that Event and

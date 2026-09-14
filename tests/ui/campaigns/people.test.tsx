@@ -201,7 +201,7 @@ describe("People found", () => {
   it("shows a partial result as X of N, and why it ended short", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: partial }, people: rows(partial), spend: { charged: 4, reserved: 0 } })} />);
     expect(screen.getByTestId("found-count").textContent).toBe(`4 ${campaignsCopy.peopleFoundOf} 10`);
-    expect(screen.getByTestId("shortfall").textContent).toBe(campaignsCopy.shortfallNoMore);
+    expect(screen.getByTestId("shortfall").textContent).toBe(campaignsCopy.shortfallFewerStrong);
   });
 
   it("marks someone Relay already knows", () => {

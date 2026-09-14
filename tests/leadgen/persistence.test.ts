@@ -229,7 +229,7 @@ describe("the lead gen job", () => {
     await confirm(campaign);
     await run(await latestJob(campaign.id), [page(range(1, 4))]);
     const view = await campaignView(campaign);
-    expect(view.peopleFound).toMatchObject({ found: { n: 4, ofM: 10 }, shortfall: "no_more_results" });
+    expect(view.peopleFound).toMatchObject({ found: { n: 4, ofM: 10 }, shortfall: "fewer_strong_matches" });
   });
 
   it("records Needs you when nobody fits, and writes no candidates", async () => {
@@ -595,6 +595,10 @@ describe("keep or drop before Reveal (v2.2 §9a)", () => {
     const { campaign, chosen } = await found();
     const spare = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: campaign.id, status: "spare" } });
     expect(await refusalOf(review(campaign, chosen[0]!.id, "kept", "person", { orgId: OTHER_ORG, userId: REP_B }))).toBe("not_found");
+    // Another rep in the same org: not their campaign, so the same answer.
+    const colleague = "user_leadgen_colleague";
+    await mutate(prisma, { orgId: ORG, actor: { kind: "system" }, kind: "user.upserted", apply: (tx) => tx.user.create({ data: { id: colleague, orgId: ORG, email: `${colleague}@example.test` } }) });
+    expect(await refusalOf(review(campaign, chosen[0]!.id, "kept", "person", { userId: colleague }))).toBe("not_found");
     expect(await refusalOf(review(campaign, chosen[0]!.id, "kept", "person", { briefVersion: 2 }))).toBe("version_ahead");
     expect(await refusalOf(review(campaign, spare.id, "kept"))).toBe("not_found");
     expect(await refusalOf(review(campaign, "no-such-person", "kept"))).toBe("not_found");

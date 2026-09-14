@@ -122,14 +122,38 @@ describe("the account-led search (v2.2 §4a)", () => {
     expect(result.output.chosen.map((person) => person.companyKey)).not.toContain("stranger.example");
   });
 
-  it("stops discovery when a page adds no account worth leading, rather than spend on another", async () => {
-    const provider = new FakeLeadGenProvider([step([at("a", "Office Manager"), at("b", "Office Manager")], true)]);
-    const result = await findPeople(handoffV2(), deps(provider));
-    expect(provider.calls).toHaveLength(1);
-    expect(result.output).toMatchObject({ phase: "needs_you", reason: "no_candidates" });
+  it("pages discovery only while short of the target and more remain, as §4a says, and never past the cap", async () => {
+    // A page of weak titles adds no lead; more remain, so the next page is asked for (§4a), not given up on.
+    const provider = new FakeLeadGenProvider([
+      step([at("a", "Office Manager"), at("b", "Office Manager")], true),
+      step(accounts(10).map((account, index) => at(account, runs(index)))),
+      step([]),
+    ]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p1:a1", "complement:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 10, ofM: 20 } });
   });
 
-  it("says why it is short: fewer strong matches when it chose not to pad, and no more results when the searches ran out", async () => {
+  it("@proof stops discovery mid-way when the cap cannot cover another page and the smallest complement", async () => {
+    // Four lead accounts, more remain, but a cap of 20 leaves 19 after the first page: not enough for 10 + 10.
+    const provider = new FakeLeadGenProvider([step(accounts(4).map((account, index) => at(account, runs(index))), true), step([])]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "complement:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 4, ofM: 20 }, shortfall: "cap_reached" });
+  });
+
+  it("@proof leaves an account with no domain out of the complement search", async () => {
+    const provider = new FakeLeadGenProvider([
+      step([...accounts(9).map((account, index) => at(account, runs(index))), at("nodomain", "Head of Claims", { domain: undefined, companyId: "co-9" })]),
+      step([]),
+    ]);
+    await findPeople(handoffV2(), deps(provider));
+    const domains = provider.calls[1]?.filters.companyDomains ?? [];
+    expect(domains).toHaveLength(9);
+    expect(domains.some((domain) => domain.includes("nodomain"))).toBe(false);
+  });
+
+  it("says why it is short: fewer strong matches whenever the cap did not stop it (§8a)", async () => {
     // Every account offers a runs lead and a second runs person, never another role: Relay stops rather than add a second runs.
     const padded = new FakeLeadGenProvider([
       step(accounts(10).map((account, index) => at(account, runs(index)))),
@@ -143,7 +167,7 @@ describe("the account-led search (v2.2 §4a)", () => {
     expect(new Set(short.output.chosen.map((person) => person.companyKey)).size).toBe(short.output.found.n);
 
     const ran = new FakeLeadGenProvider([step(accounts(3).map((account, index) => at(account, runs(index)))), step([])]);
-    expect((await findPeople(handoffV2(), deps(ran))).output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 }, shortfall: "no_more_results" });
+    expect((await findPeople(handoffV2(), deps(ran))).output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 }, shortfall: "fewer_strong_matches" });
   });
 
   it("makes one search only when the recipe's titles name one part", async () => {

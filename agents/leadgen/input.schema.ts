@@ -166,7 +166,7 @@ export const leadGenHandoffV2Schema = z
     ...handoffFields,
     /** The confirmed campaign candidate: provenance only (v2.2 §3a). */
     play: z.object({ id }).strict(),
-    /** The confirmed group's roles, verbatim. Research writes at least two. */
+    /** The confirmed group's roles, verbatim. Research's own schema asks for at least two; one is enough to run. */
     buyerRoles: z.array(buyerRoleSchema).min(1).max(10),
   })
   .strict()

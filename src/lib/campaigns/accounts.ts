@@ -106,7 +106,6 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         title: preview.title,
         company: preview.company,
         city: preview.city,
-        whyPicked: row.whyPicked,
         reused: row.source === "reused",
         role: row.rolePart,
         why: whyOf(row, roles),

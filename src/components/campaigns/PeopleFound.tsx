@@ -84,8 +84,8 @@ function Person({ person, roles, busy, press }: { person: FoundPersonView; roles
 
 function Account({ account, roles, busy, press }: { account: AccountView; roles: boolean; busy: boolean; press?: Review }) {
   const c = campaignsCopy;
-  // One person's own Drop is the whole decision: Drop account is only for accounts with more than one.
-  const dropAccount = press !== undefined && account.people.length > 1 && !account.people.every((person) => person.review === "dropped");
+  // One person's own Drop is the whole decision: Drop account is only for accounts with more than one (v2.2 note 3).
+  const dropAccount = press !== undefined && account.people.length > 1;
   return (
     <li data-testid="found-account" className="min-w-0 rounded-input border border-line p-3 [overflow-wrap:anywhere]">
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">

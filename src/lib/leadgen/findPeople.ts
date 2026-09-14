@@ -216,7 +216,6 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
   const base = `campaign:${handoff.campaign.id}:lead_gen:v${handoff.campaign.briefVersion}`;
   const eligible: Eligible[] = [];
   let capStopped = false;
-  let leadCount = 0;
 
   // Search 1: account discovery.
   for (let page = 0; ; page += 1) {
@@ -226,12 +225,9 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
       capStopped = true;
       break;
     }
-    const before = leadCount;
     await admit(run, handoff, asked.page.candidates, eligible);
-    leadCount = allocate(eligible, options).leadAccounts.length;
-    // Enough accounts, no more to see, or a page that added no account worth
-    // leading: another page would only spend.
-    if (leadCount >= target || !asked.page.hasMore || leadCount === before) break;
+    // v2.2 §4a: page only while fewer than the target have a lead, and more remain.
+    if (allocate(eligible, options).leadAccounts.length >= target || !asked.page.hasMore) break;
     if (!(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
       capStopped = true;
       break;
@@ -278,17 +274,9 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
   const allocated = allocate(eligible, options);
   holds.push(...allocated.held);
   if (allocated.chosen.length === 0) return run.halt({ reason: "no_candidates" }, translated);
-  // Short: the cap stopped a search; or Relay left people unchosen rather than
-  // pad (a weak match, a repeated role, a title already leading enough
-  // accounts); or the searches simply ran out.
-  const shortfall =
-    allocated.chosen.length >= handoff.howMany
-      ? undefined
-      : capStopped
-        ? ("cap_reached" as const)
-        : allocated.spare.length > 0 || allocated.held.length > 0
-          ? ("fewer_strong_matches" as const)
-          : ("no_more_results" as const);
+  // v2.2 §8a: short is `cap_reached` when the cap stopped a search, and
+  // otherwise `fewer_strong_matches`.
+  const shortfall = allocated.chosen.length >= handoff.howMany ? undefined : capStopped ? ("cap_reached" as const) : ("fewer_strong_matches" as const);
   return picked(run, handoff, allocated.chosen, allocated.spare, shortfall, shortfall ?? "enough");
 }
 

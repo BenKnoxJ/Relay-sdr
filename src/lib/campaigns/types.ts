@@ -277,7 +277,6 @@ export type FoundPersonView = {
   title: string;
   company: string;
   city: string | null;
-  whyPicked: string;
   /** Relay already holds a usable email for them: nothing to buy. */
   reused: boolean;
   /** The confirmed group's role they play; null is a Related role, or a search that had no roles. */

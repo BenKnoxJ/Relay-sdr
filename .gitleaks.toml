@@ -56,3 +56,16 @@ condition = "AND"
 paths = ['''docs/environment\.md''']
 regexTarget = "match"
 regexes = ['''[A-Z0-9_]+\s*=\s*""''']
+
+# One commit, one file, this rule only. `64b3a2a` wrote the Lusha client test's
+# stand-in key as a literal (`tests/services/lusha.test.ts`); the next commit
+# assembles it at test time instead, so the working tree stays clean and
+# scannable. As with `4947129` above, a later commit cannot unwrite an earlier
+# one, and the branch is already pushed. Nested under `generic-api-key`, the
+# only rule that fired: no other rule is excused for that file or commit, and
+# the same literal in any later commit still fails the scan.
+[[rules.allowlists]]
+description = "A stand-in test key in one superseded commit; the file is scanned normally in every other commit."
+condition = "AND"
+commits = ["64b3a2a7ae3fca1c92de588f4334b934685383d2"]
+paths = ['''tests/services/lusha\.test\.ts''']

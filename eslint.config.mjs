@@ -284,6 +284,23 @@ const LEADGEN_ISOLATION = [
     message: LEADGEN_MESSAGE,
   },
 ];
+// `no-restricted-imports` sees static imports only; `import()` and `require`
+// walk past it, as they would past the boundary and adapter bans above. Same
+// shape as ADAPTER_DB_DYNAMIC: the literal specifier is matched here, and a
+// non-literal one is refused by BOUNDARY_DYNAMIC.
+const LEADGEN_SPECIFIER = String.raw`/(^|\/)agents\/research(\/|$)|^@\/lib\/(research|campaigns)(\/|$)|^\.{1,2}\/([^/]+\/)*(research|campaigns)(\/|$)/`;
+
+const LEADGEN_DYNAMIC = [
+  {
+    selector: `ImportExpression[source.value=${LEADGEN_SPECIFIER}]`,
+    message: LEADGEN_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.value=${LEADGEN_SPECIFIER}]`,
+    message: LEADGEN_MESSAGE,
+  },
+];
+
 const LEADGEN_AGENT = ["agents/leadgen/**/*.{ts,tsx}"];
 const LEADGEN_CORE = ["src/lib/leadgen/**/*.{ts,tsx}"];
 
@@ -399,12 +416,14 @@ const config = [
     files: LEADGEN_AGENT,
     rules: {
       "no-restricted-imports": ["error", { patterns: LEADGEN_ISOLATION }],
+      "no-restricted-syntax": ["error", ...BOUNDARY_DYNAMIC, ...LEADGEN_DYNAMIC],
     },
   },
   {
     files: LEADGEN_CORE,
     rules: {
       "no-restricted-imports": ["error", { patterns: [...BOUNDARY_IMPORTS, ...LEADGEN_ISOLATION] }],
+      "no-restricted-syntax": ["error", ...DELETE_BAN, ...WRITE_BAN, ...BOUNDARY_DYNAMIC, ...LEADGEN_DYNAMIC],
     },
   },
 

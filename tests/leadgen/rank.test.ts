@@ -111,7 +111,20 @@ describe("the per-company cap", () => {
   it("treats a missing domain by company name, so it cannot slip past the cap", () => {
     const result = rankCandidates(bought([1, 2, 3, 4].map((n) => candidate(n, { domain: undefined, company: "Acme Ltd" }))), OPTIONS);
     expect(result.chosen).toHaveLength(3);
-    expect(result.chosen[0]?.companyKey).toBe("acme");
+    expect(result.chosen[0]?.companyKey).toBe("acme ltd");
+  });
+
+  it("keys a company with no domain by norm(company), so a legal suffix still tells two companies apart", () => {
+    const result = rankCandidates(
+      bought([
+        ...[1, 2, 3].map((n) => candidate(n, { domain: undefined, company: "Acme Ltd" })),
+        candidate(4, { domain: undefined, company: "Acme Inc" }),
+      ]),
+      OPTIONS,
+    );
+    expect(result.chosen).toHaveLength(4);
+    expect(result.held).toEqual([]);
+    expect(new Set(result.chosen.map((entry) => entry.companyKey))).toEqual(new Set(["acme ltd", "acme inc"]));
   });
 });
 

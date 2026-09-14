@@ -81,6 +81,18 @@ describe("the rules that use it", () => {
     expect(result.output.phase === "pick" ? result.output.chosen.map((person) => person.companyKey) : []).toEqual(["example.co.uk", "example.co.uk", "example.co.uk"]);
   });
 
+  it("keys by the registrable domain but keeps the provider's own domain on the person", async () => {
+    const provider = new FakeLeadGenProvider([
+      { candidates: [candidate(1, { domain: "sales.example.co.uk" }), candidate(2, { domain: "www.example.com" })], charged: 2, hasMore: false },
+    ]);
+    const result = await findPeople(handoff(), { provider, vocabulary: VOCABULARY, knowledge: knowledge(), crm: crm(), retry: NO_WAIT });
+    const people = result.output.phase === "pick" ? result.output.chosen : [];
+    expect(Object.fromEntries(people.map((person) => [person.lushaId, [person.domain, person.companyKey]]))).toEqual({
+      "l-001": ["sales.example.co.uk", "example.co.uk"],
+      "l-002": ["www.example.com", "example.com"],
+    });
+  });
+
   it("applies firm exclusions and domain suppressions to every subdomain", () => {
     const research = handoff((h) => (h.exclusions.firms = [{ name: "Old Rival", domain: "oldrival.co.uk" }]));
     expect(isExcludedFirm(candidate(1, { domain: "careers.oldrival.co.uk" }), research)).toBe(true);

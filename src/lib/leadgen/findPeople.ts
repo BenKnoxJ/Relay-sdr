@@ -188,14 +188,16 @@ function revealCost(entry: Scored, pricing: SearchPricing): number {
 
 function toPerson(entry: Scored, rank: number): Person {
   const { candidate } = entry;
-  const domain = domainKey(candidate.domain);
+  // The provider's own domain, as returned: the registrable domain is for
+  // matching and keying (`companyKey`), not for what the rep reads.
+  const domain = candidate.domain?.trim();
   return {
     id: candidate.providerId,
     lushaId: candidate.providerId,
     name: candidate.name,
     title: candidate.title,
     company: candidate.company,
-    ...(domain === undefined ? {} : { domain }),
+    ...(domain === undefined || domain === "" || domain.length > 253 ? {} : { domain }),
     // Eligible candidates are inside the recipe's countries (`inGeography`).
     country: candidate.countryIso2!,
     ...(candidate.city === undefined ? {} : { city: candidate.city }),

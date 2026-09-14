@@ -37,6 +37,19 @@ describe("the lint block", () => {
     }
   });
 
+  it("@proof refuses the same modules through import() and require, and any computed specifier", async () => {
+    const SYNTAX = "no-restricted-syntax";
+    for (const [file, code] of [
+      ["agents/leadgen/input.schema.ts", `export const m = import("../research/output.schema");\n`],
+      ["src/lib/leadgen/rank.ts", `export const m = import("@/lib/campaigns/packSelectors");\n`],
+      ["src/lib/leadgen/holds.ts", `export const m = require("../../../agents/research/output.schema");\n`],
+      ["agents/leadgen/output.schema.ts", "const where = \"../research/output.schema\";\nexport const m = import(where);\n"],
+    ] as const) {
+      expect(findingsFor(await lintFixture(file, code), SYNTAX), `${file}: ${code.trim()}`).toHaveLength(1);
+    }
+    expect(findingsFor(await lintFixture("src/lib/leadgen/rank.ts", `export const m = import("@/lib/copy/people");\n`), SYNTAX)).toHaveLength(0);
+  });
+
   it("@proof keeps the app/worker boundary on the core", async () => {
     expect(findingsFor(await lintFixture("src/lib/leadgen/rank.ts", source("next/server")), RULE)).toHaveLength(1);
   });

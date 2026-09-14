@@ -42,8 +42,9 @@ export type RankResult = {
   held: { providerId: string; reason: "company_cap" | "duplicate_in_campaign" }[];
 };
 
+/** v2.1 §8: the registrable domain, else `norm(company)`. No legal-suffix stripping here: that is for seed names only. */
 export function companyKeyOf(candidate: ProviderCandidate): string {
-  return domainKey(candidate.domain) ?? (firmNameKey(candidate.company) || norm(candidate.company) || candidate.company);
+  return domainKey(candidate.domain) ?? (norm(candidate.company) || candidate.company);
 }
 
 export function isSeedFirm(candidate: ProviderCandidate, seedFirms: RankOptions["seedFirms"]): boolean {

@@ -10,7 +10,7 @@ import { LUSHA_V3_PRICING, SearchSpend, documentedWorstCaseCharge, inMemorySpend
 import { INDUSTRY_ALIASES, translate } from "@/lib/leadgen/translate";
 import { LUSHA_FIXTURES, LushaClient, LushaHttpError, recordedLushaFetch, type LushaContact, type LushaCountries } from "@/lib/services/lusha";
 
-import { NO_WAIT, handoff, knowledge } from "./harness";
+import { NO_WAIT, handoff, handoffV2, knowledge } from "./harness";
 
 /**
  * Lead gen over Lusha V3, from recorded answers only: the vocabulary the
@@ -238,6 +238,8 @@ describe("the search request and its answer", () => {
       linkedinUrl: "https://www.linkedin.com/in/fx-alex-morgan",
       hasEmail: true,
       emailRevealCredits: 1,
+      // v2.2 §8a: kept, so an account without a domain still groups; never shown to a rep.
+      companyId: "fx-co-northfield",
     });
     // Phones only: no email, and no email price.
     expect(byId("fx-004")).toMatchObject({ hasEmail: false, emailRevealCredits: null });
@@ -338,5 +340,66 @@ describe("the Lusha balance", () => {
     expect(LUSHA_V3_PRICING.revealPerEmail).toBe(usage.pricing.revealEmail.credits);
     // The docs' per-result model is kept until the paid smoke settles it.
     expect(LUSHA_V3_PRICING.perResult).toBe(1);
+  });
+});
+
+describe("the account-led search on Lusha's shape (v2.2 §4a)", () => {
+  /** The insurance campaign's recipe with its roles, as a v2.2 Confirm freezes it, and a cap of 30. */
+  const claimsV2 = () =>
+    handoffV2((value) => {
+      const recipe = claims();
+      value.targeting = recipe.targeting;
+      value.seedFirms = [];
+      value.howMany = 20;
+      value.spend.searchCreditCap = 30;
+      value.spend.balanceSnapshot = recipe.spend.balanceSnapshot;
+    });
+
+  it("sends the complement's domains and the per-company limit in V3's own fields", () => {
+    const body = lushaSearchBody(
+      {
+        key: "k",
+        page: 0,
+        pageSize: 10,
+        filters: { titles: ["Complaints Manager"], excludeTitles: [], countries: ["GB"], locations: [], sizes: [{ min: 11, max: 50 }], industryIds: ["sub:44"], excludeDomains: [], maxContactsPerCompany: 2, companyDomains: ["harbourline-motor.example"] },
+      },
+      countries,
+    );
+    expect(body.filters.companies?.include).toEqual({ domains: ["harbourline-motor.example"], sizes: [{ min: 11, max: 50 }], subIndustriesIds: [44] });
+    expect(body.options).toEqual({ maxContactsPerCompany: 2 });
+  });
+
+  it("@proof finds accounts through who runs it, then the missing roles inside them, from recorded answers only", async () => {
+    const { client, calls } = recorded();
+    const environment = await lushaEnvironment(client, claimsV2(), NOW);
+    const result = await findPeople(claimsV2(), {
+      ...environment,
+      knowledge: knowledge(),
+      crm: NO_CRM,
+      retry: NO_WAIT,
+      pricing: LUSHA_V3_PRICING,
+      spend: inMemorySpend(new SearchSpend(30, 900, LUSHA_V3_PRICING)),
+    });
+
+    const posts = calls.filter((call) => call.method === "POST").map((call) => call.body as { filters: { contacts: { include: { jobTitles: string[] } }; companies?: { include?: { domains?: string[] } } }; options?: { maxContactsPerCompany?: number }; pagination: { page: number; size: number } });
+    expect(posts.map((body) => ({ titles: body.filters.contacts.include.jobTitles.length, max: body.options?.maxContactsPerCompany, domains: body.filters.companies?.include?.domains?.length ?? 0, page: body.pagination.page, size: body.pagination.size }))).toEqual([
+      { titles: 2, max: 1, domains: 0, page: 0, size: 10 },
+      { titles: 2, max: 1, domains: 0, page: 1, size: 10 },
+      { titles: 5, max: 2, domains: 10, page: 0, size: 10 },
+    ]);
+    expect(result.ledger.map((entry) => entry.worstCase)).toEqual([10, 10, 10]);
+
+    if (result.output.phase !== "pick") throw new Error("tests: expected people");
+    expect(result.output.found).toEqual({ n: 18, ofM: 20 });
+    expect(result.output.shortfall).toBe("fewer_strong_matches");
+    // Every account is led by who runs it; COO only ever signs off beside them.
+    const byAccount = new Map<string, string[]>();
+    for (const person of result.output.chosen) byAccount.set(person.companyKey, [...(byAccount.get(person.companyKey) ?? []), person.role?.part ?? "none"]);
+    expect([...byAccount.values()].every((parts) => parts[0] === "runs")).toBe(true);
+    expect([...byAccount.values()].every((parts) => new Set(parts).size === parts.length)).toBe(true);
+    expect(byAccount.size).toBe(10);
+    // Ireland is outside the recipe's countries, and a related title never leads.
+    expect(result.holds).toContainEqual({ providerId: "v22-a10", reason: "wrong_geography" });
+    expect(result.output.chosen.map((person) => person.lushaId)).not.toContain("v22-a09");
   });
 });

@@ -1,18 +1,24 @@
 import { leadgenRecipe, type PackShape } from "../../../agents/research/output.schema";
-import { leadGenHandoffV1Schema, type LeadGenHandoffV1, type Targeting } from "../../../agents/leadgen/input.schema";
+import { leadGenHandoffV2Schema, type LeadGenHandoffV2, type Targeting } from "../../../agents/leadgen/input.schema";
 
 import type { ResearchBrief } from "./brief";
-import { groupName, seedFirmsByGroup, topCandidate } from "./packSelectors";
+import { groupName, groupRoles, seedFirmsByGroup, topCandidate } from "./packSelectors";
 
 /**
- * The campaign boundary between Research and lead gen (leadgen v2.1 §3).
+ * The campaign boundary between Research and lead gen (leadgen v2.1 §3, v2.2
+ * §3a).
  *
  * This is the one place that reads a research pack and writes the handoff
  * Confirm freezes. Lead gen never sees the pack. H1's selection rule lives
  * here and only here: the top-ranked campaign candidate, recorded with
- * `sourceRank` as provenance. `chosenArchetypeId()`'s fallback to the first
- * group when nothing is ranked is deliberately not used: an unranked pack is
- * refused, and a group with no recipe is refused, never swapped for another.
+ * `sourceRank` as provenance and its id as the play. `chosenArchetypeId()`'s
+ * fallback to the first group when nothing is ranked is deliberately not
+ * used: an unranked pack is refused, and a group with no recipe is refused,
+ * never swapped for another.
+ *
+ * From v2.2 the handoff is V2: the same fields, plus the play's id and the
+ * confirmed group's roles copied verbatim, so lead gen can tell who runs it,
+ * who champions it and who signs it off without reading Research.
  */
 
 export type HandoffRefusal = "research_not_ready" | "no_ranked_group" | "no_recipe";
@@ -22,11 +28,11 @@ export type ConfirmFacts = {
   brief: ResearchBrief;
   research: { jobId: string; eventId: string; pack: PackShape };
   confirmRequestId: string;
-  spend: LeadGenHandoffV1["spend"];
-  lawfulBasis: LeadGenHandoffV1["lawfulBasis"];
+  spend: LeadGenHandoffV2["spend"];
+  lawfulBasis: LeadGenHandoffV2["lawfulBasis"];
 };
 
-export function buildLeadGenHandoff(facts: ConfirmFacts): { ok: true; handoff: LeadGenHandoffV1 } | { ok: false; refusal: HandoffRefusal } {
+export function buildLeadGenHandoff(facts: ConfirmFacts): { ok: true; handoff: LeadGenHandoffV2 } | { ok: false; refusal: HandoffRefusal } {
   const { pack, jobId, eventId } = facts.research;
   // A stopped pack is not a plan: there is nothing to confirm.
   if (pack.insufficient !== undefined) return { ok: false, refusal: "research_not_ready" };
@@ -52,11 +58,14 @@ export function buildLeadGenHandoff(facts: ConfirmFacts): { ok: true; handoff: L
   const firms = seedFirmsByGroup(pack).find((group) => group.archetypeId === candidate.archetypeId)?.firms ?? [];
   const scope = facts.brief.scope;
 
-  const handoff = leadGenHandoffV1Schema.parse({
-    version: 1,
+  const handoff = leadGenHandoffV2Schema.parse({
+    version: 2,
     campaign: { ...facts.campaign, confirmRequestId: facts.confirmRequestId },
     provenance: { researchJobId: jobId, researchEventId: eventId, outcome: pack.partial ? "partial" : "complete" },
     buyerGroup: { id: candidate.archetypeId, name, sourceRank: candidate.rank },
+    play: { id: candidate.id },
+    // The group's roles as research wrote them, field for field: no rewording, no merging.
+    buyerRoles: groupRoles(pack, candidate.archetypeId).map((role) => ({ title: role.title, seniority: role.seniority, part: role.part, needs: role.needs })),
     targeting,
     places: (scope?.places ?? []).map((place) => ({ name: place.name, aliases: place.aliases ?? [] })),
     exclusions: {

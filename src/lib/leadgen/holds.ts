@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import type { ContactSuppressionReason, HoldReason, ProviderIdentityStatus } from "../../../agents/leadgen/output.schema";
 
 import { containsPhrase, domainKey, firmNameKey, norm } from "./normalise";
@@ -112,7 +112,7 @@ export type PreRevealDecision = { kind: "held"; reason: HoldReason } | { kind: "
  */
 export function preRevealChecks(
   candidate: ProviderCandidate,
-  handoff: LeadGenHandoffV1,
+  handoff: LeadGenHandoff,
   knowledge: Knowledge,
   placeNames: ReadonlySet<string>,
 ): PreRevealDecision {
@@ -133,7 +133,7 @@ export function preRevealChecks(
   return { kind: "eligible", reused: person ?? null };
 }
 
-export function isExcludedFirm(candidate: ProviderCandidate, handoff: LeadGenHandoffV1): boolean {
+export function isExcludedFirm(candidate: ProviderCandidate, handoff: LeadGenHandoff): boolean {
   const domain = domainKey(candidate.domain);
   return handoff.exclusions.firms.some((firm) =>
     firm.domain !== undefined ? domain !== undefined && domainKey(firm.domain) === domain : firmNameKey(firm.name) === firmNameKey(candidate.company),
@@ -145,7 +145,7 @@ export function isExcludedFirm(candidate: ProviderCandidate, handoff: LeadGenHan
  * candidate with no location is out: a missing location is never assumed to
  * be inside the scope.
  */
-export function inGeography(candidate: ProviderCandidate, handoff: LeadGenHandoffV1, placeNames: ReadonlySet<string>): boolean {
+export function inGeography(candidate: ProviderCandidate, handoff: LeadGenHandoff, placeNames: ReadonlySet<string>): boolean {
   if (candidate.countryIso2 === undefined || !handoff.targeting.countries.includes(candidate.countryIso2)) return false;
   if (handoff.targeting.locations.length === 0) return true;
   return [candidate.state, candidate.city].some((part) => part !== undefined && placeNames.has(norm(part)));

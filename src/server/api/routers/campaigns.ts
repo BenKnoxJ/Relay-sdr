@@ -15,6 +15,7 @@ import {
   listCampaignsForOwner,
   rerunPeople,
   retryResearch,
+  reviewPeople,
   widenCampaign,
   type ChangeResult,
 } from "@/lib/repo/campaigns";
@@ -180,6 +181,31 @@ export const campaignsRouter = createTRPCRouter({
         }),
       ),
     ),
+
+  /**
+   * Keep or drop before Reveal (v2.2 §9a): one person, or everyone chosen at
+   * that person's account. Setting a decision is its own repeat, so no
+   * request id is needed; the version guard still refuses a stale page.
+   */
+  reviewPeople: repProcedure
+    .input(
+      z
+        .object({
+          campaignId,
+          briefVersion,
+          personId: z.string().min(1).max(100),
+          scope: z.enum(["person", "account"]),
+          decision: z.enum(["kept", "dropped"]),
+        })
+        .strict(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return { id: (await reviewPeople(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input })).campaign.id };
+      } catch (error) {
+        asRefusal(error);
+      }
+    }),
 
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();

@@ -1,0 +1,135 @@
+{
+  "endpoint": "POST /v3/contacts/prospecting",
+  "fetchedAt": "2026-09-14T20:00:00.000Z",
+  "source": "Synthetic, in the V3 response shape recorded earlier: fictional people at fictional firms on .example domains. Not a Lusha answer. Lead gen v2.2: account discovery, page 1.",
+  "sanitised": false,
+  "body": {
+    "requestId": "fixture-accounts-page-1",
+    "results": [
+      {
+        "id": "v22-a11",
+        "firstName": "Quinn",
+        "lastName": "Lowe",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-11",
+          "name": "Brackley Motor Group Insurance",
+          "domain": "brackley-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Northampton"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a11"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a12",
+        "firstName": "Avery",
+        "lastName": "Moss",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-12",
+          "name": "Dunmore Drive Insurance",
+          "domain": "dunmore-drive.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Derby"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a12"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a13",
+        "firstName": "Rowan",
+        "lastName": "Nash",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-13",
+          "name": "Fenwick Road Cover",
+          "domain": "fenwick-road.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Carlisle"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a13"
+        },
+        "has": [
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      }
+    ],
+    "billing": {
+      "creditsCharged": 1,
+      "resultsReturned": 3,
+      "lowBalance": false
+    },
+    "pagination": {
+      "page": 1,
+      "size": 10,
+      "total": 13,
+      "totalGuaranteed": true,
+      "totalDescription": "Exact contact count (up to 1 per company)."
+    }
+  }
+}

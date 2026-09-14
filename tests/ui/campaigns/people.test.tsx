@@ -13,11 +13,11 @@ import { FakeLeadGenProvider } from "@/lib/leadgen/fakeProvider";
 import { findPeople } from "@/lib/leadgen/findPeople";
 import type { LeadGenRecord } from "@/lib/repo/leadgen";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoffV2 } from "../../../agents/leadgen/input.schema";
 import type { Pick } from "../../../agents/leadgen/output.schema";
 
 import { briefFields, completePack } from "../../lib/campaignPacks";
-import { NO_WAIT, VOCABULARY, candidate } from "../../leadgen/harness";
+import { NO_WAIT, ROLE_TITLES, VOCABULARY, candidate } from "../../leadgen/harness";
 
 /**
  * The campaign page through Confirm plan, Finding people, People found and
@@ -39,7 +39,7 @@ const AT = new Date("2026-09-14T12:00:00Z");
 const AVAILABLE: LeadGenOptions = { available: true, searchCreditCap: 40, sample: true };
 const OFF: LeadGenOptions = { available: false, searchCreditCap: null, sample: false };
 
-let handoff: LeadGenHandoffV1;
+let handoff: LeadGenHandoffV2;
 let full: Pick;
 let partial: Pick;
 
@@ -56,7 +56,7 @@ beforeAll(async () => {
   if (!built.ok) throw new Error(built.refusal);
   handoff = built.handoff;
   const found = async (count: number) => {
-    const provider = new FakeLeadGenProvider([{ candidates: Array.from({ length: count }, (_, index) => candidate(index + 1)), charged: count, hasMore: false }]);
+    const provider = new FakeLeadGenProvider([{ candidates: Array.from({ length: count }, (_, index) => candidate(index + 1, { title: ROLE_TITLES[(index + 1) % ROLE_TITLES.length] })), charged: count, hasMore: false }]);
     const result = await findPeople(handoff, { provider, vocabulary: VOCABULARY, knowledge: { people: [], providerIdentities: [], suppressions: [], enrolledPersonIds: [] }, crm: NO_CRM, retry: NO_WAIT });
     if (result.output.phase !== "pick") throw new Error("tests: expected people");
     return result.output;
@@ -75,7 +75,11 @@ function rows(pick: Pick, reusedId?: string): CampaignPerson[] {
         whyPicked: person.whyPicked,
         source: person.lushaId === reusedId ? "reused" : person.source,
         companyKey: person.companyKey,
-        preview: { name: person.name, title: person.title, company: person.company, city: person.city },
+        rolePart: person.role?.part ?? null,
+        roleTitle: person.role?.title ?? null,
+        roleMatch: person.role?.how ?? null,
+        review: "pending",
+        preview: { name: person.name, title: person.title, company: person.company, city: person.city, domain: person.domain, hasEmail: person.hasEmail, emailRevealCredits: person.emailRevealCredits },
       }) as unknown as CampaignPerson,
   );
 }
@@ -176,7 +180,11 @@ describe("People found", () => {
     const reveal = screen.getByRole("button", { name: campaignsCopy.actionReveal });
     expect(reveal.hasAttribute("disabled")).toBe(true);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealLater);
-    expect(currentStep()).toBe(campaignsCopy.stepFindingPeople);
+    expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
+    // The research folds away once there are accounts to review, one press from open.
+    expect(screen.getByTestId("overview-folded")).toBeTruthy();
+    expect(screen.queryByTestId("overview")).toBeNull();
+    fireEvent.click(screen.getByTestId("overview-show"));
     // Beside "10 of 10", the plan does not also say nobody has been found.
     expect(screen.queryByText(campaignsCopy.groupsNote)).toBeNull();
     expect(screen.getByText(campaignsCopy.groupsNoteConfirmed)).toBeTruthy();
@@ -228,5 +236,75 @@ describe("Finding people needs you", () => {
     expect(screen.getByTestId("people-reason").textContent).toBe(campaignsCopy.haltNoCandidates);
     expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
     expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe("/campaigns/camp-people/edit");
+  });
+});
+
+describe("Reviewing people, accounts first (v2.2 §9a)", () => {
+  const reviewed = (pick: Pick, reviews: Record<number, "kept" | "dropped">) =>
+    rows(pick).map((row) => ({ ...row, review: reviews[row.rank] ?? "pending" }) as CampaignPerson);
+  const found = (people: CampaignPerson[]) => campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } });
+
+  it("leads with accounts: who is at each, the roles they cover, and why the account belongs", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    const accounts = screen.getAllByTestId("found-account");
+    expect(accounts.length).toBeGreaterThan(1);
+    expect(screen.getByTestId("accounts-summary").textContent).toContain(`10 ${campaignsCopy.accountsPeopleAt} ${accounts.length} ${campaignsCopy.accountsWord}`);
+    for (const account of accounts) {
+      expect(account.querySelector("[data-testid=account-fit]")?.textContent).toMatch(new RegExp(`^${campaignsCopy.accountFitSearch} United Kingdom, `));
+    }
+    // Every person carries the role they play, with that role's needs as why they fit.
+    const chips = screen.getAllByTestId("role-chip").map((chip) => chip.textContent);
+    const labels: string[] = [...Object.values(campaignsCopy.roleParts), campaignsCopy.relatedRole];
+    expect(chips.every((chip) => labels.includes(chip ?? ""))).toBe(true);
+    expect(screen.getAllByTestId("why-fits").some((line) => line.textContent?.includes("Less manual checking."))).toBe(true);
+    expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
+  });
+
+  it("shows no email and no provider id anywhere", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/@/);
+    expect(text).not.toMatch(/\bl-0\d\d\b/);
+    expect(text).not.toMatch(/company-id:/);
+  });
+
+  it("@proof keeps or drops one person, or a whole account, through the server and redraws from it", async () => {
+    const onReview = vi.fn(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={found(rows(full))} onReview={onReview} />);
+    const firstAccount = screen.getAllByTestId("found-account")[0]!;
+    const firstPerson = firstAccount.querySelector("[data-testid=found-person]")!;
+    fireEvent.click(firstPerson.querySelector("[data-testid=keep]")!);
+    await waitFor(() => expect(onReview).toHaveBeenCalledTimes(1));
+    expect(onReview).toHaveBeenLastCalledWith({ campaignId: "camp-people", briefVersion: 1, personId: expect.stringMatching(/^cp-/), scope: "person", decision: "kept" });
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+
+    fireEvent.click(firstAccount.querySelector("[data-testid=drop-account]")!);
+    await waitFor(() => expect(onReview).toHaveBeenCalledTimes(2));
+    expect(onReview).toHaveBeenLastCalledWith(expect.objectContaining({ scope: "account", decision: "dropped" }));
+  });
+
+  it("shows each decision, counts them, and estimates a reveal for the kept people only", () => {
+    render(<CampaignPage campaign={found(reviewed(full, { 1: "kept", 2: "kept", 3: "dropped" }))} onReview={vi.fn()} />);
+    expect(screen.getByTestId("review-counts").textContent).toBe(
+      `2 ${campaignsCopy.reviewCountKept} · 1 ${campaignsCopy.reviewCountDropped} · 7 ${campaignsCopy.reviewCountPending}`,
+    );
+    const states = screen.getAllByTestId("found-person").map((person) => person.getAttribute("data-review"));
+    expect(states.filter((state) => state === "kept")).toHaveLength(2);
+    expect(states.filter((state) => state === "dropped")).toHaveLength(1);
+    expect(screen.getByTestId("reveal-estimate").textContent).toBe(`${campaignsCopy.revealKeptAbout} 2 ${campaignsCopy.revealCredits}`);
+    // Reveal is still not pressable.
+    expect(screen.getByRole("button", { name: campaignsCopy.actionReveal }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("says nothing would be revealed while nobody is kept", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    expect(screen.getByTestId("reveal-estimate").textContent).toBe(campaignsCopy.revealNoneKept);
+  });
+
+  it("shows only Found in progress until drafting, sending and replies exist", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    expect(screen.getAllByTestId("progress-count")).toHaveLength(1);
+    expect(screen.queryByText(campaignsCopy.progressDrafted)).toBeNull();
+    expect(screen.queryByText(campaignsCopy.progressReplied)).toBeNull();
   });
 });

@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { assertPlainWords } from "@/lib/copy/plainWords";
 
+import { ROLE_PARTS } from "./input.schema";
+
 /**
  * What lead gen produces: leadgen v2 §3 as amended by v2.1 (§4, §6, §7, §9,
  * §11). Where the two differ, v2.1 wins.
@@ -51,8 +53,12 @@ export const CONTACT_SUPPRESSION_REASONS = ["opted_out", "dnc"] as const;
 /** A provider record's state (v2.1 §9). Not a fact about the human or the company. */
 export const PROVIDER_IDENTITY_STATUSES = ["usable", "no_email", "invalid_id", "wrong_person"] as const;
 
-/** Why People found shows X of N (v2.1 §4, §11). */
-export const SHORTFALL_REASONS = ["cap_reached", "no_more_results"] as const;
+/**
+ * Why People found shows X of N (v2.1 §4, §11). `fewer_strong_matches` is
+ * v2.2 §8a: the accounts and roles that fit ran out, and nothing weaker was
+ * added to make up the number.
+ */
+export const SHORTFALL_REASONS = ["cap_reached", "no_more_results", "fewer_strong_matches"] as const;
 
 /** Why a search stopped with nothing for the rep to reveal (v2.1 §11). */
 export const HALT_REASONS = [
@@ -84,8 +90,21 @@ export const personSchema = z
     /** Templated from the parts that fired, in rep words. */
     whyPicked: z.string().min(1).max(300),
     rank: z.number().int().positive(),
-    /** What the per-company cap counts: the domain, else the company name. */
+    /** What the per-company cap counts and accounts group by: the domain, else the provider's company id, else the company name (v2.2 §8a). */
     companyKey: z.string().min(1).max(253),
+    /** The provider's own company id, when it gave one. Kept for grouping; never shown to a rep. */
+    companyId: z.string().min(1).max(120).optional(),
+    /**
+     * Which of the confirmed group's roles this person plays, and how their
+     * title matched it (v2.2 §8a). Absent for a Related role, and for any run
+     * under a v2.1 handoff, which has no roles.
+     */
+    role: z
+      .object({ part: z.enum(ROLE_PARTS), title: z.string().min(1).max(500), how: z.enum(["exact", "phrase"]) })
+      .strict()
+      .optional(),
+    /** What revealing their email would cost, from the preview; null when the provider did not say. */
+    emailRevealCredits: z.number().int().nonnegative().nullable().optional(),
     /** `reused`: Relay already owns a usable email for this person, so no credit is needed (v2.1 §9). */
     source: z.enum(["bought", "reused"]),
   })

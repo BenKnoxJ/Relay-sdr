@@ -13,7 +13,7 @@ import { FakeLeadGenProvider, type FakeStep } from "@/lib/leadgen/fakeProvider";
 import type { ProviderCandidate, ProviderVocabulary } from "@/lib/leadgen/provider";
 import type { LeadGenSetup } from "@/lib/leadgen/setup";
 import { DOCUMENTED_UNVERIFIED_PRICING } from "@/lib/leadgen/spend";
-import { CampaignChangeRefused, confirmCampaign, createCampaign, editCampaignBrief, getCampaignForOwner, rerunPeople, type ChangeRefusal } from "@/lib/repo/campaigns";
+import { CampaignChangeRefused, confirmCampaign, createCampaign, editCampaignBrief, getCampaignForOwner, rerunPeople, reviewPeople, type ChangeRefusal } from "@/lib/repo/campaigns";
 import { CAMPAIGN_CONFIRMED, LEAD_GEN_JOB, findConfirmEvent, findLeadGenResult, handoffOf, persistedSpend } from "@/lib/repo/leadgen";
 import { mutate } from "@/lib/repo/mutate";
 import { recordResearchCompleted } from "@/lib/repo/research";
@@ -22,7 +22,7 @@ import { leadGenHandler, type LeadGenHandlerDeps } from "@/worker/handlers/leadG
 
 import { emptyAll, resetDatabase } from "../db/harness";
 import { briefFields, completePack, partialPack } from "../lib/campaignPacks";
-import { NO_WAIT, VOCABULARY, candidate } from "./harness";
+import { NO_WAIT, ROLE_TITLES, VOCABULARY, candidate } from "./harness";
 
 /**
  * Confirm, the lead gen job and the campaign it draws, on the real database
@@ -123,7 +123,8 @@ const latestJob = (campaignId: string) =>
   prisma.job.findFirstOrThrow({ where: { campaignId, kind: LEAD_GEN_JOB }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
 
 const page = (candidates: ProviderCandidate[], hasMore = false, charged = candidates.length): FakeStep => ({ candidates, charged, hasMore });
-const range = (from: number, to: number, over: Partial<ProviderCandidate> = {}) => Array.from({ length: to - from + 1 }, (_, index) => candidate(from + index, over));
+const range = (from: number, to: number, over: Partial<ProviderCandidate> = {}) =>
+  Array.from({ length: to - from + 1 }, (_, index) => candidate(from + index, { title: ROLE_TITLES[(from + index) % ROLE_TITLES.length], ...over }));
 
 async function run(job: Job, steps: FakeStep[], over: Partial<LeadGenHandlerDeps> & { vocabulary?: ProviderVocabulary; attempt?: number } = {}) {
   const provider = new FakeLeadGenProvider(steps);
@@ -218,7 +219,7 @@ describe("the lead gen job", () => {
     expect(view.state).toBe("peopleFound");
     expect(view.chip).toBe(campaignsCopy.chipPeopleFound);
     expect(view.peopleFound).toMatchObject({ found: { n: 10, ofM: 10 }, shortfall: null, spend: { charged: 10, reserved: 0, cap: 40 }, sample: true });
-    expect(view.peopleFound?.people).toHaveLength(10);
+    expect(view.peopleFound?.accounts.flatMap((account) => account.people)).toHaveLength(10);
     expect(view.credits).toEqual({ used: 10, left: 30 });
     expect(view.can).toMatchObject({ edit: true, confirm: false, retryPeople: false });
   });
@@ -379,9 +380,14 @@ describe("reuse, identity and one enrolment per person", () => {
       await run(await latestJob(campaign.id), [page(range(1, 12))]);
       const row = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: campaign.id, providerId: "l-001" } });
       expect(row).toMatchObject({ source: "reused", personId, status: "chosen" });
+      // Nothing is kept yet, so nothing would be revealed: pending is not kept (v2.2 §9a).
+      expect((await campaignView(campaign)).peopleFound?.revealEstimate).toEqual({ kept: 0, toBuy: 0, reused: 0, credits: 0 });
+      for (const chosen of await prisma.campaignPerson.findMany({ where: { campaignId: campaign.id, status: "chosen" } })) {
+        await reviewPeople(prisma, { orgId: ORG, userId: REP, campaignId: campaign.id, briefVersion: 1, personId: chosen.id, scope: "person", decision: "kept" });
+      }
       const view = await campaignView(campaign);
-      expect(view.peopleFound?.revealEstimate).toMatchObject({ reused: 1, toBuy: 9 });
-      expect(view.peopleFound?.people.find((person) => person.reused)).toBeDefined();
+      expect(view.peopleFound?.revealEstimate).toMatchObject({ kept: 10, reused: 1, toBuy: 9 });
+      expect(view.peopleFound?.accounts.flatMap((account) => account.people).find((person) => person.reused)).toBeDefined();
     }
   });
 
@@ -490,5 +496,115 @@ describe("one credit pool per org", () => {
     expect(a.provider.calls.length + b.provider.calls.length).toBe(3);
     const entries = await prisma.creditLedgerEntry.findMany({ where: { orgId: ORG } });
     expect(entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : entry.worstCase), 0)).toBeLessThanOrEqual(30);
+  });
+});
+
+describe("keep or drop before Reveal (v2.2 §9a)", () => {
+  async function found(people: ProviderCandidate[] = range(1, 12)) {
+    const campaign = await planned();
+    await confirm(campaign);
+    await run(await latestJob(campaign.id), [page(people)]);
+    const chosen = await prisma.campaignPerson.findMany({ where: { campaignId: campaign.id, status: "chosen" }, orderBy: { rank: "asc" } });
+    return { campaign, chosen };
+  }
+  const review = (
+    campaign: CampaignRow,
+    personId: string,
+    decision: "kept" | "dropped",
+    scope: "person" | "account" = "person",
+    over: { userId?: string; orgId?: string; briefVersion?: number; now?: () => Date } = {},
+  ) =>
+    reviewPeople(prisma, {
+      orgId: over.orgId ?? campaign.orgId,
+      userId: over.userId ?? campaign.ownerUserId,
+      campaignId: campaign.id,
+      briefVersion: over.briefVersion ?? 1,
+      personId,
+      scope,
+      decision,
+      ...(over.now === undefined ? {} : { now: over.now }),
+    });
+  const titleOf = (row: { preview: unknown }) => (row.preview as { title: string }).title;
+
+  it("@proof starts every chosen person pending, records the role each plays, and counts nobody as kept", async () => {
+    const { campaign, chosen } = await found();
+    expect(chosen.every((row) => row.review === "pending" && row.reviewedAt === null && row.reviewedByUserId === null)).toBe(true);
+    // The test pack's roles: "Head of claims" signs it off, "Claims team leader" runs it.
+    expect(chosen.find((row) => titleOf(row) === "Claims Team Leader")).toMatchObject({ rolePart: "runs", roleTitle: "Claims team leader", roleMatch: "exact" });
+    expect(chosen.find((row) => titleOf(row) === "Deputy Head of Claims")).toMatchObject({ rolePart: "signs", roleTitle: "Head of claims", roleMatch: "phrase" });
+    const view = await campaignView(campaign);
+    expect(view.peopleFound?.review).toEqual({ kept: 0, dropped: 0, pending: 10 });
+    expect(view.peopleFound?.revealEstimate).toEqual({ kept: 0, toBuy: 0, reused: 0, credits: 0 });
+    // Why each person fits is their role's needs, as research wrote them.
+    const people = view.peopleFound!.accounts.flatMap((account) => account.people);
+    expect(people.find((person) => person.role === "runs")?.needs).toBe("Less manual checking.");
+  });
+
+  it("@proof keeps and drops one person with who and when, one Event each, and the decision survives a reload", async () => {
+    const { campaign, chosen } = await found();
+    const [first, second] = chosen;
+    const at = new Date("2026-09-14T15:00:00Z");
+    await review(campaign, first!.id, "kept", "person", { now: () => at });
+    await review(campaign, second!.id, "dropped");
+
+    expect(await prisma.campaignPerson.findUniqueOrThrow({ where: { id: first!.id } })).toMatchObject({ review: "kept", reviewedByUserId: REP, reviewedAt: at });
+    expect(await prisma.campaignPerson.findUniqueOrThrow({ where: { id: second!.id } })).toMatchObject({ review: "dropped", reviewedByUserId: REP });
+    const events = await prisma.event.findMany({ where: { campaignId: campaign.id, kind: "campaign.people_reviewed" }, orderBy: [{ at: "asc" }, { id: "asc" }] });
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      actorUserId: REP,
+      before: { people: [{ id: first!.id, review: "pending" }] },
+      after: { briefVersion: 1, scope: "person", decision: "kept", people: [first!.id] },
+    });
+
+    // A reload is a fresh read of the same rows.
+    const view = await campaignView(campaign);
+    expect(view.peopleFound?.review).toEqual({ kept: 1, dropped: 1, pending: 8 });
+    expect(view.peopleFound?.accounts.flatMap((account) => account.people).find((person) => person.id === first!.id)?.review).toBe("kept");
+    // Only the kept person counts towards a reveal.
+    expect(view.peopleFound?.revealEstimate).toEqual({ kept: 1, toBuy: 1, reused: 0, credits: 1 });
+
+    // The same press again changes nothing and records nothing; a decision can still be changed.
+    expect((await review(campaign, first!.id, "kept")).changed).toEqual([]);
+    expect(await prisma.event.count({ where: { kind: "campaign.people_reviewed" } })).toBe(2);
+    await review(campaign, second!.id, "kept");
+    expect((await campaignView(campaign)).peopleFound?.review).toEqual({ kept: 2, dropped: 0, pending: 8 });
+  });
+
+  it("@proof drops a whole account in one transaction, and nobody outside it", async () => {
+    // Two people at one account: its lead (who runs it) and a complement (who signs it off).
+    const { campaign, chosen } = await found([candidate(1, { title: "Claims Team Leader" }), candidate(2, { title: "Head of Claims", company: "Firm 1", domain: "firm1.co.uk" }), ...range(3, 12)]);
+    const account = chosen.filter((row) => row.companyKey === "firm1.co.uk");
+    expect(account.map((row) => row.rolePart).sort()).toEqual(["runs", "signs"]);
+
+    const result = await review(campaign, account[0]!.id, "dropped", "account");
+    expect(result.changed.sort()).toEqual(account.map((row) => row.id).sort());
+    const after = await prisma.campaignPerson.findMany({ where: { campaignId: campaign.id, status: "chosen" } });
+    expect(after.filter((row) => row.review === "dropped").map((row) => row.companyKey)).toEqual(["firm1.co.uk", "firm1.co.uk"]);
+    expect(after.filter((row) => row.companyKey !== "firm1.co.uk").every((row) => row.review === "pending")).toBe(true);
+    const events = await prisma.event.findMany({ where: { campaignId: campaign.id, kind: "campaign.people_reviewed" } });
+    expect(events).toHaveLength(1);
+    expect(events[0]?.after).toMatchObject({ scope: "account", decision: "dropped" });
+  });
+
+  it("@proof refuses another rep's or org's campaign, a stale page, a spare or unknown person, and a campaign with nobody found yet", async () => {
+    const { campaign, chosen } = await found();
+    const spare = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: campaign.id, status: "spare" } });
+    expect(await refusalOf(review(campaign, chosen[0]!.id, "kept", "person", { orgId: OTHER_ORG, userId: REP_B }))).toBe("not_found");
+    expect(await refusalOf(review(campaign, chosen[0]!.id, "kept", "person", { briefVersion: 2 }))).toBe("version_ahead");
+    expect(await refusalOf(review(campaign, spare.id, "kept"))).toBe("not_found");
+    expect(await refusalOf(review(campaign, "no-such-person", "kept"))).toBe("not_found");
+
+    const waiting = await planned();
+    await confirm(waiting);
+    expect(await refusalOf(review(waiting, chosen[0]!.id, "kept"))).toBe("wrong_state");
+    expect(await prisma.event.count({ where: { kind: "campaign.people_reviewed" } })).toBe(0);
+    expect(await prisma.campaignPerson.count({ where: { review: { not: "pending" } } })).toBe(0);
+  });
+
+  it("the database refuses a half-recorded decision or role", async () => {
+    const { chosen } = await found();
+    await expect(prisma.campaignPerson.update({ where: { id: chosen[0]!.id }, data: { review: "kept" } })).rejects.toThrow();
+    await expect(prisma.campaignPerson.update({ where: { id: chosen[0]!.id }, data: { roleTitle: null } })).rejects.toThrow();
   });
 });

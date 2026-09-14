@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../agents/leadgen/input.schema";
+import type { BuyerRole, LeadGenHandoffV1, LeadGenHandoffV2 } from "../../agents/leadgen/input.schema";
 import type { CrmCheck, OrgKnowledge } from "@/lib/leadgen/holds";
 import type { ProviderCandidate, ProviderVocabulary } from "@/lib/leadgen/provider";
 
@@ -84,6 +84,14 @@ export function handoff(patch: (value: LeadGenHandoffV1) => void = () => {}): Le
   return value;
 }
 
+/**
+ * Titles that each play one of the test pack's two roles ("Head of claims"
+ * signs it off, "Claims team leader" runs it), exactly or as a whole phrase.
+ * A run of candidates cycles through them, so the account-led lead title
+ * limit (v2.2 §8a) is never what a persistence test measures.
+ */
+export const ROLE_TITLES = ["Head of Claims", "Claims Team Leader", "Deputy Head of Claims", "Senior Claims Team Leader", "Head of Claims Operations"] as const;
+
 /** One preview row: an exact-title, emailable person at their own firm, in Leeds. */
 export function candidate(n: number, over: Partial<ProviderCandidate> = {}): ProviderCandidate {
   return {
@@ -121,3 +129,44 @@ export function crm(options: { customerDomains?: string[]; optOutEmails?: string
 }
 
 export const NO_WAIT = { attempts: 3, wait: async () => {} };
+
+/**
+ * A buyer group shaped like the real motor-claims one (v2.2 fixtures): the
+ * compound role titles Research writes, and a recipe whose titles partly map
+ * to those roles. Fictional needs; no real person or firm.
+ */
+export const MOTOR_ROLES: BuyerRole[] = [
+  { title: "Head of Claims / Claims Operations Manager", seniority: "Senior manager reporting to a director", part: "runs", needs: "Sees every complaint the claims floor creates and has to cut the uphold rate." },
+  { title: "Claims Quality / QA Manager or Analyst", seniority: "Manager or senior analyst", part: "champions", needs: "Checks a sample of calls by hand and cannot prove what changed." },
+  { title: "Customer Relations / Complaints Manager", seniority: "Manager", part: "champions", needs: "Answers the complaints and wants the reasons before the regulator asks." },
+  { title: "Claims Director or Chief Operating Officer", seniority: "Executive", part: "signs", needs: "Owns the published numbers and signs off the spend." },
+];
+
+export const MOTOR_TITLES = [
+  "Head of Claims",
+  "Claims Operations Manager",
+  "Claims Operations Director",
+  "Head of Motor Claims",
+  "Claims Quality Manager",
+  "Quality Assurance Manager",
+  "Head of Customer Relations",
+  "Complaints Manager",
+  "Claims Director",
+  "Chief Operating Officer",
+];
+
+/** A V2 handoff (v2.2 §3a): the base handoff with the play and the motor roles, edited in place by `patch`. */
+export function handoffV2(patch: (value: LeadGenHandoffV2) => void = () => {}): LeadGenHandoffV2 {
+  const rest = structuredClone(BASE);
+  const value: LeadGenHandoffV2 = {
+    ...rest,
+    version: 2,
+    play: { id: "cand-motor-1" },
+    buyerRoles: structuredClone(MOTOR_ROLES),
+    targeting: { ...rest.targeting, titles: [...MOTOR_TITLES] },
+    howMany: 20,
+    spend: { ...rest.spend, searchCreditCap: 20 },
+  };
+  patch(value);
+  return value;
+}

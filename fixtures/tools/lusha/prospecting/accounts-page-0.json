@@ -1,0 +1,413 @@
+{
+  "endpoint": "POST /v3/contacts/prospecting",
+  "fetchedAt": "2026-09-14T20:00:00.000Z",
+  "source": "Synthetic, in the V3 response shape recorded earlier: fictional people at fictional firms on .example domains. Not a Lusha answer. Lead gen v2.2: account discovery, page 0: who runs it, one person per company.",
+  "sanitised": false,
+  "body": {
+    "requestId": "fixture-accounts-page-0",
+    "results": [
+      {
+        "id": "v22-a01",
+        "firstName": "Robin",
+        "lastName": "Ashby",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-01",
+          "name": "Harbourline Motor Insurance",
+          "domain": "harbourline-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Manchester"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a01"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a02",
+        "firstName": "Jordan",
+        "lastName": "Blake",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-02",
+          "name": "Kestrel Specialist Motor",
+          "domain": "kestrel-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Leeds"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a02"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a03",
+        "firstName": "Casey",
+        "lastName": "Carrow",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-03",
+          "name": "Marlow Road Insurance",
+          "domain": "marlow-road.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Reading"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a03"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a04",
+        "firstName": "Morgan",
+        "lastName": "Dale",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-04",
+          "name": "Pennine Auto Cover",
+          "domain": "pennine-auto.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a04"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a05",
+        "firstName": "Taylor",
+        "lastName": "Ennis",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-05",
+          "name": "Selwyn Claims Mutual",
+          "domain": "selwyn-mutual.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Bristol"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a05"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a06",
+        "firstName": "Jamie",
+        "lastName": "Frost",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-06",
+          "name": "Tamar Vehicle Insurance",
+          "domain": "tamar-vehicle.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Plymouth"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a06"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a07",
+        "firstName": "Riley",
+        "lastName": "Grant",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-07",
+          "name": "Upland Motor Underwriters",
+          "domain": "upland-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Norwich"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a07"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a08",
+        "firstName": "Alex",
+        "lastName": "Hale",
+        "jobTitle": {
+          "title": "Claims Operations Manager",
+          "seniority": "Manager",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-08",
+          "name": "Wexcombe Car Insurance",
+          "domain": "wexcombe-car.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Swindon"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a08"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a09",
+        "firstName": "Sam",
+        "lastName": "Irwin",
+        "jobTitle": {
+          "title": "Head of Property Claims Validation",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-09",
+          "name": "Ashgrove Home and Motor",
+          "domain": "ashgrove.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "York"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a09"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a10",
+        "firstName": "Drew",
+        "lastName": "Kerr",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "Head",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-10",
+          "name": "Liffey Motor Assurance",
+          "domain": "liffey-motor.example"
+        },
+        "location": {
+          "country": "Ireland",
+          "state": "Leinster",
+          "city": "Dublin"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-a10"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      }
+    ],
+    "billing": {
+      "creditsCharged": 1,
+      "resultsReturned": 10,
+      "lowBalance": false
+    },
+    "pagination": {
+      "page": 0,
+      "size": 10,
+      "total": 13,
+      "totalGuaranteed": true,
+      "totalDescription": "Exact contact count (up to 1 per company)."
+    }
+  }
+}

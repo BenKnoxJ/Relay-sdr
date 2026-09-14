@@ -62,6 +62,7 @@ describe("the signed definitions", () => {
     }
     // Lead gen v2.1 is carried after the v2 it amends; the orchestrator carries its A2.
     expect(loadDefinition("leadgen").definition).toMatch(/v2\.1 · SIGNED by the product owner 2026-09-14/);
+    expect(loadDefinition("leadgen").definition).toMatch(/v2\.2 · SIGNED by the product owner 2026-09-14/);
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A2: lead gen v2\.1 integration/);
   });
 

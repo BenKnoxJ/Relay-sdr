@@ -103,7 +103,7 @@ export type LushaSearchPage = z.infer<typeof searchSchema>;
 export type LushaContactSearch = {
   filters: {
     contacts: { include: { jobTitles?: string[]; countries?: string[]; locations?: Record<string, string>[] } };
-    companies?: { include: { sizes?: { min: number; max?: number }[]; mainIndustriesIds?: number[]; subIndustriesIds?: number[] } };
+    companies?: { include: { domains?: string[]; sizes?: { min: number; max?: number }[]; mainIndustriesIds?: number[]; subIndustriesIds?: number[] } };
   };
   options?: { maxContactsPerCompany: number };
   pagination: { page: number; size: number };

@@ -34,6 +34,8 @@ export type ProviderFilters = {
   industryIds: string[];
   excludeDomains: string[];
   maxContactsPerCompany?: number;
+  /** v2.2 §4a: the complement search asks only inside these accounts' domains. */
+  companyDomains?: string[];
 };
 
 export type ProviderSearchRequest = {
@@ -51,6 +53,8 @@ export type ProviderCandidate = {
   title: string;
   company: string;
   domain?: string;
+  /** The provider's own company id: the account key when there is no domain (v2.2 §8a). Never shown to a rep. */
+  companyId?: string;
   countryIso2?: string;
   state?: string;
   city?: string;

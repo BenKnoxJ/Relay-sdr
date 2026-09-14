@@ -263,6 +263,8 @@ export const campaignsCopy = {
   startChannels: "Suits",
   groupsLabel: "Buyer groups",
   groupsNote: "The kinds of organisation and role to aim at. Nobody has been found yet.",
+  /** Once the plan is confirmed, the search may have found people: the note no longer says it has not. */
+  groupsNoteConfirmed: "The kinds of organisation and role to aim at.",
   startHere: "Start here",
   groupSize: "Size:",
   groupSituation: "their situation",
@@ -273,6 +275,7 @@ export const campaignsCopy = {
   noBuyerWords: "Research found none of this group's own words.",
   firmsLabel: "Example firms",
   firmsNote: "Firms research found that fit each group. Examples, not your people: Relay finds those after you confirm.",
+  firmsNoteConfirmed: "Firms research found that fit each group. Examples, not your people.",
   firmsWhy: "why they fit",
   sizeConfirmed: "confirmed",
   sizeEstimated: "estimated",
@@ -406,6 +409,8 @@ export const campaignsCopy = {
   /** Lead gen v2.1 §6: the search after Confirm uses credits; emails are bought only on Reveal emails. */
   peopleBeforeConfirm:
     "Found after you confirm, by a search that uses credits up to the limit you approve. Emails are only bought when you reveal them.",
+  /** After Confirm, before anyone is chosen: the search has been approved, so not "after you confirm". */
+  peopleAfterConfirm: "Nobody is chosen yet. Emails are only bought when you reveal them.",
   /** Progress before anyone has been found: words, not five zeros that read like work done. */
   progressNone: "No people have been found yet. Nothing has been sent.",
   /** The list row's count before anyone has been contacted. */

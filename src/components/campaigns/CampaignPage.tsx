@@ -160,7 +160,12 @@ export function CampaignPage({
     // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
     campaign.overview !== null && (state === "planReady" || state === "findingPeople" || state === "peopleFound" || state === "peopleNeedsYou") ? (
       <>
-        <Overview overview={campaign.overview} editHref={editHref} researchHref={live ? `/campaigns/${campaign.id}/research` : undefined} />
+        <Overview
+          overview={campaign.overview}
+          editHref={editHref}
+          researchHref={live ? `/campaigns/${campaign.id}/research` : undefined}
+          confirmed={state !== "planReady"}
+        />
         {state === "planReady" && campaign.confirmPlan ? (
           <div className="mt-grid">
             <ConfirmCard plan={campaign.confirmPlan} />
@@ -211,7 +216,9 @@ export function CampaignPage({
   const people = (
     <Card label={campaignsCopy.peopleLabel}>
       {campaign.people === null ? (
-        <p className="type-small text-muted">{campaignsCopy.peopleBeforeConfirm}</p>
+        <p className="type-small text-muted">
+          {state === "findingPeople" || state === "peopleFound" || state === "peopleNeedsYou" ? campaignsCopy.peopleAfterConfirm : campaignsCopy.peopleBeforeConfirm}
+        </p>
       ) : (
         <>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">

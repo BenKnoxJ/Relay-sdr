@@ -143,6 +143,25 @@ describe("Finding people", () => {
     expect(currentStep()).toBe(campaignsCopy.stepFindingPeople);
     expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
   });
+
+  it("no longer says people are found after you confirm, once the plan is confirmed", () => {
+    render(<CampaignPage campaign={campaign({ job: { status: "running" } })} />);
+    expect(screen.getByText(campaignsCopy.peopleAfterConfirm)).toBeTruthy();
+    expect(screen.queryByText(campaignsCopy.peopleBeforeConfirm)).toBeNull();
+    expect(screen.getByText(campaignsCopy.groupsNoteConfirmed)).toBeTruthy();
+    expect(screen.getByText(campaignsCopy.firmsNoteConfirmed)).toBeTruthy();
+    expect(screen.queryByText(campaignsCopy.groupsNote)).toBeNull();
+    expect(screen.queryByText(campaignsCopy.firmsNote)).toBeNull();
+  });
+});
+
+describe("Plan ready keeps the notes for a plan not yet confirmed", () => {
+  it("says nobody has been found yet and people come after Confirm", () => {
+    render(<CampaignPage campaign={campaign(null)} />);
+    expect(screen.getByText(campaignsCopy.peopleBeforeConfirm)).toBeTruthy();
+    expect(screen.getByText(campaignsCopy.groupsNote)).toBeTruthy();
+    expect(screen.getByText(campaignsCopy.firmsNote)).toBeTruthy();
+  });
 });
 
 describe("People found", () => {
@@ -158,6 +177,9 @@ describe("People found", () => {
     expect(reveal.hasAttribute("disabled")).toBe(true);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealLater);
     expect(currentStep()).toBe(campaignsCopy.stepFindingPeople);
+    // Beside "10 of 10", the plan does not also say nobody has been found.
+    expect(screen.queryByText(campaignsCopy.groupsNote)).toBeNull();
+    expect(screen.getByText(campaignsCopy.groupsNoteConfirmed)).toBeTruthy();
   });
 
   it("shows a partial result as X of N, and why it ended short", () => {

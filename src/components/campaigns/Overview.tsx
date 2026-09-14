@@ -76,7 +76,18 @@ function sizeLine(size: CampaignOverview["firms"][number]["firms"][number]["size
   return `${size.value} (${size.status === "confirmed" ? campaignsCopy.sizeConfirmed : campaignsCopy.sizeEstimated})`;
 }
 
-export function Overview({ overview, editHref, researchHref }: { overview: CampaignOverview; editHref?: string; researchHref?: string }) {
+export function Overview({
+  overview,
+  editHref,
+  researchHref,
+  confirmed = false,
+}: {
+  overview: CampaignOverview;
+  editHref?: string;
+  researchHref?: string;
+  /** The plan is confirmed and the search has run or is running: no "nobody found yet". */
+  confirmed?: boolean;
+}) {
   const c = campaignsCopy;
   const firmCount = overview.firms.reduce((sum, group) => sum + group.firms.length, 0);
 
@@ -151,7 +162,7 @@ export function Overview({ overview, editHref, researchHref }: { overview: Campa
 
         {overview.groups.length === 0 ? null : (
           <Part label={c.groupsLabel} testId="overview-groups">
-            <p className="type-small mb-2 text-muted">{c.groupsNote}</p>
+            <p className="type-small mb-2 text-muted">{confirmed ? c.groupsNoteConfirmed : c.groupsNote}</p>
             <ul className="grid gap-chips wide:grid-cols-2">
               {overview.groups.map((group) => (
                 <li key={group.id} data-testid="overview-group" className="min-w-0 rounded-input border border-line bg-ground p-3">
@@ -231,7 +242,7 @@ export function Overview({ overview, editHref, researchHref }: { overview: Campa
 
         {firmCount === 0 ? null : (
           <Part label={c.firmsLabel} testId="overview-firms">
-            <p className="type-small mb-2 text-muted">{c.firmsNote}</p>
+            <p className="type-small mb-2 text-muted">{confirmed ? c.firmsNoteConfirmed : c.firmsNote}</p>
             {overview.firms.map((group) => (
               <div key={group.groupName} className="mb-2 min-w-0">
                 <p className="type-small text-muted">{group.groupName}</p>

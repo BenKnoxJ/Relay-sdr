@@ -1,5 +1,6 @@
 import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
-import { zohoCrmCheck } from "@/lib/leadgen/crm";
+import { env, type Env } from "@/lib/env";
+import { NO_CRM, zohoCrmCheck } from "@/lib/leadgen/crm";
 import { findPeople, type FindPeopleDeps } from "@/lib/leadgen/findPeople";
 import type { CrmCheck } from "@/lib/leadgen/holds";
 import { leadGenSetup, type LeadGenEnvironment } from "@/lib/leadgen/setup";
@@ -44,11 +45,23 @@ export type LeadGenHandlerDeps = {
   retry?: FindPeopleDeps["retry"];
 };
 
+/**
+ * Whether a CRM is connected to check for customers: Zoho's mock, or all
+ * three of its live credentials. Without one there is nothing to ask, and the
+ * customer hold is positive only (v2.1 §10), so nothing holds on the CRM's
+ * say. Asking an unconfigured live Zoho would throw after the search had
+ * already been paid for.
+ */
+export function zohoConnected(e: Pick<Env, "INTEGRATIONS" | "RELAY_ZOHO_CLIENT_ID" | "RELAY_ZOHO_CLIENT_SECRET" | "RELAY_ZOHO_REFRESH_TOKEN"> = env()): boolean {
+  if (e.INTEGRATIONS === "mock") return true;
+  return e.RELAY_ZOHO_CLIENT_ID !== undefined && e.RELAY_ZOHO_CLIENT_SECRET !== undefined && e.RELAY_ZOHO_REFRESH_TOKEN !== undefined;
+}
+
 export function defaultLeadGenDeps(): LeadGenHandlerDeps {
   const setup = leadGenSetup();
   return {
     environment: (handoff) => (setup === null ? null : setup.environment(handoff)),
-    crm: zohoCrmCheck(services().zoho),
+    crm: zohoConnected() ? zohoCrmCheck(services().zoho) : NO_CRM,
     ...(setup === null ? {} : { pricing: setup.pricing }),
   };
 }

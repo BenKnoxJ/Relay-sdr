@@ -6,6 +6,7 @@ import { findPeople } from "@/lib/leadgen/findPeople";
 import { sampleProvider, sampleVocabulary } from "@/lib/leadgen/sample";
 import { leadGenSetup } from "@/lib/leadgen/setup";
 import { LUSHA_V3_PRICING } from "@/lib/leadgen/spend";
+import { zohoConnected } from "@/worker/handlers/leadGen";
 
 import { NO_WAIT, handoff, knowledge } from "./harness";
 
@@ -79,6 +80,17 @@ describe("the Lusha setup", () => {
       if (integrations === undefined) delete process.env.INTEGRATIONS;
       else process.env.INTEGRATIONS = integrations;
     }
+  });
+});
+
+describe("the CRM check a lead gen run uses", () => {
+  it("asks Zoho only when Zoho is connected: its mock, or all three live credentials", () => {
+    const none = { RELAY_ZOHO_CLIENT_ID: undefined, RELAY_ZOHO_CLIENT_SECRET: undefined, RELAY_ZOHO_REFRESH_TOKEN: undefined };
+    expect(zohoConnected({ INTEGRATIONS: "mock", ...none })).toBe(true);
+    // Live with no Zoho: no CRM, rather than a lookup that throws after the search was paid for.
+    expect(zohoConnected({ INTEGRATIONS: "live", ...none })).toBe(false);
+    expect(zohoConnected({ INTEGRATIONS: "live", ...none, RELAY_ZOHO_CLIENT_ID: "id", RELAY_ZOHO_CLIENT_SECRET: "secret" })).toBe(false);
+    expect(zohoConnected({ INTEGRATIONS: "live", RELAY_ZOHO_CLIENT_ID: "id", RELAY_ZOHO_CLIENT_SECRET: "secret", RELAY_ZOHO_REFRESH_TOKEN: "token" })).toBe(true);
   });
 });
 

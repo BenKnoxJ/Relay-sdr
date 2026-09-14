@@ -50,8 +50,8 @@ function Person({ person, roles, busy, press }: { person: FoundPersonView; roles
   const c = campaignsCopy;
   const chip = REVIEW_CHIP[person.review];
   return (
-    <li data-testid="found-person" data-review={person.review} className="flex flex-wrap items-start gap-3">
-      <span className="min-w-0 flex-1">
+    <li data-testid="found-person" data-review={person.review} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+      <span className="min-w-0 sm:flex-1">
         <b className="type-name block text-14">
           {person.name} · {person.title}
         </b>
@@ -78,7 +78,7 @@ function Person({ person, roles, busy, press }: { person: FoundPersonView; roles
         </span>
       </span>
       {press === undefined ? null : (
-        <span className="flex shrink-0 gap-1.5">
+        <span className="flex gap-1.5 sm:shrink-0">
           <ReviewButton testId="keep" label={c.reviewKeep} pressed={person.review === "kept"} disabled={busy} onPress={() => press("kept")} />
           <ReviewButton testId="drop" label={c.reviewDrop} pressed={person.review === "dropped"} disabled={busy} onPress={() => press("dropped")} />
         </span>
@@ -92,8 +92,8 @@ function Account({ account, roles, busy, press }: { account: AccountView; roles:
   const everyoneDropped = account.people.every((person) => person.review === "dropped");
   return (
     <li data-testid="found-account" className="min-w-0 rounded-input border border-line p-3 [overflow-wrap:anywhere]">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+        <div className="min-w-0 sm:flex-1">
           <h3 data-testid="account-name" className="type-name text-15">
             {account.company}
           </h3>

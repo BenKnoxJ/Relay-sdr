@@ -19,3 +19,23 @@ source; edit it there and re-copy.
 | 11 | Words | `assertPlainWords` on `whyPicked`, reasons and messages |
 | 12 | On screen | Your people before and after reveal from fixtures on the bench, eyeballed |
 | 13 | Live smoke (five cases, throwaway campaign, `INTEGRATIONS=live`) | page cost at size 40 and 100 recorded; `values` envelope handled; a no-email reveal suppresses; a wrong-person reveal held; a 429 retried. Ledger equals Lusha's usage endpoint before and after |
+
+## v2.1 amendments to this rubric (signed 2026-09-14)
+
+Copied from `definition.md` (v2.1 §14), which amends the table above. The bench checklist parses the table only; the v2.1 rows join it when lead gen is built.
+
+## 14. Rubric changes
+- Row 2: the Confirm-screen cap is shown and the balance snapshot is read server-side before any search.
+- Row 5: the invariant holds on every request in the mock call log, and unknown outcomes stay reserved.
+- Row 9: paging stops at `howMany` or at the invariant; partial results are shown as People found X of N.
+
+New rows:
+- only `LeadGenHandoffV1` reaches lead gen, and no import from `agents/research/**`;
+- lead gen uses the handoff's buyer group and never reads `sourceRank`;
+- no fallback to another group;
+- reuse: a candidate matching a usable owned Person makes zero reveal calls and zero credits, and is still ranked and capped;
+- a reveal returning a known email canonicalises to the existing Person;
+- `no_email`, `invalid_id` and `wrong_person` records are never re-bought, but never block the same human through another record;
+- email-based holds never run before reveal;
+- translation never widens, and the rep never sees provider ids;
+- campaign-only holds never write a suppression.

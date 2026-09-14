@@ -103,8 +103,12 @@ export const campaignsCopy = {
   failedNextRetry: "Try again, or edit the brief.",
   failedNextEdit: "Edit the brief, and Relay looks again.",
 
-  /** Confirm plan is drawn and cannot be pressed until finding people exists. */
-  confirmLater: "Finding people comes next. Nothing will be bought or sent yet.",
+  /**
+   * Confirm plan is drawn and cannot be pressed until finding people exists.
+   * Lead gen v2.1 §6: confirming allows a capped search, which is spend; emails are a second approval.
+   */
+  confirmLater:
+    "Finding people comes next. Confirming will start a search that uses credits, up to a limit you approve. Emails are only bought when you reveal them.",
 
   /** The brief card (mock 3b), five fields read only. */
   briefLabel: "The brief",
@@ -320,7 +324,10 @@ export const campaignsCopy = {
   sendingADay: "a day,",
   sendingTo: "to",
   sendingFrom: "from",
-  lawfulBasis: "Legitimate interest recorded at confirm: B2B offer, opt out in every email",
+  /** The lawful-basis text a rep confirms. Nothing records it yet, so nothing here says it was recorded. */
+  lawfulBasis: "Legitimate interest: B2B offer, opt out in every email",
+  /** Lead gen v2.1 §12: shown once Confirm stores the rep's lawful-basis text. Not an LIA. */
+  lawfulBasisConfirmed: "Lawful basis confirmed",
 
   /** Progress: counts only (§23.1c). */
   progressLabel: "Progress",
@@ -335,8 +342,9 @@ export const campaignsCopy = {
   peopleChosen: "Chosen",
   peopleOnHold: "On hold",
   peopleLink: "Your people",
+  /** Lead gen v2.1 §6: the search after Confirm uses credits; emails are bought only on Reveal emails. */
   peopleBeforeConfirm:
-    "Chosen after you confirm. You pick from the ranked list before any credit is spent.",
+    "Found after you confirm, by a search that uses credits up to the limit you approve. Emails are only bought when you reveal them.",
   /** Progress before anyone has been found: words, not five zeros that read like work done. */
   progressNone: "No people have been found yet. Nothing has been sent.",
   /** The list row's count before anyone has been contacted. */

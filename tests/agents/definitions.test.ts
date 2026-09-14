@@ -60,6 +60,9 @@ describe("the signed definitions", () => {
       // Research was re-signed as v3 on 2026-09-09; the other three stand at v2.
       expect(definition).toMatch(kind === "research" ? /v3 · SIGNED by the product owner 2026-09-09/ : /SIGNED by Benny-san 2026-09-08/);
     }
+    // Lead gen v2.1 is carried after the v2 it amends; the orchestrator carries its A2.
+    expect(loadDefinition("leadgen").definition).toMatch(/v2\.1 · SIGNED by the product owner 2026-09-14/);
+    expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A2: lead gen v2\.1 integration/);
   });
 
   it("memoises, and re-reads after a reset", () => {

@@ -388,9 +388,13 @@ export const campaignsCopy = {
   sendingADay: "a day,",
   sendingTo: "to",
   sendingFrom: "from",
-  /** The lawful-basis text a rep confirms. Nothing records it yet, so nothing here says it was recorded. */
+  /**
+   * The lawful-basis text a rep confirms, shown on the Confirm card. Confirm
+   * stores this exact text, with the rep, the time and the brief version, in
+   * the `campaign.confirmed` Event (lead gen v2.1 §12). Not an LIA.
+   */
   lawfulBasis: "Legitimate interest: B2B offer, opt out in every email",
-  /** Lead gen v2.1 §12: shown once Confirm stores the rep's lawful-basis text. Not an LIA. */
+  /** Lead gen v2.1 §12: the label for that stored record, never an LIA. No screen shows the record yet. */
   lawfulBasisConfirmed: "Lawful basis confirmed",
 
   /** Progress: counts only (§23.1c). */

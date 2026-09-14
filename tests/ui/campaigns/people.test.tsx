@@ -183,6 +183,10 @@ describe("People found", () => {
     expect(screen.getByTestId("edit-warning").textContent).toBe(campaignsCopy.editWarning);
     const reveal = screen.getByRole("button", { name: campaignsCopy.actionReveal });
     expect(reveal.hasAttribute("disabled")).toBe(true);
+    // Unmistakably not pressable: announced as disabled, and never drawn as the filled primary action.
+    expect(reveal.getAttribute("aria-disabled")).toBe("true");
+    expect(reveal.className).not.toMatch(/\bbg-action\b/);
+    expect(reveal.className).toMatch(/\bcursor-not-allowed\b/);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealLater);
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
     // The research folds away once there are accounts to review, one press from open.

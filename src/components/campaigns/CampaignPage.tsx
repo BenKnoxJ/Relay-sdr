@@ -319,6 +319,10 @@ export function CampaignPage({
             <PillButton
               variant={state === "running" ? "outline" : "primary"}
               disabled={action.disabled === true || pending}
+              aria-disabled={action.disabled === true ? true : undefined}
+              // An action that is not built yet (Reveal emails) must not look pressable: quiet
+              // outline, muted text, no hover, and the note under it says why.
+              className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
               onClick={() => {
                 if (action.disabled === true) return;
                 if (action.kind === "retry") {

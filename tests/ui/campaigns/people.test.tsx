@@ -56,7 +56,11 @@ beforeAll(async () => {
   if (!built.ok) throw new Error(built.refusal);
   handoff = built.handoff;
   const found = async (count: number) => {
-    const provider = new FakeLeadGenProvider([{ candidates: Array.from({ length: count }, (_, index) => candidate(index + 1, { title: ROLE_TITLES[(index + 1) % ROLE_TITLES.length] })), charged: count, hasMore: false }]);
+    // Candidate 2 shares the first person's firm, so one account has two people: who runs it and who signs it off.
+    const people = Array.from({ length: count }, (_, index) =>
+      index === 1 ? candidate(2, { title: "Head of Claims", company: "Firm 1", domain: "firm1.co.uk" }) : candidate(index + 1, { title: ROLE_TITLES[(index + 1) % ROLE_TITLES.length] }),
+    );
+    const provider = new FakeLeadGenProvider([{ candidates: people, charged: count, hasMore: false }]);
     const result = await findPeople(handoff, { provider, vocabulary: VOCABULARY, knowledge: { people: [], providerIdentities: [], suppressions: [], enrolledPersonIds: [] }, crm: NO_CRM, retry: NO_WAIT });
     if (result.output.phase !== "pick") throw new Error("tests: expected people");
     return result.output;
@@ -244,20 +248,34 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     rows(pick).map((row) => ({ ...row, review: reviews[row.rank] ?? "pending" }) as CampaignPerson);
   const found = (people: CampaignPerson[]) => campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } });
 
-  it("leads with accounts: who is at each, the roles they cover, and why the account belongs", () => {
+  it("leads with accounts, says the plan's search once, and each role's needs once", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
     const accounts = screen.getAllByTestId("found-account");
     expect(accounts.length).toBeGreaterThan(1);
     expect(screen.getByTestId("accounts-summary").textContent).toContain(`10 ${campaignsCopy.accountsPeopleAt} ${accounts.length} ${campaignsCopy.accountsWord}`);
-    for (const account of accounts) {
-      expect(account.querySelector("[data-testid=account-fit]")?.textContent).toMatch(new RegExp(`^${campaignsCopy.accountFitSearch} United Kingdom, `));
-    }
-    // Every person carries the role they play, with that role's needs as why they fit.
+    // The plan's search, once, above the accounts; never repeated on a card.
+    expect(screen.getAllByTestId("search-line")).toHaveLength(1);
+    expect(screen.getByTestId("search-line").textContent).toMatch(new RegExp(`^${campaignsCopy.accountFitSearch} United Kingdom, `));
+    expect(document.body.textContent?.split(campaignsCopy.accountFitSearch).length).toBe(2);
+    // Each role's needs appear exactly once, in the buyer roles summary.
+    expect(screen.getByTestId("buyer-roles").textContent).toContain(campaignsCopy.buyerRolesLabel);
+    expect(document.body.textContent?.split("Less manual checking.").length).toBe(2);
+    // Every person carries the role they play and one short line naming it.
     const chips = screen.getAllByTestId("role-chip").map((chip) => chip.textContent);
     const labels: string[] = [...Object.values(campaignsCopy.roleParts), campaignsCopy.relatedRole];
     expect(chips.every((chip) => labels.includes(chip ?? ""))).toBe(true);
-    expect(screen.getAllByTestId("why-fits").some((line) => line.textContent?.includes("Less manual checking."))).toBe(true);
+    const whys: string[] = [...Object.values(campaignsCopy.whyRole), campaignsCopy.whyRelated];
+    expect(screen.getAllByTestId("why-fits").every((line) => whys.includes(line.textContent ?? ""))).toBe(true);
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
+  });
+
+  it("offers Drop account only where an account has more than one person", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    for (const account of screen.getAllByTestId("found-account")) {
+      const people = account.querySelectorAll("[data-testid=found-person]").length;
+      expect(account.querySelector("[data-testid=drop-account]") !== null).toBe(people > 1);
+    }
+    expect(screen.getAllByTestId("drop-account").length).toBeGreaterThan(0);
   });
 
   it("shows no email and no provider id anywhere", () => {

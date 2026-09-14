@@ -164,3 +164,32 @@ describe("the account-led search (v2.2 §4a)", () => {
     expect(result.output.chosen.every((person) => person.role === undefined)).toBe(true);
   });
 });
+
+describe("a search request that never left Relay (v2.2 note 2)", () => {
+  const runsAccounts = () => step(accounts(10).map((account, index) => at(account, runs(index))));
+
+  it("@proof releases a request that was never sent, so the retry and the complement still fit the cap", async () => {
+    const provider = new FakeLeadGenProvider([{ error: "not_sent" }, runsAccounts(), step([at("acct01", "Chief Operating Officer")])]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    // Never sent, then the retry, then the complement: all inside a cap of 20.
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p0:a2", "complement:a1"]);
+    expect(result.ledger.map((entry) => entry.state)).toEqual(["released", "reconciled", "reconciled"]);
+    expect(result.output).toMatchObject({ phase: "pick", spend: { reserved: 0, charged: 2 } });
+  });
+
+  it("@proof keeps a request that may have been sent at its worst case, and the cap then counts it", async () => {
+    const provider = new FakeLeadGenProvider([{ error: "timeout" }, runsAccounts()]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    expect(result.ledger.map((entry) => entry.state)).toEqual(["unreconciled", "reconciled"]);
+    // 10 held for the unknown attempt and 1 charged leave 9: no room for the smallest complement, so the cap stopped it.
+    expect(provider.calls).toHaveLength(2);
+    expect(result.output).toMatchObject({ phase: "pick", shortfall: "cap_reached", spend: { reserved: 10, charged: 1 } });
+  });
+
+  it("halts as busy when every attempt was refused before it left, having held nothing", async () => {
+    const provider = new FakeLeadGenProvider([{ error: "not_sent" }, { error: "not_sent" }, { error: "not_sent" }]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    expect(result.output).toMatchObject({ phase: "needs_you", reason: "provider_busy", spend: { reserved: 0, charged: 0 } });
+    expect(result.ledger.every((entry) => entry.state === "released")).toBe(true);
+  });
+});

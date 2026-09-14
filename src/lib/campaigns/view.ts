@@ -5,7 +5,7 @@ import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
-import { accountsOf, effectiveOf, reviewCounts, revealFromKept } from "./accounts";
+import { accountsOf, buyerRolesOf, effectiveOf, reviewCounts, revealFromKept, searchLine } from "./accounts";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveLeadGen, deriveResearch, storedPack, type LeadGenState } from "./derive";
 import { researchSections } from "./research";
@@ -144,7 +144,9 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           groupName: handoff.buyerGroup.name,
           found: found.found,
           shortfall: found.shortfall ?? null,
-          accounts: accountsOf(leadGen?.people ?? [], handoff, effectiveOf(leadGen?.result?.after)),
+          search: searchLine(handoff, effectiveOf(leadGen?.result?.after)),
+          buyerRoles: buyerRolesOf(handoff),
+          accounts: accountsOf(leadGen?.people ?? [], handoff),
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),

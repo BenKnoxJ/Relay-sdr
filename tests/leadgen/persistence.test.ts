@@ -535,9 +535,13 @@ describe("keep or drop before Reveal (v2.2 §9a)", () => {
     const view = await campaignView(campaign);
     expect(view.peopleFound?.review).toEqual({ kept: 0, dropped: 0, pending: 10 });
     expect(view.peopleFound?.revealEstimate).toEqual({ kept: 0, toBuy: 0, reused: 0, credits: 0 });
-    // Why each person fits is their role's needs, as research wrote them.
+    // Each person says the role they matched; each role's needs are said once, above the accounts.
     const people = view.peopleFound!.accounts.flatMap((account) => account.people);
-    expect(people.find((person) => person.role === "runs")?.needs).toBe("Less manual checking.");
+    expect(people.find((person) => person.role === "runs")?.why).toBe(campaignsCopy.whyRole.runs);
+    expect(view.peopleFound?.buyerRoles).toEqual([
+      { part: "runs", title: "Claims team leader", needs: "Less manual checking." },
+      { part: "signs", title: "Head of claims", needs: "Proof for the board." },
+    ]);
   });
 
   it("@proof keeps and drops one person with who and when, one Event each, and the decision survives a reload", async () => {
@@ -606,5 +610,37 @@ describe("keep or drop before Reveal (v2.2 §9a)", () => {
     const { chosen } = await found();
     await expect(prisma.campaignPerson.update({ where: { id: chosen[0]!.id }, data: { review: "kept" } })).rejects.toThrow();
     await expect(prisma.campaignPerson.update({ where: { id: chosen[0]!.id }, data: { roleTitle: null } })).rejects.toThrow();
+  });
+});
+
+describe("the persisted ledger and a request that never left Relay (v2.2 note 2)", () => {
+  it("@proof releases a never-sent reservation, and keeps a maybe-sent one held against the cap", async () => {
+    const campaign = await planned();
+    await confirm(campaign, { setup: setup({ searchCreditCap: 20 }) });
+    const job = await latestJob(campaign.id);
+    const confirmEvent = await findConfirmEvent(prisma, { orgId: ORG, campaignId: campaign.id, briefVersion: 1 });
+    const spend = persistedSpend(prisma, {
+      orgId: ORG,
+      campaignId: campaign.id,
+      briefVersion: 1,
+      confirmEventId: confirmEvent!.id,
+      jobId: job.id,
+      attempt: 1,
+      cap: 20,
+      balance: { remaining: 100, readAt: new Date(Date.now() - 60_000) },
+      pricingAssumptions: DOCUMENTED_UNVERIFIED_PRICING.id,
+    });
+    expect(await spend.tryReserve("never-sent", 10)).toBe(true);
+    await spend.release("never-sent");
+    expect(await spend.tryReserve("maybe-sent", 10)).toBe(true);
+    await spend.markUnknown("maybe-sent");
+    // The released 10 is free again; the unknown 10 is not.
+    expect(await spend.canReserve(10)).toBe(true);
+    expect(await spend.canReserve(11)).toBe(false);
+    expect(await spend.summary()).toMatchObject({ charged: 0, reserved: 10 });
+    expect((await spend.list()).map((entry) => entry.state).sort()).toEqual(["released", "unreconciled"]);
+    // What the rep reads: only the maybe-sent 10 is held until the charge is confirmed.
+    const view = await campaignView(campaign);
+    expect(view.credits).toEqual({ used: 0, left: 10 });
   });
 });

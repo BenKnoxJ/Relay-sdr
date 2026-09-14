@@ -39,6 +39,43 @@ export class LushaNoAnswerError extends Error {
   }
 }
 
+/**
+ * The request never left Relay: the connection was refused or never opened,
+ * so nothing reached the API and nothing can have been charged. Anything that
+ * may have gone out (a reset, a timeout, an abort) is `LushaNoAnswerError`.
+ */
+export class LushaNotSentError extends Error {
+  constructor(
+    readonly path: string,
+    readonly code: string,
+  ) {
+    super(`lusha: ${path} was never sent (${code})`);
+    this.name = "LushaNotSentError";
+  }
+}
+
+/**
+ * Connect-phase failures only: the name did not resolve, the host was
+ * unreachable, the connection was refused, or connecting timed out. In each
+ * the request was never written to a socket.
+ */
+const NOT_SENT_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT"]);
+
+/** The connect-phase code a fetch failure carries, or null when the request may have gone out. */
+function notSentCode(error: unknown): string | null {
+  const cause = error instanceof Error ? (error as { cause?: unknown }).cause : undefined;
+  if (cause === null || typeof cause !== "object") return null;
+  const code = (cause as { code?: unknown }).code;
+  if (typeof code === "string" && NOT_SENT_CODES.has(code)) return code;
+  // Several addresses tried in turn: never sent only if every attempt failed to connect.
+  const errors = (cause as { errors?: unknown }).errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const codes = errors.map((inner) => (inner !== null && typeof inner === "object" ? (inner as { code?: unknown }).code : undefined));
+    if (codes.every((inner) => typeof inner === "string" && NOT_SENT_CODES.has(inner))) return codes[0] as string;
+  }
+  return null;
+}
+
 /** A success status whose body is not the shape Relay reads. */
 export class LushaBadResponseError extends Error {
   constructor(readonly path: string) {
@@ -165,6 +202,8 @@ export class LushaClient {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
+      const code = notSentCode(error);
+      if (code !== null) throw new LushaNotSentError(endpoint, code);
       const name = error instanceof Error ? error.name : "";
       throw new LushaNoAnswerError(endpoint, name === "TimeoutError" || name === "AbortError");
     }

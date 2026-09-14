@@ -475,3 +475,18 @@ Keep and drop write the rows and a `campaign.people_reviewed` Event in one trans
 
 ## 15a. Still not here
 Company search, a CampaignAccount table, running several plays, choosing another play, Reveal, People ready, Outreach, and any Research change.
+
+## Notes (2026-09-14, directed by the product owner after the live account-led smoke)
+1. **§8a: the lead title limit is removed.**
+   - Pass 1 takes each account's first strong candidate, whatever its title.
+   - Pass 4 may add further strong accounts while the run is still short of `howMany`.
+   - Why: the live smoke showed the limit discarding legitimate target accounts. Discovery through the runs titles, one person per company, already stops one title filling the list.
+2. **v2.1 §6, refined: a request that provably never left Relay releases its reservation** (ledger state `released`, which counts for nothing against the cap).
+   - "Provably never left" means the name did not resolve, the host was unreachable, the connection was refused, or connecting timed out.
+   - A request that may have been sent (a reset, a timeout or abort after connecting, a server fault) keeps its worst case until reconciled, as before.
+   - Rep-facing copy says credits are held only for reservations that may still be charged.
+3. **§9a, the screen:**
+   - The plan's search is stated once, above the accounts. An account card adds only account-specific evidence Relay has, such as a seed-firm match.
+   - Each person's "why they fit" names the role they matched.
+   - Each role's needs are shown once, in a buyer-roles summary.
+   - Drop account appears only on accounts with more than one person.

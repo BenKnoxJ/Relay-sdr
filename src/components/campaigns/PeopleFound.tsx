@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
-import type { AccountView, FoundPersonView, PeopleFoundView, ReviewView } from "@/lib/campaigns/types";
+import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, ReviewView } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
 
@@ -12,12 +12,13 @@ import { cn } from "@/lib/utils";
  * Reviewing people (lead gen v2.2 §9a): accounts first, the people Relay
  * chose nested under each, and the rep's keep or drop on every one.
  *
- * Each account says how many people it has, which roles they cover and why
- * it is in this campaign, in lines Relay can stand behind: the plan's own
- * search, and a firm research named. Each person says the role they play and,
- * as why they fit, what research says that role needs. No email, no provider
- * id. Reveal emails is still the page's header action and is not pressable;
- * the estimate under the list counts kept people only.
+ * The plan's search is said once above the accounts, and each buyer role's
+ * needs once, in a summary a press away (v2.2 note 3). Each account says how
+ * many people it has and which roles they cover, plus evidence about that
+ * account only where Relay has it (a firm research named). Each person says
+ * the role they matched in one short line. No email, no provider id. Reveal
+ * emails is still the page's header action and is not pressable; the
+ * estimate under the list counts kept people only.
  */
 
 type Review = (personId: string, scope: "person" | "account", decision: "kept" | "dropped") => Promise<string | null>;
@@ -67,14 +68,8 @@ function Person({ person, roles, busy, press }: { person: FoundPersonView; roles
             <span data-testid="review-chip">{chip.word}</span>
           </Chip>
         </span>
-        <span data-testid="why-fits" className="type-small mt-1 block">
-          {roles ? (
-            <>
-              <span className="text-muted">{c.whyFits}</span> {person.needs ?? c.relatedFits}
-            </>
-          ) : (
-            person.whyPicked
-          )}
+        <span data-testid="why-fits" className="type-small mt-1 block text-muted">
+          {person.why}
         </span>
       </span>
       {press === undefined ? null : (
@@ -89,7 +84,8 @@ function Person({ person, roles, busy, press }: { person: FoundPersonView; roles
 
 function Account({ account, roles, busy, press }: { account: AccountView; roles: boolean; busy: boolean; press?: Review }) {
   const c = campaignsCopy;
-  const everyoneDropped = account.people.every((person) => person.review === "dropped");
+  // One person's own Drop is the whole decision: Drop account is only for accounts with more than one.
+  const dropAccount = press !== undefined && account.people.length > 1 && !account.people.every((person) => person.review === "dropped");
   return (
     <li data-testid="found-account" className="min-w-0 rounded-input border border-line p-3 [overflow-wrap:anywhere]">
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
@@ -102,11 +98,13 @@ function Account({ account, roles, busy, press }: { account: AccountView; roles:
             {account.people.length} {account.people.length === 1 ? c.accountPerson : c.accountPeople}
             {roles && account.parts.length > 0 ? ` · ${account.parts.map((part) => c.roleParts[part]).join(", ")}` : ""}
           </p>
-          <p data-testid="account-fit" className="type-small text-muted">
-            {account.fit}
-          </p>
+          {account.evidence === null ? null : (
+            <p data-testid="account-evidence" className="type-small text-muted">
+              {account.evidence}
+            </p>
+          )}
         </div>
-        {press === undefined || everyoneDropped ? null : (
+        {!dropAccount || press === undefined ? null : (
           <ReviewButton testId="drop-account" label={c.reviewDropAccount} pressed={false} disabled={busy} onPress={() => void press(account.personId, "account", "dropped")} />
         )}
       </div>
@@ -122,6 +120,37 @@ function Account({ account, roles, busy, press }: { account: AccountView; roles:
         ))}
       </ul>
     </li>
+  );
+}
+
+/** The confirmed group's roles, once each: the chips a rep will see, and, a press away, what research says each needs. */
+function BuyerRoles({ roles }: { roles: BuyerRoleView[] }) {
+  const c = campaignsCopy;
+  return (
+    <div data-testid="buyer-roles" className="mt-3 rounded-input border border-line p-3">
+      <p className="type-label mb-1.5">{c.buyerRolesLabel}</p>
+      <ul className="grid gap-1">
+        {roles.map((role) => (
+          <li key={`${role.part}:${role.title}`} className="flex flex-wrap items-center gap-1.5">
+            <Chip tone="ok">{c.roleParts[role.part]}</Chip>
+            <span className="type-small">{role.title}</span>
+          </li>
+        ))}
+      </ul>
+      <details data-testid="buyer-role-needs" className="mt-2">
+        <summary className="type-small cursor-pointer font-semibold text-action focus-visible:outline-none focus-visible:ring-2">{c.buyerRolesNeeds}</summary>
+        <dl className="mt-1.5 grid gap-1.5">
+          {roles.map((role) => (
+            <div key={`${role.part}:${role.title}`}>
+              <dt className="type-small font-semibold">
+                {c.roleParts[role.part]} · {role.title}
+              </dt>
+              <dd className="type-small text-muted">{role.needs}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+    </div>
   );
 }
 
@@ -176,6 +205,10 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
             {error}
           </p>
         )}
+        <p data-testid="search-line" className="type-small mt-1.5 text-muted">
+          {view.search}
+        </p>
+        {view.buyerRoles.length === 0 ? null : <BuyerRoles roles={view.buyerRoles} />}
 
         <ol className="mt-3 grid gap-3">
           {view.accounts.map((account) => (

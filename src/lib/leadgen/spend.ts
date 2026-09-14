@@ -86,6 +86,8 @@ export type SpendPort = {
   tryReserve(key: string, worstCase: number): Promise<boolean>;
   reconcile(key: string, charged: number): Promise<void>;
   markUnknown(key: string): Promise<void>;
+  /** The request provably never left Relay: nothing can have been charged, so the reservation counts for nothing. */
+  release(key: string): Promise<void>;
   summary(): Promise<SpendSummary>;
   list(): Promise<readonly SpendEntry[]>;
 };
@@ -101,6 +103,7 @@ export function inMemorySpend(spend: SearchSpend): SpendPort {
     },
     reconcile: async (key, charged) => spend.reconcile(key, charged),
     markUnknown: async (key) => spend.markUnknown(key),
+    release: async (key) => spend.release(key),
     summary: async () => spend.summary(),
     list: async () => spend.list(),
   };
@@ -109,7 +112,8 @@ export function inMemorySpend(spend: SearchSpend): SpendPort {
 export type SpendEntry = {
   key: string;
   worstCase: number;
-  state: "reserved" | "reconciled" | "unreconciled";
+  /** `released`: the request never left Relay, so it counts for nothing (v2.2 note 2). */
+  state: "reserved" | "reconciled" | "unreconciled" | "released";
   charged: number | null;
 };
 
@@ -124,6 +128,13 @@ export class SpendRefused extends Error {
   }
 }
 
+/** What one ledger entry counts against the cap: its charge, nothing when released, else its worst case. */
+export function held(entry: Pick<SpendEntry, "state" | "charged" | "worstCase">): number {
+  if (entry.state === "reconciled") return entry.charged ?? 0;
+  if (entry.state === "released") return 0;
+  return entry.worstCase;
+}
+
 /** The search ledger for one confirmed run. Pure: nothing here calls anything. */
 export class SearchSpend {
   private readonly entries: SpendEntry[] = [];
@@ -135,9 +146,9 @@ export class SearchSpend {
     readonly pricing: SearchPricing,
   ) {}
 
-  /** What counts against the cap: reconciled at their charge, everything else at its worst case. */
+  /** What counts against the cap: reconciled at their charge, released at nothing, everything else at its worst case. */
   committed(): number {
-    return this.entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : entry.worstCase), 0);
+    return this.entries.reduce((total, entry) => total + held(entry), 0);
   }
 
   remaining(): number {
@@ -170,6 +181,11 @@ export class SearchSpend {
     this.open(key).state = "unreconciled";
   }
 
+  /** The request provably never left Relay: the reservation is released and counts for nothing. */
+  release(key: string): void {
+    this.open(key).state = "released";
+  }
+
   list(): readonly SpendEntry[] {
     return this.entries.map((entry) => ({ ...entry }));
   }
@@ -178,7 +194,8 @@ export class SearchSpend {
     return {
       searchCreditCap: this.cap,
       charged: this.entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : 0), 0),
-      reserved: this.entries.reduce((total, entry) => total + (entry.state === "reconciled" ? 0 : entry.worstCase), 0),
+      // Only what may still be charged: never a request that never left Relay.
+      reserved: this.entries.reduce((total, entry) => total + (entry.state === "reserved" || entry.state === "unreconciled" ? entry.worstCase : 0), 0),
       pricingAssumptions: this.pricing.id,
       exceededDocumentedWorstCase: this.exceeded,
     };

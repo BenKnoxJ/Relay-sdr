@@ -1,5 +1,6 @@
 import {
   ProviderBusyError,
+  ProviderNotSentError,
   ProviderUnknownOutcomeError,
   type LeadGenProvider,
   type ProviderCandidate,
@@ -15,7 +16,7 @@ import {
 
 export type FakeStep =
   | { candidates: ProviderCandidate[]; charged: number; hasMore: boolean }
-  | { error: "busy" | "timeout" | "fail" };
+  | { error: "busy" | "timeout" | "not_sent" | "fail" };
 
 export class FakeLeadGenProvider implements LeadGenProvider {
   readonly provider = "lusha" as const;
@@ -33,6 +34,7 @@ export class FakeLeadGenProvider implements LeadGenProvider {
     if ("error" in step) {
       if (step.error === "busy") throw new ProviderBusyError();
       if (step.error === "timeout") throw new ProviderUnknownOutcomeError();
+      if (step.error === "not_sent") throw new ProviderNotSentError();
       throw new Error("FakeLeadGenProvider: scripted failure");
     }
     return { candidates: structuredClone(step.candidates), charged: step.charged, hasMore: step.hasMore };

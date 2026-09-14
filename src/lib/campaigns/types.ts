@@ -282,10 +282,13 @@ export type FoundPersonView = {
   reused: boolean;
   /** The confirmed group's role they play; null is a Related role, or a search that had no roles. */
   role: RolePartView | null;
-  /** Why they fit: that role's needs, as research wrote them. Null without a role. */
-  needs: string | null;
+  /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
+  why: string;
   review: ReviewView;
 };
+
+/** One of the confirmed group's roles, shown once above the accounts with what research says it needs. */
+export type BuyerRoleView = { part: RolePartView; title: string; needs: string };
 
 /** One account in Reviewing people: its people, the roles they cover, and why it is here (v2.2 §9a). */
 export type AccountView = {
@@ -296,8 +299,8 @@ export type AccountView = {
   people: FoundPersonView[];
   /** The roles its people cover, runs first. */
   parts: RolePartView[];
-  /** A true line about why the account is in this campaign: the plan's search, and a firm research named. */
-  fit: string;
+  /** Evidence about this account in particular, only where Relay has it (a firm research named); null otherwise. */
+  evidence: string | null;
 };
 
 /** People found, X of N (lead gen v2.1 §4, §11). */
@@ -305,6 +308,10 @@ export type PeopleFoundView = {
   groupName: string;
   found: { n: number; ofM: number };
   shortfall: "cap_reached" | "no_more_results" | "fewer_strong_matches" | null;
+  /** The plan's search, said once above the accounts: every account matches it (v2.2 note 3). */
+  search: string;
+  /** The confirmed group's roles and their needs, once each. Empty for a search that had no roles. */
+  buyerRoles: BuyerRoleView[];
   /** Accounts first (v2.2 §9a), in the order Relay chose them; people nested, by rank. */
   accounts: AccountView[];
   /** True when the search matched people to research's roles (a v2.2 run). */

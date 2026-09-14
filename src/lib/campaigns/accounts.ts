@@ -5,7 +5,7 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 import { isSeedFirm } from "@/lib/leadgen/rank";
 
 import { readable } from "./readable";
-import type { AccountView, FoundPersonView, PeopleFoundView, ReviewView, RolePartView } from "./types";
+import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, ReviewView, RolePartView } from "./types";
 
 /**
  * Reviewing people, accounts first (lead gen v2.2 §9a), from the stored
@@ -14,9 +14,10 @@ import type { AccountView, FoundPersonView, PeopleFoundView, ReviewView, RolePar
  * An account is its people's `companyKey`: the domain, else the provider's
  * company id, else the name. There is no account record. Accounts come in
  * the order Relay chose them (their first person's rank) and people by rank
- * inside each. Every line is something Relay has: the plan's own search, a
- * firm research named, and the role research described. Nothing is said
- * about a firm that the provider did not return.
+ * inside each. Every line is something Relay has: the plan's own search (said
+ * once, above the accounts), a firm research named (on that account), and the
+ * role each person matched (with each role's needs said once, per role).
+ * Nothing is said about a firm that the provider did not return.
  */
 
 export type StoredPerson = Pick<CampaignPerson, "id" | "rank" | "status" | "source" | "whyPicked" | "companyKey" | "preview" | "rolePart" | "roleTitle" | "review">;
@@ -61,7 +62,7 @@ export function effectiveOf(after: unknown): Effective {
   };
 }
 
-/** The line every account shares: the plan's own search, as it was run. */
+/** The line every account shares, said once above them: the plan's own search, as it was run. */
 export function searchLine(handoff: LeadGenHandoff, effective: Effective): string {
   const c = campaignsCopy;
   const countries = handoff.targeting.countries.map((iso) => (c.countries as Record<string, string>)[iso] ?? iso).join(", ");
@@ -75,13 +76,20 @@ function reviewOf(value: string): ReviewView {
   return value === "kept" || value === "dropped" ? value : "pending";
 }
 
-export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, effective: Effective): AccountView[] {
-  const line = searchLine(handoff, effective);
-  const needsOf = (title: string | null): string | null => {
-    if (handoff.version !== 2 || title === null) return null;
-    const role = handoff.buyerRoles.find((entry) => entry.title === title);
-    return role === undefined ? null : readable(role.needs);
-  };
+/** The confirmed group's roles, once each, runs first, with their needs as research wrote them. Empty for a v2.1 run. */
+export function buyerRolesOf(handoff: LeadGenHandoff): BuyerRoleView[] {
+  if (handoff.version !== 2) return [];
+  return PARTS.flatMap((part) => handoff.buyerRoles.filter((role) => role.part === part).map((role) => ({ part, title: role.title, needs: readable(role.needs) })));
+}
+
+/** One short line per person: the role they matched, or that they did not match one. */
+function whyOf(row: StoredPerson, roles: boolean): string {
+  if (!roles) return row.whyPicked;
+  return row.rolePart === null ? campaignsCopy.whyRelated : campaignsCopy.whyRole[row.rolePart];
+}
+
+export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff): AccountView[] {
+  const roles = handoff.version === 2;
 
   const byKey = new Map<string, StoredPerson[]>();
   for (const row of [...rows].filter((row) => row.status === "chosen").sort((a, b) => a.rank - b.rank)) {
@@ -101,7 +109,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         whyPicked: row.whyPicked,
         reused: row.source === "reused",
         role: row.rolePart,
-        needs: needsOf(row.roleTitle),
+        why: whyOf(row, roles),
         review: reviewOf(row.review),
       };
     });
@@ -115,7 +123,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
       domain: first.domain,
       people,
       parts: PARTS.filter((part) => people.some((person) => person.role === part)),
-      fit: seed ? `${line} ${campaignsCopy.accountFitSeed}` : line,
+      evidence: seed ? campaignsCopy.accountFitSeed : null,
     };
   });
 }

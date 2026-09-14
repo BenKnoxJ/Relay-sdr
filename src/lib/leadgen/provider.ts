@@ -92,3 +92,11 @@ export class ProviderUnknownOutcomeError extends Error {
     this.name = "ProviderUnknownOutcomeError";
   }
 }
+
+/** The request never left Relay (v2.2 note 2): nothing can have been charged, so its reservation is released. */
+export class ProviderNotSentError extends Error {
+  constructor(message = "the request never reached the provider") {
+    super(message);
+    this.name = "ProviderNotSentError";
+  }
+}

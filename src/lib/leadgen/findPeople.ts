@@ -12,7 +12,7 @@ import {
 import { allocate, targetAccountsFor, type Placed } from "./allocate";
 import { DEFAULT_EMAIL_POLICY, Knowledge, emailHold, preRevealChecks, type CrmCheck, type EmailPolicy, type OrgKnowledge } from "./holds";
 import { domainKey, norm } from "./normalise";
-import { ProviderBusyError, ProviderUnknownOutcomeError, type LeadGenProvider, type ProviderCandidate, type ProviderFilters, type ProviderSearchPage, type ProviderVocabulary } from "./provider";
+import { ProviderBusyError, ProviderNotSentError, ProviderUnknownOutcomeError, type LeadGenProvider, type ProviderCandidate, type ProviderFilters, type ProviderSearchPage, type ProviderVocabulary } from "./provider";
 import { rankCandidates, type Eligible, type Scored } from "./rank";
 import { PART_ORDER, roleTable, titlesByPart } from "./roles";
 import { DOCUMENTED_UNVERIFIED_PRICING, SearchSpend, documentedWorstCaseCharge, inMemorySpend, type SearchPricing, type SpendEntry, type SpendPort } from "./spend";
@@ -89,10 +89,15 @@ async function ask(run: Run, base: string, filters: ProviderFilters, page: numbe
       await run.spend.reconcile(key, returned.charged);
       return { kind: "answer", page: returned };
     } catch (error) {
-      // No billing answer came back, so the reservation stays at its worst case.
-      await run.spend.markUnknown(key);
-      if (!(error instanceof ProviderBusyError || error instanceof ProviderUnknownOutcomeError)) throw error;
-      if (attempt >= run.retry.attempts) return { kind: "halt", reason: error instanceof ProviderBusyError ? "provider_busy" : "took_too_long" };
+      if (error instanceof ProviderNotSentError) {
+        // Provably never left Relay: nothing can have been charged, so nothing stays held.
+        await run.spend.release(key);
+      } else {
+        // No billing answer came back, so the reservation stays at its worst case.
+        await run.spend.markUnknown(key);
+        if (!(error instanceof ProviderBusyError || error instanceof ProviderUnknownOutcomeError)) throw error;
+      }
+      if (attempt >= run.retry.attempts) return { kind: "halt", reason: error instanceof ProviderUnknownOutcomeError ? "took_too_long" : "provider_busy" };
       await run.retry.wait(attempt);
     }
   }

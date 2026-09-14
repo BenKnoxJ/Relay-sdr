@@ -523,6 +523,8 @@ enum CreditState {
   reserved
   reconciled
   unreconciled
+  /// The request provably never left Relay (lead gen v2.2 note 2): it counts for nothing.
+  released
 
   @@map("credit_state")
 }

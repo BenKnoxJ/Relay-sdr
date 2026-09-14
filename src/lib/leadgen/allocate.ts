@@ -20,13 +20,17 @@ import { PART_ORDER, matchRole, type RoleMatch, type RolePart, type RoleTable } 
  *
  * Then four passes, stopping at `howMany`:
  *   1. leads: accounts in order each take their first strong person, until
- *      `ceil(howMany / 2)` accounts have one. A lead whose title already leads
- *      `ceil(howMany / 4)` accounts gives way to the account's next person;
+ *      `ceil(howMany / 2)` accounts have one. There is no limit on how many
+ *      accounts one title leads (v2.2 note 1): discovery through the runs
+ *      titles, one person per company, is what keeps any one title from
+ *      filling the list;
  *   2. a complement: each lead account adds a person with a role it lacks;
  *   3. a third role, the same way;
  *   4. more accounts, a lead each.
- * Never two people with one role at an account, never more than the per
- * company cap, and never padding: fewer than asked is the answer.
+ * Pass 4 is what lets a run still short of `howMany` take further strong
+ * accounts beyond the target. Never two people with one role at an account,
+ * never more than the per company cap, and never padding: fewer than asked
+ * is the answer.
  */
 
 export type AllocateOptions = RankOptions & { roles: RoleTable };
@@ -43,11 +47,6 @@ export type AllocationResult = Omit<RankResult, "chosen" | "spare"> & {
 /** v2.2 §8a: how many accounts a run aims for. */
 export function targetAccountsFor(howMany: number): number {
   return Math.ceil(howMany / 2);
-}
-
-/** v2.2 §8a: how many accounts one exact title may lead. */
-export function leadTitleCapFor(howMany: number): number {
-  return Math.ceil(howMany / 4);
 }
 
 const PART_RANK: Record<RolePart, number> = { runs: 0, champions: 1, signs: 2 };
@@ -109,13 +108,11 @@ export function allocate(eligible: readonly Eligible[], options: AllocateOptions
   const pool = eligible.map((entry) => place(entry, options));
   const accounts = accountsOf(pool);
   const target = targetAccountsFor(options.howMany);
-  const titleCap = leadTitleCapFor(options.howMany);
 
   const chosen: (Placed & { rank: number })[] = [];
   const used = new Set<Placed>();
   const persons = new Set<string>();
   const taken = new Map<string, Placed[]>();
-  const leadsByTitle = new Map<string, number>();
   const leadAccounts: string[] = [];
 
   const full = () => chosen.length >= options.howMany;
@@ -127,9 +124,8 @@ export function allocate(eligible: readonly Eligible[], options: AllocateOptions
     chosen.push({ ...entry, rank: chosen.length + 1 });
   };
   const lead = (account: Account): boolean => {
-    const entry = account.members.find((member) => member.strong && free(member) && (leadsByTitle.get(norm(member.candidate.title)) ?? 0) < titleCap);
+    const entry = account.members.find((member) => member.strong && free(member));
     if (entry === undefined) return false;
-    leadsByTitle.set(norm(entry.candidate.title), (leadsByTitle.get(norm(entry.candidate.title)) ?? 0) + 1);
     take(account, entry);
     return true;
   };

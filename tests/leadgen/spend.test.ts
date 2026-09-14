@@ -83,3 +83,25 @@ describe("SearchSpend", () => {
     expect(spend.remaining()).toBe(28);
   });
 });
+
+describe("a request that never left Relay (v2.2 note 2)", () => {
+  it("@proof releases its reservation: it counts for nothing and holds nothing", () => {
+    const spend = new SearchSpend(20, 100, PRICING);
+    spend.reserve("p1:a1", 10);
+    spend.release("p1:a1");
+    expect(spend.remaining()).toBe(20);
+    expect(spend.summary()).toMatchObject({ charged: 0, reserved: 0 });
+    expect(spend.list()).toEqual([{ key: "p1:a1", worstCase: 10, state: "released", charged: null }]);
+    // A released reservation cannot be reconciled or released again.
+    expect(() => spend.reconcile("p1:a1", 1)).toThrow(/no open reservation/);
+    expect(() => spend.release("p1:a1")).toThrow(/no open reservation/);
+  });
+
+  it("@proof keeps a request that may have gone out at its worst case", () => {
+    const spend = new SearchSpend(20, 100, PRICING);
+    spend.reserve("p1:a1", 10);
+    spend.markUnknown("p1:a1");
+    expect(spend.remaining()).toBe(10);
+    expect(spend.summary()).toMatchObject({ charged: 0, reserved: 10 });
+  });
+});

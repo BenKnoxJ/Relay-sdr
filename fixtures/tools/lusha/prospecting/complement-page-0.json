@@ -1,26 +1,26 @@
 {
   "endpoint": "POST /v3/contacts/prospecting",
-  "fetchedAt": "2026-09-14T20:00:00.000Z",
-  "source": "Synthetic, in the V3 response shape recorded earlier: fictional people at fictional firms on .example domains. Not a Lusha answer. Lead gen v2.2: the complement search inside the chosen accounts: who champions it and who signs it off.",
+  "fetchedAt": "2026-09-14T23:00:00.000Z",
+  "source": "Synthetic, in the shape the first live account-led smoke returned (2026-09-14): fictional people at fictional firms on .example domains. Not a Lusha answer. Lead gen v2.2: the complement search inside the chosen accounts: one champion and two sign-offs, all the market has.",
   "sanitised": false,
   "body": {
     "requestId": "fixture-complement-page-0",
     "results": [
       {
         "id": "v22-b01",
-        "firstName": "Harper",
-        "lastName": "Oakes",
+        "firstName": "Marlo",
+        "lastName": "Holloway",
         "jobTitle": {
           "title": "Complaints Manager",
-          "seniority": "Manager",
+          "seniority": "manager",
           "departments": [
             "Customer Service"
           ]
         },
         "company": {
           "id": "v22-co-01",
-          "name": "Harbourline Motor Insurance",
-          "domain": "harbourline-motor.example"
+          "name": "Ardent Motor Insurance",
+          "domain": "ardent-motor.example"
         },
         "location": {
           "country": "United Kingdom",
@@ -28,7 +28,7 @@
           "city": "Manchester"
         },
         "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b01"
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-1"
         },
         "has": [
           "emails",
@@ -47,27 +47,27 @@
       },
       {
         "id": "v22-b02",
-        "firstName": "Ellis",
-        "lastName": "Price",
+        "firstName": "Nell",
+        "lastName": "Oakley",
         "jobTitle": {
           "title": "Chief Operating Officer",
-          "seniority": "C-Suite",
+          "seniority": "c-suite",
           "departments": [
             "General Management"
           ]
         },
         "company": {
-          "id": "v22-co-01",
-          "name": "Harbourline Motor Insurance",
-          "domain": "harbourline-motor.example"
+          "id": "v22-co-02",
+          "name": "Bramble Claims Mutual",
+          "domain": "bramble-mutual.example"
         },
         "location": {
           "country": "United Kingdom",
           "state": "England",
-          "city": "Manchester"
+          "city": "Bristol"
         },
         "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b02"
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-2"
         },
         "has": [
           "emails",
@@ -86,295 +86,27 @@
       },
       {
         "id": "v22-b03",
-        "firstName": "Kai",
-        "lastName": "Quarry",
+        "firstName": "Orla",
+        "lastName": "Bellamy",
         "jobTitle": {
           "title": "Chief Operating Officer",
-          "seniority": "C-Suite",
+          "seniority": "c-suite",
           "departments": [
             "General Management"
-          ]
-        },
-        "company": {
-          "id": "v22-co-02",
-          "name": "Kestrel Specialist Motor",
-          "domain": "kestrel-motor.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Leeds"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b03"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b04",
-        "firstName": "Frankie",
-        "lastName": "Reed",
-        "jobTitle": {
-          "title": "Claims Quality Manager",
-          "seniority": "Manager",
-          "departments": [
-            "Operations"
           ]
         },
         "company": {
           "id": "v22-co-03",
-          "name": "Marlow Road Insurance",
-          "domain": "marlow-road.example"
+          "name": "Cobalt Vehicle Cover",
+          "domain": "cobalt-vehicle.example"
         },
         "location": {
           "country": "United Kingdom",
           "state": "England",
-          "city": "Reading"
+          "city": "London"
         },
         "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b04"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b05",
-        "firstName": "Sidney",
-        "lastName": "Shaw",
-        "jobTitle": {
-          "title": "Claims Director",
-          "seniority": "Director",
-          "departments": [
-            "Operations"
-          ]
-        },
-        "company": {
-          "id": "v22-co-03",
-          "name": "Marlow Road Insurance",
-          "domain": "marlow-road.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Reading"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b05"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b06",
-        "firstName": "Jesse",
-        "lastName": "Toll",
-        "jobTitle": {
-          "title": "Chief Operating Officer",
-          "seniority": "C-Suite",
-          "departments": [
-            "General Management"
-          ]
-        },
-        "company": {
-          "id": "v22-co-04",
-          "name": "Pennine Auto Cover",
-          "domain": "pennine-auto.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Sheffield"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b06"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b07",
-        "firstName": "Arden",
-        "lastName": "Underwood",
-        "jobTitle": {
-          "title": "Claims Director",
-          "seniority": "Director",
-          "departments": [
-            "Operations"
-          ]
-        },
-        "company": {
-          "id": "v22-co-04",
-          "name": "Pennine Auto Cover",
-          "domain": "pennine-auto.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Sheffield"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b07"
-        },
-        "has": [
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b08",
-        "firstName": "Remy",
-        "lastName": "Vale",
-        "jobTitle": {
-          "title": "Head of Customer Relations",
-          "seniority": "Head",
-          "departments": [
-            "Customer Service"
-          ]
-        },
-        "company": {
-          "id": "v22-co-05",
-          "name": "Selwyn Claims Mutual",
-          "domain": "selwyn-mutual.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Bristol"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b08"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b09",
-        "firstName": "Lane",
-        "lastName": "Webb",
-        "jobTitle": {
-          "title": "Chief Operating Officer",
-          "seniority": "C-Suite",
-          "departments": [
-            "General Management"
-          ]
-        },
-        "company": {
-          "id": "v22-co-06",
-          "name": "Tamar Vehicle Insurance",
-          "domain": "tamar-vehicle.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Plymouth"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b09"
-        },
-        "has": [
-          "emails",
-          "phones"
-        ],
-        "canReveal": [
-          {
-            "field": "emails",
-            "credits": 1
-          },
-          {
-            "field": "phones",
-            "credits": 5
-          }
-        ]
-      },
-      {
-        "id": "v22-b10",
-        "firstName": "Hollis",
-        "lastName": "Yard",
-        "jobTitle": {
-          "title": "Quality Assurance Manager",
-          "seniority": "Manager",
-          "departments": [
-            "Operations"
-          ]
-        },
-        "company": {
-          "id": "v22-co-11",
-          "name": "Brackley Motor Group Insurance",
-          "domain": "brackley-motor.example"
-        },
-        "location": {
-          "country": "United Kingdom",
-          "state": "England",
-          "city": "Northampton"
-        },
-        "socialLinks": {
-          "linkedin": "https://www.linkedin.com/in/v22-b10"
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-3"
         },
         "has": [
           "emails",
@@ -394,13 +126,13 @@
     ],
     "billing": {
       "creditsCharged": 1,
-      "resultsReturned": 10,
+      "resultsReturned": 3,
       "lowBalance": false
     },
     "pagination": {
       "page": 0,
-      "size": 10,
-      "total": 10,
+      "size": 3,
+      "total": 3,
       "totalGuaranteed": true,
       "totalDescription": "Exact contact count (up to 2 per company)."
     }

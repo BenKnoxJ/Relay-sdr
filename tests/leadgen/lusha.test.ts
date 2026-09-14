@@ -390,16 +390,22 @@ describe("the account-led search on Lusha's shape (v2.2 §4a)", () => {
     expect(result.ledger.map((entry) => entry.worstCase)).toEqual([10, 10, 10]);
 
     if (result.output.phase !== "pick") throw new Error("tests: expected people");
-    expect(result.output.found).toEqual({ n: 18, ofM: 20 });
+    // The live shape: 13 strong accounts, 3 of them gaining a role from the complement.
+    expect(result.output.found).toEqual({ n: 16, ofM: 20 });
     expect(result.output.shortfall).toBe("fewer_strong_matches");
-    // Every account is led by who runs it; COO only ever signs off beside them.
     const byAccount = new Map<string, string[]>();
     for (const person of result.output.chosen) byAccount.set(person.companyKey, [...(byAccount.get(person.companyKey) ?? []), person.role?.part ?? "none"]);
+    expect(byAccount.size).toBe(13);
+    // Every account is led by who runs it; COO only ever signs off beside them; no role twice at one account.
     expect([...byAccount.values()].every((parts) => parts[0] === "runs")).toBe(true);
     expect([...byAccount.values()].every((parts) => new Set(parts).size === parts.length)).toBe(true);
-    expect(byAccount.size).toBe(10);
-    // Ireland is outside the recipe's countries, and a related title never leads.
-    expect(result.holds).toContainEqual({ providerId: "v22-a10", reason: "wrong_geography" });
-    expect(result.output.chosen.map((person) => person.lushaId)).not.toContain("v22-a09");
+    expect([...byAccount.values()].filter((parts) => parts.length > 1).map((parts) => parts.join("+")).sort()).toEqual(["runs+champions", "runs+signs", "runs+signs"]);
+    // No title limit (v2.2 note 1): all seven "Head of Claims" accounts are kept, where a limit of five dropped two live.
+    expect(result.output.chosen.filter((person) => person.title === "Head of Claims")).toHaveLength(7);
+    // Related claims titles and "Head of Supply Chain" stay out: short of 20, not padded.
+    const chosenTitles = result.output.chosen.map((person) => person.title);
+    for (const related of ["Head of Supply Chain", "Head of Customer Claims", "Head of Underwriting and Claims", "Deputy Head of Complex Claims", "Head of QA Operations"]) {
+      expect(chosenTitles).not.toContain(related);
+    }
   });
 });

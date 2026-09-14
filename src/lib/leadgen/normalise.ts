@@ -1,3 +1,5 @@
+import { getDomain } from "tldts";
+
 /**
  * The normalisations leadgen v2.1 §8 names, in one place so that ranking,
  * holds and translation compare strings the same way.
@@ -15,21 +17,29 @@ export function norm(value: string): string {
 }
 
 /**
- * A domain as the per-company cap, the seed match and the firm exclusions
- * compare it: lower case, no scheme, path or port, no leading `www.`.
+ * The registrable domain (leadgen v2.1 §8): the one canonical domain every
+ * lead gen rule compares — the per-company cap, the seed match, firm
+ * exclusions, domain suppressions, the CRM company check and the reveal's
+ * domain check.
  *
- * v2.1 §8 says "registrable domain". This is the host with `www.` removed, not
- * a public-suffix calculation: `uk.acme.com` and `acme.com` are two keys. It
- * never merges two companies that are different, which is the direction that
- * matters for a cap; it may treat one company's two hosts as two.
+ * Public-suffix aware, through `tldts` (the Public Suffix List):
+ * `sales.example.com`, `support.example.com` and `www.example.com` are all
+ * `example.com`, and `sales.example.co.uk` is `example.co.uk`, never `co.uk`.
+ * Private suffixes count as suffixes, so two sites on one shared hosting
+ * domain (`a.github.io`, `b.github.io`) stay two companies.
+ *
+ * A host the list cannot place (an IP address, a single label) keys as the
+ * cleaned host itself.
  */
 export function domainKey(value: string | undefined | null): string | undefined {
   if (value === undefined || value === null) return undefined;
   let host = value.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, "");
   host = host.split(/[/?#]/)[0] ?? "";
+  host = host.replace(/^[^@]*@/, "");
   host = host.split(":")[0] ?? "";
   host = host.replace(/\.$/, "").replace(/^www\./, "");
-  return host === "" ? undefined : host;
+  if (host === "") return undefined;
+  return getDomain(host, { allowPrivateDomains: true }) ?? host;
 }
 
 const LEGAL_SUFFIXES = new Set(["ltd", "limited", "plc", "llp", "llc", "inc"]);

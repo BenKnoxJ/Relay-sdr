@@ -1,0 +1,649 @@
+{
+  "endpoint": "GET /v3/companies/prospecting/filters/industriesLabels",
+  "fetchedAt": "2026-09-14T15:47:03.924Z",
+  "source": "Recorded by the zero-spend metadata check (no credits used).",
+  "rawSha256": "d22d6a8bed21962808c41846d2f34a76931297bf359be2418c5f5ba37aa8a0d7",
+  "sanitised": false,
+  "body": {
+    "values": [
+      {
+        "main_industry": "Hospitality",
+        "main_industry_id": 1,
+        "sub_industries": [
+          {
+            "value": "Restaurants",
+            "id": 2
+          },
+          {
+            "value": "Events Services",
+            "id": 5
+          },
+          {
+            "value": "Food & Beverage Services",
+            "id": 1
+          },
+          {
+            "value": "Hotels & Accommodation Services",
+            "id": 3
+          },
+          {
+            "value": "Travel & Reservation Services",
+            "id": 11
+          },
+          {
+            "value": "Other",
+            "id": 778
+          }
+        ]
+      },
+      {
+        "main_industry": "Construction",
+        "main_industry_id": 3,
+        "sub_industries": [
+          {
+            "value": "Civil Engineering",
+            "id": 16
+          },
+          {
+            "value": "Other",
+            "id": 791
+          },
+          {
+            "value": "Specialty Trade Contractors",
+            "id": 13
+          },
+          {
+            "value": "Building Construction",
+            "id": 15
+          }
+        ]
+      },
+      {
+        "main_industry": "Community & Nonprofit Organizations",
+        "main_industry_id": 5,
+        "sub_industries": [
+          {
+            "value": "Other",
+            "id": 793
+          },
+          {
+            "value": "Civic & Social Organizations",
+            "id": 21
+          },
+          {
+            "value": "Fundraising",
+            "id": 7
+          },
+          {
+            "value": "Political Organizations",
+            "id": 20
+          },
+          {
+            "value": "Philanthropic Fundraising Services",
+            "id": 18
+          },
+          {
+            "value": "Religious Institutions",
+            "id": 22
+          }
+        ]
+      },
+      {
+        "main_industry": "Education",
+        "main_industry_id": 6,
+        "sub_industries": [
+          {
+            "value": "Preschools & Kindergartens",
+            "id": 27
+          },
+          {
+            "value": "E-Learning Providers",
+            "id": 23
+          },
+          {
+            "value": "Primary & Secondary Education",
+            "id": 25
+          },
+          {
+            "value": "Higher Education",
+            "id": 24
+          },
+          {
+            "value": "Training",
+            "id": 26
+          },
+          {
+            "value": "Extracurricular & Enrichment Education",
+            "id": 140
+          },
+          {
+            "value": "Education Administration Programs",
+            "id": 50
+          },
+          {
+            "value": "Other",
+            "id": 794
+          }
+        ]
+      },
+      {
+        "main_industry": "Entertainment",
+        "main_industry_id": 7,
+        "sub_industries": [
+          {
+            "value": "Other",
+            "id": 795
+          },
+          {
+            "value": "Sports",
+            "id": 32
+          },
+          {
+            "value": "Entertainment Providers",
+            "id": 28
+          },
+          {
+            "value": "Gambling Facilities & Casinos",
+            "id": 34
+          },
+          {
+            "value": "Performing Arts",
+            "id": 31
+          },
+          {
+            "value": "Museums, Historical Sites, & Zoos",
+            "id": 29
+          },
+          {
+            "value": "Wellness & Fitness Services",
+            "id": 35
+          },
+          {
+            "value": "Recreational Facilities",
+            "id": 33
+          },
+          {
+            "value": "Arts & Cultural Creators",
+            "id": 30
+          }
+        ]
+      },
+      {
+        "main_industry": "Farming, Ranching, Forestry",
+        "main_industry_id": 8,
+        "sub_industries": [
+          {
+            "value": "Farming, Ranching, Forestry",
+            "id": 36
+          }
+        ]
+      },
+      {
+        "main_industry": "Finance",
+        "main_industry_id": 9,
+        "sub_industries": [
+          {
+            "value": "Accounting & Services",
+            "id": 92
+          },
+          {
+            "value": "International Trade & Development",
+            "id": 43
+          },
+          {
+            "value": "Insurance",
+            "id": 44
+          },
+          {
+            "value": "Banking",
+            "id": 42
+          },
+          {
+            "value": "Financial Services",
+            "id": 37
+          },
+          {
+            "value": "Investment",
+            "id": 40
+          },
+          {
+            "value": "Venture Capital & Private Equity Principals",
+            "id": 41
+          },
+          {
+            "value": "Capital Markets",
+            "id": 38
+          },
+          {
+            "value": "Other",
+            "id": 797
+          }
+        ]
+      },
+      {
+        "main_industry": "Government",
+        "main_industry_id": 10,
+        "sub_industries": [
+          {
+            "value": "International Affairs",
+            "id": 54
+          },
+          {
+            "value": "Military",
+            "id": 53
+          },
+          {
+            "value": "Government Administration",
+            "id": 45
+          },
+          {
+            "value": "Public Safety",
+            "id": 49
+          },
+          {
+            "value": "Administration of Justice",
+            "id": 46
+          },
+          {
+            "value": "Government Executive Offices",
+            "id": 56
+          },
+          {
+            "value": "Other",
+            "id": 779
+          },
+          {
+            "value": "Housing & Community Development",
+            "id": 52
+          }
+        ]
+      },
+      {
+        "main_industry": "Healthcare",
+        "main_industry_id": 11,
+        "sub_industries": [
+          {
+            "value": "Community & Home Healthcare Services",
+            "id": 60
+          },
+          {
+            "value": "Nursing Homes & Residential Care Facilities",
+            "id": 66
+          },
+          {
+            "value": "Alternative Medicine",
+            "id": 62
+          },
+          {
+            "value": "Hospitals & Clinics",
+            "id": 59
+          },
+          {
+            "value": "Veterinary Services",
+            "id": 108
+          },
+          {
+            "value": "Medical Practices",
+            "id": 65
+          },
+          {
+            "value": "Mental Health Care",
+            "id": 64
+          },
+          {
+            "value": "Other",
+            "id": 780
+          },
+          {
+            "value": "Biotechnology Research Services",
+            "id": 106
+          }
+        ]
+      },
+      {
+        "main_industry": "Manufacturing",
+        "main_industry_id": 12,
+        "sub_industries": [
+          {
+            "value": "Sporting Goods Manufacturing",
+            "id": 83
+          },
+          {
+            "value": "Other",
+            "id": 781
+          },
+          {
+            "value": "Fabricated Metal Products",
+            "id": 75
+          },
+          {
+            "value": "Industrial Machinery & Equipment",
+            "id": 79
+          },
+          {
+            "value": "Motor Vehicles",
+            "id": 87
+          },
+          {
+            "value": "Pharmaceuticals Manufacturing",
+            "id": 71
+          },
+          {
+            "value": "Personal Care Products",
+            "id": 70
+          },
+          {
+            "value": "Plastics & Rubber Products",
+            "id": 82
+          },
+          {
+            "value": "Chemicals & Related Products",
+            "id": 69
+          },
+          {
+            "value": "Aerospace & Defense",
+            "id": 86
+          },
+          {
+            "value": "Semiconductor & Renewable Energy Semiconductor",
+            "id": 74
+          },
+          {
+            "value": "Medical Equipment",
+            "id": 80
+          },
+          {
+            "value": "Furniture",
+            "id": 77
+          },
+          {
+            "value": "Computer & Electronics Manufacturing",
+            "id": 68
+          },
+          {
+            "value": "Transportation Equipment & Machinery",
+            "id": 89
+          },
+          {
+            "value": "Glass, Ceramics, Clay & Concrete",
+            "id": 78
+          },
+          {
+            "value": "Textile & Apparel Manufacturing",
+            "id": 84
+          },
+          {
+            "value": "Food & Beverage",
+            "id": 76
+          },
+          {
+            "value": "Paper & Forest Product",
+            "id": 81
+          }
+        ]
+      },
+      {
+        "main_industry": "Oil, Gas & Mining",
+        "main_industry_id": 13,
+        "sub_industries": [
+          {
+            "value": "Mining",
+            "id": 90
+          },
+          {
+            "value": "Other",
+            "id": 782
+          },
+          {
+            "value": "Oil & Gas",
+            "id": 91
+          }
+        ]
+      },
+      {
+        "main_industry": "Business Services",
+        "main_industry_id": 14,
+        "sub_industries": [
+          {
+            "value": "Writing & Editing",
+            "id": 12
+          },
+          {
+            "value": "Staffing & Recruiting",
+            "id": 9
+          },
+          {
+            "value": "Business Consulting & Services",
+            "id": 97
+          },
+          {
+            "value": "Law Firms & Legal Services",
+            "id": 104
+          },
+          {
+            "value": "Photography Services",
+            "id": 105
+          },
+          {
+            "value": "Human Resources Services",
+            "id": 99
+          },
+          {
+            "value": "Translation & Localization",
+            "id": 10
+          },
+          {
+            "value": "Outsourcing & Offshoring Consulting",
+            "id": 100
+          },
+          {
+            "value": "Design Services",
+            "id": 101
+          },
+          {
+            "value": "Architecture & Planning",
+            "id": 96
+          },
+          {
+            "value": "Environmental Services",
+            "id": 98
+          },
+          {
+            "value": "Advertising, Public Relations & Marketing Services",
+            "id": 93
+          },
+          {
+            "value": "Security & Investigations",
+            "id": 8
+          },
+          {
+            "value": "Other",
+            "id": 783
+          }
+        ]
+      },
+      {
+        "main_industry": "Real Estate",
+        "main_industry_id": 15,
+        "sub_industries": [
+          {
+            "value": "Property Management",
+            "id": 142
+          },
+          {
+            "value": "Facilities Services",
+            "id": 6
+          },
+          {
+            "value": "Real Estate Agencies",
+            "id": 143
+          },
+          {
+            "value": "Other",
+            "id": 796
+          },
+          {
+            "value": "Real Estate Investment and Development",
+            "id": 144
+          }
+        ]
+      },
+      {
+        "main_industry": "Retail & Wholesale Trade",
+        "main_industry_id": 16,
+        "sub_industries": [
+          {
+            "value": "Luxury Goods & Jewelry Retail",
+            "id": 110
+          },
+          {
+            "value": "Wholesale Import & Export",
+            "id": 139
+          },
+          {
+            "value": "Apparel & Fashion Retail",
+            "id": 113
+          },
+          {
+            "value": "General Merchandise Retail",
+            "id": 115
+          },
+          {
+            "value": "Sport, Music, Books & Hobbies Retail",
+            "id": 147
+          },
+          {
+            "value": "Home & Office Equipment Retail",
+            "id": 114
+          },
+          {
+            "value": "Other",
+            "id": 785
+          },
+          {
+            "value": "Building & Garden Materials",
+            "id": 138
+          },
+          {
+            "value": "Food & Beverage Retail",
+            "id": 111
+          },
+          {
+            "value": "Motor Vehicle, Parts Dealers & Tire Stores",
+            "id": 146
+          },
+          {
+            "value": "Health & Personal Care Stores Retail",
+            "id": 145
+          }
+        ]
+      },
+      {
+        "main_industry": "Technology, Information & Media",
+        "main_industry_id": 17,
+        "sub_industries": [
+          {
+            "value": "IT Consulting & IT Services",
+            "id": 103
+          },
+          {
+            "value": "Book & Newspaper Publishing",
+            "id": 116
+          },
+          {
+            "value": "Digital Information & Data Solutions",
+            "id": 120
+          },
+          {
+            "value": "E-Commerce & Marketplace",
+            "id": 124
+          },
+          {
+            "value": "Internet Publishing",
+            "id": 123
+          },
+          {
+            "value": "Information Services",
+            "id": 122
+          },
+          {
+            "value": "Other",
+            "id": 786
+          },
+          {
+            "value": "Computer & Network Security Services",
+            "id": 128
+          },
+          {
+            "value": "Telecommunications",
+            "id": 119
+          },
+          {
+            "value": "Broadcast Media Production & Distribution",
+            "id": 117
+          },
+          {
+            "value": "Computer & Mobile Games",
+            "id": 126
+          },
+          {
+            "value": "Software Development",
+            "id": 129
+          },
+          {
+            "value": "Computer Systems Architectural, Design & Services",
+            "id": 148
+          },
+          {
+            "value": "Movies, Videos & Sound",
+            "id": 118
+          }
+        ]
+      },
+      {
+        "main_industry": "Transportation & Logistics",
+        "main_industry_id": 18,
+        "sub_industries": [
+          {
+            "value": "Other",
+            "id": 787
+          },
+          {
+            "value": "Maritime Transportation",
+            "id": 133
+          },
+          {
+            "value": "Warehousing & Storage",
+            "id": 135
+          },
+          {
+            "value": "Airlines, Airports & Air Services",
+            "id": 130
+          },
+          {
+            "value": "Freight & Package Transportation",
+            "id": 131
+          },
+          {
+            "value": "Ground Passenger Transportation",
+            "id": 132
+          },
+          {
+            "value": "Truck Transportation",
+            "id": 134
+          }
+        ]
+      },
+      {
+        "main_industry": "Utilities",
+        "main_industry_id": 19,
+        "sub_industries": [
+          {
+            "value": "Utilities",
+            "id": 136
+          }
+        ]
+      }
+    ]
+  }
+}

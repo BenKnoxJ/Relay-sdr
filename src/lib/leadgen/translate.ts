@@ -22,6 +22,8 @@ export type Translation = {
   /** What was actually searched, for provenance and debugging. */
   effective: {
     vocabulary: string;
+    /** The metadata the translation read (v2.1 §5), when the vocabulary carries it. */
+    provenance?: { fetchedAt: string; hash: string };
     sizeBand: { min: number; max: number };
     locations: { term: string; value: string; level: "state" | "city"; countryIso2: string }[];
     industries: { term: string; label: string; via: "exact" | "alias" | "choice" }[];
@@ -39,11 +41,22 @@ export type TranslateOptions = {
 
 /**
  * The small curated alias table (v2.1 §5, step 2): a normalised Research
- * industry label to the provider label it means. Empty until a mapping is
- * justified against verified provider metadata; entries are text, and ids are
+ * industry label to the provider label it means. Entries are text, and ids are
  * always resolved from the vocabulary at run time.
+ *
+ * Each entry is justified against the verified Lusha V3 taxonomy
+ * (`fixtures/tools/lusha/company-industries.json`). The three motor-insurance
+ * labels below are the existing insurance campaign's recipe, verbatim once
+ * normalised. Each names a line of insurance business, and Lusha has exactly
+ * one insurance sub-industry, Finance > Insurance (44). Nothing else in the
+ * taxonomy could be meant, so this is not a guess. The recipe's titles, size
+ * band and seed firms keep the search as narrow as the plan.
  */
-export const INDUSTRY_ALIASES: Readonly<Record<string, string>> = {};
+export const INDUSTRY_ALIASES: Readonly<Record<string, string>> = {
+  "general insurance personal motor": "Insurance",
+  "non standard and specialist motor insurance": "Insurance",
+  "motor insurance underwriting and claims": "Insurance",
+};
 
 const STOPWORDS = new Set(["a", "an", "and", "for", "in", "of", "the", "to"]);
 
@@ -106,7 +119,13 @@ export function translate(
       excludeDomains,
       ...(vocabulary.maxContactsPerCompany ? { maxContactsPerCompany: handoff.perCompanyMax } : {}),
     },
-    effective: { vocabulary: vocabulary.version, sizeBand, locations, industries },
+    effective: {
+      vocabulary: vocabulary.version,
+      ...(vocabulary.provenance === undefined ? {} : { provenance: { ...vocabulary.provenance } }),
+      sizeBand,
+      locations,
+      industries,
+    },
     context: { triggers: [...targeting.triggers] },
   };
 }

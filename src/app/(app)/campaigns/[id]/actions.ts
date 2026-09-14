@@ -24,6 +24,7 @@ const LINES: readonly string[] = [
   campaignsCopy.confirmNoGroup,
   campaignsCopy.confirmNoRecipe,
   campaignsCopy.confirmOverCap,
+  campaignsCopy.confirmBalanceUnavailable,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {

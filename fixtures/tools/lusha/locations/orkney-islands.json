@@ -1,0 +1,10 @@
+{
+  "endpoint": "GET /v3/contacts/prospecting/filters/locations?query=Orkney%20Islands",
+  "fetchedAt": "2026-09-14T15:48:02.463Z",
+  "source": "Recorded by the zero-spend metadata check (no credits used).",
+  "rawSha256": "8138e5e9bb95f27b029fa5e119d99c2e9a6b7f44c8a07faada29f295b76297d3",
+  "sanitised": false,
+  "body": {
+    "values": []
+  }
+}

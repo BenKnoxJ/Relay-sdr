@@ -1,0 +1,102 @@
+{
+  "endpoint": "GET /v3/account/usage",
+  "fetchedAt": "2026-09-14T15:44:59.795Z",
+  "source": "Recorded by the zero-spend metadata check; the credit figures are illustrative, the pricing is as recorded.",
+  "rawSha256": "003a827a378dde8d1d85878e20098077f56725dfe0966392bd1895245d476993",
+  "sanitised": true,
+  "body": {
+    "credits": {
+      "total": 1000,
+      "used": 100,
+      "remaining": 900
+    },
+    "rateLimits": {
+      "daily": {
+        "limit": 1500
+      },
+      "hourly": {
+        "limit": 150
+      },
+      "minute": {
+        "limit": 50
+      }
+    },
+    "plan": {
+      "category": "professional"
+    },
+    "pricing": {
+      "companySearch": {
+        "credits": 1,
+        "perQuantity": 25
+      },
+      "contactSearch": {
+        "credits": 1,
+        "perQuantity": 25
+      },
+      "revealCompany": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "revealCompanyPremiumData": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "revealEmail": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "revealPhone": {
+        "credits": 5,
+        "perQuantity": 1
+      },
+      "lookalikeCompany": {
+        "credits": 1,
+        "perQuantity": 5
+      },
+      "lookalikeContact": {
+        "credits": 1,
+        "perQuantity": 5
+      },
+      "contactRecommendationsReveal": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "companyRecommendationsReveal": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "showSignalsCompany": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "showSignalsContact": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "signalScoreCompany": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "signalScoreContact": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "tableRead": {
+        "credits": 1,
+        "perQuantity": 25
+      },
+      "buyingGroupReveal": {
+        "credits": 1,
+        "perQuantity": 1
+      },
+      "conversationsSearch": {
+        "credits": 1,
+        "perQuantity": 25
+      },
+      "conversationsTranscript": {
+        "credits": 1,
+        "perQuantity": 1
+      }
+    }
+  }
+}

@@ -67,6 +67,8 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNoRecipe });
     case "over_cap":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmOverCap });
+    case "balance_unavailable":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmBalanceUnavailable });
   }
 }
 

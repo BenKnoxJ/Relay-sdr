@@ -197,14 +197,19 @@ const schema = z
 
     // --- lead gen ---------------------------------------------------------
     /**
-     * Lead gen's provider. There is no live provider yet: `sample` makes up
-     * people and credits from the handoff (`src/lib/leadgen/sample.ts`) so the
-     * flow can be seen, and it rides the same allowlist as the stub model:
-     * accepted only in development and test. Unset, finding people is off.
+     * Lead gen's provider. `lusha` is Lusha V3 (`src/lib/leadgen/lusha.ts`):
+     * live under `INTEGRATIONS=live` with `LUSHA_API_KEY`, and recorded
+     * answers under `INTEGRATIONS=mock`, which is development and test only.
+     * `sample` makes up people and credits from the handoff
+     * (`src/lib/leadgen/sample.ts`) so the flow can be seen, and it rides the
+     * same allowlist as the stub model: accepted only in development and test.
+     * Unset, finding people is off.
      */
-    RELAY_LEADGEN_PROVIDER: optional(z.enum(["sample"])),
-    /** The search credit cap a Confirm approves (lead gen v2.1 §6). Configuration; the sample has its own default. */
+    RELAY_LEADGEN_PROVIDER: optional(z.enum(["sample", "lusha"])),
+    /** The search credit cap a Confirm approves (lead gen v2.1 §6). Configuration: required for `lusha`; the sample has its own default. */
     RELAY_LEADGEN_SEARCH_CAP: optional(z.coerce.number().int().positive()),
+    /** Lusha's API key, sent as the `api_key` header and nowhere else. Required when lead gen runs Lusha live. */
+    LUSHA_API_KEY: optional(z.string()),
 
     // --- auth (Clerk) -----------------------------------------------------
     CLERK_SECRET_KEY: optional(z.string()),
@@ -327,8 +332,36 @@ const schema = z
       });
     }
 
+    // Lusha needs an explicit search limit, a key when it is live, and never
+    // replays recorded people outside development and test.
+    if (value.RELAY_LEADGEN_PROVIDER === "lusha") {
+      if (value.RELAY_LEADGEN_SEARCH_CAP === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RELAY_LEADGEN_SEARCH_CAP"],
+          message: "RELAY_LEADGEN_SEARCH_CAP is required with RELAY_LEADGEN_PROVIDER=lusha: a Confirm approves an explicit search limit",
+        });
+      }
+      if (value.INTEGRATIONS === "live" && value.LUSHA_API_KEY === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["LUSHA_API_KEY"],
+          message: "LUSHA_API_KEY is required when RELAY_LEADGEN_PROVIDER=lusha and INTEGRATIONS=live",
+        });
+      }
+      if (value.INTEGRATIONS === "mock" && !bypassEnvironment) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RELAY_LEADGEN_PROVIDER"],
+          message:
+            "RELAY_LEADGEN_PROVIDER=lusha with INTEGRATIONS=mock replays recorded people: it is accepted only when NODE_ENV is " +
+            `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
+        });
+      }
+    }
+
     // Sample people and credits never reach production.
-    if (!bypassEnvironment && value.RELAY_LEADGEN_PROVIDER !== undefined) {
+    if (!bypassEnvironment && value.RELAY_LEADGEN_PROVIDER === "sample") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["RELAY_LEADGEN_PROVIDER"],

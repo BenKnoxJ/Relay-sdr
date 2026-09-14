@@ -20,6 +20,8 @@ export type ProviderVocabulary = {
   pageSize: { min: number; max: number };
   /** Whether a per-company limit can be sent with a search. */
   maxContactsPerCompany: boolean;
+  /** When the metadata behind this vocabulary was read, and a hash of it (v2.1 §5). A live provider always sets it. */
+  provenance?: { fetchedAt: string; hash: string };
 };
 
 /** A search, in the provider's own terms. Built only by `translate`; never shown to a rep. */

@@ -1,0 +1,16 @@
+{
+  "endpoint": "GET /v3/contacts/prospecting/filters/locations?query=Orkney",
+  "fetchedAt": "2026-09-14T15:47:31.558Z",
+  "source": "Recorded by the zero-spend metadata check (no credits used).",
+  "rawSha256": "941b4c7370521c52db60dc615eaf98cd111f4933dc7eaec20b198dba23d3a8f6",
+  "sanitised": false,
+  "body": {
+    "values": [
+      {
+        "continent": "Africa",
+        "country": "South Africa",
+        "city": "Orkney"
+      }
+    ]
+  }
+}

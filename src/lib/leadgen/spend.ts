@@ -57,6 +57,38 @@ export function documentedWorstCaseCharge(pageSize: number, pricing: SearchPrici
   return worst;
 }
 
+/**
+ * Where a run's spend is kept. In memory for the provider-free core and its
+ * tests; persisted, under a lock on the org, for a real job
+ * (`src/lib/repo/leadgen.ts`). `tryReserve` decides and records in one step,
+ * so a check and a reservation can never be split by another run.
+ */
+export type SpendPort = {
+  canReserve(worstCase: number): Promise<boolean>;
+  /** Reserve if the invariant allows it; false (and nothing written) when it does not. */
+  tryReserve(key: string, worstCase: number): Promise<boolean>;
+  reconcile(key: string, charged: number): Promise<void>;
+  markUnknown(key: string): Promise<void>;
+  summary(): Promise<SpendSummary>;
+  list(): Promise<readonly SpendEntry[]>;
+};
+
+/** A `SearchSpend` as a `SpendPort`: one run, in memory. */
+export function inMemorySpend(spend: SearchSpend): SpendPort {
+  return {
+    canReserve: async (worstCase) => spend.canReserve(worstCase),
+    tryReserve: async (key, worstCase) => {
+      if (!spend.canReserve(worstCase)) return false;
+      spend.reserve(key, worstCase);
+      return true;
+    },
+    reconcile: async (key, charged) => spend.reconcile(key, charged),
+    markUnknown: async (key) => spend.markUnknown(key),
+    summary: async () => spend.summary(),
+    list: async () => spend.list(),
+  };
+}
+
 export type SpendEntry = {
   key: string;
   worstCase: number;

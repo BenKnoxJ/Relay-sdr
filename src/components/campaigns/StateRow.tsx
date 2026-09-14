@@ -32,7 +32,7 @@ const LABELS: Record<CampaignStep, string> = {
 
 export function StateRow({ state }: { state: CampaignState }) {
   const current = stepIndexFor(state);
-  const warn = state === "stopped" || state === "failed";
+  const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou";
 
   return (
     <ol aria-label={campaignsCopy.stepsLabel} className="flex flex-wrap items-center gap-1.5">
@@ -43,7 +43,9 @@ export function StateRow({ state }: { state: CampaignState }) {
             ? campaignsCopy.stepStopped
             : step === "researching" && state === "failed"
               ? campaignsCopy.stepNeedsYou
-              : LABELS[step];
+              : step === "findingPeople" && state === "peopleNeedsYou"
+                ? campaignsCopy.stepFindingNeedsYou
+                : LABELS[step];
         return (
           <li
             key={step}

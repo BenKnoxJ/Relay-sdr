@@ -2,12 +2,30 @@ import type { Campaign, Event, Job, Prisma, PrismaClient } from "@prisma/client"
 
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { researchRawSchema } from "../../../agents/research/output.schema";
+import { haltSchema } from "../../../agents/leadgen/output.schema";
 import { nameFrom, researchJobInputSchema, sameBrief, widenedBrief, type ResearchBrief, type ResearchJobInput } from "@/lib/campaigns/brief";
-import { deriveResearch, failureOf } from "@/lib/campaigns/derive";
+import { deriveResearch, failureOf, storedPack } from "@/lib/campaigns/derive";
+import { buildLeadGenHandoff } from "@/lib/campaigns/leadgenHandoff";
+import { campaignsCopy } from "@/lib/copy/campaigns";
+import { norm } from "@/lib/leadgen/normalise";
+import type { LeadGenSetup } from "@/lib/leadgen/setup";
 import { enqueue, reopenFailed } from "@/lib/jobs/queue";
 
 import { mutate } from "./mutate";
 import { RESEARCH_COMPLETED, findResearchCompletedForJob } from "./research";
+import {
+  CAMPAIGN_CONFIRMED,
+  LEADGEN_HALTED,
+  LEADGEN_RERUN,
+  LEAD_GEN_JOB,
+  findConfirmEvent,
+  findLeadGenResult,
+  latestLeadGenJob,
+  leadGenJobInputSchema,
+  leadGenJobKey,
+  leadGenRecordFor,
+  type LeadGenRecord,
+} from "./leadgen";
 import { isUniqueViolation } from "./sideEffects";
 
 /**
@@ -122,7 +140,8 @@ export async function createCampaign(db: PrismaClient, input: CreateCampaignInpu
 }
 
 /** A campaign with what its screen is derived from: the latest research job at its brief version, and that job's Event. */
-export type CampaignRecord = { campaign: Campaign; job: Job | null; event: Event | null };
+/** A campaign with what its screen is derived from, and, once confirmed, its lead gen (lead gen v2.1 §11). */
+export type CampaignRecord = { campaign: Campaign; job: Job | null; event: Event | null; leadGen?: LeadGenRecord };
 
 type Owner = { orgId: string; userId: string };
 
@@ -137,7 +156,7 @@ export async function latestResearchJob(db: Prisma.TransactionClient, campaign: 
 async function withResearch(db: PrismaClient, campaign: Campaign): Promise<CampaignRecord> {
   const job = await latestResearchJob(db, campaign);
   const event = job === null ? null : await findResearchCompletedForJob(db, { orgId: campaign.orgId, jobId: job.id });
-  return { campaign, job, event };
+  return { campaign, job, event, leadGen: await leadGenRecordFor(db, campaign) };
 }
 
 /**
@@ -192,6 +211,8 @@ export async function hasCampaign(db: PrismaClient, owner: Owner): Promise<boole
 export const CAMPAIGN_BRIEF_CHANGED = "campaign.brief_changed" as const;
 export const CAMPAIGN_RESEARCH_RETRIED = "campaign.research_retried" as const;
 
+type ChangeKind = typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED | typeof CAMPAIGN_CONFIRMED | typeof LEADGEN_RERUN;
+
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
 export type ChangeRefusal =
   /** Not the rep's campaign, not in their org, or not there: the same answer. */
@@ -207,7 +228,17 @@ export type ChangeRefusal =
   /** Edit brief with nothing changed: research would run again on the same brief. */
   | "unchanged"
   /** A repeated request id carrying a different change from the one it made. */
-  | "request_reused";
+  | "request_reused"
+  /** Finding people is not set up in this environment. */
+  | "not_available"
+  /** Research ranked no kind of buyer to start with. */
+  | "no_ranked_group"
+  /** The kind of buyer research ranks first has no targeting recipe. */
+  | "no_recipe"
+  /** Research has not reached a plan. */
+  | "research_not_ready"
+  /** The search limit is more than the credits available. */
+  | "over_cap";
 
 export class CampaignChangeRefused extends Error {
   constructor(
@@ -291,7 +322,7 @@ function stateOf(research: { job: Job | null; event: Event | null }) {
 async function alreadyMade(
   tx: Tx,
   input: ChangeInput,
-  kind: typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED,
+  kind: ChangeKind,
   same: (after: Record<string, unknown>, before: Record<string, unknown>) => boolean,
 ): Promise<void> {
   const event = await tx.event.findFirst({
@@ -335,7 +366,7 @@ async function advance(tx: Tx, campaign: Campaign, input: ResearchJobInput, rena
 async function change(
   db: PrismaClient,
   input: ChangeInput,
-  kind: typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED,
+  kind: ChangeKind,
   apply: (tx: Tx) => Promise<Changed>,
 ): Promise<ChangeResult> {
   required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, kind);
@@ -457,6 +488,12 @@ export async function editCampaignBrief(db: PrismaClient, input: EditInput): Pro
 
     const view = stateOf(await researchNow(tx, campaign));
     if (view.state === "researching") throw new CampaignChangeRefused("wrong_state");
+    // Not while people are being found at this version (lead gen v2.1 §11).
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const finding = await latestLeadGenJob(tx, scope);
+    if (finding !== null && (finding.status === "queued" || finding.status === "running") && (await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: finding.id })) === null) {
+      throw new CampaignChangeRefused("wrong_state");
+    }
 
     const brief = briefOf(campaign);
     if (sameBrief(brief, input.brief)) throw new CampaignChangeRefused("unchanged");
@@ -542,6 +579,162 @@ export async function retryResearch(db: PrismaClient, input: RetryInput): Promis
         attempts: reopened.attempts,
         maxAttempts: reopened.maxAttempts,
         requestId: input.requestId,
+      },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Confirm plan and finding people (lead gen v2.1 §3, §6, §11; orchestrator A2).
+
+export type ConfirmInput = ChangeInput & {
+  fromBriefVersion: number;
+  /** How finding people is set up here; null when it is not, and Confirm is refused. */
+  setup: LeadGenSetup | null;
+  now?: () => Date;
+};
+
+/**
+ * Confirm plan: the first spend gate. One transaction freezes the handoff
+ * (built by the campaign boundary from the signed research result) into the
+ * `campaign.confirmed` Event, with the lawful-basis text the rep confirmed,
+ * and enqueues the one lead gen job for the version. A repeated press is the
+ * press that landed; a second Confirm of a confirmed version is refused.
+ *
+ * The balance is read before the transaction: it is a call out, and the
+ * campaign lock is not held across one. It is frozen in the handoff.
+ */
+export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Promise<ChangeResult> {
+  const setup = input.setup;
+  if (setup === null) throw new CampaignChangeRefused("not_available");
+  required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, CAMPAIGN_CONFIRMED);
+  const balance = await setup.readBalance(input.orgId);
+  const confirmedAt = (input.now ?? (() => new Date()))();
+
+  return change(db, input, CAMPAIGN_CONFIRMED, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(tx, input, CAMPAIGN_CONFIRMED, (after) => after.briefVersion === input.fromBriefVersion);
+    checkVersion(campaign, input.fromBriefVersion);
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    if ((await findConfirmEvent(tx, scope)) !== null) throw new CampaignChangeRefused("wrong_state", "already confirmed");
+
+    const research = await researchNow(tx, campaign);
+    const pack = research.event === null ? null : storedPack(research.event.after);
+    if (stateOf(research).state !== "planReady" || research.job === null || research.event === null || pack === null) {
+      throw new CampaignChangeRefused("wrong_state");
+    }
+    if (setup.searchCreditCap > balance.remaining) throw new CampaignChangeRefused("over_cap");
+
+    const built = buildLeadGenHandoff({
+      campaign: { id: campaign.id, orgId: campaign.orgId, ownerUserId: campaign.ownerUserId, briefVersion: campaign.briefVersion },
+      brief: briefOf(campaign),
+      research: { jobId: research.job.id, eventId: research.event.id, pack },
+      confirmRequestId: input.requestId,
+      spend: {
+        searchCreditCap: setup.searchCreditCap,
+        balanceSnapshot: {
+          remaining: balance.remaining,
+          ...(balance.used === undefined ? {} : { used: balance.used }),
+          ...(balance.total === undefined ? {} : { total: balance.total }),
+          readAt: balance.readAt.toISOString(),
+        },
+        pricingAssumptions: setup.pricingAssumptions,
+      },
+      // The exact words the Confirm screen shows, confirmed by this rep, for this version. Not an LIA.
+      lawfulBasis: { text: campaignsCopy.lawfulBasis, confirmedByUserId: input.userId, confirmedAt: confirmedAt.toISOString(), briefVersion: campaign.briefVersion },
+    });
+    if (!built.ok) throw new CampaignChangeRefused(built.refusal);
+
+    const { job, deduped } = await enqueue(tx, {
+      orgId: campaign.orgId,
+      ownerUserId: campaign.ownerUserId,
+      kind: LEAD_GEN_JOB,
+      idempotencyKey: leadGenJobKey(campaign.id, campaign.briefVersion, 1),
+      input: { confirmRequestId: input.requestId, run: 1 },
+      campaignId: campaign.id,
+      briefVersion: campaign.briefVersion,
+    });
+    if (deduped) throw new Error("confirm: this version's lead gen key already had a job");
+    return {
+      campaign,
+      job,
+      before: { briefVersion: campaign.briefVersion },
+      after: {
+        requestId: input.requestId,
+        briefVersion: campaign.briefVersion,
+        handoff: JSON.parse(JSON.stringify(built.handoff)) as Prisma.InputJsonObject,
+        balanceSource: balance.source,
+        jobId: job.id,
+      },
+    };
+  });
+}
+
+export type RerunInput = ChangeInput & {
+  briefVersion: number;
+  /** A chosen industry, from a `choose_industry` halt's own choices. Absent, this is Try again. */
+  choice?: { term: string; label: string };
+};
+
+/**
+ * Finding people again at the same version, from Needs you: Try again after a
+ * busy provider, a timeout or a failed job, or a search with the industry the
+ * rep chose. A new job for the same Confirm, so the same frozen handoff and
+ * the same credit cap. Anything else (unmappable, would widen, no one found,
+ * over the cap) is changed with Edit brief.
+ */
+export async function rerunPeople(db: PrismaClient, input: RerunInput): Promise<ChangeResult> {
+  return change(db, input, LEADGEN_RERUN, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(
+      tx,
+      input,
+      LEADGEN_RERUN,
+      (after) => after.briefVersion === input.briefVersion && ((after.choice as { label?: unknown } | undefined)?.label ?? null) === (input.choice?.label ?? null),
+    );
+    checkVersion(campaign, input.briefVersion);
+
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const confirm = await findConfirmEvent(tx, scope);
+    const job = confirm === null ? null : await latestLeadGenJob(tx, scope);
+    if (confirm === null || job === null) throw new CampaignChangeRefused("wrong_state");
+    const result = await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: job.id });
+    const parsed = result?.kind === LEADGEN_HALTED ? haltSchema.safeParse((result.after as { output?: unknown } | null)?.output) : null;
+    const halt = parsed?.success === true ? parsed.data : null;
+
+    if (input.choice !== undefined) {
+      const offered = halt?.reason === "choose_industry" && halt.term !== undefined && norm(halt.term) === norm(input.choice.term) && (halt.choices ?? []).includes(input.choice.label);
+      if (!offered) throw new CampaignChangeRefused("bad_option");
+    } else {
+      const retryable = (result === null && job.status === "failed") || halt?.reason === "provider_busy" || halt?.reason === "took_too_long";
+      if (!retryable) throw new CampaignChangeRefused("wrong_state");
+    }
+
+    const previous = leadGenJobInputSchema.parse(job.input);
+    const industryChoices = { ...(previous.industryChoices ?? {}), ...(input.choice === undefined ? {} : { [norm(input.choice.term)]: input.choice.label }) };
+    const run = (await tx.job.count({ where: { ...scope, kind: LEAD_GEN_JOB } })) + 1;
+    const { job: next, deduped } = await enqueue(tx, {
+      orgId: campaign.orgId,
+      ownerUserId: campaign.ownerUserId,
+      kind: LEAD_GEN_JOB,
+      idempotencyKey: leadGenJobKey(campaign.id, campaign.briefVersion, run),
+      input: { confirmRequestId: previous.confirmRequestId, run, ...(Object.keys(industryChoices).length === 0 ? {} : { industryChoices }) },
+      campaignId: campaign.id,
+      briefVersion: campaign.briefVersion,
+    });
+    if (deduped) throw new Error("rerun: this run's lead gen key already had a job");
+    return {
+      campaign,
+      job: next,
+      before: { briefVersion: campaign.briefVersion, jobId: job.id, ...(halt === null ? { status: job.status } : { reason: halt.reason }) },
+      after: {
+        requestId: input.requestId,
+        briefVersion: campaign.briefVersion,
+        cause: input.choice === undefined ? "retry" : "choice",
+        ...(input.choice === undefined ? {} : { choice: input.choice }),
+        jobId: next.id,
       },
     };
   });

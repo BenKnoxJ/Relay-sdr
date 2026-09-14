@@ -131,6 +131,8 @@ export function rankCandidates(eligible: readonly Eligible[], options: RankOptio
     } else if ((taken.get(entry.companyKey) ?? 0) >= options.perCompanyMax) {
       held.push({ providerId: entry.candidate.providerId, reason: "company_cap" });
     } else {
+      // One person is one enrolment in the spare pool too.
+      if (entry.reusedPersonId !== null) persons.add(entry.reusedPersonId);
       spare.push(entry);
     }
   }

@@ -36,9 +36,11 @@ export type CampaignStep = (typeof CAMPAIGN_STEPS)[number];
 /**
  * `stopped` is Researching that gave up (§23.1c), `failed` is Researching that
  * did not finish and needs the rep, and `paused` is any running state held.
- * None of the three adds a step to the line; each marks one.
+ * `peopleFound` and `peopleNeedsYou` are Finding people with a result, and
+ * with a reason for the rep (lead gen v2.1 §11). None adds a step to the
+ * line; each marks one.
  */
-export type CampaignState = CampaignStep | "stopped" | "failed" | "paused";
+export type CampaignState = CampaignStep | "stopped" | "failed" | "paused" | "peopleFound" | "peopleNeedsYou";
 
 /** The chip's one word. Total over the states, so a new one cannot fall through. */
 export function chipFor(state: CampaignState): string {
@@ -49,6 +51,8 @@ export function chipFor(state: CampaignState): string {
     failed: campaignsCopy.chipNeedsYou,
     planReady: campaignsCopy.chipPlanReady,
     findingPeople: campaignsCopy.chipFindingPeople,
+    peopleFound: campaignsCopy.chipPeopleFound,
+    peopleNeedsYou: campaignsCopy.chipNeedsYou,
     drafting: campaignsCopy.chipDrafting,
     running: campaignsCopy.chipRunning,
     paused: campaignsCopy.chipPaused,
@@ -61,11 +65,12 @@ export function chipFor(state: CampaignState): string {
 export function stepIndexFor(state: CampaignState): number {
   if (state === "stopped" || state === "failed") return CAMPAIGN_STEPS.indexOf("researching");
   if (state === "paused") return CAMPAIGN_STEPS.indexOf("running");
+  if (state === "peopleFound" || state === "peopleNeedsYou") return CAMPAIGN_STEPS.indexOf("findingPeople");
   return CAMPAIGN_STEPS.indexOf(state);
 }
 
 export type CampaignAction = {
-  kind: "confirm" | "pause" | "resume" | "widen" | "retry";
+  kind: "confirm" | "pause" | "resume" | "widen" | "retry" | "reveal" | "retryPeople";
   label: string;
   next: CampaignState;
   disabled?: boolean;
@@ -82,12 +87,23 @@ export type CampaignAction = {
  * the header carries none. A sample campaign keeps every signed action,
  * because the component tests that draw the later states need them.
  */
-export function actionFor(state: CampaignState, live = false, retryable = false): CampaignAction | null {
+export function actionFor(
+  state: CampaignState,
+  live = false,
+  retryable = false,
+  people: { confirm?: boolean; retryPeople?: boolean } = {},
+): CampaignAction | null {
   if (live) {
     if (state === "planReady") {
-      return { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople", disabled: true, note: campaignsCopy.confirmLater };
+      // Pressable only where finding people is set up; never a sample standing in for it.
+      return people.confirm === true
+        ? { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople", note: campaignsCopy.confirmNote }
+        : { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople", disabled: true, note: campaignsCopy.confirmLater };
     }
     if (state === "failed" && retryable) return { kind: "retry", label: campaignsCopy.actionTryAgain, next: "researching" };
+    // The second spend gate is drawn, and cannot be pressed until revealing emails exists.
+    if (state === "peopleFound") return { kind: "reveal", label: campaignsCopy.actionReveal, next: "peopleFound", disabled: true, note: campaignsCopy.revealLater };
+    if (state === "peopleNeedsYou" && people.retryPeople === true) return { kind: "retryPeople", label: campaignsCopy.actionTryAgain, next: "findingPeople" };
     return null;
   }
   switch (state) {
@@ -122,6 +138,8 @@ export type CampaignCounts = {
   failure?: ResearchFailure | null;
   /** Research itself failed, so Try again is offered (orchestrator A1, item 6). */
   retryable?: boolean;
+  /** Why finding people needs the rep, in words (lead gen v2.1 §11). */
+  peopleReason?: string;
 };
 
 /** The line that says why research did not finish (orchestrator §7, amended A1). */
@@ -161,10 +179,11 @@ export function nextFor(
         ? { next: campaignsCopy.nextPlanReadyLive, nextIsAction: false }
         : { next: campaignsCopy.nextPlanReady, nextIsAction: true };
     case "findingPeople":
-      // Not in the accent, and deliberately: the action that answers this line
-      // is on Your people (§23.1e), which is its own task. A row that read as a
-      // call to action would be one the campaign page cannot honour.
-      return { next: campaignsCopy.nextFindingPeople, nextIsAction: false };
+      return { next: live ? campaignsCopy.nextFindingPeopleLive : campaignsCopy.nextFindingPeople, nextIsAction: false };
+    case "peopleFound":
+      return { next: campaignsCopy.nextPeopleFound, nextIsAction: false };
+    case "peopleNeedsYou":
+      return { next: campaignsCopy.nextPeopleNeedsYou, nextIsAction: true };
     case "drafting":
       return { next: campaignsCopy.nextDrafting, nextIsAction: false };
     case "paused":
@@ -207,7 +226,13 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
         : `${p.sent} ${c.answerSent}, ${p.replied} ${c.answerReplied}. ${p.drafted} ${c.answerDrafted} ${c.of} ${p.found} ${c.answerFound}.`;
 
   const waiting =
-    state === "failed"
+    state === "peopleNeedsYou"
+      ? c.answerWaitingPeopleNeedsYou
+      : state === "peopleFound"
+        ? c.answerWaitingPeopleFound
+        : state === "findingPeople" && live
+          ? c.answerWaitingFinding
+          : state === "failed"
       ? counts.retryable === true
         ? c.answerWaitingFailed
         : c.answerWaitingFailedEdit
@@ -245,7 +270,9 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
         ? c.answerStopped
         : state === "failed"
           ? failureLine(counts.failure)
-          : c.answerStoppedNone;
+          : state === "peopleNeedsYou"
+            ? (counts.peopleReason ?? c.haltFailed)
+            : c.answerStoppedNone;
 
   return [
     { id: "how-going", question: c.askHowGoing, answer: going },

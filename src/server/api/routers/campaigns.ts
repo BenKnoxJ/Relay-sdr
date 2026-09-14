@@ -5,12 +5,15 @@ import { z } from "zod";
 import { BriefRefusedError, briefFieldsSchema, nameFrom, toResearchBrief, type ResearchBrief } from "@/lib/campaigns/brief";
 import { listCounts, toCampaign, toCampaignResearch, toSummary } from "@/lib/campaigns/view";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
+import { leadGenSetup } from "@/lib/leadgen/setup";
 import {
   CampaignChangeRefused,
+  confirmCampaign,
   createCampaign,
   editCampaignBrief,
   getCampaignForOwner,
   listCampaignsForOwner,
+  rerunPeople,
   retryResearch,
   widenCampaign,
   type ChangeResult,
@@ -54,8 +57,23 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.briefUnchanged });
     case "version_ahead":
     case "bad_option":
+    case "research_not_ready":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.cannotChange });
+    case "not_available":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNotAvailable });
+    case "no_ranked_group":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNoGroup });
+    case "no_recipe":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNoRecipe });
+    case "over_cap":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmOverCap });
   }
+}
+
+/** How finding people is set up here, as the screens need it: nothing about the provider itself. */
+function leadGenOptions() {
+  const setup = leadGenSetup();
+  return { available: setup !== null, searchCreditCap: setup?.searchCreditCap ?? null, sample: setup?.sample ?? false };
 }
 
 async function refusing(change: Promise<ChangeResult>): Promise<{ id: string }> {
@@ -130,15 +148,47 @@ export const campaignsRouter = createTRPCRouter({
     .input(z.object({ campaignId, briefVersion, requestId }).strict())
     .mutation(({ ctx, input }) => refusing(retryResearch(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input }))),
 
+  /**
+   * Confirm plan (lead gen v2.1 §6; orchestrator A2): the frozen handoff, the
+   * lawful-basis record and the one lead gen job, from the version on screen.
+   */
+  confirm: repProcedure
+    .input(z.object({ campaignId, fromBriefVersion: briefVersion, requestId }).strict())
+    .mutation(({ ctx, input }) =>
+      refusing(confirmCampaign(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() })),
+    ),
+
+  /** Try again on finding people, from Needs you (v2.1 §11). */
+  retryPeople: repProcedure
+    .input(z.object({ campaignId, briefVersion, requestId }).strict())
+    .mutation(({ ctx, input }) => refusing(rerunPeople(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input }))),
+
+  /** Search with the industry the rep chose, from a Needs you's own choices (v2.1 §5). */
+  chooseIndustry: repProcedure
+    .input(z.object({ campaignId, briefVersion, requestId, term: z.string().min(1).max(500), label: z.string().min(1).max(200) }).strict())
+    .mutation(({ ctx, input }) =>
+      refusing(
+        rerunPeople(ctx.prisma, {
+          orgId: ctx.orgId,
+          userId: ctx.userId,
+          campaignId: input.campaignId,
+          briefVersion: input.briefVersion,
+          requestId: input.requestId,
+          choice: { term: input.term, label: input.label },
+        }),
+      ),
+    ),
+
   list: repProcedure.query(async ({ ctx }) => {
-    const campaigns = (await listCampaignsForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map(toCampaign);
+    const options = leadGenOptions();
+    const campaigns = (await listCampaignsForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map((record) => toCampaign(record, options));
     return { campaigns: campaigns.map(toSummary), counts: listCounts(campaigns) };
   }),
 
   get: repProcedure.input(z.object({ id: campaignId }).strict()).query(async ({ ctx, input }) => {
     const record = await getCampaignForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, id: input.id });
     if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
-    return toCampaign(record);
+    return toCampaign(record, leadGenOptions());
   }),
 
   /** What Relay learned (task 19): one of the rep's own campaigns, with its finished research read whole. */

@@ -13,7 +13,7 @@ import { DEFAULT_EMAIL_POLICY, Knowledge, emailHold, preRevealChecks, type CrmCh
 import { domainKey, norm } from "./normalise";
 import { ProviderBusyError, ProviderUnknownOutcomeError, type LeadGenProvider, type ProviderCandidate, type ProviderSearchPage, type ProviderVocabulary } from "./provider";
 import { rankCandidates, type Eligible, type Scored } from "./rank";
-import { DOCUMENTED_UNVERIFIED_PRICING, SearchSpend, documentedWorstCaseCharge, type SearchPricing, type SpendEntry } from "./spend";
+import { DOCUMENTED_UNVERIFIED_PRICING, SearchSpend, documentedWorstCaseCharge, inMemorySpend, type SearchPricing, type SpendEntry, type SpendPort } from "./spend";
 import { INDUSTRY_ALIASES, locationNames, translate, type Translation } from "./translate";
 
 /**
@@ -37,6 +37,8 @@ export type FindPeopleDeps = {
   industryChoices?: Readonly<Record<string, string>>;
   /** Busy or unknown-outcome retries: attempts per page, and the wait before each retry. */
   retry?: { attempts: number; wait: (attempt: number) => Promise<void> };
+  /** Where spend is kept. In memory, from the handoff's cap and balance, when not given. */
+  spend?: SpendPort;
 };
 
 export type FindPeopleResult = {
@@ -58,13 +60,13 @@ export async function findPeople(input: unknown, deps: FindPeopleDeps): Promise<
   const pricing = deps.pricing ?? DOCUMENTED_UNVERIFIED_PRICING;
   const policy = deps.policy ?? DEFAULT_EMAIL_POLICY;
   const retry = deps.retry ?? DEFAULT_RETRY;
-  const spend = new SearchSpend(handoff.spend.searchCreditCap, handoff.spend.balanceSnapshot.remaining, pricing);
+  const spend = deps.spend ?? inMemorySpend(new SearchSpend(handoff.spend.searchCreditCap, handoff.spend.balanceSnapshot.remaining, pricing));
   const holds: FindPeopleResult["holds"] = [];
 
-  const halt = (fields: Omit<Halt, "phase" | "spend">, translation: Translation | null): FindPeopleResult => ({
-    output: haltSchema.parse({ phase: "needs_you", ...fields, spend: spend.summary() }),
+  const halt = async (fields: Omit<Halt, "phase" | "spend">, translation: Translation | null): Promise<FindPeopleResult> => ({
+    output: haltSchema.parse({ phase: "needs_you", ...fields, spend: await spend.summary() }),
     translation,
-    ledger: spend.list(),
+    ledger: await spend.list(),
     holds,
     stoppedBy: "halt",
   });
@@ -78,7 +80,7 @@ export async function findPeople(input: unknown, deps: FindPeopleDeps): Promise<
   // One page size for the whole run (v2.1 §4), within the provider's limits and never above 50.
   const pageSize = Math.max(deps.vocabulary.pageSize.min, Math.min(handoff.howMany, deps.vocabulary.pageSize.max, 50));
   const worstCase = documentedWorstCaseCharge(pageSize, pricing);
-  if (!spend.canReserve(worstCase)) return halt({ reason: "over_cap" }, translated);
+  if (!(await spend.canReserve(worstCase))) return halt({ reason: "over_cap" }, translated);
 
   const knowledge = new Knowledge(deps.knowledge);
   const placeNames = new Set(handoff.targeting.locations.flatMap((term) => [...locationNames(term, handoff)]));
@@ -92,20 +94,23 @@ export async function findPeople(input: unknown, deps: FindPeopleDeps): Promise<
   for (let page = 0; ; page += 1) {
     let answer: ProviderSearchPage | null = null;
     for (let attempt = 1; answer === null; attempt += 1) {
-      // The invariant, before every request, retries included.
-      if (!spend.canReserve(worstCase)) break;
+      // The invariant, before every request, retries included: decided and
+      // reserved in one step, so no other run can spend in between.
       const key = `campaign:${handoff.campaign.id}:lead_gen:v${handoff.campaign.briefVersion}:p${page}:a${attempt}`;
-      spend.reserve(key, worstCase);
+      if (!(await spend.tryReserve(key, worstCase))) break;
+      let returned: ProviderSearchPage;
       try {
-        answer = await deps.provider.search({ key, filters: translated.filters, page, pageSize });
-        spend.reconcile(key, answer.charged);
+        returned = await deps.provider.search({ key, filters: translated.filters, page, pageSize });
       } catch (error) {
         // No billing answer came back, so the reservation stays at its worst case.
-        spend.markUnknown(key);
+        await spend.markUnknown(key);
         if (!(error instanceof ProviderBusyError || error instanceof ProviderUnknownOutcomeError)) throw error;
         if (attempt >= retry.attempts) return halt({ reason: error instanceof ProviderBusyError ? "provider_busy" : "took_too_long" }, translated);
         await retry.wait(attempt);
+        continue;
       }
+      await spend.reconcile(key, returned.charged);
+      answer = returned;
     }
     if (answer === null) {
       stoppedBy = "cap_reached";
@@ -142,7 +147,7 @@ export async function findPeople(input: unknown, deps: FindPeopleDeps): Promise<
     spare: ranked.spare.map((entry, index) => toPerson(entry, ranked.chosen.length + index + 1)),
     found: { n: chosen.length, ofM: handoff.howMany },
     ...(chosen.length < handoff.howMany ? { shortfall: stoppedBy === "cap_reached" ? ("cap_reached" as const) : ("no_more_results" as const) } : {}),
-    spend: spend.summary(),
+    spend: await spend.summary(),
     revealEstimate: {
       toBuy: toBuy.length,
       reused: ranked.chosen.filter((entry) => entry.reusedPersonId !== null).length,
@@ -150,7 +155,7 @@ export async function findPeople(input: unknown, deps: FindPeopleDeps): Promise<
     },
     holdsApplied: HOLD_REASONS.map((reason) => ({ reason, count: holds.filter((hold) => hold.reason === reason).length })).filter((hold) => hold.count > 0),
   };
-  return { output: leadgenOutputSchema.parse(pick) as Pick, translation: translated, ledger: spend.list(), holds, stoppedBy };
+  return { output: leadgenOutputSchema.parse(pick) as Pick, translation: translated, ledger: await spend.list(), holds, stoppedBy };
 }
 
 type Decision = { kind: "held"; reason: HoldReason } | { kind: "eligible"; reusedPersonId: string | null };

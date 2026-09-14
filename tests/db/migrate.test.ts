@@ -12,13 +12,18 @@ import { listColumns, listTables, listUniqueIndexes, resetDatabase } from "./har
 const EXPECTED_TABLES = [
   "agent_run_steps",
   "agent_runs",
+  "campaign_people",
   "campaigns",
   "connected_accounts",
+  "contact_suppressions",
+  "credit_ledger",
   "events",
   "jobs",
   "oauth_states",
   "orgs",
+  "people",
   "product_facts_versions",
+  "provider_identities",
   "side_effects",
   "users",
 ];

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
-import type { RetrySubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChooseIndustrySubmission, RetrySubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
 import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
@@ -19,6 +19,9 @@ import { PlanSection } from "./PlanCards";
 import { ProgressCounts } from "./ProgressCounts";
 import { StateRow } from "./StateRow";
 import { WidenCard } from "./WidenCard";
+import { ConfirmCard } from "./ConfirmCard";
+import { PeopleFound } from "./PeopleFound";
+import { PeopleNeedsYou } from "./PeopleNeedsYou";
 
 /**
  * The campaign page (§23.1c, mock 3b and 3c).
@@ -44,6 +47,9 @@ export function CampaignPage({
   banner = null,
   onWiden,
   onRetry,
+  onConfirm,
+  onRetryPeople,
+  onChooseIndustry,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
@@ -52,6 +58,12 @@ export function CampaignPage({
   onWiden?: (submission: WidenSubmission) => Promise<StartResult>;
   /** Puts failed research back on the queue (a server action). */
   onRetry?: (submission: RetrySubmission) => Promise<StartResult>;
+  /** Confirm plan: the first spend gate (a server action; lead gen v2.1 §6). */
+  onConfirm?: (submission: RetrySubmission) => Promise<StartResult>;
+  /** Try again on finding people (a server action). */
+  onRetryPeople?: (submission: RetrySubmission) => Promise<StartResult>;
+  /** Search with a chosen industry (a server action). */
+  onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
 }) {
   const router = useRouter();
   const [state, setState] = useState<CampaignState>(campaign.state);
@@ -65,7 +77,10 @@ export function CampaignPage({
   const target = { campaignId: campaign.id, briefVersion: campaign.briefVersion };
   const editHref = live && campaign.can.edit ? `/campaigns/${campaign.id}/edit` : undefined;
 
-  const action = actionFor(state, live, campaign.can.retry);
+  const action = actionFor(state, live, campaign.can.retry, {
+    confirm: campaign.can.confirm === true && onConfirm !== undefined,
+    retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
+  });
   /*
     Recomputed from the state the SCREEN is in, not from the state the campaign
     arrived in. Pause moves the page and the six answers together, and an Ask
@@ -97,14 +112,20 @@ export function CampaignPage({
         }
       : undefined;
 
-  const retry = async () => {
-    if (onRetry === undefined || pending) return;
+  /** Confirm lands on the campaign with its own line; the rest are Relay looking again. */
+  const confirmed = (id: string) => {
+    router.push(`/campaigns/${id}?confirmed=1`);
+    router.refresh();
+  };
+
+  const submit = async (send: ((submission: RetrySubmission) => Promise<StartResult>) | undefined, landed: (id: string) => void = lookingAgain) => {
+    if (send === undefined || pending) return;
     setPending(true);
     setActionError(null);
     try {
-      const result = await onRetry({ ...target, requestId });
+      const result = await send({ ...target, requestId });
       if ("id" in result) {
-        lookingAgain(result.id);
+        landed(result.id);
         return;
       }
       setActionError(result.error);
@@ -137,8 +158,15 @@ export function CampaignPage({
 
   const plan =
     // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
-    campaign.overview !== null && state === "planReady" ? (
-      <Overview overview={campaign.overview} editHref={editHref} researchHref={live ? `/campaigns/${campaign.id}/research` : undefined} />
+    campaign.overview !== null && (state === "planReady" || state === "findingPeople" || state === "peopleFound" || state === "peopleNeedsYou") ? (
+      <>
+        <Overview overview={campaign.overview} editHref={editHref} researchHref={live ? `/campaigns/${campaign.id}/research` : undefined} />
+        {state === "planReady" && campaign.confirmPlan ? (
+          <div className="mt-grid">
+            <ConfirmCard plan={campaign.confirmPlan} />
+          </div>
+        ) : null}
+      </>
     ) : campaign.pack === null ||
     state === "stopped" ||
     state === "researching" ||
@@ -223,9 +251,26 @@ export function CampaignPage({
     folds the plan, because the decision is made and the question is how it is
     going. Researching, the stop and a failure have no plan to lead with at all.
   */
+  const peopleFound =
+    state === "peopleFound" && campaign.peopleFound ? (
+      <PeopleFound view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} />
+    ) : null;
+
+  const choose =
+    live && campaign.can.chooseIndustry === true && onChooseIndustry !== undefined && campaign.peopleNeedsYou?.term
+      ? async (label: string): Promise<string | null> => {
+          const result = await onChooseIndustry({ ...target, requestId, term: campaign.peopleNeedsYou!.term!, label });
+          if ("error" in result) return result.error;
+          lookingAgain(result.id);
+          return null;
+        }
+      : undefined;
+
   const column =
     state === "planReady"
       ? [plan, brief, ask]
+      : state === "peopleFound"
+        ? [peopleFound, brief, ask, plan]
       : leadsWithProgress
         ? [progress, plan, ask]
         : [brief, ask, plan];
@@ -252,14 +297,22 @@ export function CampaignPage({
               onClick={() => {
                 if (action.disabled === true) return;
                 if (action.kind === "retry") {
-                  void retry();
+                  void submit(onRetry);
+                  return;
+                }
+                if (live && action.kind === "confirm") {
+                  void submit(onConfirm, confirmed);
+                  return;
+                }
+                if (action.kind === "retryPeople") {
+                  void submit(onRetryPeople);
                   return;
                 }
                 setState(action.next);
                 setToast(campaignsCopy.toastConfirmed);
               }}
             >
-              {action.kind === "retry" && pending ? campaignsCopy.actionTrying : action.label}
+              {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
             </PillButton>
             {action.note === undefined ? null : (
               <p data-testid="action-note" className="type-small text-muted">
@@ -285,6 +338,23 @@ export function CampaignPage({
         <p data-testid="researching-note" className="type-body mb-grid text-muted">
           {campaignsCopy.researchingNote}
         </p>
+      ) : null}
+
+      {state === "findingPeople" && live ? (
+        <p data-testid="finding-note" className="type-body mb-grid text-muted">
+          {campaignsCopy.findingNote}
+        </p>
+      ) : null}
+
+      {state === "peopleNeedsYou" && campaign.peopleNeedsYou ? (
+        <div className="mb-grid">
+          <PeopleNeedsYou
+            view={campaign.peopleNeedsYou}
+            canRetry={campaign.can.retryPeople === true}
+            spent={campaign.spentAtThisVersion === true}
+            onChoose={choose}
+          />
+        </div>
       ) : null}
 
       {state === "failed" ? (

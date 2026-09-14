@@ -36,6 +36,9 @@ RELAY_WORKER_LEASE_MS=""
 # How long a draining worker lets an in-flight handler finish after SIGTERM
 # (default 540000). Must stay inside the unit's TimeoutStopSec.
 RELAY_WORKER_DRAIN_MS=""
+# Lead gen: `sample` (development and test only) makes up people and credits; unset, finding people is off.
+RELAY_LEADGEN_PROVIDER=""
+RELAY_LEADGEN_SEARCH_CAP=""
 
 # --- auth (Clerk) ---------------------------------------------------------
 CLERK_SECRET_KEY=""

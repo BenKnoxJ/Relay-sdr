@@ -60,6 +60,17 @@ export type EventKind =
   /// A rep pressed Try again on research that failed: the failed job went
   /// back on the queue, at the same brief version with the same input.
   | "campaign.research_retried"
+  /// A rep pressed Confirm plan: `after.handoff` is the frozen
+  /// `LeadGenHandoffV1` (lead gen v2.1 §3) with the lawful-basis record, and
+  /// the lead gen job for the version is enqueued in the same transaction.
+  | "campaign.confirmed"
+  /// A lead gen job found people: `after.output` is the People found result.
+  | "leadgen.picked"
+  /// A lead gen job stopped with a reason for the rep (v2.1 §11).
+  | "leadgen.halted"
+  /// A rep asked lead gen to run again at the same version: Try again, or a
+  /// chosen industry. The new job is enqueued in the same transaction.
+  | "leadgen.rerun"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the

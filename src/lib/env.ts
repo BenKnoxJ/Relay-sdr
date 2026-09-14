@@ -195,6 +195,17 @@ const schema = z
      */
     RELAY_WORKER_DRAIN_MS: positiveMs(540_000),
 
+    // --- lead gen ---------------------------------------------------------
+    /**
+     * Lead gen's provider. There is no live provider yet: `sample` makes up
+     * people and credits from the handoff (`src/lib/leadgen/sample.ts`) so the
+     * flow can be seen, and it rides the same allowlist as the stub model:
+     * accepted only in development and test. Unset, finding people is off.
+     */
+    RELAY_LEADGEN_PROVIDER: optional(z.enum(["sample"])),
+    /** The search credit cap a Confirm approves (lead gen v2.1 §6). Configuration; the sample has its own default. */
+    RELAY_LEADGEN_SEARCH_CAP: optional(z.coerce.number().int().positive()),
+
     // --- auth (Clerk) -----------------------------------------------------
     CLERK_SECRET_KEY: optional(z.string()),
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optional(z.string()),
@@ -312,6 +323,17 @@ const schema = z
         path: ["RELAY_AGENT_STUB_MODEL"],
         message:
           "RELAY_AGENT_STUB_MODEL is a local-only scripted model: it is accepted only when NODE_ENV is " +
+          `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
+      });
+    }
+
+    // Sample people and credits never reach production.
+    if (!bypassEnvironment && value.RELAY_LEADGEN_PROVIDER !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RELAY_LEADGEN_PROVIDER"],
+        message:
+          "RELAY_LEADGEN_PROVIDER=sample makes up people and credits: it is accepted only when NODE_ENV is " +
           `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
       });
     }

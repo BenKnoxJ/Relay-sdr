@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LushaBadResponseError, LushaClient, LushaHttpError, LushaNoAnswerError, createLushaClient, recordedLushaFetch } from "@/lib/services/lusha";
+import { LushaBadResponseError, LushaClient, LushaHttpError, LushaNoAnswerError, LushaNotSentError, createLushaClient, recordedLushaFetch } from "@/lib/services/lusha";
 
 /**
  * The Lusha V3 client: one header carries the key and nothing else ever
@@ -130,5 +130,33 @@ describe("the recorded Lusha transport", () => {
   it("is what mock mode builds, with no key; live mode without a key is a fault", () => {
     expect(createLushaClient({ INTEGRATIONS: "mock", LUSHA_API_KEY: undefined })).toBeInstanceOf(LushaClient);
     expect(() => createLushaClient({ INTEGRATIONS: "live", LUSHA_API_KEY: undefined })).toThrow(/LUSHA_API_KEY/);
+  });
+});
+
+describe("a request that never left Relay (lead gen v2.2 note 2)", () => {
+  const failing = (cause: unknown): typeof globalThis.fetch => async () => {
+    throw new TypeError("fetch failed", { cause });
+  };
+  const connect = (code: string) => Object.assign(new Error(`connect ${code}`), { code });
+
+  it("@proof is not sent when the connection was refused, never resolved or never opened", async () => {
+    for (const code of ["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT"]) {
+      const error = await thrown(new LushaClient(KEY, { fetchImpl: failing(connect(code)) }).searchContacts({ filters: { contacts: { include: {} } }, pagination: { page: 0, size: 10 } }));
+      expect(error).toBeInstanceOf(LushaNotSentError);
+      expect((error as LushaNotSentError).code).toBe(code);
+      expect(error.message).not.toContain(KEY);
+    }
+    // Every address tried, and every one refused.
+    const all = Object.assign(new AggregateError([connect("ECONNREFUSED"), connect("ECONNREFUSED")]), { code: undefined });
+    expect(await thrown(new LushaClient(KEY, { fetchImpl: failing(all) }).usage())).toBeInstanceOf(LushaNotSentError);
+  });
+
+  it("@proof is an unknown outcome when the request may have gone out", async () => {
+    for (const cause of [connect("ECONNRESET"), connect("UND_ERR_SOCKET"), connect("UND_ERR_HEADERS_TIMEOUT"), undefined]) {
+      expect(await thrown(new LushaClient(KEY, { fetchImpl: failing(cause) }).usage())).toBeInstanceOf(LushaNoAnswerError);
+    }
+    // One address refused, another reset: it may have gone out.
+    const mixed = new AggregateError([connect("ECONNREFUSED"), connect("ECONNRESET")]);
+    expect(await thrown(new LushaClient(KEY, { fetchImpl: failing(mixed) }).usage())).toBeInstanceOf(LushaNoAnswerError);
   });
 });

@@ -2,7 +2,7 @@
 
 import { TRPCError } from "@trpc/server";
 
-import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -115,6 +115,19 @@ export async function chooseIndustry(submission: ChooseIndustrySubmission): Prom
       requestId: submission.requestId,
       term: submission.term,
       label: submission.label,
+    }),
+  );
+}
+
+/** Keep or drop before Reveal (lead gen v2.2 §9a): one person, or a whole account. */
+export async function reviewPeople(submission: ReviewSubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.reviewPeople({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      personId: submission.personId,
+      scope: submission.scope,
+      decision: submission.decision,
     }),
   );
 }

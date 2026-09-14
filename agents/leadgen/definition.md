@@ -366,3 +366,127 @@ Swap, Find more, Add someone, a group chooser (the contract already allows one; 
 - the email grade vocabulary;
 - whether a timed-out request is charged;
 - per-person charge attribution on enrich.
+
+# Relay agent definition — Lead gen (v2.2, signed)
+**v2.2 · SIGNED by the product owner 2026-09-14 · amends `leadgen.v2.1.signed.md`; where the two differ, v2.2 wins**
+Inputs to this amendment: the account-led audit of `main` 64ec0e8 (`ops/design/2026-09-14-relay-leadgen-v2.2-account-led-audit.md`), accepted by the product owner on 2026-09-14 with these decisions:
+- Direct motion is accounts first;
+- runs is the lead role;
+- pending is not kept;
+- the account target is `ceil(howMany / 2)`;
+- the lead title limit is `ceil(howMany / 4)`;
+- the stage name is "Reviewing people";
+- no company search, no account table, and no Research change.
+
+Everything in v2.1 stands unless a section below replaces it. A Confirm frozen under v2.1 (`LeadGenHandoffV1`) keeps running under v2.1 unchanged.
+
+## 3a. Input: `LeadGenHandoffV2` (extends v2.1 §3)
+The handoff Confirm freezes from now on is V1's shape with `version: 2` and two additions:
+
+```ts
+type LeadGenHandoffV2 = Omit<LeadGenHandoffV1, "version"> & {
+  version: 2;
+  play: { id: string };                 // the confirmed campaign candidate (m16 id): provenance only
+  buyerRoles: {                         // the confirmed group's roles, copied verbatim
+    title: string;                      // as Research wrote it, compound forms included
+    seniority: string;
+    part: "runs" | "champions" | "signs";
+    needs: string;
+  }[];
+};
+```
+
+- The campaign boundary adapter copies `play` and `buyerRoles` at Confirm, from the same group it already selects (v2.1 §3).
+- Lead gen still imports nothing of Research. It declares these fields itself.
+- A historical handoff is never rewritten. Lead gen runs a V1 handoff under v2.1 and a V2 handoff under this amendment.
+
+## 4a. Account-led search (replaces v2.1 §4 for a V2 handoff)
+Every request keeps v2.1 §5 translation and the v2.1 §6 spend invariant and reservation, unchanged. No title, place, industry or size is widened.
+
+**Roles in the recipe.** Each recipe title is matched to a role (§8a). This partitions the recipe's titles by role. A title that matches no role stays in the recipe, but is not a discovery or complement title.
+
+**Search 1, account discovery:**
+- It takes the recipe titles matched to `runs`. If there are none, it uses those matched to `champions`, then `signs`, then every recipe title.
+- `maxContactsPerCompany = 1`.
+- `pageSize = clamp(targetAccounts, providerMinPageSize, 50)`, where `targetAccounts = ceil(howMany / 2)`.
+- It pages only while fewer than `targetAccounts` accounts have a lead (§8a). A further page is taken only if the remaining cap still covers that page and the smallest complement request.
+
+**Search 2, complementary roles:** one request, and never paged. It is restricted to the domains of the accounts with a lead, and includes:
+- the recipe titles matched to parts other than the discovery part;
+- `maxContactsPerCompany = min(perCompanyMax − 1, the number of those parts)`;
+- `pageSize = clamp(min(howMany − leads, accounts × maxContactsPerCompany), providerMinPageSize, 50)`, reduced to what the remaining cap allows, but never below the provider minimum.
+
+When the cap cannot cover even the minimum, the complement search is not made, and People found shows the cap shortfall.
+
+**Other rules:**
+- An account with no domain is not sent in the complement search.
+- A complement result outside those accounts is ignored.
+- Confirm's cap must cover the first discovery page plus the smallest complement request before anything is searched, otherwise the run halts `over_cap` with nothing spent.
+- For `howMany = 20`, the worst case is 10 (discovery) + 10 (complement) = 20.
+
+## 8a. Roles and allocation (replaces v2.1 §8 selection for a V2 handoff; its score, seed match and `norm` stand)
+**Role matching,** per confirmed group and never global:
+- Each role title is split on Research's own " / " and " or ", and each piece is normalised with `norm`.
+- A title whose `norm` equals a piece is an **exact** match.
+- Otherwise, a piece of two or more words, at least one of them not generic, found as a whole phrase in the title is a **phrase** match. The generic words are: head, of, and, the, chief, officer, manager, director, lead, senior, analyst, executive, deputy, assistant, team, leader, vice, president, vp.
+- A single word never phrase-matches.
+- When matches point at different parts, there is no match.
+- A title with no match is **Related role**. Seniority and departments never assign a role.
+
+**Strong:** a role match, or an exact recipe title. Nothing weak is ever chosen.
+
+**Account key:** the registrable domain, else the provider's company id, else `norm(company)`.
+
+**Account order,** ascending by:
+1. number of distinct parts among its strong candidates, most first;
+2. seed-firm match first;
+3. best score first;
+4. account key.
+
+The provider's order never decides.
+
+**Order within an account,** ascending by:
+1. part: runs, champions, signs, then none;
+2. match: exact before phrase;
+3. score, highest first;
+4. `norm(name)`;
+5. provider id.
+
+**Passes:**
+1. **Leads:** accounts in order each take their first strong candidate, until `targetAccounts` accounts have a lead. A lead whose `norm(title)` already leads `ceil(howMany / 4)` accounts is skipped for the account's next candidate.
+2. **Complement:** each lead account, in order, adds its first candidate with a part not yet chosen there. The lead title limit does not apply to complements.
+3. **Third role:** the same again, adding a third distinct part.
+4. **More accounts:** if still short, further accounts take a lead only.
+
+- Never two people with one part at an account, and never more than `perCompanyMax` (3).
+- Stop at `howMany`. Never pad.
+- Fewer than asked is People found X of N, with the shortfall `cap_reached` when the cap stopped a search, and otherwise `fewer_strong_matches`.
+
+## 9a. Review before Reveal (extends v2.1 §9 and §11)
+CampaignPerson gains:
+- the matched role (part, the Research role title, and the method);
+- the rep's review: `pending` (default), `kept` or `dropped`, with who and when.
+
+Keep and drop write the rows and a `campaign.people_reviewed` Event in one transaction. Drop account marks every chosen person at that account. There is no account record.
+
+**State and screens:**
+- The peopleFound state reads **Reviewing people**. Its screen leads with accounts, with people nested under each account.
+- Gate 2 (Reveal emails, still not built) takes **kept** chosen people only. Pending and dropped are never revealed, and the reveal estimate counts kept people only.
+
+## 15a. Still not here
+Company search, a CampaignAccount table, running several plays, choosing another play, Reveal, People ready, Outreach, and any Research change.
+
+## Notes (2026-09-14, directed by the product owner after the live account-led smoke)
+1. **§8a: the lead title limit is removed.**
+   - Pass 1 takes each account's first strong candidate, whatever its title.
+   - Pass 4 may add further strong accounts while the run is still short of `howMany`.
+   - Why: the live smoke showed the limit discarding legitimate target accounts. Discovery through the runs titles, one person per company, already stops one title filling the list.
+2. **v2.1 §6, refined: a request that provably never left Relay releases its reservation** (ledger state `released`, which counts for nothing against the cap).
+   - "Provably never left" means the name did not resolve, the host was unreachable, the connection was refused, or connecting timed out.
+   - A request that may have been sent (a reset, a timeout or abort after connecting, a server fault) keeps its worst case until reconciled, as before.
+   - Rep-facing copy says credits are held only for reservations that may still be charged.
+3. **§9a, the screen:**
+   - The plan's search is stated once, above the accounts. An account card adds only account-specific evidence Relay has, such as a seed-firm match.
+   - Each person's "why they fit" names the role they matched.
+   - Each role's needs are shown once, in a buyer-roles summary.
+   - Drop account appears only on accounts with more than one person.

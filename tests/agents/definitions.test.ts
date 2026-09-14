@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -62,6 +63,14 @@ describe("the signed definitions", () => {
     }
     // Lead gen v2.1 is carried after the v2 it amends; the orchestrator carries its A2.
     expect(loadDefinition("leadgen").definition).toMatch(/v2\.1 · SIGNED by the product owner 2026-09-14/);
+    expect(loadDefinition("leadgen").definition).toMatch(/v2\.2 · SIGNED by the product owner 2026-09-14/);
+    // v2.2 is carried whole, notes included: any change to the signed text must change this fingerprint on purpose.
+    const leadgen = loadDefinition("leadgen").definition;
+    const v22 = leadgen.slice(leadgen.indexOf("# Relay agent definition — Lead gen (v2.2, signed)"));
+    expect(createHash("sha256").update(v22).digest("hex")).toBe("0f66de5945233eb7ddedff891f9f8a2e563944967cc55729e51ae7825fea108f");
+    expect(v22).toContain("**§8a: the lead title limit is removed.**");
+    expect(v22).toContain("ledger state `released`, which counts for nothing against the cap");
+    expect(v22).toContain("Drop account appears only on accounts with more than one person.");
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A2: lead gen v2\.1 integration/);
   });
 

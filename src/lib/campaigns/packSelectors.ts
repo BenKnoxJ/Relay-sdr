@@ -62,6 +62,11 @@ export function candidateFor(pack: PackShape, archetypeId: string): Candidate | 
     .sort((a, b) => a.rank - b.rank)[0];
 }
 
+/** A kind of buyer's roles (m03), as research wrote them: who runs it, who champions it, who signs it off. */
+export function groupRoles(pack: PackShape, archetypeId: string): BuyerGroup["roles"] {
+  return completeModule(pack, "m03")?.archetypes.find((group) => group.id === archetypeId)?.roles ?? [];
+}
+
 /** A kind of buyer's name, as research wrote it (m03). */
 export function groupName(pack: PackShape, archetypeId: string): string | undefined {
   return completeModule(pack, "m03")?.archetypes.find((group) => group.id === archetypeId)?.name;

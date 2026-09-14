@@ -44,9 +44,17 @@ export function recordedLushaFetch(dir: string = LUSHA_FIXTURES): typeof globalT
       return existsSync(recorded(name)) ? json(fileBody(recorded(name))) : json({ values: [] });
     }
     if (method === "POST" && url.pathname === "/v3/contacts/prospecting") {
-      const request = JSON.parse(String(init?.body ?? "{}")) as { pagination?: { page?: number; size?: number } };
+      const request = JSON.parse(String(init?.body ?? "{}")) as {
+        pagination?: { page?: number; size?: number };
+        options?: { maxContactsPerCompany?: number };
+        filters?: { companies?: { include?: { domains?: string[] } } };
+      };
       const page = request.pagination?.page ?? 0;
-      const name = `prospecting/page-${page}.json`;
+      // Lead gen v2.2 §4a: the complement search names its accounts' domains,
+      // and account discovery asks for one person per company. A v2.1 search is neither.
+      const stage =
+        (request.filters?.companies?.include?.domains?.length ?? 0) > 0 ? "complement-" : request.options?.maxContactsPerCompany === 1 ? "accounts-" : "";
+      const name = `prospecting/${stage}page-${page}.json`;
       if (existsSync(recorded(name))) return json(fileBody(recorded(name)));
       return json({ results: [], billing: { creditsCharged: 0, resultsReturned: 0 }, pagination: { page, size: request.pagination?.size ?? 0, total: 0 } });
     }

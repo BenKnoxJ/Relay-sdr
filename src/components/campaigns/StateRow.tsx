@@ -45,7 +45,9 @@ export function StateRow({ state }: { state: CampaignState }) {
               ? campaignsCopy.stepNeedsYou
               : step === "findingPeople" && state === "peopleNeedsYou"
                 ? campaignsCopy.stepFindingNeedsYou
-                : LABELS[step];
+                : step === "findingPeople" && state === "peopleFound"
+                  ? campaignsCopy.stepReviewingPeople
+                  : LABELS[step];
         return (
           <li
             key={step}

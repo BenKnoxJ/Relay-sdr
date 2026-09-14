@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { researchBriefSchema } from "../../agents/research/input.schema";
 import { chosenArchetypeId, leadgenRecipe, type PackShape } from "../../agents/research/output.schema";
-import { leadGenHandoffV1Schema } from "../../agents/leadgen/input.schema";
+import { leadGenHandoffV1Schema, leadGenHandoffV2Schema } from "../../agents/leadgen/input.schema";
 import { buildLeadGenHandoff, type ConfirmFacts } from "@/lib/campaigns/leadgenHandoff";
 import { topCandidate } from "@/lib/campaigns/packSelectors";
 
@@ -10,8 +10,9 @@ import { mod } from "../agents/researchPack";
 import { completePack, partialPack, stoppedPack } from "./campaignPacks";
 
 /**
- * The campaign boundary: signed Research output in, `LeadGenHandoffV1` out
- * (leadgen v2.1 §3). H1 takes the top-ranked group and nothing else.
+ * The campaign boundary: signed Research output in, `LeadGenHandoffV2` out
+ * (leadgen v2.1 §3, v2.2 §3a). H1 takes the top-ranked group and nothing
+ * else, and copies that group's roles verbatim.
  */
 
 const brief = researchBriefSchema.parse({
@@ -49,8 +50,17 @@ describe("buildLeadGenHandoff", () => {
     const result = buildLeadGenHandoff(facts(pack));
     if (!result.ok) throw new Error(result.refusal);
     const { handoff } = result;
-    expect(leadGenHandoffV1Schema.safeParse(handoff).success).toBe(true);
+    expect(leadGenHandoffV2Schema.safeParse(handoff).success).toBe(true);
+    // V2 is not a V1: an old Confirm keeps its own version, and a new one is never read as the old.
+    expect(leadGenHandoffV1Schema.safeParse(handoff).success).toBe(false);
+    expect(handoff.version).toBe(2);
     expect(handoff.buyerGroup).toEqual({ id: "claims-teams", name: expect.any(String), sourceRank: 1 });
+    expect(handoff.play).toEqual({ id: topCandidate(pack)?.id });
+    // The confirmed group's roles, field for field: who signs it off, who runs it, and what each needs.
+    expect(handoff.buyerRoles).toEqual([
+      { title: "Head of claims", seniority: "Director", part: "signs", needs: "Proof for the board." },
+      { title: "Claims team leader", seniority: "Manager", part: "runs", needs: "Less manual checking." },
+    ]);
     expect(handoff.buyerGroup.id).toBe(topCandidate(pack)?.archetypeId);
     expect(handoff.targeting).toEqual({ ...leadgenRecipe(pack, "claims-teams"), locations: [] });
     expect(handoff.seedFirms.map((firm) => firm.name)).toEqual(["claims-teams firm 1", "claims-teams firm 2"]);

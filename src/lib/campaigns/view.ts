@@ -1,10 +1,11 @@
 import { researchBriefSchema } from "../../../agents/research/input.schema";
-import { leadGenHandoffV1Schema } from "../../../agents/leadgen/input.schema";
+import { leadGenHandoffSchema } from "../../../agents/leadgen/input.schema";
 
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
+import { accountsOf, buyerRolesOf, effectiveOf, reviewCounts, revealFromKept, searchLine } from "./accounts";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveLeadGen, deriveResearch, storedPack, type LeadGenState } from "./derive";
 import { researchSections } from "./research";
@@ -72,13 +73,6 @@ function peopleReasonLine(people: Extract<LeadGenState, { state: "peopleNeedsYou
   }
 }
 
-/** A stored candidate's preview, as the rep reads it. */
-function previewOf(value: unknown): { name: string; title: string; company: string; city: string | null } {
-  const preview = value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const text = (key: string) => (typeof preview[key] === "string" ? (preview[key] as string) : "");
-  return { name: text("name"), title: text("title"), company: text("company"), city: text("city") === "" ? null : text("city") };
-}
-
 export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_LEAD_GEN_SETUP): Campaign {
   // Written by `createCampaign` from a brief research's schema accepted, so a
   // row that no longer parses is a defect worth failing on, not one to draw.
@@ -99,7 +93,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           leadGen.result === null ? null : { kind: leadGen.result.kind, after: leadGen.result.after },
         );
   const state: CampaignState = people?.state ?? research.state;
-  const frozen = confirm === null ? null : leadGenHandoffV1Schema.safeParse((confirm.after as { handoff?: unknown } | null)?.handoff);
+  const frozen = confirm === null ? null : leadGenHandoffSchema.safeParse((confirm.after as { handoff?: unknown } | null)?.handoff);
   const handoff = frozen?.success === true ? frozen.data : null;
   const sampleRun = confirm !== null && (confirm.after as { balanceSource?: unknown } | null)?.balanceSource === "sample";
   const spend = leadGen?.spend ?? null;
@@ -118,6 +112,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     confirm: state === "planReady" && options.available,
     retryPeople: people?.state === "peopleNeedsYou" && people.retryable,
     chooseIndustry: people?.state === "peopleNeedsYou" && people.choosable,
+    review: people?.state === "peopleFound",
   };
   const counts: CampaignCounts = {
     progress: found === null ? null : { found: found.found.n, drafted: 0, approved: 0, sent: 0, replied: 0 },
@@ -149,12 +144,15 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           groupName: handoff.buyerGroup.name,
           found: found.found,
           shortfall: found.shortfall ?? null,
-          people: (leadGen?.people ?? [])
-            .filter((row) => row.status === "chosen")
-            .map((row) => ({ id: row.id, rank: row.rank, ...previewOf(row.preview), whyPicked: row.whyPicked, reused: row.source === "reused" })),
+          search: searchLine(handoff, effectiveOf(leadGen?.result?.after)),
+          buyerRoles: buyerRolesOf(handoff),
+          accounts: accountsOf(leadGen?.people ?? [], handoff),
+          roles: handoff.version === 2,
+          review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
           spend: { charged: spend?.charged ?? 0, reserved: spend?.reserved ?? 0, cap },
-          revealEstimate: found.revealEstimate,
+          // Kept people only: pending and dropped are never revealed (v2.2 §9a).
+          revealEstimate: revealFromKept(leadGen?.people ?? []),
           sample: sampleRun,
         };
   const peopleNeedsYou: PeopleNeedsYouView | null =

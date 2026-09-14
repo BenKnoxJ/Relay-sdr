@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import { env } from "@/lib/env";
 import { createLushaClient } from "@/lib/services/lusha";
 
@@ -36,7 +36,7 @@ export type LeadGenSetup = {
   /** The balance Confirm freezes, read server-side at Confirm. Throws when it cannot be read. */
   readBalance(orgId: string): Promise<AccountBalance>;
   /** The provider and vocabulary a run uses. A live provider reads its metadata here. */
-  environment(handoff: LeadGenHandoffV1): Promise<LeadGenEnvironment>;
+  environment(handoff: LeadGenHandoff): Promise<LeadGenEnvironment>;
 };
 
 export function leadGenSetup(): LeadGenSetup | null {

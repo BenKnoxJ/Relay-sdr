@@ -78,6 +78,9 @@ export type RetrySubmission = ChangeTarget & { requestId: string };
 /** A chosen industry from a Needs you: the term research wrote, the plain-words label chosen, and the id that makes a second press the same choice. */
 export type ChooseIndustrySubmission = ChangeTarget & { requestId: string; term: string; label: string };
 
+/** Keep or drop before Reveal (lead gen v2.2 §9a): one person, or everyone chosen at that person's account. */
+export type ReviewSubmission = ChangeTarget & { personId: string; scope: "person" | "account"; decision: "kept" | "dropped" };
+
 /**
  * Start's pre-fill, as a keyword mapping.
  *

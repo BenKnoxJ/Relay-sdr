@@ -1,0 +1,413 @@
+{
+  "endpoint": "POST /v3/contacts/prospecting",
+  "fetchedAt": "2026-09-14T23:00:00.000Z",
+  "source": "Synthetic, in the shape the first live account-led smoke returned (2026-09-14): fictional people at fictional firms on .example domains. Not a Lusha answer. Lead gen v2.2: account discovery, page 1: more runs titles and several related claims titles.",
+  "sanitised": false,
+  "body": {
+    "requestId": "fixture-accounts-page-1",
+    "results": [
+      {
+        "id": "v22-a11",
+        "firstName": "Kit",
+        "lastName": "Nightingale",
+        "jobTitle": {
+          "title": "Deputy Head of Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-11",
+          "name": "Kingsmere Motor",
+          "domain": "kingsmere-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Manchester"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-11"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a12",
+        "firstName": "Lowri",
+        "lastName": "Ashdown",
+        "jobTitle": {
+          "title": "Deputy Head of Complex Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-12",
+          "name": "Larkfield Insurance",
+          "domain": "larkfield.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Bristol"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-12"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a13",
+        "firstName": "Marlo",
+        "lastName": "Holloway",
+        "jobTitle": {
+          "title": "Head of Customer Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-13",
+          "name": "Meridian Cover",
+          "domain": "meridian-cover.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "London"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-13"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a14",
+        "firstName": "Nell",
+        "lastName": "Oakley",
+        "jobTitle": {
+          "title": "Head of Underwriting and Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-14",
+          "name": "Northdale Underwriting",
+          "domain": "northdale-uw.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Reading"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-14"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a15",
+        "firstName": "Orla",
+        "lastName": "Bellamy",
+        "jobTitle": {
+          "title": "Head of Underwriting and Protection Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-15",
+          "name": "Oakridge Protection",
+          "domain": "oakridge-protection.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Norwich"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-15"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a16",
+        "firstName": "Perrin",
+        "lastName": "Ingram",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-16",
+          "name": "Pembroke Motor Insurance",
+          "domain": "pembroke-motor.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Sheffield"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-16"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a17",
+        "firstName": "Quill",
+        "lastName": "Penrose",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-17",
+          "name": "Quayside Insurance",
+          "domain": "quayside.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "York"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-17"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a18",
+        "firstName": "Rhian",
+        "lastName": "Carver",
+        "jobTitle": {
+          "title": "Head of Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-18",
+          "name": "Redcliffe Claims",
+          "domain": "redcliffe-claims.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Derby"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-18"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a19",
+        "firstName": "Sol",
+        "lastName": "Jessop",
+        "jobTitle": {
+          "title": "Head of QA Operations",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-19",
+          "name": "Saltmarsh Insurance",
+          "domain": "saltmarsh.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Plymouth"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-19"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      },
+      {
+        "id": "v22-a20",
+        "firstName": "Tamsin",
+        "lastName": "Quarrie",
+        "jobTitle": {
+          "title": "Head of Insurer Partnerships and Claims",
+          "seniority": "director",
+          "departments": [
+            "Operations"
+          ]
+        },
+        "company": {
+          "id": "v22-co-20",
+          "name": "Thornbury Partners Insurance",
+          "domain": "thornbury-partners.example"
+        },
+        "location": {
+          "country": "United Kingdom",
+          "state": "England",
+          "city": "Leeds"
+        },
+        "socialLinks": {
+          "linkedin": "https://www.linkedin.com/in/v22-fictional-20"
+        },
+        "has": [
+          "emails",
+          "phones"
+        ],
+        "canReveal": [
+          {
+            "field": "emails",
+            "credits": 1
+          },
+          {
+            "field": "phones",
+            "credits": 5
+          }
+        ]
+      }
+    ],
+    "billing": {
+      "creditsCharged": 1,
+      "resultsReturned": 10,
+      "lowBalance": false
+    },
+    "pagination": {
+      "page": 1,
+      "size": 10,
+      "total": 108,
+      "totalGuaranteed": true,
+      "totalDescription": "Exact contact count (up to 1 per company)."
+    }
+  }
+}

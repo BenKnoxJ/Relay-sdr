@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import { env, type Env } from "@/lib/env";
 import { NO_CRM, zohoCrmCheck } from "@/lib/leadgen/crm";
 import { findPeople, type FindPeopleDeps } from "@/lib/leadgen/findPeople";
@@ -20,8 +20,9 @@ import { TerminalError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
 
 /**
- * The `lead_gen` job (lead gen v2.1; orchestrator A2): the signed core, run
- * on the frozen handoff, with its spend and result persisted. The handler
+ * The `lead_gen` job (lead gen v2.1 for a V1 handoff, v2.2 for a V2 one;
+ * orchestrator A2): the signed core, run on the frozen handoff, with its
+ * spend and result persisted. The handler
  * orchestrates and decides nothing the core decides.
  *
  *   1. the input names a Confirm; the handoff is read from that Event and
@@ -39,7 +40,7 @@ import type { Handler } from "@/worker/handlers/index";
 
 export type LeadGenHandlerDeps = {
   /** The provider and vocabulary for a handoff, or null where none is set up. A live provider reads its metadata here. */
-  environment: (handoff: LeadGenHandoffV1) => LeadGenEnvironment | null | Promise<LeadGenEnvironment | null>;
+  environment: (handoff: LeadGenHandoff) => LeadGenEnvironment | null | Promise<LeadGenEnvironment | null>;
   crm: CrmCheck;
   pricing?: SearchPricing;
   retry?: FindPeopleDeps["retry"];
@@ -79,7 +80,7 @@ export function leadGenHandler(deps: LeadGenHandlerDeps = defaultLeadGenDeps()):
 
     const confirm = await findConfirmByRequest(db, { orgId: job.orgId, campaignId: job.campaignId, requestId: parsed.data.confirmRequestId });
     if (confirm === null) throw new TerminalError("lead gen: bad input (no Confirm for this campaign)");
-    let handoff: LeadGenHandoffV1;
+    let handoff: LeadGenHandoff;
     try {
       handoff = handoffOf(confirm);
     } catch {

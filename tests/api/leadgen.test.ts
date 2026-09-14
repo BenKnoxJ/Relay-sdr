@@ -4,12 +4,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { prisma } from "@/lib/db";
 import { resetEnv } from "@/lib/env";
+import { NO_CRM } from "@/lib/leadgen/crm";
+import { sampleProvider, sampleVocabulary } from "@/lib/leadgen/sample";
+import { DOCUMENTED_UNVERIFIED_PRICING } from "@/lib/leadgen/spend";
 import { LEAD_GEN_JOB } from "@/lib/repo/leadgen";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import { appRouter } from "@/server/api/root";
 import { type TRPCContext } from "@/server/api/trpc";
 import { type Session } from "@/server/auth/session";
 import { ensureUser, type Actor } from "@/server/auth/upsertUser";
+import { leadGenHandler } from "@/worker/handlers/leadGen";
 
 import { emptyAll, resetDatabase } from "../db/harness";
 import { completePack, startInput } from "../lib/campaignPacks";
@@ -131,5 +135,48 @@ describe("campaigns.confirm", () => {
       expect(await failureOf(caller(session).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId: crypto.randomUUID() }))).toBe("NOT_FOUND");
     }
     expect(await prisma.job.count({ where: { kind: LEAD_GEN_JOB } })).toBe(0);
+  });
+});
+
+describe("campaigns.reviewPeople", () => {
+  /** A confirmed campaign whose sample search has run: Reviewing people, with every person pending. */
+  async function found() {
+    process.env.RELAY_LEADGEN_PROVIDER = "sample";
+    resetEnv();
+    const id = await planned();
+    await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId: crypto.randomUUID() });
+    const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id, kind: LEAD_GEN_JOB } });
+    await leadGenHandler({
+      environment: (handoff) => ({ provider: sampleProvider(handoff), vocabulary: sampleVocabulary(handoff) }),
+      crm: NO_CRM,
+      pricing: DOCUMENTED_UNVERIFIED_PRICING,
+      retry: { attempts: 1, wait: async () => {} },
+    })({ db: prisma, job, signal: new AbortController().signal });
+    const person = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: id, status: "chosen" }, orderBy: { rank: "asc" } });
+    return { id, person };
+  }
+
+  it("@proof keeps a person for the rep who owns the campaign, through the router", async () => {
+    const { id, person } = await found();
+    expect(await caller(rep()).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: person.id, scope: "person", decision: "kept" })).toEqual({ id });
+    expect((await prisma.campaignPerson.findUniqueOrThrow({ where: { id: person.id } })).review).toBe("kept");
+    expect((await caller(rep()).campaigns.get({ id })).peopleFound?.review.kept).toBe(1);
+  });
+
+  it("@proof answers another rep in the org, and another org, as if the campaign were not there", async () => {
+    const { id, person } = await found();
+    for (const session of [colleague(), stranger()]) {
+      expect(await failureOf(caller(session).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: person.id, scope: "account", decision: "dropped" }))).toBe("NOT_FOUND");
+    }
+    expect(await prisma.campaignPerson.count({ where: { campaignId: id, review: { not: "pending" } } })).toBe(0);
+  });
+
+  it("refuses a stale page and input it does not take", async () => {
+    const { id, person } = await found();
+    expect(await failureOf(caller(rep()).campaigns.reviewPeople({ campaignId: id, briefVersion: 2, personId: person.id, scope: "person", decision: "kept" }))).toBe(
+      `BAD_REQUEST: ${campaignsCopy.cannotChange}`,
+    );
+    const extra = { campaignId: id, briefVersion: 1, personId: person.id, scope: "person", decision: "kept", orgId: "someone-else" } as unknown as Parameters<ReturnType<typeof caller>["campaigns"]["reviewPeople"]>[0];
+    expect(await failureOf(caller(rep()).campaigns.reviewPeople(extra))).toMatch(/^BAD_REQUEST/);
   });
 });

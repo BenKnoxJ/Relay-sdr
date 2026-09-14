@@ -99,6 +99,7 @@ model User {
   events            Event[]
   jobs              Job[]
   campaigns         Campaign[]
+  reviewedPeople    CampaignPerson[]   @relation("CampaignPersonReviewer")
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -471,6 +472,32 @@ enum CampaignPersonSource {
   @@map("campaign_person_source")
 }
 
+/// The rep's decision on a chosen candidate before Reveal (lead gen v2.2 §9a). Pending is not kept.
+enum CampaignPersonReview {
+  pending
+  kept
+  dropped
+
+  @@map("campaign_person_review")
+}
+
+/// Who a person is to the purchase, from the confirmed group's own roles (v2.2 §8a).
+enum BuyerRolePart {
+  runs
+  champions
+  signs
+
+  @@map("buyer_role_part")
+}
+
+/// How a person's title matched that role (v2.2 §8a).
+enum RoleMatchMethod {
+  exact
+  phrase
+
+  @@map("role_match_method")
+}
+
 enum ContactSuppressionKind {
   email
   domain
@@ -496,6 +523,8 @@ enum CreditState {
   reserved
   reconciled
   unreconciled
+  /// The request provably never left Relay (lead gen v2.2 note 2): it counts for nothing.
+  released
 
   @@map("credit_state")
 }
@@ -568,13 +597,24 @@ model CampaignPerson {
   whyPicked    String               @map("why_picked")
   companyKey   String               @map("company_key")
   preview      Json
+  /// The confirmed group's role this person plays, the role's own title, and
+  /// how their title matched it (v2.2 §8a). All three or none: none is a
+  /// Related role, or a run under a v2.1 handoff.
+  rolePart     BuyerRolePart?       @map("role_part")
+  roleTitle    String?              @map("role_title")
+  roleMatch    RoleMatchMethod?     @map("role_match")
+  /// The rep's keep or drop before Reveal (v2.2 §9a), with who and when once decided.
+  review           CampaignPersonReview @default(pending)
+  reviewedByUserId String?              @map("reviewed_by_user_id")
+  reviewedAt       DateTime?            @map("reviewed_at")
   createdAt    DateTime             @default(now()) @map("created_at")
   updatedAt    DateTime             @updatedAt @map("updated_at")
 
-  org      Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
-  job      Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
-  person   Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  person     Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
+  reviewedBy User?    @relation("CampaignPersonReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, campaignId, briefVersion, provider, providerId])
   @@index([orgId, campaignId, briefVersion, rank])

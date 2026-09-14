@@ -16,6 +16,7 @@ import { RESEARCH_COMPLETED, findResearchCompletedForJob } from "./research";
 import {
   CAMPAIGN_CONFIRMED,
   LEADGEN_HALTED,
+  LEADGEN_PICKED,
   LEADGEN_RERUN,
   LEAD_GEN_JOB,
   findConfirmEvent,
@@ -280,7 +281,7 @@ function required(fields: Record<string, string>, where: string): void {
 }
 
 /** Lock the rep's own campaign for the rest of the transaction, and read it. Null when it is not theirs. */
-async function lockOwnCampaign(tx: Tx, input: ChangeInput): Promise<Campaign | null> {
+async function lockOwnCampaign(tx: Tx, input: Owner & { campaignId: string }): Promise<Campaign | null> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM campaigns
      WHERE id = ${input.campaignId} AND org_id = ${input.orgId} AND owner_user_id = ${input.userId}
@@ -746,4 +747,81 @@ export async function rerunPeople(db: PrismaClient, input: RerunInput): Promise<
       },
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Keep or drop before Reveal (lead gen v2.2 §9a).
+
+export const CAMPAIGN_PEOPLE_REVIEWED = "campaign.people_reviewed" as const;
+
+export type ReviewInput = Owner & {
+  campaignId: string;
+  briefVersion: number;
+  /** The person pressed on: that one person, or everyone chosen at their account. */
+  personId: string;
+  scope: "person" | "account";
+  decision: "kept" | "dropped";
+  now?: () => Date;
+};
+
+export type ReviewResult = { campaign: Campaign; changed: string[] };
+
+/** Thrown inside the transaction when every row already has the decision: nothing, not even an Event, is written. */
+class NothingToReview extends Error {
+  constructor(readonly campaign: Campaign) {
+    super("nothing to review");
+  }
+}
+
+/**
+ * Keep or drop, on the chosen people of the current version's latest search.
+ * The rep's own campaign is locked and its version checked, and the rows and
+ * one `campaign.people_reviewed` Event change together. Drop account is the
+ * same change over every chosen person at the pressed person's account: there
+ * is no account record. A decision can be changed; pending is never written
+ * back, and a press that changes nothing writes nothing.
+ */
+export async function reviewPeople(db: PrismaClient, input: ReviewInput): Promise<ReviewResult> {
+  required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, personId: input.personId }, CAMPAIGN_PEOPLE_REVIEWED);
+  const at = (input.now ?? (() => new Date()))();
+  type Reviewed = ReviewResult & { jobId: string; before: { id: string; review: string }[] };
+  try {
+    const reviewed = await mutate<Reviewed>(db, {
+      orgId: input.orgId,
+      actor: { kind: "user", userId: input.userId },
+      kind: CAMPAIGN_PEOPLE_REVIEWED,
+      campaignId: input.campaignId,
+      apply: async (tx) => {
+        const campaign = await lockOwnCampaign(tx, input);
+        if (campaign === null) throw new CampaignChangeRefused("not_found");
+        checkVersion(campaign, input.briefVersion);
+        const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+        const job = await latestLeadGenJob(tx, scope);
+        const result = job === null ? null : await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: job.id });
+        if (job === null || result?.kind !== LEADGEN_PICKED) throw new CampaignChangeRefused("wrong_state");
+
+        const current = { ...scope, jobId: job.id, status: "chosen" as const };
+        const pressed = await tx.campaignPerson.findFirst({ where: { ...current, id: input.personId } });
+        if (pressed === null) throw new CampaignChangeRefused("not_found");
+        const rows = await tx.campaignPerson.findMany({
+          where: input.scope === "account" ? { ...current, companyKey: pressed.companyKey } : { ...current, id: pressed.id },
+          select: { id: true, review: true },
+          orderBy: [{ rank: "asc" }, { id: "asc" }],
+        });
+        const moving = rows.filter((row) => row.review !== input.decision);
+        if (moving.length === 0) throw new NothingToReview(campaign);
+        await tx.campaignPerson.updateMany({
+          where: { ...current, id: { in: moving.map((row) => row.id) } },
+          data: { review: input.decision, reviewedByUserId: input.userId, reviewedAt: at },
+        });
+        return { campaign, changed: moving.map((row) => row.id), jobId: job.id, before: moving.map((row) => ({ id: row.id, review: row.review })) };
+      },
+      before: (reviewed) => ({ people: reviewed.before }),
+      after: (reviewed) => ({ briefVersion: input.briefVersion, jobId: reviewed.jobId, scope: input.scope, decision: input.decision, people: reviewed.changed }),
+    });
+    return { campaign: reviewed.campaign, changed: reviewed.changed };
+  } catch (error) {
+    if (error instanceof NothingToReview) return { campaign: error.campaign, changed: [] };
+    throw error;
+  }
 }

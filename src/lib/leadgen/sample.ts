@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 
 import { FakeLeadGenProvider, type FakeStep } from "./fakeProvider";
 import type { ProviderCandidate, ProviderVocabulary } from "./provider";
@@ -18,7 +18,7 @@ export const SAMPLE_BALANCE_REMAINING = 500;
 /** Enough for two pages at the largest count Start offers. */
 export const SAMPLE_SEARCH_CAP = 120;
 
-export function sampleVocabulary(handoff: LeadGenHandoffV1): ProviderVocabulary {
+export function sampleVocabulary(handoff: LeadGenHandoff): ProviderVocabulary {
   const { countries, locations, industries } = handoff.targeting;
   return {
     version: "sample (made up; not a provider's vocabulary)",
@@ -32,7 +32,7 @@ export function sampleVocabulary(handoff: LeadGenHandoffV1): ProviderVocabulary 
 }
 
 /** Eighteen sample people, two to a firm, every fifth with no email. */
-export function sampleCandidates(handoff: LeadGenHandoffV1): ProviderCandidate[] {
+export function sampleCandidates(handoff: LeadGenHandoff): ProviderCandidate[] {
   const { titles, countries, locations } = handoff.targeting;
   return Array.from({ length: 18 }, (_, index) => {
     const n = index + 1;
@@ -51,7 +51,7 @@ export function sampleCandidates(handoff: LeadGenHandoffV1): ProviderCandidate[]
   });
 }
 
-export function sampleProvider(handoff: LeadGenHandoffV1): FakeLeadGenProvider {
+export function sampleProvider(handoff: LeadGenHandoff): FakeLeadGenProvider {
   const all = sampleCandidates(handoff);
   const pages: FakeStep[] = [
     { candidates: all.slice(0, 12), charged: 12, hasMore: true },

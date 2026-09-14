@@ -17,6 +17,9 @@ export const peopleCopy = {
   why: {
     exactTitle: "Exact title match",
     relatedTitle: "Related title",
+    /** Lead gen v2.2 §8a: the title is one of the roles research described for this group. */
+    roleExact: "Title matches a role in the plan",
+    rolePhrase: "Title names a role in the plan",
     seedFirm: "at a firm research found",
     withEmail: "with an email available",
     noEmail: "no email found yet",

@@ -81,14 +81,49 @@ export function Overview({
   editHref,
   researchHref,
   confirmed = false,
+  collapsed = false,
 }: {
   overview: CampaignOverview;
   editHref?: string;
   researchHref?: string;
   /** The plan is confirmed and the search has run or is running: no "nobody found yet". */
   confirmed?: boolean;
+  /** Folded to one line and a Show: the accounts found are the work now, and the research stays one press away. */
+  collapsed?: boolean;
 }) {
   const c = campaignsCopy;
+  const [open, setOpen] = useState(!collapsed);
+  const researchLink =
+    researchHref === undefined ? undefined : (
+      <Link
+        href={researchHref}
+        data-testid="overview-research-link"
+        className="type-small inline-flex min-h-6 shrink-0 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+      >
+        {researchCopy.openLink}
+      </Link>
+    );
+  if (!open) {
+    return (
+      <Card label={c.planLabel} aside={researchLink}>
+        <div data-testid="overview-folded" className="flex flex-wrap items-center justify-between gap-2">
+          <p className="type-small text-muted">
+            {c.overviewFolded}
+            {overview.startWith === null ? "" : ` ${c.peopleFoundFor} ${overview.startWith.groupName}.`}
+          </p>
+          <button
+            type="button"
+            data-testid="overview-show"
+            aria-expanded={false}
+            onClick={() => setOpen(true)}
+            className="type-small inline-flex min-h-6 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+          >
+            {c.overviewShowPlan}
+          </button>
+        </div>
+      </Card>
+    );
+  }
   const firmCount = overview.firms.reduce((sum, group) => sum + group.firms.length, 0);
 
   return (

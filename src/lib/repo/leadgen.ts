@@ -1,11 +1,11 @@
 import type { CampaignPerson, CreditLedgerEntry, Event, Job, Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
-import { leadGenHandoffV1Schema, type LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import { leadGenHandoffSchema, type LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import type { Person as FoundPerson } from "../../../agents/leadgen/output.schema";
 import type { FindPeopleResult } from "@/lib/leadgen/findPeople";
 import type { KnownPerson, OrgKnowledge } from "@/lib/leadgen/holds";
-import type { SpendEntry, SpendPort } from "@/lib/leadgen/spend";
+import { held, type SpendEntry, type SpendPort } from "@/lib/leadgen/spend";
 
 import { mutate } from "./mutate";
 import { isUniqueViolation } from "./sideEffects";
@@ -69,9 +69,9 @@ export async function findConfirmByRequest(db: Db, where: { orgId: string; campa
 }
 
 /** The frozen handoff on a Confirm Event. A row that no longer parses is a defect worth failing on. */
-export function handoffOf(confirm: Pick<Event, "after">): LeadGenHandoffV1 {
+export function handoffOf(confirm: Pick<Event, "after">): LeadGenHandoff {
   const after = confirm.after !== null && typeof confirm.after === "object" ? (confirm.after as { handoff?: unknown }) : {};
-  return leadGenHandoffV1Schema.parse(after.handoff);
+  return leadGenHandoffSchema.parse(after.handoff);
 }
 
 /** The latest lead gen job for one version: the newest run. */
@@ -134,9 +134,9 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
 // more than that worst case, and on the balance snapshot being true when it
 // was read. Neither is verified against a live provider yet.
 
-/** Committed spend: reconciled at what was charged, anything else at its worst case. */
+/** Committed spend: reconciled at what was charged, released at nothing, anything else at its worst case. */
 function committed(entries: readonly Pick<CreditLedgerEntry, "state" | "charged" | "worstCase">[]): number {
-  return entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : entry.worstCase), 0);
+  return entries.reduce((total, entry) => total + held(entry), 0);
 }
 
 export type LedgerScope = Scope & {
@@ -194,6 +194,10 @@ export function persistedSpend(db: PrismaClient, scope: LedgerScope): SpendPort 
     markUnknown: async (key) => {
       await db.creditLedgerEntry.updateMany({ where: { orgId: scope.orgId, key: keyOf(key), state: "reserved" }, data: { state: "unreconciled" } });
     },
+    release: async (key) => {
+      const updated = await db.creditLedgerEntry.updateMany({ where: { orgId: scope.orgId, key: keyOf(key), state: "reserved" }, data: { state: "released" } });
+      if (updated.count !== 1) throw new Error(`${key}: no open reservation`);
+    },
     summary: async () => ({ ...(await confirmSpend(db, { orgId: scope.orgId, confirmEventId: scope.confirmEventId })), searchCreditCap: scope.cap, pricingAssumptions: scope.pricingAssumptions }),
     list: async (): Promise<readonly SpendEntry[]> =>
       (await db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, jobId: scope.jobId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] })).map((entry) => ({
@@ -210,7 +214,8 @@ export async function confirmSpend(db: Db, where: { orgId: string; confirmEventI
   const entries = await db.creditLedgerEntry.findMany({ where: { orgId: where.orgId, confirmEventId: where.confirmEventId } });
   return {
     charged: entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : 0), 0),
-    reserved: entries.reduce((total, entry) => total + (entry.state === "reconciled" ? 0 : entry.worstCase), 0),
+    // Only what may still be charged: a released request never left Relay.
+    reserved: entries.reduce((total, entry) => total + (entry.state === "reserved" || entry.state === "unreconciled" ? entry.worstCase : 0), 0),
     exceededDocumentedWorstCase: entries.some((entry) => entry.state === "reconciled" && (entry.charged ?? 0) > entry.worstCase),
   };
 }
@@ -261,16 +266,21 @@ export async function recordLeadGenResult(db: PrismaClient, input: RecordLeadGen
     score: person.score,
     whyPicked: person.whyPicked,
     companyKey: person.companyKey,
+    // v2.2 §8a: the Research role this person plays, all three or none.
+    ...(person.role === undefined ? {} : { rolePart: person.role.part, roleTitle: person.role.title, roleMatch: person.role.how }),
     // The provider's row as it came: the raw domain stays here.
     preview: {
       name: person.name,
       title: person.title,
       company: person.company,
       ...(person.domain === undefined ? {} : { domain: person.domain }),
+      ...(person.companyId === undefined ? {} : { companyId: person.companyId }),
       country: person.country,
       ...(person.city === undefined ? {} : { city: person.city }),
       ...(person.linkedinUrl === undefined ? {} : { linkedinUrl: person.linkedinUrl }),
       hasEmail: person.hasEmail,
+      // What revealing this email would cost, so a reveal estimate can count kept people alone (v2.2 §9a).
+      ...(person.emailRevealCredits === undefined ? {} : { emailRevealCredits: person.emailRevealCredits }),
     },
   });
   const rows = output.phase === "pick" ? [...output.chosen.map((person) => row(person, "chosen")), ...output.spare.map((person) => row(person, "spare"))] : [];

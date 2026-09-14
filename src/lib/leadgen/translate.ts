@@ -1,4 +1,4 @@
-import type { LeadGenHandoffV1 } from "../../../agents/leadgen/input.schema";
+import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 
 import { compareStrings, containsPhrase, domainKey, norm } from "./normalise";
 import type { ProviderFilters, ProviderVocabulary } from "./provider";
@@ -61,7 +61,7 @@ export const INDUSTRY_ALIASES: Readonly<Record<string, string>> = {
 const STOPWORDS = new Set(["a", "an", "and", "for", "in", "of", "the", "to"]);
 
 export function translate(
-  handoff: LeadGenHandoffV1,
+  handoff: LeadGenHandoff,
   vocabulary: ProviderVocabulary,
   options: TranslateOptions = {},
 ): Translation | { ok: false; halt: TranslationHalt } {
@@ -131,7 +131,7 @@ export function translate(
 }
 
 /** Every name a location term may be written as: the term, and the aliases of the place it names. */
-export function locationNames(term: string, handoff: LeadGenHandoffV1): Set<string> {
+export function locationNames(term: string, handoff: LeadGenHandoff): Set<string> {
   const names = new Set([norm(term)]);
   for (const place of handoff.places) {
     const all = [place.name, ...place.aliases].map(norm);
@@ -142,7 +142,7 @@ export function locationNames(term: string, handoff: LeadGenHandoffV1): Set<stri
 
 function resolveLocation(
   term: string,
-  handoff: LeadGenHandoffV1,
+  handoff: LeadGenHandoff,
   vocabulary: ProviderVocabulary,
 ): { value: string; level: "state" | "city"; countryIso2: string } | null {
   const names = locationNames(term, handoff);
@@ -161,7 +161,7 @@ function resolveLocation(
 
 type Resolved = { ok: true; ids: string[]; label: string; via: "exact" | "alias" | "choice" } | { ok: false; halt: TranslationHalt };
 
-function resolveIndustry(term: string, handoff: LeadGenHandoffV1, vocabulary: ProviderVocabulary, options: TranslateOptions): Resolved {
+function resolveIndustry(term: string, handoff: LeadGenHandoff, vocabulary: ProviderVocabulary, options: TranslateOptions): Resolved {
   const exact = byLabel(term, vocabulary);
   if (exact.length > 0) return { ok: true, ids: exact.map((entry) => entry.id), label: exact[0]!.label, via: "exact" };
 

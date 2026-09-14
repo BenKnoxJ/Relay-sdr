@@ -12,21 +12,32 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 export function ProgressCounts({
   progress,
   note,
+  downstream = true,
 }: {
   progress: NonNullable<Campaign["progress"]>;
   note?: string;
+  /**
+   * Whether drafting, approving, sending and replies exist for this campaign.
+   * A real campaign has none of them yet, and a zero under each would read as
+   * work Relay does and has not done: only Found is drawn.
+   */
+  downstream?: boolean;
 }) {
   const counts: [string, number][] = [
     [campaignsCopy.progressFound, progress.found],
-    [campaignsCopy.progressDrafted, progress.drafted],
-    [campaignsCopy.progressApproved, progress.approved],
-    [campaignsCopy.progressSent, progress.sent],
-    [campaignsCopy.progressReplied, progress.replied],
+    ...(downstream
+      ? ([
+          [campaignsCopy.progressDrafted, progress.drafted],
+          [campaignsCopy.progressApproved, progress.approved],
+          [campaignsCopy.progressSent, progress.sent],
+          [campaignsCopy.progressReplied, progress.replied],
+        ] as [string, number][])
+      : []),
   ];
 
   return (
     <>
-      <dl className="grid grid-cols-5 gap-2">
+      <dl className={downstream ? "grid grid-cols-5 gap-2" : "grid grid-cols-1 gap-2"}>
         {counts.map(([word, count]) => (
           <div
             key={word}

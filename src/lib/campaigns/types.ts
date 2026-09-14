@@ -245,6 +245,8 @@ export type ResearchActions = {
   retryPeople?: boolean;
   /** Choose an industry and search with it (lead gen v2.1 §5). */
   chooseIndustry?: boolean;
+  /** Keep or drop the people found (lead gen v2.2 §9a). */
+  review?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -261,7 +263,13 @@ export type ConfirmPlanView = {
   lawfulBasis: string;
 };
 
-/** One person in People found, as the rep reads them: no provider ids, no taxonomy. */
+/** Who a person is to the purchase (lead gen v2.2 §8a). */
+export type RolePartView = "runs" | "champions" | "signs";
+
+/** The rep's decision before Reveal (lead gen v2.2 §9a). Pending is not kept. */
+export type ReviewView = "pending" | "kept" | "dropped";
+
+/** One person under an account, as the rep reads them: no provider ids, no email, no taxonomy. */
 export type FoundPersonView = {
   id: string;
   rank: number;
@@ -269,21 +277,49 @@ export type FoundPersonView = {
   title: string;
   company: string;
   city: string | null;
-  whyPicked: string;
   /** Relay already holds a usable email for them: nothing to buy. */
   reused: boolean;
+  /** The confirmed group's role they play; null is a Related role, or a search that had no roles. */
+  role: RolePartView | null;
+  /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
+  why: string;
+  review: ReviewView;
+};
+
+/** One of the confirmed group's roles, shown once above the accounts with what research says it needs. */
+export type BuyerRoleView = { part: RolePartView; title: string; needs: string };
+
+/** One account in Reviewing people: its people, the roles they cover, and why it is here (v2.2 §9a). */
+export type AccountView = {
+  /** The first person's id: what Drop account names. Never a provider id or a domain. */
+  personId: string;
+  company: string;
+  domain: string | null;
+  people: FoundPersonView[];
+  /** The roles its people cover, runs first. */
+  parts: RolePartView[];
+  /** Evidence about this account in particular, only where Relay has it (a firm research named); null otherwise. */
+  evidence: string | null;
 };
 
 /** People found, X of N (lead gen v2.1 §4, §11). */
 export type PeopleFoundView = {
   groupName: string;
   found: { n: number; ofM: number };
-  shortfall: "cap_reached" | "no_more_results" | null;
-  people: FoundPersonView[];
+  shortfall: "cap_reached" | "no_more_results" | "fewer_strong_matches" | null;
+  /** The plan's search, said once above the accounts: every account matches it (v2.2 note 3). */
+  search: string;
+  /** The confirmed group's roles and their needs, once each. Empty for a search that had no roles. */
+  buyerRoles: BuyerRoleView[];
+  /** Accounts first (v2.2 §9a), in the order Relay chose them; people nested, by rank. */
+  accounts: AccountView[];
+  /** True when the search matched people to research's roles (a v2.2 run). */
+  roles: boolean;
+  review: { kept: number; dropped: number; pending: number };
   onHold: number;
   spend: { charged: number; reserved: number; cap: number };
-  /** Reveal emails would buy this many, for about this many credits; reused people cost nothing. */
-  revealEstimate: { toBuy: number; reused: number; credits: number };
+  /** What revealing the KEPT people's emails would use: pending and dropped count for nothing (v2.2 §9a). */
+  revealEstimate: { kept: number; toBuy: number; reused: number; credits: number };
   sample: boolean;
 };
 

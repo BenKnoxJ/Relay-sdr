@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
-import type { ChooseIndustrySubmission, RetrySubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChooseIndustrySubmission, RetrySubmission, ReviewSubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
 import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
@@ -50,6 +50,7 @@ export function CampaignPage({
   onConfirm,
   onRetryPeople,
   onChooseIndustry,
+  onReview,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
@@ -64,6 +65,8 @@ export function CampaignPage({
   onRetryPeople?: (submission: RetrySubmission) => Promise<StartResult>;
   /** Search with a chosen industry (a server action). */
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
+  /** Keep or drop people found, one or a whole account (a server action; lead gen v2.2 §9a). */
+  onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
 }) {
   const router = useRouter();
   const [state, setState] = useState<CampaignState>(campaign.state);
@@ -145,6 +148,8 @@ export function CampaignPage({
       ) : (
         <ProgressCounts
           progress={campaign.progress}
+          // A real campaign has no drafting, sending or replies yet: only Found is drawn.
+          downstream={!live}
           /*
             The line under the counts is the same two answers Ask Relay gives to
             "what is waiting on me" and "when does the next batch go" — written
@@ -165,6 +170,8 @@ export function CampaignPage({
           editHref={editHref}
           researchHref={live ? `/campaigns/${campaign.id}/research` : undefined}
           confirmed={state !== "planReady"}
+          // Once there are accounts to review, the research folds away; it is one press from open.
+          collapsed={state === "peopleFound"}
         />
         {state === "planReady" && campaign.confirmPlan ? (
           <div className="mt-grid">
@@ -258,9 +265,20 @@ export function CampaignPage({
     folds the plan, because the decision is made and the question is how it is
     going. Researching, the stop and a failure have no plan to lead with at all.
   */
+  /** Keep or drop: the server holds the decision, and the page is redrawn from it. */
+  const review =
+    live && campaign.can.review === true && onReview !== undefined
+      ? async (personId: string, scope: ReviewSubmission["scope"], decision: ReviewSubmission["decision"]): Promise<string | null> => {
+          const result = await onReview({ ...target, personId, scope, decision });
+          if ("error" in result) return result.error;
+          router.refresh();
+          return null;
+        }
+      : undefined;
+
   const peopleFound =
     state === "peopleFound" && campaign.peopleFound ? (
-      <PeopleFound view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} />
+      <PeopleFound view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} onReview={review} />
     ) : null;
 
   const choose =
@@ -301,6 +319,10 @@ export function CampaignPage({
             <PillButton
               variant={state === "running" ? "outline" : "primary"}
               disabled={action.disabled === true || pending}
+              aria-disabled={action.disabled === true ? true : undefined}
+              // An action that is not built yet (Reveal emails) must not look pressable: quiet
+              // outline, muted text, no hover, and the note under it says why.
+              className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
               onClick={() => {
                 if (action.disabled === true) return;
                 if (action.kind === "retry") {

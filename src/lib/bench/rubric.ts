@@ -79,9 +79,30 @@ export function parseRubric(markdown: string): RubricRow[] {
   return rows;
 }
 
-/** The rubric for a kind, read off disk through the definition loader. */
+/** A heading that opens a signed amendment to the rubric above it, e.g. "## v2.1 amendments to this rubric". */
+const AMENDMENT_HEADING = /^#{2,3}\s.*\bamendments? to this rubric\b/i;
+
+/**
+ * The rubric with its signed amendments applied.
+ *
+ * A rubric amended after signing (lead gen v2.1 §14) keeps the signed table
+ * as it was and adds an amendment table under an "amendments to this rubric"
+ * heading. A row there with an existing number replaces that row in place; a
+ * new number is added at the end. Without such a heading this is
+ * `parseRubric`: the first table, and only the first.
+ */
+export function amendedRubric(markdown: string): RubricRow[] {
+  const lines = markdown.split("\n");
+  const at = lines.findIndex((line) => AMENDMENT_HEADING.test(line));
+  if (at < 0) return parseRubric(markdown);
+  const rows = new Map(parseRubric(lines.slice(0, at).join("\n")).map((row) => [row.n, row]));
+  for (const row of parseRubric(lines.slice(at + 1).join("\n"))) rows.set(row.n, row);
+  return [...rows.values()];
+}
+
+/** The rubric for a kind, read off disk through the definition loader, amendments applied. */
 export function rubricFor(kind: AgentKind): RubricRow[] {
-  return parseRubric(loadDefinition(kind).rubric);
+  return amendedRubric(loadDefinition(kind).rubric);
 }
 
 /** A check the bench itself can settle, and did. */

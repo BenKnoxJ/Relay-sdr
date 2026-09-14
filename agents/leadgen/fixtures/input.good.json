@@ -1,5 +1,23 @@
 {
-  "recipe": {
+  "version": 1,
+  "campaign": {
+    "id": "camp-1",
+    "orgId": "org-1",
+    "ownerUserId": "user-1",
+    "briefVersion": 1,
+    "confirmRequestId": "4d0f6a52-7c1e-4f0e-9a37-2b8c1d5e9f10"
+  },
+  "provenance": {
+    "researchJobId": "job-1",
+    "researchEventId": "evt-1",
+    "outcome": "complete"
+  },
+  "buyerGroup": {
+    "id": "uk-claims-ops",
+    "name": "UK claims operations under a complaints spike",
+    "sourceRank": 1
+  },
+  "targeting": {
     "titles": [
       "Claims Operations Director",
       "Head of Claims"
@@ -14,6 +32,7 @@
     "countries": [
       "GB"
     ],
+    "locations": [],
     "industries": [
       "Insurance"
     ],
@@ -21,27 +40,33 @@
       "new claims leadership"
     ]
   },
-  "howMany": 20,
+  "places": [],
+  "exclusions": {
+    "firms": [],
+    "roles": [],
+    "orgTypes": []
+  },
   "seedFirms": [
     {
       "name": "Northgate Claims Services",
-      "domain": "northgateclaims.co.uk"
+      "domain": "northgateclaims.co.uk",
+      "country": "GB"
     }
   ],
-  "holds": {
-    "customerDomains": [
-      "alreadyours.co.uk"
-    ],
-    "openDealDomains": [],
-    "dncEmails": [],
-    "dncDomains": [],
-    "optedOutEmails": [],
-    "revealedLushaIds": [],
-    "suppressedLushaIds": []
+  "howMany": 20,
+  "perCompanyMax": 3,
+  "spend": {
+    "searchCreditCap": 40,
+    "balanceSnapshot": {
+      "remaining": 100,
+      "readAt": "2026-09-14T09:00:00Z"
+    },
+    "pricingAssumptions": "lusha-public-docs-2026-09-14-unverified"
   },
-  "caps": {
-    "orgCreditsRemaining": 100,
-    "perCompanyMax": 3,
-    "maxPages": 3
+  "lawfulBasis": {
+    "text": "Legitimate interest: B2B offer, opt out in every email",
+    "confirmedByUserId": "user-1",
+    "confirmedAt": "2026-09-14T09:00:00Z",
+    "briefVersion": 1
   }
 }

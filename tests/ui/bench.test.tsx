@@ -55,6 +55,7 @@ const person: RevealedPerson = {
   companyKey: "brightline.example",
   email: "priya.raman@brightline.example",
   status: "verified",
+  source: "bought",
 };
 
 describe("every signed definition has a fixture that renders", () => {

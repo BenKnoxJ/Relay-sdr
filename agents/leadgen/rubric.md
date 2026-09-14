@@ -22,20 +22,19 @@ source; edit it there and re-copy.
 
 ## v2.1 amendments to this rubric (signed 2026-09-14)
 
-Copied from `definition.md` (v2.1 §14), which amends the table above. The bench checklist parses the table only; the v2.1 rows join it when lead gen is built.
+Copied from `definition.md` v2.1 §14, which amends the table above. A row here with an existing number replaces that row; a new number adds one. The Pass column is §14's own words; the Check column names each new row. The bench applies these (`rubricFor` in `src/lib/bench/rubric.ts`).
 
-## 14. Rubric changes
-- Row 2: the Confirm-screen cap is shown and the balance snapshot is read server-side before any search.
-- Row 5: the invariant holds on every request in the mock call log, and unknown outcomes stay reserved.
-- Row 9: paging stops at `howMany` or at the invariant; partial results are shown as People found X of N.
-
-New rows:
-- only `LeadGenHandoffV1` reaches lead gen, and no import from `agents/research/**`;
-- lead gen uses the handoff's buyer group and never reads `sourceRank`;
-- no fallback to another group;
-- reuse: a candidate matching a usable owned Person makes zero reveal calls and zero credits, and is still ranked and capped;
-- a reveal returning a known email canonicalises to the existing Person;
-- `no_email`, `invalid_id` and `wrong_person` records are never re-bought, but never block the same human through another record;
-- email-based holds never run before reveal;
-- translation never widens, and the rep never sees provider ids;
-- campaign-only holds never write a suppression.
+| # | Check | Pass |
+|---|---|---|
+| 2 | Estimate first | the Confirm-screen cap is shown and the balance snapshot is read server-side before any search |
+| 5 | Spend | the invariant holds on every request in the mock call log, and unknown outcomes stay reserved |
+| 9 | Paging | paging stops at `howMany` or at the invariant; partial results are shown as People found X of N |
+| 14 | Handoff only | only `LeadGenHandoffV1` reaches lead gen, and no import from `agents/research/**` |
+| 15 | Frozen group | lead gen uses the handoff's buyer group and never reads `sourceRank` |
+| 16 | No other group | no fallback to another group |
+| 17 | Reuse | reuse: a candidate matching a usable owned Person makes zero reveal calls and zero credits, and is still ranked and capped |
+| 18 | Canonical person | a reveal returning a known email canonicalises to the existing Person |
+| 19 | Unusable records | `no_email`, `invalid_id` and `wrong_person` records are never re-bought, but never block the same human through another record |
+| 20 | Email holds after reveal | email-based holds never run before reveal |
+| 21 | No widening | translation never widens, and the rep never sees provider ids |
+| 22 | Campaign holds stay local | campaign-only holds never write a suppression |

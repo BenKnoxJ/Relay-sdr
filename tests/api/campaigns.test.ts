@@ -257,6 +257,22 @@ describe("campaigns.research", () => {
     expect(page.summary).toEqual({ inShort: campaign.overview?.inShort, startWith: campaign.overview?.startWith });
   });
 
+  it("@proof puts the campaign's stored brief under the cover's who to reach: the rep's words, not research's reading of them", async () => {
+    const who = "Heads of claims at UK motor insurers, in the rep's own words ";
+    const { id } = await caller(rep()).campaigns.create(startInput({ who }));
+    const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id } });
+    await finish(job, completePack(), "complete");
+
+    const stored = (await prisma.campaign.findUniqueOrThrow({ where: { id } })).brief as { who: string };
+    const page = await caller(rep()).campaigns.research({ id });
+    expect(stored.who).toBe(who);
+    expect(page.brief.who).toBe(stored.who);
+    // None of research's own descriptions of who to reach: the rep summary, the kinds of buyer, the ideal company.
+    expect(page.summary?.inShort.lines).not.toContain(who);
+    expect(page.research?.who.intro).not.toBe(who);
+    expect(page.research?.who.groups.map((group) => group.name)).not.toContain(who);
+  });
+
   it("@proof is a read and nothing more: the page and its printed pack write no Event, job, run or change", async () => {
     const { id, job } = await started();
     await finish(job, completePack(), "complete");

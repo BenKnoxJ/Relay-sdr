@@ -130,7 +130,10 @@ describe("The Campaign Research Pack", () => {
     expect(cover.getByText(reportCopy.kind)).toBeDefined();
     expect(cover.getByTestId("report-classification").textContent).toBe(reportCopy.classification);
     expect(cover.getByRole("heading", { level: 1 }).textContent).toBe(NAME);
+    // The brief's own who, as the rep wrote it: not the rep summary's Who line or a kind of buyer.
     expect(cover.getByTestId("report-brief-who").textContent).toBe(full.brief.who);
+    expect(overview.inShort.lines).not.toContain(full.brief.who);
+    expect(research.who.groups.map((group) => group.name)).not.toContain(full.brief.who);
     const field = (key: string) => cover.getByTestId(`report-field-${key}`).querySelector("dd")?.textContent;
     expect(field("product")).toBe("Insights360");
     expect(field("motion")).toBe("Direct");

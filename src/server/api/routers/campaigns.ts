@@ -208,10 +208,13 @@ export const campaignsRouter = createTRPCRouter({
           campaignId,
           briefVersion,
           personId: z.string().min(1).max(100),
-          scope: z.enum(["person", "account"]),
+          scope: z.enum(["person", "account", "selected"]),
+          /** With `selected`: the ticked people, at most a page's worth. */
+          personIds: z.array(z.string().min(1).max(100)).max(200).optional(),
           decision: z.enum(["kept", "dropped"]),
         })
-        .strict(),
+        .strict()
+        .refine((input) => input.scope !== "selected" || (input.personIds?.length ?? 0) > 0, { message: "selected needs personIds" }),
     )
     .mutation(async ({ ctx, input }) => {
       try {

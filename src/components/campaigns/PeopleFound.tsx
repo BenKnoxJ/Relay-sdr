@@ -9,31 +9,27 @@ import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, Revi
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
 
+import { ReviewWorkspace, type ReviewPress } from "./ReviewWorkspace";
+
 /**
  * Reviewing people (lead gen v2.2 §9a), then People ready (v2.1 §11):
  * accounts first, the people Relay chose nested under each.
  *
- * Reviewing (final MVP pass): the accounts with someone still to decide come
- * first; an account whose every person is decided folds to one line, a
- * press away from being changed. Each person is one row: name and title,
- * the role they matched as a word, what Relay holds on them as one quiet
- * line, and Keep or Drop. Nothing is boxed inside the card: rows are
- * divided by hairlines, and the one accent is the decision taken.
+ * Reviewing (final MVP pass) is the `ReviewWorkspace`: one row per account,
+ * the accounts still to decide by default, twenty to a page, opened in
+ * place to their people. This card carries what is said once above it: the
+ * count, the plan's search, the buyer roles, and, after the list, the spend.
  *
  * After Reveal emails: only the kept people, each with their email when it is
  * ready and usable, or one line on why not. Outreach is the next step and is
  * said to be, and nothing claims it already works.
  */
 
-type Review = (personId: string, scope: "person" | "account", decision: "kept" | "dropped") => Promise<string | null>;
-
 const REVIEW_WORD: Record<ReviewView, string> = {
   pending: campaignsCopy.reviewPending,
   kept: campaignsCopy.reviewKept,
   dropped: campaignsCopy.reviewDropped,
 };
-
-const undecided = (account: AccountView) => account.people.some((person) => person.review === "pending");
 
 function Person({ person, roles, reviewing, busy, press }: { person: FoundPersonView; roles: boolean; reviewing: boolean; busy: boolean; press?: (decision: "kept" | "dropped") => void }) {
   const c = campaignsCopy;
@@ -103,71 +99,34 @@ function Person({ person, roles, reviewing, busy, press }: { person: FoundPerson
   );
 }
 
-/** One line for an account whose every person is decided: the firm, how many, and the decision. */
-function decidedLine(account: AccountView): string {
+/** An account after Reveal: the firm, then its kept people with their emails or why not. */
+function Account({ account, roles, busy }: { account: AccountView; roles: boolean; busy: boolean }) {
   const c = campaignsCopy;
-  const kept = account.people.filter((person) => person.review === "kept").length;
-  const n = account.people.length;
-  const word = kept === n ? c.reviewAllKept : kept === 0 ? c.reviewAllDropped : `${kept} ${c.reviewMixed}`;
-  return `${n} ${n === 1 ? c.accountPerson : c.accountPeople}${c.noteJoin}${word}`;
-}
-
-function Account({ account, roles, reviewing, busy, collapsed, onExpand, press }: { account: AccountView; roles: boolean; reviewing: boolean; busy: boolean; collapsed: boolean; onExpand?: () => void; press?: Review }) {
-  const c = campaignsCopy;
-  // One person's own Keep or Drop is the whole decision: account presses are only for accounts with more than one (v2.2 note 3).
-  const whole = press !== undefined && account.people.length > 1;
-  const allKept = account.people.every((person) => person.review === "kept");
-  const decided = reviewing && !undecided(account);
   const summary = [
     `${account.people.length} ${account.people.length === 1 ? c.accountPerson : c.accountPeople}`,
     ...(roles && account.parts.length > 0 ? [account.parts.map((part) => c.roleParts[part]).join(", ")] : []),
   ].join(c.noteJoin);
   return (
-    <li data-testid="found-account" data-decided={decided ? "true" : undefined} data-collapsed={collapsed ? "true" : undefined} className="min-w-0 border-t border-line py-2.5 first:border-t-0 first:pt-0 [overflow-wrap:anywhere]">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-          <h3 data-testid="account-name" className="type-name text-15">
-            {account.company}
-          </h3>
-          {account.domain === null ? null : <span className="type-mono text-11 text-muted">{account.domain}</span>}
-          <span data-testid="account-coverage" className="type-small text-muted">
-            {collapsed ? decidedLine(account) : summary}
-          </span>
-          {account.evidence === null || collapsed ? null : (
-            <span data-testid="account-evidence" className="type-small text-12 text-action">
-              {account.evidence}
-            </span>
-          )}
-        </div>
-        {collapsed && onExpand !== undefined ? (
-          <TextButton data-testid="account-change" onClick={onExpand}>
-            {c.reviewChange}
-          </TextButton>
-        ) : !whole || press === undefined || decided ? null : (
-          <span className="flex gap-1.5">
-            <ToggleChip data-testid="keep-account" pressed={allKept} disabled={busy || allKept} onClick={() => void press(account.personId, "account", "kept")}>
-              {c.reviewKeepAccount}
-            </ToggleChip>
-            <ToggleChip data-testid="drop-account" pressed={false} disabled={busy} onClick={() => void press(account.personId, "account", "dropped")}>
-              {c.reviewDropAccount}
-            </ToggleChip>
+    <li data-testid="found-account" className="min-w-0 border-t border-line py-2.5 first:border-t-0 first:pt-0 [overflow-wrap:anywhere]">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+        <h3 data-testid="account-name" className="type-name text-15">
+          {account.company}
+        </h3>
+        {account.domain === null ? null : <span className="type-mono text-11 text-muted">{account.domain}</span>}
+        <span data-testid="account-coverage" className="type-small text-muted">
+          {summary}
+        </span>
+        {account.evidence === null ? null : (
+          <span data-testid="account-evidence" className="type-small text-12 text-action">
+            {account.evidence}
           </span>
         )}
       </div>
-      {collapsed ? null : (
-        <ul className="mt-1 grid">
-          {account.people.map((person) => (
-            <Person
-              key={person.id}
-              person={person}
-              roles={roles}
-              reviewing={reviewing}
-              busy={busy}
-              {...(press === undefined ? {} : { press: (decision: "kept" | "dropped") => void press(person.id, "person", decision) })}
-            />
-          ))}
-        </ul>
-      )}
+      <ul className="mt-1 grid">
+        {account.people.map((person) => (
+          <Person key={person.id} person={person} roles={roles} reviewing={false} busy={busy} />
+        ))}
+      </ul>
     </li>
   );
 }
@@ -241,35 +200,24 @@ function RevealSummary({ view }: { view: PeopleFoundView }) {
   );
 }
 
-export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleFoundView; editHref?: string; spent: boolean; onReview?: Review }) {
+export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleFoundView; editHref?: string; spent: boolean; onReview?: ReviewPress }) {
   const c = campaignsCopy;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reviewing = view.phase === "review";
-  // The order the page opened in, kept while the rep works through it: a decision folds an account in place rather than moving it.
-  const [order] = useState(() => view.accounts.map((account) => account.personId));
-  const accounts = [...view.accounts].sort((a, b) => {
-    const ia = order.indexOf(a.personId);
-    const ib = order.indexOf(b.personId);
-    return (ia === -1 ? order.length : ia) - (ib === -1 ? order.length : ib);
-  });
-  // Decided accounts fold to one line once the list is long enough to need it (Collapse reviewed folds them sooner); Change opens one.
-  const [showReviewed, setShowReviewed] = useState(view.found.n < 20);
-  const [opened, setOpened] = useState<Set<string>>(() => new Set());
-  const decidedCount = reviewing ? accounts.filter((account) => !undecided(account)).length : 0;
   const multiRole = view.accounts.filter((account) => account.parts.length > 1).length;
   const label = view.phase === "ready" ? c.peopleReadyLabel : view.phase === "revealing" ? c.revealingLabel : c.peopleFoundLabel;
   const estimate = revealEstimateLine(view);
 
-  const press: Review | undefined =
+  const press: ReviewPress | undefined =
     onReview === undefined || !reviewing
       ? undefined
-      : async (personId, scope, decision) => {
+      : async (personId, scope, decision, personIds) => {
           if (busy) return null;
           setBusy(true);
           setError(null);
           try {
-            const line = await onReview(personId, scope, decision);
+            const line = await onReview(personId, scope, decision, personIds);
             if (line !== null) setError(line);
             return line;
           } catch {
@@ -280,18 +228,7 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
           }
         };
 
-  const accountRow = (account: AccountView) => (
-    <Account
-      key={account.personId}
-      account={account}
-      roles={view.roles}
-      reviewing={reviewing}
-      busy={busy}
-      collapsed={reviewing && !undecided(account) && !showReviewed && !opened.has(account.personId)}
-      onExpand={() => setOpened((current) => new Set(current).add(account.personId))}
-      {...(press === undefined ? {} : { press })}
-    />
-  );
+  const accountRow = (account: AccountView) => <Account key={account.personId} account={account} roles={view.roles} busy={busy} />;
 
   return (
     <Card label={label}>
@@ -329,22 +266,13 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
               {view.search}
             </p>
             {view.buyerRoles.length === 0 ? null : <BuyerRoles roles={view.buyerRoles} />}
-            <div data-testid="review-bar" className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-y border-line py-2">
-              <div>
-                <p data-testid="review-counts" className="type-small">
-                  <span className="font-semibold">{view.review.kept} {c.reviewCountKept}</span> · {view.review.dropped} {c.reviewCountDropped} · {view.review.pending} {c.reviewCountPending}
-                </p>
-                {estimate === null ? null : (
-                  <p data-testid="reveal-estimate" className="type-small text-12 text-muted">
-                    {estimate}
-                  </p>
-                )}
-              </div>
-              {decidedCount > 0 ? (
-                <TextButton data-testid="show-reviewed" aria-pressed={showReviewed} onClick={() => setShowReviewed(!showReviewed)}>
-                  {showReviewed ? `${c.reviewCollapseReviewed} (${decidedCount})` : `${c.reviewShowReviewed} (${decidedCount})`}
-                </TextButton>
-              ) : null}
+            {error === null ? null : (
+              <p role="alert" data-testid="review-error" className="type-small mt-1.5 text-warn">
+                {error}
+              </p>
+            )}
+            <div className="mt-3">
+              <ReviewWorkspace view={view} estimate={estimate} busy={busy} {...(press === undefined ? {} : { press })} />
             </div>
           </>
         ) : (
@@ -353,31 +281,25 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
               {c.peopleFoundFor} {view.groupName}
             </p>
             <RevealSummary view={view} />
+            {view.phase === "ready" ? (
+              // Ready: the accounts with an email to write to first; the rest folded, a press away.
+              <>
+                <ol data-testid="ready-accounts" className="mt-3 grid">
+                  {view.accounts.filter((account) => account.people.some((person) => person.email !== null)).map(accountRow)}
+                </ol>
+                {view.accounts.some((account) => account.people.every((person) => person.email === null)) ? (
+                  <details data-testid="not-ready" className="mt-3">
+                    <summary className="type-small cursor-pointer font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
+                      {c.readyWithoutSummary} ({view.accounts.filter((account) => account.people.every((person) => person.email === null)).length})
+                    </summary>
+                    <ol className="mt-2 grid">{view.accounts.filter((account) => account.people.every((person) => person.email === null)).map(accountRow)}</ol>
+                  </details>
+                ) : null}
+              </>
+            ) : (
+              <ol className="mt-3 grid">{view.accounts.map(accountRow)}</ol>
+            )}
           </>
-        )}
-        {error === null ? null : (
-          <p role="alert" data-testid="review-error" className="type-small mt-1.5 text-warn">
-            {error}
-          </p>
-        )}
-
-        {view.phase === "ready" ? (
-          // Ready: the accounts with an email to write to first; the rest folded, a press away.
-          <>
-            <ol data-testid="ready-accounts" className="mt-3 grid">
-              {accounts.filter((account) => account.people.some((person) => person.email !== null)).map(accountRow)}
-            </ol>
-            {accounts.some((account) => account.people.every((person) => person.email === null)) ? (
-              <details data-testid="not-ready" className="mt-3">
-                <summary className="type-small cursor-pointer font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
-                  {c.readyWithoutSummary} ({accounts.filter((account) => account.people.every((person) => person.email === null)).length})
-                </summary>
-                <ol className="mt-2 grid">{accounts.filter((account) => account.people.every((person) => person.email === null)).map(accountRow)}</ol>
-              </details>
-            ) : null}
-          </>
-        ) : (
-          <ol className={cn("grid", reviewing ? "mt-1" : "mt-3")}>{accounts.map(accountRow)}</ol>
         )}
 
         <div className="mt-3 grid gap-1 border-t border-line pt-3">

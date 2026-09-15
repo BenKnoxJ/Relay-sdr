@@ -235,6 +235,7 @@ describe("People found", () => {
   it("lists the people found, N of N, with the spend from the ledger, and Reveal emails not pressable while nobody is kept", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: rows(full), spend: { charged: 12, reserved: 0 } })} />);
     expect(screen.getByTestId("found-count").textContent).toBe(`10 ${campaignsCopy.peopleFoundOf} 10`);
+    fireEvent.click(screen.getByTestId("expand-all"));
     expect(screen.getAllByTestId("found-person")).toHaveLength(10);
     expect(screen.queryByTestId("shortfall")).toBeNull();
     expect(screen.getByTestId("spend-line").textContent).toBe(`${campaignsCopy.spendUsed} 12 ${campaignsCopy.spendOf} 40 ${campaignsCopy.spendCredits} ${campaignsCopy.spendSample}`);
@@ -270,6 +271,7 @@ describe("People found", () => {
 
   it("marks someone Relay already knows", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: rows(full, "l-001"), spend: { charged: 12, reserved: 0 } })} />);
+    fireEvent.click(screen.getByTestId("expand-all"));
     expect(screen.getAllByText(campaignsCopy.peopleReusedChip)).toHaveLength(1);
   });
 });
@@ -319,6 +321,9 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
   it("leads with accounts, says the plan's search once, and each role's needs once", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
     const accounts = screen.getAllByTestId("found-account");
+    // One compact row per account; nobody is expanded until asked. Expand all opens the page.
+    expect(screen.queryAllByTestId("found-person")).toHaveLength(0);
+    fireEvent.click(screen.getByTestId("expand-all"));
     expect(accounts.length).toBeGreaterThan(1);
     expect(screen.getByTestId("accounts-summary").textContent).toContain(`10 ${campaignsCopy.accountsPeopleAt} ${accounts.length} ${campaignsCopy.accountsWord}`);
     // The plan's search, once, above the accounts; never repeated on a card.
@@ -343,6 +348,7 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
 
   it("offers Drop account only where an account has more than one person", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("expand-all"));
     for (const account of screen.getAllByTestId("found-account")) {
       const people = account.querySelectorAll("[data-testid=found-person]").length;
       expect(account.querySelector("[data-testid=drop-account]") !== null).toBe(people > 1);
@@ -362,6 +368,8 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     const onReview = vi.fn(async () => ({ id: "camp-people" }));
     render(<CampaignPage campaign={found(rows(full))} onReview={onReview} />);
     const firstAccount = screen.getAllByTestId("found-account")[0]!;
+    // Opened in place: the people and their evidence appear under the account row.
+    fireEvent.click(firstAccount.querySelector("[data-testid=account-toggle]")!);
     const firstPerson = firstAccount.querySelector("[data-testid=found-person]")!;
     fireEvent.click(firstPerson.querySelector("[data-testid=keep]")!);
     await waitFor(() => expect(onReview).toHaveBeenCalledTimes(1));
@@ -381,9 +389,12 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
         onReview={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("review-counts").textContent).toBe(
+    expect(screen.getByTestId("review-counts").textContent).toContain(
       `2 ${campaignsCopy.reviewCountKept} · 1 ${campaignsCopy.reviewCountDropped} · 7 ${campaignsCopy.reviewCountPending}`,
     );
+    // The views count accounts: To review is the default, Kept and Dropped are a press away.
+    fireEvent.click(screen.getByTestId("review-view-all"));
+    fireEvent.click(screen.getByTestId("expand-all"));
     const states = screen.getAllByTestId("found-person").map((person) => person.getAttribute("data-review"));
     expect(states.filter((state) => state === "kept")).toHaveLength(2);
     expect(states.filter((state) => state === "dropped")).toHaveLength(1);
@@ -406,40 +417,83 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(screen.getByTestId("stage-line").textContent).toContain(`10 ${campaignsCopy.summaryToReview}`);
   });
 
-  it("puts the accounts still to decide first, folds a decided account to one line on request, and opens it again", () => {
-    const people = reviewed(full, { 1: "kept", 2: "kept" });
+  it("opens on To review, keeps decided accounts in their own views, and counts each view by account", () => {
+    const people = reviewed(full, { 1: "kept", 2: "kept", 3: "dropped" });
+    const accountsWith = (review: string) => new Set(people.filter((row) => row.review === review).map((row) => row.companyKey)).size;
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } })} onReview={vi.fn()} />);
-    const accounts = screen.getAllByTestId("found-account");
-    const decided = accounts.filter((account) => account.getAttribute("data-decided") === "true");
-    expect(decided).toHaveLength(1);
-    // Last, not first: the page opens on the work.
-    expect(accounts[accounts.length - 1]).toBe(decided[0]);
-    // A short list keeps decided accounts open, quiet; Collapse reviewed folds them to one line with the decision and no Keep or Drop.
-    expect(decided[0]?.getAttribute("data-collapsed")).toBeNull();
-    expect(screen.getByTestId("show-reviewed").textContent).toBe(`${campaignsCopy.reviewCollapseReviewed} (1)`);
-    fireEvent.click(screen.getByTestId("show-reviewed"));
-    expect(decided[0]?.getAttribute("data-collapsed")).toBe("true");
-    expect(decided[0]?.querySelectorAll("[data-testid=found-person]")).toHaveLength(0);
-    expect(decided[0]?.querySelectorAll("[data-testid=keep]")).toHaveLength(0);
-    expect(decided[0]?.textContent).toContain(campaignsCopy.reviewAllKept);
-    // Change opens that one; Show reviewed opens them all.
-    fireEvent.click(decided[0]!.querySelector("[data-testid=account-change]")!);
-    expect(decided[0]?.getAttribute("data-collapsed")).toBeNull();
-    expect(decided[0]?.querySelectorAll("[data-testid=found-person]").length).toBeGreaterThan(0);
-    expect(screen.getByTestId("show-reviewed").textContent).toBe(`${campaignsCopy.reviewShowReviewed} (1)`);
-    fireEvent.click(screen.getByTestId("show-reviewed"));
-    expect(screen.getAllByTestId("found-account")).toHaveLength(accounts.length);
-    expect(screen.getAllByTestId("found-account").every((account) => account.getAttribute("data-collapsed") === null)).toBe(true);
+    const total = new Set(people.map((row) => row.companyKey)).size;
+    expect(screen.getAllByTestId("found-account")).toHaveLength(accountsWith("pending"));
+    expect(screen.getAllByTestId("found-account").every((account) => ["pending", "mixed"].includes(account.getAttribute("data-state") ?? ""))).toBe(true);
+    fireEvent.click(screen.getByTestId("review-view-kept"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(accountsWith("kept"));
+    fireEvent.click(screen.getByTestId("review-view-dropped"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(accountsWith("dropped"));
+    fireEvent.click(screen.getByTestId("review-view-all"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(total);
+  });
+
+  it("searches accounts and people, filters by role and email, and says when nothing matches", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    const total = screen.getAllByTestId("found-account").length;
+    fireEvent.change(screen.getByTestId("review-search"), { target: { value: "Firm 7" } });
+    expect(screen.getAllByTestId("found-account")).toHaveLength(1);
+    fireEvent.change(screen.getByTestId("review-search"), { target: { value: "nobody-by-this-name" } });
+    expect(screen.queryAllByTestId("found-account")).toHaveLength(0);
+    expect(screen.getByTestId("review-empty").textContent).toBe(campaignsCopy.reviewNoMatch);
+    fireEvent.click(screen.getByTestId("review-clear"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(total);
+    fireEvent.click(screen.getByTestId("review-role-signs"));
+    const signs = screen.getAllByTestId("found-account");
+    expect(signs.length).toBeLessThan(total);
+    expect(signs.every((account) => account.querySelector("[data-testid=account-coverage]")?.textContent?.includes(campaignsCopy.roleParts.signs))).toBe(true);
+    fireEvent.click(screen.getByTestId("review-role-signs"));
+    fireEvent.click(screen.getByTestId("review-email"));
+    expect(screen.getAllByTestId("found-account").every((account) => account.querySelector("[data-testid=account-coverage]")?.textContent?.includes(campaignsCopy.reviewWithEmail))).toBe(true);
+  });
+
+  it("@proof keeps or drops the ticked people in one change, across accounts, then clears the selection", async () => {
+    const onReview = vi.fn(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={found(rows(full))} onReview={onReview} />);
+    expect(screen.queryByTestId("keep-selected")).toBeNull();
+    const [first, second] = screen.getAllByTestId("select-account");
+    fireEvent.click(first!);
+    fireEvent.click(second!);
+    const ticked = Number(screen.getByTestId("selection-count").textContent?.replace(/\D/g, ""));
+    expect(ticked).toBeGreaterThanOrEqual(2);
+    fireEvent.click(screen.getByTestId("keep-selected"));
+    await waitFor(() => expect(onReview).toHaveBeenCalledTimes(1));
+    const call = (onReview.mock.calls as unknown as [{ scope: string; decision: string; personIds: string[] }][])[0]![0];
+    expect(call.scope).toBe("selected");
+    expect(call.decision).toBe("kept");
+    expect(call.personIds).toHaveLength(ticked);
+    await waitFor(() => expect(screen.getByTestId("selection-count").textContent).toContain("0"));
+    // Reveal is untouched by selection: still the header's own gate.
+    expect(screen.getByRole("button", { name: campaignsCopy.actionReveal })).toBeDefined();
+  });
+
+  it("pages by account, twenty to a page, and never splits one", () => {
+    const many = Array.from({ length: 50 }, (_, index) => {
+      const base = rows(full)[index % 10]!;
+      return { ...base, id: `cp-many-${index}`, rank: index + 1, companyKey: `key-${Math.floor(index / 2)}`, preview: { ...(base.preview as object), company: `Account ${Math.floor(index / 2)}`, name: `Person ${index}` } } as CampaignPerson;
+    });
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: many, spend: { charged: 12, reserved: 0 } })} onReview={vi.fn()} />);
+    expect(screen.getAllByTestId("found-account")).toHaveLength(20);
+    expect(screen.getAllByTestId("found-account").every((account) => account.querySelector("[data-testid=account-coverage]")?.textContent?.startsWith(`2 ${campaignsCopy.accountPeople}`))).toBe(true);
+    fireEvent.click(screen.getAllByTestId("page-next")[0]!);
+    expect(screen.getAllByTestId("found-account")).toHaveLength(5);
+    expect(screen.getAllByTestId("found-account")[0]?.textContent).toContain("Account 20");
   });
 
   it("keeps Keep and Drop quiet until one is chosen", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("expand-all"));
     for (const button of screen.getAllByTestId("keep")) expect(button.className).not.toMatch(/\bbg-action\b/);
   });
 
   it("offers Keep account beside Drop account, only where an account has more than one person", async () => {
     const onReview = vi.fn(async () => ({ id: "camp-people" }));
     render(<CampaignPage campaign={found(rows(full))} onReview={onReview} />);
+    fireEvent.click(screen.getByTestId("expand-all"));
     for (const account of screen.getAllByTestId("found-account")) {
       const people = account.querySelectorAll("[data-testid=found-person]").length;
       expect(account.querySelector("[data-testid=keep-account]") !== null).toBe(people > 1);

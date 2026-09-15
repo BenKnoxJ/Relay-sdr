@@ -148,7 +148,7 @@ export async function revealEmails(submission: RevealSubmission): Promise<StartR
   );
 }
 
-/** Keep or drop before Reveal (lead gen v2.2 §9a): one person, or a whole account. */
+/** Keep or drop before Reveal (lead gen v2.2 §9a): one person, a whole account, or the people the rep ticked. */
 export async function reviewPeople(submission: ReviewSubmission): Promise<StartResult> {
   return answered(async () =>
     (await serverCaller()).campaigns.reviewPeople({
@@ -156,6 +156,7 @@ export async function reviewPeople(submission: ReviewSubmission): Promise<StartR
       briefVersion: submission.briefVersion,
       personId: submission.personId,
       scope: submission.scope,
+      ...(submission.scope === "selected" ? { personIds: submission.personIds ?? [] } : {}),
       decision: submission.decision,
     }),
   );

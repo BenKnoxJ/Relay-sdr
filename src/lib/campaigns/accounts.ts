@@ -151,6 +151,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         company: preview.company,
         city: preview.city,
         reused: row.source === "reused",
+        hasEmail: row.source === "reused" || preview.hasEmail,
         role: row.rolePart,
         why: whyOf(row, roles),
         evidence: evidenceOf(row, preview, seed, roles),

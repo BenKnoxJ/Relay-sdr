@@ -824,9 +824,11 @@ export const CAMPAIGN_PEOPLE_REVIEWED = "campaign.people_reviewed" as const;
 export type ReviewInput = Owner & {
   campaignId: string;
   briefVersion: number;
-  /** The person pressed on: that one person, or everyone chosen at their account. */
+  /** The person pressed on: that one person, or everyone chosen at their account. For `selected`, the first of the ids. */
   personId: string;
-  scope: "person" | "account";
+  /** `selected`: the chosen people the rep ticked (`personIds`), in one change and one Event (review workspace). */
+  scope: "person" | "account" | "selected";
+  personIds?: string[];
   decision: "kept" | "dropped";
   now?: () => Date;
 };
@@ -845,8 +847,9 @@ class NothingToReview extends Error {
  * The rep's own campaign is locked and its version checked, and the rows and
  * one `campaign.people_reviewed` Event change together. Drop account is the
  * same change over every chosen person at the pressed person's account: there
- * is no account record. A decision can be changed; pending is never written
- * back, and a press that changes nothing writes nothing.
+ * is no account record. Keep selected is the same change over the ticked
+ * people, whichever accounts they sit at. A decision can be changed; pending
+ * is never written back, and a press that changes nothing writes nothing.
  */
 export async function reviewPeople(db: PrismaClient, input: ReviewInput): Promise<ReviewResult> {
   required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, personId: input.personId }, CAMPAIGN_PEOPLE_REVIEWED);
@@ -872,8 +875,9 @@ export async function reviewPeople(db: PrismaClient, input: ReviewInput): Promis
         const current = { ...scope, jobId: job.id, status: "chosen" as const };
         const pressed = await tx.campaignPerson.findFirst({ where: { ...current, id: input.personId } });
         if (pressed === null) throw new CampaignChangeRefused("not_found");
+        const selected = input.scope === "selected" ? [...new Set([pressed.id, ...(input.personIds ?? [])])] : null;
         const rows = await tx.campaignPerson.findMany({
-          where: input.scope === "account" ? { ...current, companyKey: pressed.companyKey } : { ...current, id: pressed.id },
+          where: input.scope === "account" ? { ...current, companyKey: pressed.companyKey } : selected !== null ? { ...current, id: { in: selected } } : { ...current, id: pressed.id },
           select: { id: true, review: true },
           orderBy: [{ rank: "asc" }, { id: "asc" }],
         });

@@ -80,7 +80,7 @@ export type RetrySubmission = ChangeTarget & { requestId: string };
 export type ChooseIndustrySubmission = ChangeTarget & { requestId: string; term: string; label: string };
 
 /** Keep or drop before Reveal (lead gen v2.2 §9a): one person, or everyone chosen at that person's account. */
-export type ReviewSubmission = ChangeTarget & { personId: string; scope: "person" | "account"; decision: "kept" | "dropped" };
+export type ReviewSubmission = ChangeTarget & { personId: string; scope: "person" | "account" | "selected"; personIds?: string[]; decision: "kept" | "dropped" };
 
 /** Reveal emails: the figures the rep approved, and the id that makes a second press the same approval. */
 export type RevealSubmission = ChangeTarget & { requestId: string; expected: { toReveal: number; known: number; maxCredits: number } };

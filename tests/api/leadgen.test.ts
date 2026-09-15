@@ -153,8 +153,8 @@ describe("campaigns.reviewPeople", () => {
       pricing: DOCUMENTED_UNVERIFIED_PRICING,
       retry: { attempts: 1, wait: async () => {} },
     })({ db: prisma, job, signal: new AbortController().signal });
-    const person = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: id, status: "chosen" }, orderBy: { rank: "asc" } });
-    return { id, person };
+    const people = await prisma.campaignPerson.findMany({ where: { campaignId: id, status: "chosen" }, orderBy: { rank: "asc" } });
+    return { id, person: people[0]!, people };
   }
 
   it("@proof keeps a person for the rep who owns the campaign, through the router", async () => {
@@ -213,4 +213,18 @@ describe("campaigns.reviewPeople", () => {
     const extra = { campaignId: id, briefVersion: 1, personId: person.id, scope: "person", decision: "kept", orgId: "someone-else" } as unknown as Parameters<ReturnType<typeof caller>["campaigns"]["reviewPeople"]>[0];
     expect(await failureOf(caller(rep()).campaigns.reviewPeople(extra))).toMatch(/^BAD_REQUEST/);
   });
+
+  it("keeps the ticked people across accounts in one change and one Event, and refuses an empty selection", async () => {
+    const { id, people } = await found();
+    const ticked = people.slice(0, 3);
+    expect(await caller(rep()).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: ticked[0]!.id, scope: "selected", personIds: ticked.map((person) => person.id), decision: "kept" })).toEqual({ id });
+    const rows = await prisma.campaignPerson.findMany({ where: { campaignId: id, status: "chosen" }, orderBy: { rank: "asc" } });
+    expect(rows.filter((row) => row.review === "kept").map((row) => row.id).sort()).toEqual(ticked.map((person) => person.id).sort());
+    const events = await prisma.event.findMany({ where: { campaignId: id, kind: "campaign.people_reviewed" } });
+    expect(events).toHaveLength(1);
+    expect((events[0]?.after as { people: string[]; scope: string }).people).toHaveLength(3);
+    expect((events[0]?.after as { scope: string }).scope).toBe("selected");
+    expect(await failureOf(caller(rep()).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: ticked[0]!.id, scope: "selected", personIds: [], decision: "kept" }))).toMatch(/^BAD_REQUEST/);
+  });
+
 });

@@ -126,10 +126,24 @@ function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Cam
                   spend: { charged: stage.reveal.charged, reserved: stage.reveal.reserved, exceededDocumentedWorstCase: false },
                 },
         };
+  // The credit ledger, grouped as the summary reads it: the search's charge under this Confirm, and the reveal's once pressed.
+  const ledger =
+    stage === null
+      ? []
+      : [
+          ...(stage.spend === undefined ? [] : [{ briefVersion: 1, kind: "search", state: "reconciled", rows: 1, charged: stage.spend.charged, worstCase: stage.spend.charged }]),
+          ...(stage.reveal === undefined
+            ? []
+            : [
+                ...(stage.reveal.charged > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reconciled", rows: 1, charged: stage.reveal.charged, worstCase: stage.reveal.charged }] : []),
+                ...(stage.reveal.reserved > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reserved", rows: 1, charged: 0, worstCase: stage.reveal.reserved }] : []),
+              ]),
+        ];
   const record = {
     campaign: { id: "camp-people", orgId: "org_ui", ownerUserId: "user_ui", name: "Claims people", briefVersion: 1, brief, startRequestId: "req", createdAt: AT, updatedAt: AT },
     job: { id: "job-research", status: "done", error: null },
     event: { id: "event-research", after: { jobId: "job-research", pack: JSON.parse(JSON.stringify(completePack())) } },
+    ledger,
     ...(leadGen === undefined ? {} : { leadGen }),
   } as unknown as CampaignRecord;
   return toCampaign(record, options);
@@ -150,8 +164,8 @@ describe("Plan ready: Confirm plan", () => {
 
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionConfirm }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
-    // The play sent is the recommended one, named twice so the action can refuse a mismatch.
-    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String), playId: handoff.play.id, recommendedPlayId: handoff.play.id }));
+    // Confirm names the play it starts with: the recommended one until the rep picks another (lead gen v2.3).
+    expect(onConfirm).toHaveBeenCalledWith({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String), candidateId: handoff.play.id });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp-people?confirmed=1"));
   });
 
@@ -521,9 +535,28 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
     expect(document.body.textContent).not.toMatch(/phone|mobile/i);
   });
 
-  it("says when a reveal stopped before it finished, and that nothing more will be bought", () => {
-    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "failed", done: false, maxCredits: 2, charged: 0, reserved: 2 } })} />);
-    expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStopped);
+  it("says when a reveal stopped, why, in the backend's words, and offers Try again only where nothing left Relay", async () => {
+    const onRetryReveal = vi.fn(async () => ({ id: "camp-people" }));
+    const stopped = campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "failed", done: false, maxCredits: 2, charged: 0, reserved: 0 } });
+    expect(stopped.facts?.stage).toBe("reveal_needs_you");
+    render(<CampaignPage campaign={stopped} onRetryReveal={onRetryReveal} />);
+    // Never drawn as live work: the stage line and the card both say it stopped, and why.
+    expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStoppedRetry);
+    expect(screen.getByTestId("stage-line").textContent).toBe(campaignsCopy.revealStoppedRetry);
+    expect(screen.queryByTestId("revealing-note")).toBeNull();
+    expect(currentStep()).toBe(campaignsCopy.stepRevealNeedsYou);
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionTryAgain }));
+    await waitFor(() => expect(onRetryReveal).toHaveBeenCalledTimes(1));
+  });
+
+  it("a reveal that stopped with a request unaccounted for is never an ordinary retry", () => {
+    const stopped = campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "failed", done: false, maxCredits: 2, charged: 0, reserved: 2 } });
+    expect(stopped.facts?.attention?.reason).toBe("reveal_spend_unresolved");
+    render(<CampaignPage campaign={stopped} onRetryReveal={vi.fn()} />);
+    expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStoppedHeld);
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
+    expect(screen.getByText(campaignsCopy.revealNeedsYouNoRetry)).toBeTruthy();
+    expect(screen.getByTestId("reveal-edit")).toBeTruthy();
     // The step row says it is stuck too, as the banner does.
     const step = screen.getAllByTestId("state-step").find((item) => item.getAttribute("aria-current") === "step")!;
     expect(step.className).toMatch(/\bbg-warn-bg\b/);

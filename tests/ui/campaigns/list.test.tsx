@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import CampaignsPage from "@/app/(app)/campaigns/page";
 import { CampaignRow } from "@/components/campaigns/CampaignRow";
+import { reasonLineOf, stageLineOf } from "@/lib/campaigns/stageLine";
 import { toSummary } from "@/lib/campaigns/view";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { listCampaigns } from "@/lib/fixtures/campaigns";
@@ -126,7 +127,7 @@ describe("a real campaign's row", () => {
     render(<CampaignRow campaign={campaign} />);
 
     const row = screen.getByTestId("campaign-row");
-    expect(row.textContent).toContain(campaign.summary.line);
+    expect(row.textContent).toContain(stageLineOf(campaign.facts!));
     expect(row.textContent).not.toContain(campaignsCopy.nothingSentYet);
     expect(row.textContent).not.toContain(`0 ${campaignsCopy.of}`);
     expect(row.textContent).toContain(`${campaignsCopy.nextPrefix} ${campaignsCopy.nextResearching}`);
@@ -137,8 +138,8 @@ describe("a real campaign's row", () => {
     render(<CampaignRow campaign={campaign} />);
 
     const row = screen.getByTestId("campaign-row");
-    expect(campaign.summary.reason).not.toBeNull();
-    expect(row.textContent).toContain(campaign.summary.reason);
+    expect(reasonLineOf(campaign.facts!)).not.toBeNull();
+    expect(row.textContent).toContain(reasonLineOf(campaign.facts!));
     expect(row.textContent).toContain(campaignsCopy.chipNeedsYou);
     expect(row.querySelector(".text-warn")).not.toBeNull();
     expect(screen.getByTestId("campaign-next").textContent).toBe(`${campaignsCopy.nextPrefix} ${campaignsCopy.nextFailed}`);

@@ -5,7 +5,7 @@ import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
-import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, searchLine } from "./accounts";
+import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rolesMissingFrom, searchLine, spareCount } from "./accounts";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
@@ -13,7 +13,7 @@ import type { ResearchResultFacts, StageResult } from "./stage";
 import { isAttention } from "./stage";
 import { revealLedgerOf, spendOf, summaryFactsOf, type PeopleGroup, type SummaryInput } from "./summary";
 import { researchSections } from "./research";
-import { answersFor, chipFor, nextFor, type CampaignCounts } from "./state";
+import { answersFor, chipFor, haltLine, nextFor, revealStoppedLine, type CampaignCounts } from "./state";
 import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
 
 /**
@@ -53,42 +53,7 @@ const NO_LEAD_GEN_SETUP: LeadGenOptions = { available: false, searchCreditCap: n
 
 /** Why finding people needs the rep, in words (lead gen v2.1 §11). */
 function peopleReasonLine(people: Extract<LeadGenState, { state: "peopleNeedsYou" }>): string {
-  const c = campaignsCopy;
-  const withTerm = (line: string) => (people.term === undefined ? line : `${line} ${people.term}`);
-  switch (people.reason) {
-    case "no_candidates":
-      return c.haltNoCandidates;
-    case "unmappable":
-      return withTerm(c.haltUnmappable);
-    case "would_widen":
-      return c.haltWouldWiden;
-    case "choose_industry":
-      return withTerm(c.haltChooseIndustry);
-    case "over_cap":
-      return c.haltOverCap;
-    case "balance_unavailable":
-      return c.haltBalance;
-    case "provider_busy":
-      return c.haltBusy;
-    case "took_too_long":
-      return c.haltTooLong;
-    case "failed":
-      return c.haltFailed;
-  }
-}
-
-/** Why revealing emails stopped, in words, by what Relay knows about its spend. */
-function revealStoppedLine(reason: string | undefined): string {
-  switch (reason) {
-    case "reveal_failed":
-      return campaignsCopy.revealStoppedRetry;
-    case "reveal_spend_unresolved":
-      return campaignsCopy.revealStoppedHeld;
-    case "reveal_failed_terminal":
-      return campaignsCopy.revealStoppedFailed;
-    default:
-      return campaignsCopy.revealStopped;
-  }
+  return haltLine(people.reason, people.term);
 }
 
 /** The chip and the "next" line: a stopped reveal draws as revealing but reads as needing the rep. */
@@ -232,6 +197,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
+          spare: spareCount(leadGen?.people ?? []),
+          rolesMissing: rolesMissingFrom(buyerRolesOf(handoff), leadGen?.people ?? []),
           spend: { charged: spend?.charged ?? 0, reserved: spend?.reserved ?? 0, cap },
           phase: revealed === null ? "review" : revealed.state === "revealing" ? "revealing" : "ready",
           // Kept people only: pending and dropped are never revealed (v2.2 §9a).

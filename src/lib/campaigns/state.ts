@@ -314,6 +314,46 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
   ];
 }
 
+/** Why finding people needs the rep, in words, from the halt reason and the term it names (lead gen v2.1 §11). */
+export function haltLine(reason: string, term?: string | null): string {
+  const c = campaignsCopy;
+  const withTerm = (line: string) => (term === undefined || term === null ? line : `${line} ${term}`);
+  switch (reason) {
+    case "no_candidates":
+      return c.haltNoCandidates;
+    case "unmappable":
+      return withTerm(c.haltUnmappable);
+    case "would_widen":
+      return c.haltWouldWiden;
+    case "choose_industry":
+      return withTerm(c.haltChooseIndustry);
+    case "over_cap":
+      return c.haltOverCap;
+    case "balance_unavailable":
+      return c.haltBalance;
+    case "provider_busy":
+      return c.haltBusy;
+    case "took_too_long":
+      return c.haltTooLong;
+    default:
+      return c.haltFailed;
+  }
+}
+
+/** Why revealing emails stopped, in words, by what Relay knows about its spend (product-truth foundation). */
+export function revealStoppedLine(reason: string | undefined | null): string {
+  switch (reason) {
+    case "reveal_failed":
+      return campaignsCopy.revealStoppedRetry;
+    case "reveal_spend_unresolved":
+      return campaignsCopy.revealStoppedHeld;
+    case "reveal_failed_terminal":
+      return campaignsCopy.revealStoppedFailed;
+    default:
+      return campaignsCopy.revealStopped;
+  }
+}
+
 /**
  * "What has this cost?", for a stored campaign: every brief version it has
  * had, search and reveal credits apart, what is left under this version's

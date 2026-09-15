@@ -10,15 +10,15 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
  *
  * One procedure, because the shell asks one question. The role decides whether
  * the nav carries Admin (master doc §23.0), the name makes the greeting and
- * the avatar's initials, and the two flags decide what Home shows on day one
+ * the avatar's initials, and the mailbox flag decides what Home prompts for on day one
  * (§23.1a).
  *
  * `hasCampaign` is whether the rep has started a campaign of their own: the
  * nav's "New campaign" and Home's day-one state turn on it.
  *
  * `connections.mailbox` became real in Task 10b. Zoho is org-level and
- * admin-owned, so it stays false until slice 3 gives an admin somewhere to
- * connect it.
+ * admin-owned, so it is not the rep's connection and is not reported here:
+ * Home has nothing to say to a rep about it.
  */
 export const meRouter = createTRPCRouter({
   get: repProcedure.query(async ({ ctx }) => {
@@ -51,7 +51,7 @@ export const meRouter = createTRPCRouter({
        * telling the rep to do the wrong thing, and Settings says what is
        * actually wrong.
        */
-      connections: { mailbox: isConnected(mailbox), zoho: false },
+      connections: { mailbox: isConnected(mailbox) },
     };
   }),
 });

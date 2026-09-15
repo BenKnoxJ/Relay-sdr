@@ -17,6 +17,9 @@ import {
 import type { BriefFields } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 
+/** The facts version the page read for the org: version 2, pinned on a Thursday. */
+const FACTS = { version: 2, activatedOn: "Thu 11 Sep" };
+
 const push = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
@@ -26,7 +29,7 @@ const SENTENCE =
 
 const onStart = vi.fn<(submission: StartSubmission) => Promise<StartResult>>();
 
-function start(props: { sentence?: string; connected?: boolean } = {}) {
+function start(props: { sentence?: string; connected?: boolean; facts?: typeof FACTS | null } = {}) {
   const sentence = props.sentence ?? SENTENCE;
   push.mockClear();
   onStart.mockReset();
@@ -39,6 +42,7 @@ function start(props: { sentence?: string; connected?: boolean } = {}) {
       regions={REGIONS}
       howMany={HOW_MANY}
       howLong={HOW_LONG}
+      facts={props.facts === undefined ? FACTS : props.facts}
       mailboxConnected={props.connected ?? true}
       onStart={onStart}
     />,
@@ -130,16 +134,52 @@ describe("Start", () => {
     ]);
   });
 
-  it("names the facts file behind the one product", () => {
-    start();
+  /**
+   * The facts line is read from the org's row, never from a literal: the
+   * page hands in what is active, and the card names it or says none is.
+   */
+  it("names the facts version the page read, not the one written on the product", () => {
+    const { unmount } = start();
 
-    const product = PRODUCTS[0];
-    expect(product).toBeDefined();
     expect(
       screen.getByText(
-        `${startCopy.factsUpdated} ${product?.factsUpdated}, ${startCopy.factsVersion} ${product?.factsVersion}. ${startCopy.factsMore}`,
+        `${startCopy.factsUpdated} ${FACTS.activatedOn}, ${startCopy.factsVersion} ${FACTS.version}. ${startCopy.factsMore}`,
       ),
     ).toBeDefined();
+    const product = PRODUCTS[0];
+    expect(document.body.textContent).not.toContain(`${startCopy.factsUpdated} ${product?.factsUpdated}`);
+    unmount();
+
+    start({ facts: null });
+    expect(screen.getByText(`${startCopy.factsNone} ${startCopy.factsMore}`)).toBeDefined();
+    expect(document.body.textContent).not.toContain(startCopy.factsUpdated);
+  });
+
+  it("says what the number means under how many: people, at the accounts Relay picks", () => {
+    const { unmount } = start();
+
+    // The sentence names no count, so the guess comes first and the meaning after it.
+    expect(screen.getByText(`${startCopy.guessedHint} ${startCopy.howManyHint}`)).toBeDefined();
+    unmount();
+
+    start({ sentence: "30 people over 4 weeks at UK logistics firms" });
+    expect(screen.getByText(startCopy.howManyHint)).toBeDefined();
+    expect(screen.getByText(startCopy.channelsHint)).toBeDefined();
+  });
+
+  /**
+   * 390px: "Read it" fell outside the sentence box when the sentence was
+   * long. The box wraps and the button keeps its words on one line, so it
+   * drops under the sentence rather than out of the box.
+   */
+  it("lets the sentence box wrap and keeps the button whole", () => {
+    start();
+
+    const button = screen.getByRole("button", { name: startCopy.edit });
+    expect(button.className).toContain("shrink-0");
+    expect(button.className).toContain("whitespace-nowrap");
+    expect(button.parentElement?.className).toContain("flex-wrap");
+    expect(screen.getByText(SENTENCE).className).toContain("min-w-0");
   });
 
   it("draws a guessed field dashed, and stops once the rep picks it", () => {
@@ -148,7 +188,7 @@ describe("Start", () => {
     // The sentence names no size and no length, so both are Relay's guess.
     expect(startFromSentence(SENTENCE).guessed).toContain("howMany");
     expect(screen.getByLabelText(startCopy.people).className).toContain("border-dashed");
-    expect(screen.getAllByText(startCopy.guessedHint).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(startCopy.guessedHint, { exact: false }).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText(startCopy.people), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText(startCopy.weeks), { target: { value: "4" } });
@@ -202,16 +242,18 @@ describe("Start", () => {
     expect(screen.getAllByTestId("channel-chip")[1]?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("refuses to start until the mailbox is connected, and says where to go", () => {
+  it("refuses to start until the mailbox is connected, says why, and says where to go", () => {
     const { unmount } = start({ connected: false });
 
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("start-blocked").textContent).toBe(startCopy.startBlockedMailbox);
     expect(screen.getByTestId("connect-first").textContent).toContain(startCopy.connectFirst);
     expect(screen.getByRole("link", { name: startCopy.connectLink }).getAttribute("href")).toBe("/settings");
     unmount();
 
     start({ connected: true });
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByTestId("start-blocked")).toBeNull();
     expect(screen.getByText(startCopy.startNote)).toBeDefined();
   });
 
@@ -461,14 +503,25 @@ describe("Pressing Start", () => {
     expect(sent().brief.who).toBe("Vets, Orkney.  Owners only");
   });
 
-  it("waits while the sentence is open, since the card still holds the last one read", () => {
+  it("waits while the sentence is open, says so beside the button, and starts once it is read", () => {
     start();
 
     fireEvent.click(screen.getByRole("button", { name: startCopy.edit }));
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("start-blocked").textContent).toBe(startCopy.startBlockedSentence);
+    expect(screen.queryByText(startCopy.startNote)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: startCopy.readIt }));
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByTestId("start-blocked")).toBeNull();
+    expect(screen.getByText(startCopy.startNote)).toBeDefined();
+  });
+
+  it("says the sentence reason, not the mailbox one, when the page opened with no sentence", () => {
+    start({ sentence: "" });
+
+    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("start-blocked").textContent).toBe(startCopy.startBlockedSentence);
   });
 
   it("shows the line it is given, and a second press sends the same request id", async () => {
@@ -548,6 +601,7 @@ describe("Edit brief", () => {
         regions={REGIONS}
         howMany={HOW_MANY}
         howLong={HOW_LONG}
+        facts={FACTS}
         mailboxConnected={connected}
         onStart={onStart}
         edit={{ campaignName: "Vets in Orkney", cancelHref: "/campaigns/camp_1" }}

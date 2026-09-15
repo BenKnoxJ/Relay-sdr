@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { describe, it, expect, afterEach } from "vitest";
 
-import { devBypassEmail, parseEnv, env, resetEnv } from "@/lib/env";
+import { demoSurfacesShown, devBypassEmail, parseEnv, env, resetEnv } from "@/lib/env";
 
 /** A valid 32-byte base64 key, generated rather than checked in. */
 const KEY = randomBytes(32).toString("base64");
@@ -16,6 +16,19 @@ function base(): Record<string, string | undefined> {
 }
 
 describe("parseEnv", () => {
+  /**
+   * The example surfaces (Inbox, Content) are fixtures until their rows
+   * exist, and the nav carries them only when this says `show`. Unset,
+   * blank and anything else is hidden, so a production environment that
+   * never heard of the flag hides them.
+   */
+  it("shows the example surfaces only on RELAY_DEMO_SURFACES=show", () => {
+    expect(parseEnv(base()).RELAY_DEMO_SURFACES).toBeUndefined();
+    expect(parseEnv({ ...base(), RELAY_DEMO_SURFACES: "" }).RELAY_DEMO_SURFACES).toBeUndefined();
+    expect(parseEnv({ ...base(), RELAY_DEMO_SURFACES: "show" }).RELAY_DEMO_SURFACES).toBe("show");
+    expect(() => parseEnv({ ...base(), RELAY_DEMO_SURFACES: "yes" })).toThrow(/RELAY_DEMO_SURFACES/);
+  });
+
   it("accepts the documented example values", () => {
     const parsed = parseEnv({
       ...base(),
@@ -225,6 +238,16 @@ describe("env", () => {
   it("reads process.env and memoises the result", () => {
     resetEnv();
     expect(env()).toBe(env());
+  });
+
+  it("shows the example surfaces only when the environment says show", () => {
+    delete process.env.RELAY_DEMO_SURFACES;
+    resetEnv();
+    expect(demoSurfacesShown()).toBe(false);
+
+    process.env.RELAY_DEMO_SURFACES = "show";
+    resetEnv();
+    expect(demoSurfacesShown()).toBe(true);
   });
 
   it("re-reads process.env after resetEnv", () => {

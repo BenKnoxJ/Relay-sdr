@@ -26,6 +26,11 @@ import type {
  * called. Nothing is written: the state lives in this module for as long as
  * the page is loaded, and a reload starts again.
  *
+ * And one thing it says out loud: the page banners the whole queue as
+ * examples (`inboxCopy.demoBanner`), and the nav carries the Inbox only under
+ * `RELAY_DEMO_SURFACES=show`. The people here are invented, and the reply
+ * greets nobody by name, so no rep reads another person's name as their own.
+ *
  * The drafts are the **real** parsed output of the signed outreach contract
  * (`agents/outreach/output.schema.ts`), not a shape invented for the card. Each
  * one is parsed at module load, so a draft the contract would reject fails
@@ -109,8 +114,6 @@ export type Queue = {
   /** Replies, then calls due, then drafts due today; needs-you drafts first among the drafts. */
   items: QueueItem[];
   counts: { replies: number; calls: number; drafts: number };
-  /** When the next drafts land, for the empty state: "Thursday", "09:00". */
-  nextDrafts: { day: string; time: string };
 };
 
 // ── The fixture pack ─────────────────────────────────────────────────────────
@@ -241,7 +244,7 @@ function fixtures(): QueueItem[] {
       },
       receivedAt: "07:42",
       message: [
-        "Hi Ben, interesting timing, we have just taken on the Leeds depot and the phones are exactly the problem. Can you do Thursday afternoon?",
+        "Hi there, interesting timing, we have just taken on the Leeds depot and the phones are exactly the problem. Can you do Thursday afternoon?",
         "Priya",
       ],
       sent: {
@@ -346,8 +349,6 @@ function fixtures(): QueueItem[] {
   ];
 }
 
-const NEXT_DRAFTS = { day: "Thursday", time: "09:00" } as const;
-
 // ── Session state ────────────────────────────────────────────────────────────
 
 /**
@@ -386,7 +387,6 @@ function queueOf(items: QueueItem[]): Queue {
       calls: sorted.filter((item) => item.kind === "call").length,
       drafts: sorted.filter((item) => item.kind === "draft").length,
     },
-    nextDrafts: NEXT_DRAFTS,
   };
 }
 

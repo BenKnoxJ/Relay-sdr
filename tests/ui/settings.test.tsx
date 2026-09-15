@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SettingsPage from "@/app/(app)/settings/page";
 import { MailboxCard, type MailboxState } from "@/components/MailboxCard";
-import { callsCopy, linkedinCopy, mailboxCopy, settingsCopy, voiceCopy } from "@/lib/copy/settings";
+import { linkedinCopy, mailboxCopy, settingsCopy, voiceCopy } from "@/lib/copy/settings";
 
 /**
  * Settings, with the Mailbox card real (master doc §23.1f, mock section 5).
  *
- * Two states and the four cards. The page is driven through a stubbed caller
+ * Two states and the three cards. The page is driven through a stubbed caller
  * rather than a database, because what is being checked here is what the
  * signed screen shows for a given answer — `tests/api/connections.test.ts`
  * checks that the answer is right.
@@ -32,14 +32,14 @@ const NOT_CONNECTED: MailboxState = {
 
 const CONNECTED: MailboxState = {
   connected: true,
-  address: "ben@example.test",
+  address: "someone.with.a.long.name@a-long-company-name.example",
   status: "healthy",
   healthTone: "ok",
   health: mailboxCopy.healthy,
   healthNote: null,
   cap: 10,
   adminCap: 10,
-  capNote: "of 10 set by your admin",
+  capNote: `${mailboxCopy.capOf} 10 ${mailboxCopy.capCeiling}`,
   provider: mailboxCopy.provider,
   window: "09:00 to 16:30",
   days: "Monday, Tuesday, Wednesday, Thursday",
@@ -59,25 +59,25 @@ async function renderPage(state: MailboxState, params: Record<string, string> = 
 }
 
 describe("Settings", () => {
-  it("shows the four signed cards in the signed order", async () => {
+  it("shows three signed cards in the signed order, and no Calls card", async () => {
     await renderPage(NOT_CONNECTED);
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(settingsCopy.title);
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual([settingsCopy.mailbox, settingsCopy.linkedin, settingsCopy.voice, settingsCopy.calls]);
+    ).toEqual([settingsCopy.mailbox, settingsCopy.linkedin, settingsCopy.voice]);
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 
   it("has no card left saying it is coming", async () => {
     await renderPage(NOT_CONNECTED);
 
-    // All four are real as of Task 9e. The line the placeholders carried is
-    // gone from the copy file; what is checked here is that nothing on the
-    // page still reads like a card waiting for its task.
+    // The line the placeholders carried is gone from the copy file; what is
+    // checked here is that nothing on the page still reads like a card
+    // waiting for its task.
     expect(screen.queryByText(/coming/i)).toBeNull();
     expect(screen.getByRole("textbox", { name: linkedinCopy.profileLabel })).toBeDefined();
     expect(screen.getByRole("textbox", { name: voiceCopy.noteLabel })).toBeDefined();
-    expect(screen.getByRole("switch", { name: callsCopy.toggle })).toBeDefined();
   });
 
   it("offers Connect when there is no mailbox", async () => {
@@ -91,7 +91,7 @@ describe("Settings", () => {
   it("shows the mailbox, its health and Disconnect once it is connected", async () => {
     await renderPage(CONNECTED);
 
-    expect(screen.getByText("ben@example.test")).toBeDefined();
+    expect(screen.getByText(CONNECTED.address as string)).toBeDefined();
     expect(screen.getByText(mailboxCopy.provider)).toBeDefined();
     expect(screen.getByText(mailboxCopy.healthy)).toBeDefined();
     expect(screen.getByRole("button", { name: mailboxCopy.disconnect })).toBeDefined();
@@ -131,10 +131,35 @@ describe("the Mailbox card", () => {
       "value",
       "10",
     );
-    expect(screen.getByText("of 10 set by your admin")).toBeDefined();
+    // The ceiling is Relay's own starting number, not an admin's setting: there is no admin area yet.
+    expect(screen.getByText(`${mailboxCopy.capOf} 10 ${mailboxCopy.capCeiling}`)).toBeDefined();
+    expect(mailboxCopy.capCeiling).not.toMatch(/admin/);
+    expect(mailboxCopy.capCeiling).toContain("Relay's starting limit");
     expect(screen.getByText("09:00 to 16:30")).toBeDefined();
     expect(screen.getByText("Monday, Tuesday, Wednesday, Thursday")).toBeDefined();
     expect(screen.getByText("Starts at 5 a day and builds up.")).toBeDefined();
+  });
+
+  /**
+   * 390px: an address is one unbreakable word, and the row it shares with the
+   * health chip used to push the card wider than the screen. jsdom has no
+   * layout, so the classes are what is checked.
+   */
+  it("lets a long address wrap, and the header row wrap around the chip", () => {
+    render(
+      <MailboxCard
+        state={CONNECTED}
+        banner={null}
+        connect={noop}
+        disconnect={noop}
+        saveCap={noLine}
+      />,
+    );
+
+    const address = screen.getByText(CONNECTED.address as string);
+    expect(address.className).toContain("[overflow-wrap:anywhere]");
+    expect(address.parentElement?.className).toContain("min-w-0");
+    expect(address.parentElement?.parentElement?.className).toContain("flex-wrap");
   });
 
   it("cannot be used to raise the cap past the ceiling", () => {

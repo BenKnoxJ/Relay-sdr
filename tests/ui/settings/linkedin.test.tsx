@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { LinkedInCard } from "@/components/settings/LinkedInCard";
 import { linkedinCopy, settingsCopy } from "@/lib/copy/settings";
-import { FIXTURE_PROFILE, getProfile, resetProfile } from "@/lib/fixtures/repProfile";
+import { FIXTURE_PROFILE, getProfile, resetProfile, saveProfile } from "@/lib/fixtures/repProfile";
 import { checkLinkedinUrl } from "@/lib/settings/validate";
 
 /**
- * The LinkedIn card (master doc §23.1f): the link from the fixture, the one
- * line about posting, save on blur with "Saved", and a plain refusal of
- * anything that is not a profile link.
+ * The LinkedIn card (master doc §23.1f): an empty field with the shape of a
+ * link as its placeholder, the one line about posting, save on blur with
+ * "Saved", and a plain refusal of anything that is not a profile link.
  */
 
 beforeEach(() => {
@@ -20,14 +20,24 @@ const field = () => screen.getByRole("textbox", { name: linkedinCopy.profileLabe
 const status = () => screen.getByRole("status");
 
 describe("the LinkedIn card", () => {
-  it("renders the fixture's link and the line about posting", () => {
+  it("renders an empty field with the shape of a link as its placeholder, and the line about posting", () => {
     render(<LinkedInCard />);
 
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(settingsCopy.linkedin);
-    expect(field().value).toBe(FIXTURE_PROFILE.linkedinUrl);
+    expect(FIXTURE_PROFILE.linkedinUrl).toBeNull();
+    expect(field().value).toBe("");
+    expect(field().placeholder).toBe(linkedinCopy.placeholder);
+    expect(linkedinCopy.placeholder).toBe("https://www.linkedin.com/in/…");
     expect(screen.getByText(linkedinCopy.note)).toBeDefined();
     // Prepare-and-paste in slice 1: no connect, no disconnect, no button at all.
     expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("is a full-width field that can shrink and wrap under its label on a phone", () => {
+    render(<LinkedInCard />);
+
+    for (const cls of ["w-full", "min-w-0", "flex-1"]) expect(field().className).toContain(cls);
+    expect(field().parentElement?.className).toContain("flex-wrap");
   });
 
   it("saves a good link on blur, says Saved, and the adapter has it", () => {
@@ -42,6 +52,7 @@ describe("the LinkedIn card", () => {
   });
 
   it("refuses a link that is not a profile link, in plain words, and keeps what was typed", () => {
+    saveProfile({ linkedinUrl: "https://www.linkedin.com/in/someone" });
     render(<LinkedInCard />);
 
     fireEvent.change(field(), { target: { value: "https://www.linkedin.com/company/relay" } });
@@ -49,10 +60,11 @@ describe("the LinkedIn card", () => {
 
     expect(status().textContent).toBe(linkedinCopy.badUrl);
     expect(field().value).toBe("https://www.linkedin.com/company/relay");
-    expect(getProfile().linkedinUrl).toBe(FIXTURE_PROFILE.linkedinUrl);
+    expect(getProfile().linkedinUrl).toBe("https://www.linkedin.com/in/someone");
   });
 
   it("clears the link when the field is emptied", () => {
+    saveProfile({ linkedinUrl: "https://www.linkedin.com/in/someone" });
     render(<LinkedInCard />);
 
     fireEvent.change(field(), { target: { value: "" } });

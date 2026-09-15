@@ -82,6 +82,7 @@ export function Overview({
   researchHref,
   confirmed = false,
   collapsed = false,
+  bare = false,
 }: {
   overview: CampaignOverview;
   editHref?: string;
@@ -90,6 +91,8 @@ export function Overview({
   confirmed?: boolean;
   /** Folded to one line and a Show: the accounts found are the work now, and the research stays one press away. */
   collapsed?: boolean;
+  /** Drawn inside another panel (the support rail): no card of its own. */
+  bare?: boolean;
 }) {
   const c = campaignsCopy;
   const [open, setOpen] = useState(!collapsed);
@@ -103,9 +106,20 @@ export function Overview({
         {researchCopy.openLink}
       </Link>
     );
+  const Shell = ({ aside, children }: { aside?: React.ReactNode; children: React.ReactNode }) =>
+    bare ? (
+      <div data-testid="overview-bare">
+        {aside === undefined ? null : <div className="mb-2 flex justify-end">{aside}</div>}
+        {children}
+      </div>
+    ) : (
+      <Card label={c.planLabel} aside={aside}>
+        {children}
+      </Card>
+    );
   if (!open) {
     return (
-      <Card label={c.planLabel} aside={researchLink}>
+      <Shell aside={bare ? undefined : researchLink}>
         <div data-testid="overview-folded" className="flex flex-wrap items-center justify-between gap-2">
           <p className="type-small text-muted">
             {c.overviewFolded}
@@ -121,26 +135,15 @@ export function Overview({
             {c.overviewShowPlan}
           </button>
         </div>
-      </Card>
+      </Shell>
     );
   }
   const firmCount = overview.firms.reduce((sum, group) => sum + group.firms.length, 0);
 
   return (
-    <Card
-      label={c.planLabel}
+    <Shell
       // The one way into everything research found (task 19).
-      aside={
-        researchHref === undefined ? undefined : (
-          <Link
-            href={researchHref}
-            data-testid="overview-research-link"
-            className="type-small inline-flex min-h-6 shrink-0 items-center rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
-          >
-            {researchCopy.openLink}
-          </Link>
-        )
-      }
+      aside={bare ? undefined : researchLink}
     >
       <div data-testid="overview" className="grid min-w-0 gap-4 [overflow-wrap:anywhere]">
         {overview.partial.length === 0 ? null : (
@@ -381,6 +384,6 @@ export function Overview({
           </Link>
         )}
       </div>
-    </Card>
+    </Shell>
   );
 }

@@ -18,15 +18,23 @@ import { cn } from "@/lib/utils";
  * The ORDER of `AREAS` is the signed order and is load-bearing:
  * Home, Inbox, Campaigns, Content, Settings. `tests/ui/nav.test.tsx` asserts
  * it, so reordering this array fails rather than quietly reshuffling the app.
+ *
+ * Inbox and Content are example surfaces until their rows exist, so they are
+ * in the nav only when the layout says so (`RELAY_DEMO_SURFACES=show`); the
+ * three that remain keep their order. Both routes still answer by URL.
+ *
+ * There is no Admin item. The Admin area lands in slice 3, and the dashed
+ * "you only" pill the signed mock drew for it was a label on a door that did
+ * not exist; it comes back as a link when there is somewhere for it to go.
  */
 
 export type NavArea = "home" | "inbox" | "campaigns" | "content" | "settings";
 
-const AREAS: { area: NavArea; href: string; label: string }[] = [
+const AREAS: { area: NavArea; href: string; label: string; demo?: true }[] = [
   { area: "home", href: "/", label: navCopy.home },
-  { area: "inbox", href: "/inbox", label: navCopy.inbox },
+  { area: "inbox", href: "/inbox", label: navCopy.inbox, demo: true },
   { area: "campaigns", href: "/campaigns", label: navCopy.campaigns },
-  { area: "content", href: "/content", label: navCopy.content },
+  { area: "content", href: "/content", label: navCopy.content, demo: true },
   { area: "settings", href: "/settings", label: navCopy.settings },
 ];
 
@@ -41,27 +49,36 @@ function isCurrent(href: string, pathname: string): boolean {
 }
 
 export function Nav({
-  role,
   initials,
   hasCampaign,
   counts,
+  showDemo = false,
 }: {
+  /**
+   * Accepted and unused: the layout knows the role, and the Admin link that
+   * will read it lands with the Admin area (slice 3). Kept so that arrival is
+   * one line here and no change to the layout.
+   */
   role: Role;
   initials: string;
   /** "New campaign" is absent from the nav until one exists (§23.1a, day one). */
   hasCampaign: boolean;
   /** A count beside an area, when it has one. Absent is not zero: it is nothing to say. */
   counts?: Partial<Record<NavArea, number>>;
+  /** Whether the example surfaces (Inbox, Content) are in the nav. Off unless the environment says so. */
+  showDemo?: boolean;
 }) {
   const pathname = usePathname();
+  const areas = AREAS.filter(({ demo }) => showDemo || demo === undefined);
 
   return (
     /*
-      One row from `sm` up. On a phone the same items wrap onto a second row
-      inside a rounded card rather than running off the screen; nothing is
-      hidden, reordered or put behind a menu.
+      One row from `sm` up. On a phone it is two rows and never three: the
+      wordmark, "New campaign" and the avatar share the first, and the area
+      links form the second on their own, scrolling sideways if they must
+      rather than wrapping. Nothing is hidden, reordered or put behind a menu.
     */
-    <nav className="mb-card flex flex-wrap items-center gap-x-3.5 gap-y-3 rounded-card border border-line bg-panel py-2.5 pl-4 pr-4 text-14 font-medium shadow-nav sm:flex-nowrap sm:gap-card sm:rounded-pill sm:pl-card-rail">
+    <nav className="mb-card flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-card border border-line bg-panel px-4 py-2.5 text-14 font-medium shadow-nav sm:flex-nowrap sm:gap-card sm:rounded-pill sm:pl-card-rail">
       <span className="mr-2 flex items-center gap-2 text-16 font-bold">
         {/*
           The one sanctioned use of the gradient (signed tokens §1: "the
@@ -77,58 +94,58 @@ export function Nav({
         Relay
       </span>
 
-      {AREAS.map(({ area, href, label }) => {
-        const current = isCurrent(href, pathname);
-        const count = counts?.[area];
-        return (
-          <Link
-            key={area}
-            href={href}
-            aria-current={current ? "page" : undefined}
-            /*
-              Hover lifts an unvisited area from `text-muted` to `text-ink` —
-              the colour the current area already carries, so the cursor
-              previews the destination rather than introducing a fourth text
-              colour. The current area is already `text-ink`, so it is the one
-              link where hover is correctly a no-op.
-            */
-            className={cn(
-              "relative focus-visible:outline-none focus-visible:ring-2",
-              "transition-colors duration-micro ease-standard hover:text-ink",
-              current ? "text-ink" : "text-muted",
-            )}
-          >
-            <span data-testid="nav-label">{label}</span>
-            {count === undefined ? null : (
-              <span
-                data-testid="nav-count"
-                className="type-mono ml-1.5 rounded-pill bg-action px-1.5 py-0.5 text-11 text-on-action"
-              >
-                {count}
-              </span>
-            )}
-            {current ? (
-              <span
-                aria-hidden
-                className="absolute inset-x-0 -bottom-3 block h-0.5 rounded-pill bg-action"
-              />
-            ) : null}
-          </Link>
-        );
-      })}
+      {/*
+        The links' own row below `sm`: full width, in reading order after the
+        right-hand group, and scrolling sideways rather than wrapping. The
+        bottom padding is there for the current-area mark, which hangs 12px
+        under its link and would otherwise be clipped by the scroll box.
+      */}
+      <div
+        data-testid="nav-areas"
+        className="order-2 flex w-full items-center gap-3.5 overflow-x-auto pb-3.5 sm:order-none sm:w-auto sm:flex-1 sm:gap-card sm:overflow-visible sm:pb-0"
+      >
+        {areas.map(({ area, href, label }) => {
+          const current = isCurrent(href, pathname);
+          const count = counts?.[area];
+          return (
+            <Link
+              key={area}
+              href={href}
+              aria-current={current ? "page" : undefined}
+              /*
+                Hover lifts an unvisited area from `text-muted` to `text-ink` —
+                the colour the current area already carries, so the cursor
+                previews the destination rather than introducing a fourth text
+                colour. The current area is already `text-ink`, so it is the one
+                link where hover is correctly a no-op.
+              */
+              className={cn(
+                "relative shrink-0 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2",
+                "transition-colors duration-micro ease-standard hover:text-ink",
+                current ? "text-ink" : "text-muted",
+              )}
+            >
+              <span data-testid="nav-label">{label}</span>
+              {count === undefined ? null : (
+                <span
+                  data-testid="nav-count"
+                  className="type-mono ml-1.5 rounded-pill bg-action px-1.5 py-0.5 text-11 text-on-action"
+                >
+                  {count}
+                </span>
+              )}
+              {current ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 -bottom-3 block h-0.5 rounded-pill bg-action"
+                />
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
 
-      <span className="ml-auto flex items-center gap-3.5">
-        {/*
-          Admin is rendered for an admin only (§23.0: "absent from a rep's
-          nav"), and is not a link: the Admin area lands in slice 3, so a link
-          here would be a door to a 404. The signed mock draws it as exactly
-          this — a dashed pill saying who else can see it.
-        */}
-        {role === "admin" ? (
-          <span className="rounded-pill border border-dashed border-line px-2.5 py-1 text-12 text-muted">
-            {navCopy.admin}
-          </span>
-        ) : null}
+      <span className="order-1 ml-auto flex items-center gap-3.5 sm:order-none">
         {/*
           A link, because it navigates: to Start. It wears the primary pill's
           classes so it reads as the one control it is.
@@ -136,7 +153,7 @@ export function Nav({
         {hasCampaign ? (
           <Link
             href="/campaigns/new"
-            className="inline-flex items-center justify-center rounded-pill border-control border-transparent bg-action px-4 py-2 text-13 font-semibold text-on-action transition-opacity duration-micro ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-pill border-control border-transparent bg-action px-4 py-2 text-13 font-semibold text-on-action transition-opacity duration-micro ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           >
             {navCopy.newCampaign}
           </Link>
@@ -150,7 +167,7 @@ export function Nav({
         <span
           role="img"
           aria-label={navCopy.account}
-          className="grid h-[30px] w-[30px] place-items-center rounded-pill bg-soft text-12 font-semibold text-action"
+          className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-pill bg-soft text-12 font-semibold text-action"
         >
           {initials}
         </span>

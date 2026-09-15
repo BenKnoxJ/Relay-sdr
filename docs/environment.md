@@ -36,6 +36,8 @@ RELAY_WORKER_LEASE_MS=""
 # How long a draining worker lets an in-flight handler finish after SIGTERM
 # (default 540000). Must stay inside the unit's TimeoutStopSec.
 RELAY_WORKER_DRAIN_MS=""
+# Show the surfaces that are still examples (Inbox, Content) in the nav: `show`; unset hides them until they carry real work.
+RELAY_DEMO_SURFACES=""
 # Lead gen: `lusha` is Lusha V3; `sample` (development and test only) makes up people and credits; unset, finding people is off.
 RELAY_LEADGEN_PROVIDER=""
 # Required with `lusha`: the search credit limit a Confirm approves.

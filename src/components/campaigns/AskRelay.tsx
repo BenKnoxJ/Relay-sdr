@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
  * with a guess. Every answer arrives already assembled from the campaign's own
  * counts, so this component chooses nothing and computes nothing.
  */
-export function AskRelay({ questions }: { questions: AskAnswer[] }) {
+export function AskRelay({ questions, bare = false }: { questions: AskAnswer[]; bare?: boolean }) {
   const [asked, setAsked] = useState<string | null>(null);
   const answer = questions.find((question) => question.id === asked);
 
-  return (
-    <Card label={campaignsCopy.askLabel}>
+  const body = (
+    <>
       <p className="type-small mb-2.5 text-muted">{campaignsCopy.askHint}</p>
       <div className="flex flex-wrap gap-chips">
         {questions.map((question) => (
@@ -49,6 +49,7 @@ export function AskRelay({ questions }: { questions: AskAnswer[] }) {
           {answer.answer}
         </p>
       )}
-    </Card>
+    </>
   );
+  return bare ? <div>{body}</div> : <Card label={campaignsCopy.askLabel}>{body}</Card>;
 }

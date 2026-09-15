@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { Home } from "@/components/Home";
 import { HomeDayOne } from "@/components/HomeDayOne";
+import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
 
-const BOTH_CONNECTED = { mailbox: true, zoho: true };
-const NEITHER_CONNECTED = { mailbox: false, zoho: false };
+const BOTH_CONNECTED = { mailbox: true };
+const NEITHER_CONNECTED = { mailbox: false };
 
 const noop = async () => null;
 
@@ -44,8 +46,8 @@ describe("Home on day one", () => {
     expect(screen.queryAllByRole("link")).toHaveLength(0);
   });
 
-  it("prompts for both connections while neither is connected", () => {
-    render(
+  it("prompts for the mailbox while it is not connected, and says nothing about Zoho", () => {
+    const { container } = render(
       <HomeDayOne
         firstName="Ben"
         today="Mon 7 Sep"
@@ -55,10 +57,11 @@ describe("Home on day one", () => {
     );
 
     expect(screen.getByText(homeCopy.connectMailbox)).toBeDefined();
-    expect(screen.getByText(homeCopy.connectZoho)).toBeDefined();
+    // Zoho is the admin's, not the rep's: a prompt they cannot act on is not a step.
+    expect(container.textContent).not.toMatch(/zoho/i);
   });
 
-  it("prompts for neither once both are connected", () => {
+  it("prompts for nothing once the mailbox is connected", () => {
     render(
       <HomeDayOne
         firstName="Ben"
@@ -69,21 +72,6 @@ describe("Home on day one", () => {
     );
 
     expect(screen.queryByText(homeCopy.connectMailbox)).toBeNull();
-    expect(screen.queryByText(homeCopy.connectZoho)).toBeNull();
-  });
-
-  it("prompts for only the one that is missing", () => {
-    render(
-      <HomeDayOne
-        firstName="Ben"
-        today="Mon 7 Sep"
-        connections={{ mailbox: false, zoho: true }}
-        startBrief={noop}
-      />,
-    );
-
-    expect(screen.getByText(homeCopy.connectMailbox)).toBeDefined();
-    expect(screen.queryByText(homeCopy.connectZoho)).toBeNull();
   });
 
   it("shows what Start does today, and only after it is used", async () => {
@@ -268,5 +256,156 @@ describe("Home on day one", () => {
 
     expect(screen.getByTestId("home-grid").className).toContain("grid-cols-home");
     expect(screen.getByTestId("home-rail").textContent).toBe("a widget");
+  });
+});
+
+/**
+ * Fixtures by hand: a `CampaignSummary` is a plain object, and the stage
+ * summary is the part Home reads. Everything else is the same for every row.
+ */
+function summary(
+  id: string,
+  name: string,
+  stage: Partial<CampaignSummary["summary"]> & Pick<CampaignSummary["summary"], "bucket">,
+  rest: Partial<Pick<CampaignSummary, "next" | "nextIsAction" | "motionLine">> = {},
+): CampaignSummary {
+  return {
+    id,
+    name,
+    motionLine: rest.motionLine ?? "Direct · call handling · 20 people over 3 weeks · email",
+    state: "researching",
+    chip: campaignsCopy.chipResearching,
+    contacted: null,
+    total: 20,
+    next: rest.next ?? campaignsCopy.nextResearching,
+    nextIsAction: rest.nextIsAction ?? false,
+    summary: { stage: campaignsCopy.chipResearching, line: null, reason: null, waiting: false, ...stage },
+    createdAt: "2026-09-01T00:00:00.000Z",
+  };
+}
+
+const FAILED = summary(
+  "camp-failed",
+  "UK logistics ops",
+  { bucket: "needsYou", stage: campaignsCopy.chipNeedsYou, line: campaignsCopy.failedTookTooLong, reason: campaignsCopy.failedTookTooLong },
+  { next: campaignsCopy.nextFailed, nextIsAction: true },
+);
+const TO_DECIDE = summary(
+  "camp-plan",
+  "Care homes in the North West",
+  { bucket: "decide", stage: campaignsCopy.chipPlanReady, line: `4 ${campaignsCopy.summaryPlays}` },
+  { next: campaignsCopy.nextPlanReady, nextIsAction: true },
+);
+const READY = summary(
+  "camp-ready",
+  "Dental groups",
+  { bucket: "ready", stage: campaignsCopy.chipFindingPeople, line: `9 ${campaignsCopy.summaryEmailsReady}` },
+  { next: campaignsCopy.nextPeopleReady, nextIsAction: false },
+);
+const QUEUED = summary("camp-queued", "Insurers opening claims teams", {
+  bucket: "working",
+  line: campaignsCopy.summaryWaiting,
+  waiting: true,
+});
+const READING = summary("camp-reading", "Housing associations", {
+  bucket: "working",
+  line: campaignsCopy.summaryResearching,
+});
+const DONE = summary("camp-done", "Accountancy firms", { bucket: "done", stage: campaignsCopy.chipDone, line: null });
+
+describe("Home with campaigns", () => {
+  it("greets the rep, and lists what needs them with the one thing to do on each", () => {
+    render(
+      <Home
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        campaigns={[READING, DONE, FAILED, TO_DECIDE, READY, QUEUED]}
+        startBrief={noop}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(`${homeCopy.welcome}, Ben`);
+    expect(screen.getByRole("heading", { level: 2, name: homeCopy.needsYouLabel })).toBeDefined();
+
+    const rows = screen.getAllByTestId("home-needs-you-row");
+    expect(rows.map((row) => row.getAttribute("href"))).toEqual(["/campaigns/camp-failed", "/campaigns/camp-plan", "/campaigns/camp-ready"]);
+
+    // The name, the reason, and the campaign's own next sentence, without "Next:".
+    expect(rows[0]?.textContent).toContain("UK logistics ops");
+    expect(rows[0]?.textContent).toContain(campaignsCopy.failedTookTooLong);
+    expect(rows[0]?.textContent).toContain(campaignsCopy.nextFailed);
+    expect(rows[0]?.textContent).not.toContain(campaignsCopy.nextPrefix);
+    // A decision with no reason shows its line instead.
+    expect(rows[1]?.textContent).toContain(`4 ${campaignsCopy.summaryPlays}`);
+    expect(rows[1]?.textContent).toContain(campaignsCopy.nextPlanReady);
+    // Ready sits with the decisions: outreach is the rep's call.
+    expect(rows[2]?.textContent).toContain(campaignsCopy.nextPeopleReady);
+  });
+
+  it("says what Relay is doing: waiting for a queued job, the stage word for a running one", () => {
+    render(
+      <Home
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        campaigns={[READING, DONE, FAILED, TO_DECIDE, READY, QUEUED]}
+        startBrief={noop}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: homeCopy.workingLabel })).toBeDefined();
+    const rows = screen.getAllByTestId("home-working-row");
+    expect(rows).toHaveLength(2);
+
+    const queued = rows.find((row) => row.getAttribute("href") === "/campaigns/camp-queued");
+    const reading = rows.find((row) => row.getAttribute("href") === "/campaigns/camp-reading");
+    expect(queued?.textContent).toContain("Insurers opening claims teams");
+    expect(queued?.textContent).toContain(campaignsCopy.summaryWaiting);
+    expect(queued?.textContent).not.toContain(campaignsCopy.chipResearching);
+    expect(reading?.textContent).toContain(campaignsCopy.summaryResearching);
+    expect(reading?.textContent).toContain(campaignsCopy.chipResearching);
+  });
+
+  it("carries the brief box, and leaves done campaigns to the list", () => {
+    render(
+      <Home
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={NEITHER_CONNECTED}
+        campaigns={[READING, DONE, FAILED]}
+        startBrief={noop}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: homeCopy.startLabel })).toBeDefined();
+    expect(screen.getByPlaceholderText(homeCopy.briefPlaceholder)).toBeDefined();
+    expect(screen.getByRole("button", { name: homeCopy.briefStart })).toBeDefined();
+    expect(screen.getByText(homeCopy.briefFooter)).toBeDefined();
+    expect(screen.getByText(homeCopy.connectMailbox)).toBeDefined();
+    expect(screen.getByTestId("brief-pill").className).toContain("focus-within:ring-2");
+
+    // Done is a record, and the record lives in Campaigns.
+    expect(screen.queryByText("Accountancy firms")).toBeNull();
+    // No analytics: the only numbers are the counts beside the headings.
+    expect(screen.getAllByText("1", { selector: ".type-mono" })).toHaveLength(2);
+    expect(screen.queryByText(campaignsCopy.of)).toBeNull();
+  });
+
+  it("says so when a block has nothing in it", () => {
+    render(
+      <Home
+        firstName="Ben"
+        today="Mon 7 Sep"
+        connections={BOTH_CONNECTED}
+        campaigns={[DONE]}
+        startBrief={noop}
+      />,
+    );
+
+    expect(screen.getByText(homeCopy.needsYouEmpty)).toBeDefined();
+    expect(screen.getByText(homeCopy.workingEmpty)).toBeDefined();
+    expect(screen.queryAllByTestId("home-needs-you-row")).toHaveLength(0);
+    expect(screen.queryAllByTestId("home-working-row")).toHaveLength(0);
   });
 });

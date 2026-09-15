@@ -77,6 +77,45 @@ export interface LeadGenProvider {
   search(request: ProviderSearchRequest, options?: { signal?: AbortSignal }): Promise<ProviderSearchPage>;
 }
 
+/**
+ * What revealing one contact's email returned, in Relay's terms. `found` may
+ * carry no email at all. Phone numbers are never asked for and have no field.
+ */
+export type RevealedContact =
+  | {
+      status: "found";
+      name: string;
+      domain?: string;
+      emails: { address: string; type: "work" | "personal" | "unknown"; grade: string | null }[];
+    }
+  /** The provider has no such record. */
+  | { status: "not_found" }
+  /** The provider will not reveal this record. */
+  | { status: "restricted" }
+  /** The provider could not reveal it this time; whether it charged is not said per person. */
+  | { status: "failed" };
+
+export type RevealRequest = {
+  /** The request's own key: a retry is a new key with its own reservation. */
+  key: string;
+  providerIds: string[];
+};
+
+export type RevealAnswer = {
+  /** By provider id. An id the answer does not mention is missing, not revealed. */
+  contacts: Map<string, RevealedContact>;
+  /** What the provider reported charging for this request. */
+  charged: number;
+};
+
+/** The provider behind Reveal emails: emails only (lead gen v2.1 §6). */
+export interface RevealProvider {
+  readonly provider: "lusha";
+  /** At most this many ids in one request. */
+  readonly maxIds: number;
+  revealEmails(request: RevealRequest): Promise<RevealAnswer>;
+}
+
 /** The provider refused for load (a 429). Whether it charged is unknown, so the reservation stays. */
 export class ProviderBusyError extends Error {
   constructor(message = "the provider is busy") {

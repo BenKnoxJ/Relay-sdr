@@ -244,8 +244,8 @@ model Campaign {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  org       Org   @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  ownerUser User  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  org       Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
   jobs      Job[]
   people    CampaignPerson[]
   credits   CreditLedgerEntry[]
@@ -297,9 +297,9 @@ model Job {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  org         Org          @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  ownerUser   User?        @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
-  campaign    Campaign?    @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  org         Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser   User?               @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  campaign    Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   agentRuns   AgentRun[]
   sideEffects SideEffect[]
   people      CampaignPerson[]
@@ -454,8 +454,28 @@ enum ProviderIdentityStatus {
   no_email
   invalid_id
   wrong_person
+  /// The provider will not reveal this record (compliance): not bought again.
+  restricted
 
   @@map("provider_identity_status")
+}
+
+/// What revealing a kept person's email came to (lead gen v2.1 §7, §9; v2.2 §9a).
+enum CampaignPersonReveal {
+  /// Bought now, and usable in this campaign.
+  revealed
+  /// Relay already owned a usable email: no credit.
+  known
+  /// No email exists, or the reveal returned none.
+  no_email
+  /// Opted out or do not contact: never contacted.
+  suppressed
+  /// An email or record Relay will not use in this campaign; `revealHold` says why.
+  held
+  /// The outcome is not known; its credit stays held and it is not bought again automatically.
+  failed
+
+  @@map("campaign_person_reveal")
 }
 
 enum CampaignPersonStatus {
@@ -581,34 +601,39 @@ model ProviderIdentity {
 /// `preview` is the provider's row as it came, raw domain included: the
 /// registrable domain is only `companyKey`, for matching.
 model CampaignPerson {
-  id           String               @id @default(cuid())
-  orgId        String               @map("org_id")
-  campaignId   String               @map("campaign_id")
-  briefVersion Int                  @map("brief_version")
+  id               String                @id @default(cuid())
+  orgId            String                @map("org_id")
+  campaignId       String                @map("campaign_id")
+  briefVersion     Int                   @map("brief_version")
   /// The lead gen job that found this candidate.
-  jobId        String               @map("job_id")
-  provider     Provider
-  providerId   String               @map("provider_id")
-  personId     String?              @map("person_id")
-  status       CampaignPersonStatus
-  source       CampaignPersonSource
-  rank         Int
-  score        Int
-  whyPicked    String               @map("why_picked")
-  companyKey   String               @map("company_key")
-  preview      Json
+  jobId            String                @map("job_id")
+  provider         Provider
+  providerId       String                @map("provider_id")
+  personId         String?               @map("person_id")
+  status           CampaignPersonStatus
+  source           CampaignPersonSource
+  rank             Int
+  score            Int
+  whyPicked        String                @map("why_picked")
+  companyKey       String                @map("company_key")
+  preview          Json
   /// The confirmed group's role this person plays, the role's own title, and
   /// how their title matched it (v2.2 §8a). All three or none: none is a
   /// Related role, or a run under a v2.1 handoff.
-  rolePart     BuyerRolePart?       @map("role_part")
-  roleTitle    String?              @map("role_title")
-  roleMatch    RoleMatchMethod?     @map("role_match")
+  rolePart         BuyerRolePart?        @map("role_part")
+  roleTitle        String?               @map("role_title")
+  roleMatch        RoleMatchMethod?      @map("role_match")
   /// The rep's keep or drop before Reveal (v2.2 §9a), with who and when once decided.
-  review           CampaignPersonReview @default(pending)
-  reviewedByUserId String?              @map("reviewed_by_user_id")
-  reviewedAt       DateTime?            @map("reviewed_at")
-  createdAt    DateTime             @default(now()) @map("created_at")
-  updatedAt    DateTime             @updatedAt @map("updated_at")
+  review           CampaignPersonReview  @default(pending)
+  reviewedByUserId String?               @map("reviewed_by_user_id")
+  reviewedAt       DateTime?             @map("reviewed_at")
+  /// What Reveal emails came to for this kept person, the hold reason word when
+  /// it was not usable, and when. Null until revealed; only kept people are.
+  reveal           CampaignPersonReveal? @map("reveal")
+  revealHold       String?               @map("reveal_hold")
+  revealedAt       DateTime?             @map("revealed_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
 
   org        Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
@@ -650,7 +675,9 @@ model CreditLedgerEntry {
   orgId          String      @map("org_id")
   campaignId     String      @map("campaign_id")
   briefVersion   Int         @map("brief_version")
-  /// The `campaign.confirmed` Event whose cap this spend counts against.
+  /// The Event whose cap this spend counts against: `campaign.confirmed` for a
+  /// search, `campaign.reveal_confirmed` for a reveal. Each cap counts its own
+  /// kind only; the balance counts every kind.
   confirmEventId String      @map("confirm_event_id")
   jobId          String      @map("job_id")
   kind           CreditKind

@@ -4,11 +4,21 @@ import type { LiveDeps } from "../types";
 
 /**
  * Lusha's REST API V3: the account usage read, the free prospecting filter
- * reads, and contact prospecting (search). Nothing here enriches or reveals.
+ * reads, contact prospecting (search), and contact enrich for **emails only**
+ * (Reveal emails). Nothing here ever asks for a phone number.
  *
  * Verified against the live API by the zero-spend check of 2026-09-14
  * (`fixtures/tools/lusha/`): the `api_key` header, `GET /v3/account/usage`,
  * and the filter reads, none of which moved the account's credits.
+ *
+ * Enrich is taken from Lusha's published V3 OpenAPI document (`enrichContacts`,
+ * read 2026-09-15): `POST /v3/contacts/enrich` with `ids` (1 to 100 ids from a
+ * search), `reveal` (`emails` and/or `phones`; both when omitted) and
+ * `waterfallEnabled`; the answer is `results[]` with `emails[{email, type
+ * (work|private|unknown), confidence}]`, a per-item `error.code` (NOT_FOUND,
+ * COMPLIANCE_RESTRICTED, ENRICH_FAILED, NO_SCORE) and `billing.creditsCharged`.
+ * It is charged per revealed field. The same shape (`ids`, `reveal: ["emails"]`,
+ * 1 credit per email) was seen live by an earlier client on 2026-09-02.
  *
  * The key goes in one header and nowhere else: no error, log line or thrown
  * message carries it. Errors name the path and the status only.
@@ -128,7 +138,32 @@ const searchSchema = z.object({
   pagination: z.object({ page: z.number().int(), size: z.number().int(), total: z.number().int().nullish() }).nullish(),
 });
 
+/**
+ * One enriched contact, emails only. Anything else the answer carries (phones
+ * above all) is not in the schema, so zod drops it and it never enters Relay.
+ */
+const enrichResultSchema = z.object({
+  id,
+  firstName: text,
+  lastName: text,
+  fullName: text,
+  company: z.object({ id: id.nullish(), name: text, domain: text }).nullish(),
+  emails: z.array(z.object({ email: text, type: text, confidence: text })).nullish(),
+  error: z.object({ code: text, message: text }).nullish(),
+});
+
+const enrichSchema = z.object({
+  requestId: text,
+  results: z.array(enrichResultSchema),
+  billing: z.object({ creditsCharged: z.number().int().nonnegative(), resultsReturned: z.number().int().nonnegative().nullish() }),
+});
+
+/** At most 100 ids per enrich request (the published limit). */
+export const LUSHA_ENRICH_MAX_IDS = 100;
+
 export type LushaUsage = z.infer<typeof usageSchema>;
+export type LushaEnrichedContact = z.infer<typeof enrichResultSchema>;
+export type LushaEnrichPage = z.infer<typeof enrichSchema>;
 export type LushaSizes = z.infer<typeof sizesSchema>["values"];
 export type LushaIndustries = z.infer<typeof industriesSchema>["values"];
 export type LushaCountries = z.infer<typeof countriesSchema>["values"];
@@ -189,6 +224,18 @@ export class LushaClient {
   /** Contact prospecting: a spend event, charged by the API and reported in `billing`. */
   searchContacts(search: LushaContactSearch): Promise<LushaSearchPage> {
     return this.request("POST", "/v3/contacts/prospecting", searchSchema, search);
+  }
+
+  /**
+   * Reveal emails for contacts a search returned: a spend event, charged per
+   * revealed email and reported in `billing`. `reveal` is always exactly
+   * `["emails"]`, so no phone number is asked for or paid for. The waterfall
+   * to third-party providers is turned off for the call, so the price is
+   * Lusha's own per-email price and nothing else.
+   */
+  enrichEmails(ids: readonly string[]): Promise<LushaEnrichPage> {
+    if (ids.length < 1 || ids.length > LUSHA_ENRICH_MAX_IDS) throw new Error(`lusha: enrich takes 1 to ${LUSHA_ENRICH_MAX_IDS} ids`);
+    return this.request("POST", "/v3/contacts/enrich", enrichSchema, { ids: [...ids], reveal: ["emails"], waterfallEnabled: false });
   }
 
   private async request<T extends z.ZodTypeAny>(method: "GET" | "POST", path: string, schema: T, body?: unknown): Promise<z.infer<T>> {

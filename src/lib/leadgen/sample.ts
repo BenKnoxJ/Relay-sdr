@@ -1,7 +1,7 @@
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 
 import { FakeLeadGenProvider, type FakeStep } from "./fakeProvider";
-import type { ProviderCandidate, ProviderVocabulary } from "./provider";
+import type { ProviderCandidate, ProviderVocabulary, RevealAnswer, RevealProvider, RevealRequest, RevealedContact } from "./provider";
 
 /**
  * The sample lead gen environment: development and test only
@@ -49,6 +49,34 @@ export function sampleCandidates(handoff: LeadGenHandoff): ProviderCandidate[] {
       emailRevealCredits: 1,
     };
   });
+}
+
+/**
+ * Sample reveals: a made-up work email on the sample firm's `.example` domain
+ * for every sample person asked about, at 1 sample credit each.
+ */
+export class SampleRevealProvider implements RevealProvider {
+  readonly provider = "lusha" as const;
+  readonly maxIds = 100;
+
+  async revealEmails(request: RevealRequest): Promise<RevealAnswer> {
+    const contacts = new Map<string, RevealedContact>();
+    for (const id of request.providerIds) {
+      const n = Number(/^sample-(\d+)$/.exec(id)?.[1]);
+      if (!Number.isInteger(n) || n < 1) {
+        contacts.set(id, { status: "not_found" });
+        continue;
+      }
+      const firm = Math.ceil(n / 2);
+      contacts.set(id, {
+        status: "found",
+        name: `Sample Person ${n}`,
+        domain: `sample-firm-${firm}.example`,
+        emails: [{ address: `sample.person.${n}@sample-firm-${firm}.example`, type: "work", grade: "A" }],
+      });
+    }
+    return { contacts, charged: [...contacts.values()].filter((contact) => contact.status === "found").length };
+  }
 }
 
 export function sampleProvider(handoff: LeadGenHandoff): FakeLeadGenProvider {

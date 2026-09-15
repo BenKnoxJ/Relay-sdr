@@ -28,6 +28,26 @@ export function locationFixtureName(query: string): string {
   return `${query.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.json`;
 }
 
+/**
+ * An enrich answer from the recorded contacts: each requested id's recorded
+ * result, or the published per-item NOT_FOUND. Billing is 1 credit per email
+ * revealed, and nothing for a contact the recording marks as already
+ * revealed for the account (published: re-enriching those is free). A request
+ * for anything but emails is refused, as a phone must never be asked for.
+ */
+function enrichAnswer(path: string, body: string): Response {
+  const request = JSON.parse(body) as { ids?: unknown; reveal?: unknown };
+  const ids = Array.isArray(request.ids) ? request.ids.map(String) : [];
+  if (JSON.stringify(request.reveal) !== JSON.stringify(["emails"])) return json({ statusCode: 400, message: "the recording answers email reveals only" }, 400);
+  if (ids.length < 1 || ids.length > 100) return json({ statusCode: 400, message: "ids must hold 1 to 100 ids" }, 400);
+  const file = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as { alreadyRevealed?: string[]; body: { results: { id: string; emails?: unknown[] }[] } }) : { body: { results: [] } };
+  const byId = new Map(file.body.results.map((result) => [result.id, result]));
+  const free = new Set(file.alreadyRevealed ?? []);
+  const results = ids.map((id) => byId.get(id) ?? { id, error: { code: "NOT_FOUND", message: "Contact not found" } });
+  const charged = results.filter((result) => "emails" in result && Array.isArray(result.emails) && result.emails.length > 0 && !free.has(result.id)).length;
+  return json({ requestId: "recorded", results, billing: { creditsCharged: charged, resultsReturned: results.filter((result) => !("error" in result)).length } });
+}
+
 export function recordedLushaFetch(dir: string = LUSHA_FIXTURES): typeof globalThis.fetch {
   const recorded = (name: string) => join(dir, name);
   return async (input, init) => {
@@ -58,6 +78,7 @@ export function recordedLushaFetch(dir: string = LUSHA_FIXTURES): typeof globalT
       if (existsSync(recorded(name))) return json(fileBody(recorded(name)));
       return json({ results: [], billing: { creditsCharged: 0, resultsReturned: 0 }, pagination: { page, size: request.pagination?.size ?? 0, total: 0 } });
     }
+    if (method === "POST" && url.pathname === "/v3/contacts/enrich") return enrichAnswer(recorded("enrich/contacts.json"), String(init?.body ?? "{}"));
     return json({ message: "not recorded" }, 404);
   };
 }

@@ -5,15 +5,16 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 import { prisma } from "@/lib/db";
 import { resetEnv } from "@/lib/env";
 import { NO_CRM } from "@/lib/leadgen/crm";
-import { sampleProvider, sampleVocabulary } from "@/lib/leadgen/sample";
+import { SampleRevealProvider, sampleProvider, sampleVocabulary } from "@/lib/leadgen/sample";
 import { DOCUMENTED_UNVERIFIED_PRICING } from "@/lib/leadgen/spend";
-import { LEAD_GEN_JOB } from "@/lib/repo/leadgen";
+import { LEAD_GEN_JOB, REVEAL_JOB } from "@/lib/repo/leadgen";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import { appRouter } from "@/server/api/root";
 import { type TRPCContext } from "@/server/api/trpc";
 import { type Session } from "@/server/auth/session";
 import { ensureUser, type Actor } from "@/server/auth/upsertUser";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
+import { revealHandler } from "@/worker/handlers/reveal";
 
 import { emptyAll, resetDatabase } from "../db/harness";
 import { completePack, startInput } from "../lib/campaignPacks";
@@ -169,6 +170,39 @@ describe("campaigns.reviewPeople", () => {
       expect(await failureOf(caller(session).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: person.id, scope: "account", decision: "dropped" }))).toBe("NOT_FOUND");
     }
     expect(await prisma.campaignPerson.count({ where: { campaignId: id, review: { not: "pending" } } })).toBe(0);
+  });
+
+  it("@proof reveals the kept people's emails through the router, once, and answers nobody else", async () => {
+    const { id } = await found();
+    const kept = await prisma.campaignPerson.findMany({ where: { campaignId: id, status: "chosen" }, orderBy: { rank: "asc" }, take: 2 });
+    for (const person of kept) await caller(rep()).campaigns.reviewPeople({ campaignId: id, briefVersion: 1, personId: person.id, scope: "person", decision: "kept" });
+    const before = await caller(rep()).campaigns.get({ id });
+    expect(before.can.reveal).toBe(true);
+    const plan = before.peopleFound!.revealPlan!;
+    expect(plan).toMatchObject({ kept: 2, toReveal: 2, maxCredits: 2 });
+    const expected = { toReveal: plan.toReveal, known: plan.known, maxCredits: plan.maxCredits };
+
+    for (const session of [colleague(), stranger()]) {
+      expect(await failureOf(caller(session).campaigns.revealEmails({ campaignId: id, briefVersion: 1, requestId: crypto.randomUUID(), expected }))).toBe("NOT_FOUND");
+    }
+    expect(await failureOf(caller(rep()).campaigns.revealEmails({ campaignId: id, briefVersion: 1, requestId: crypto.randomUUID(), expected: { ...expected, maxCredits: 1 } }))).toBe(
+      `CONFLICT: ${campaignsCopy.revealChanged}`,
+    );
+    const extra = { campaignId: id, briefVersion: 1, requestId: crypto.randomUUID(), expected, orgId: "someone-else" } as unknown as Parameters<ReturnType<typeof caller>["campaigns"]["revealEmails"]>[0];
+    expect(await failureOf(caller(rep()).campaigns.revealEmails(extra))).toMatch(/^BAD_REQUEST/);
+    expect(await prisma.job.count({ where: { kind: REVEAL_JOB } })).toBe(0);
+
+    const requestId = crypto.randomUUID();
+    expect(await caller(rep()).campaigns.revealEmails({ campaignId: id, briefVersion: 1, requestId, expected })).toEqual({ id });
+    expect(await caller(rep()).campaigns.revealEmails({ campaignId: id, briefVersion: 1, requestId, expected })).toEqual({ id });
+    expect(await prisma.job.count({ where: { kind: REVEAL_JOB } })).toBe(1);
+    expect((await caller(rep()).campaigns.get({ id })).state).toBe("revealing");
+
+    const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id, kind: REVEAL_JOB } });
+    await revealHandler({ revealer: () => new SampleRevealProvider(), crm: NO_CRM, pricing: DOCUMENTED_UNVERIFIED_PRICING, retry: { attempts: 1, wait: async () => {} } })({ db: prisma, job, signal: new AbortController().signal });
+    const after = await caller(rep()).campaigns.get({ id });
+    expect(after.state).toBe("peopleReady");
+    expect(after.peopleFound!.accounts.flatMap((account) => account.people).map((person) => person.email)).toEqual(kept.map((person) => `sample.person.${Number(person.providerId.slice(7))}@sample-firm-${Math.ceil(Number(person.providerId.slice(7)) / 2)}.example`));
   });
 
   it("refuses a stale page and input it does not take", async () => {

@@ -9,6 +9,7 @@ import { leadGenSetup } from "@/lib/leadgen/setup";
 import {
   CampaignChangeRefused,
   confirmCampaign,
+  confirmReveal,
   createCampaign,
   editCampaignBrief,
   getCampaignForOwner,
@@ -70,6 +71,12 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmOverCap });
     case "balance_unavailable":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmBalanceUnavailable });
+    case "nothing_to_reveal":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.revealNothing });
+    case "estimate_changed":
+      throw new TRPCError({ code: "CONFLICT", message: campaignsCopy.revealChanged });
+    case "reveal_over_balance":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.revealOverBalance });
   }
 }
 
@@ -206,6 +213,24 @@ export const campaignsRouter = createTRPCRouter({
         asRefusal(error);
       }
     }),
+
+  /**
+   * Reveal emails (lead gen v2.1 §6; v2.2 §9a): the second spend approval, for
+   * the kept people only, with the figures the page showed. Different figures
+   * are refused, never quietly bought; a repeated request id is the same press.
+   */
+  revealEmails: repProcedure
+    .input(
+      z
+        .object({
+          campaignId,
+          briefVersion,
+          requestId,
+          expected: z.object({ toReveal: z.number().int().min(0).max(50), known: z.number().int().min(0).max(50), maxCredits: z.number().int().min(0).max(10_000) }).strict(),
+        })
+        .strict(),
+    )
+    .mutation(({ ctx, input }) => refusing(confirmReveal(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() }))),
 
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();

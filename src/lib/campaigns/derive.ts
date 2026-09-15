@@ -131,6 +131,24 @@ export type LeadGenState =
       choosable: boolean;
     };
 
+/**
+ * Where Reveal emails is, once pressed (lead gen v2.1 §11): read off the
+ * reveal job and its `leadgen.revealed` Event, never stored.
+ *
+ * | job                         | Event             | state                   |
+ * |-----------------------------|-------------------|-------------------------|
+ * | any                         | leadgen.revealed  | peopleReady             |
+ * | queued or running           | none              | revealing               |
+ * | failed, cancelled, done, or none | none         | revealing, stopped      |
+ */
+export type RevealView = { state: "revealing"; stopped: boolean } | { state: "peopleReady" };
+
+export function deriveReveal(job: ResearchJobSnapshot | null, result: { kind: string } | null): RevealView {
+  if (result?.kind === "leadgen.revealed") return { state: "peopleReady" };
+  if (job !== null && (job.status === "queued" || job.status === "running")) return { state: "revealing", stopped: false };
+  return { state: "revealing", stopped: true };
+}
+
 export function deriveLeadGen(job: ResearchJobSnapshot | null, result: { kind: string; after: unknown } | null): LeadGenState {
   const output = result !== null && result.after !== null && typeof result.after === "object" ? (result.after as { output?: unknown }).output : undefined;
   const failed = (retryable: boolean): LeadGenState => ({ state: "peopleNeedsYou", reason: "failed", choices: [], retryable, choosable: false });

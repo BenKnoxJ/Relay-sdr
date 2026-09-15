@@ -5,7 +5,7 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 import { isSeedFirm } from "@/lib/leadgen/rank";
 
 import { readable } from "./readable";
-import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, ReviewView, RolePartView } from "./types";
+import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, RevealStateView, ReviewView, RolePartView } from "./types";
 
 /**
  * Reviewing people, accounts first (lead gen v2.2 §9a), from the stored
@@ -20,7 +20,8 @@ import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, Revi
  * Nothing is said about a firm that the provider did not return.
  */
 
-export type StoredPerson = Pick<CampaignPerson, "id" | "rank" | "status" | "source" | "whyPicked" | "companyKey" | "preview" | "rolePart" | "roleTitle" | "review">;
+export type StoredPerson = Pick<CampaignPerson, "id" | "rank" | "status" | "source" | "whyPicked" | "companyKey" | "preview" | "rolePart" | "roleTitle" | "review"> &
+  Partial<Pick<CampaignPerson, "reveal" | "revealHold">> & { person?: { email: string } | null };
 
 /** What the search actually used, from the result Event: labels and ranges, never provider ids. */
 export type Effective = { industries: string[]; sizeBand: { min: number; max: number } | null } | null;
@@ -88,11 +89,28 @@ function whyOf(row: StoredPerson, roles: boolean): string {
   return row.rolePart === null ? campaignsCopy.whyRelated : campaignsCopy.whyRole[row.rolePart];
 }
 
-export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff): AccountView[] {
+/** A kept person's reveal, as the rep reads it: the email only when it is usable, else why not. */
+function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" | "revealWhy"> {
+  const reveal = row.reveal ?? null;
+  if (reveal === null) return { reveal: null, email: null, revealWhy: null };
+  const usable = reveal === "revealed" || reveal === "known";
+  const why = campaignsCopy.revealWhy as Record<string, string>;
+  return {
+    reveal,
+    email: usable ? (row.person?.email ?? null) : null,
+    revealWhy: usable ? null : reveal === "failed" ? campaignsCopy.revealFailedWhy : (why[row.revealHold ?? ""] ?? why[reveal] ?? null),
+  };
+}
+
+/**
+ * The accounts, accounts first. Once Reveal emails is pressed (`keptOnly`),
+ * only the kept people are listed: nobody else was, or will be, revealed.
+ */
+export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false): AccountView[] {
   const roles = handoff.version === 2;
 
   const byKey = new Map<string, StoredPerson[]>();
-  for (const row of [...rows].filter((row) => row.status === "chosen").sort((a, b) => a.rank - b.rank)) {
+  for (const row of [...rows].filter((row) => row.status === "chosen" && (!keptOnly || row.review === "kept")).sort((a, b) => a.rank - b.rank)) {
     byKey.set(row.companyKey, [...(byKey.get(row.companyKey) ?? []), row]);
   }
   return [...byKey.values()].map((members) => {
@@ -110,6 +128,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         role: row.rolePart,
         why: whyOf(row, roles),
         review: reviewOf(row.review),
+        ...revealOf(row),
       };
     });
     const seed = isSeedFirm(
@@ -133,22 +152,9 @@ export function reviewCounts(rows: readonly StoredPerson[]): PeopleFoundView["re
   return { kept: chosen.filter((review) => review === "kept").length, dropped: chosen.filter((review) => review === "dropped").length, pending: chosen.filter((review) => review === "pending").length };
 }
 
-/**
- * What revealing emails would use, for the KEPT people only (v2.2 §9a):
- * pending and dropped people are never revealed. Reused people cost nothing;
- * an email the preview says is free costs nothing; one it gives no price for
- * is counted at the documented per-email price.
- */
-export function revealFromKept(rows: readonly StoredPerson[], revealPerEmail = 1): PeopleFoundView["revealEstimate"] {
-  const kept = rows.filter((row) => row.status === "chosen" && row.review === "kept");
-  const toBuy = kept.filter((row) => {
-    const preview = previewOf(row.preview);
-    return row.source === "bought" && preview.hasEmail && (preview.emailRevealCredits ?? revealPerEmail) > 0;
-  });
-  return {
-    kept: kept.length,
-    toBuy: toBuy.length,
-    reused: kept.filter((row) => row.source === "reused").length,
-    credits: toBuy.reduce((total, row) => total + (previewOf(row.preview).emailRevealCredits ?? revealPerEmail), 0),
-  };
+/** Kept people by what their reveal came to, from the rows themselves. */
+export function revealTallyOf(rows: readonly StoredPerson[]): Record<RevealStateView, number> {
+  const tally: Record<RevealStateView, number> = { revealed: 0, known: 0, no_email: 0, suppressed: 0, held: 0, failed: 0 };
+  for (const row of rows) if (row.status === "chosen" && row.reveal !== undefined && row.reveal !== null) tally[row.reveal] += 1;
+  return tally;
 }

@@ -1,0 +1,454 @@
+{
+  "endpoint": "POST /v3/contacts/enrich",
+  "fetchedAt": "2026-09-15T09:00:00.000Z",
+  "source": "Synthetic, in the shape of Lusha V3 enrichContacts (published OpenAPI, read 2026-09-15): fictional people at fictional firms on .example domains, the same ones the recorded account-led searches return. Not a Lusha answer. v22-a04 has no email, v22-a06 only a private one, v22-a07 a low-confidence one, v22-a08 is not found, and v22-a05 was already revealed for the account (free).",
+  "sanitised": false,
+  "alreadyRevealed": [
+    "v22-a05"
+  ],
+  "body": {
+    "requestId": "recorded",
+    "results": [
+      {
+        "id": "v22-a01",
+        "firstName": "Avery",
+        "lastName": "Dunmore",
+        "fullName": "Avery Dunmore",
+        "company": {
+          "id": "v22-co-01",
+          "name": "Ardent Motor Insurance",
+          "domain": "www.ardent-motor.example"
+        },
+        "emails": [
+          {
+            "email": "avery.dunmore@ardent-motor.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a02",
+        "firstName": "Blair",
+        "lastName": "Kendrick",
+        "fullName": "Blair Kendrick",
+        "company": {
+          "id": "v22-co-02",
+          "name": "Bramble Claims Mutual",
+          "domain": "www.bramble-mutual.example"
+        },
+        "emails": [
+          {
+            "email": "blair.kendrick@bramble-mutual.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a03",
+        "firstName": "Carys",
+        "lastName": "Rendell",
+        "fullName": "Carys Rendell",
+        "company": {
+          "id": "v22-co-03",
+          "name": "Cobalt Vehicle Cover",
+          "domain": "www.cobalt-vehicle.example"
+        },
+        "emails": [
+          {
+            "email": "carys.rendell@cobalt-vehicle.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a04",
+        "firstName": "Dara",
+        "lastName": "Ellery",
+        "fullName": "Dara Ellery",
+        "company": {
+          "id": "v22-co-04",
+          "name": "Dovecote Insurance",
+          "domain": "www.dovecote-insurance.example"
+        },
+        "emails": [],
+        "phones": []
+      },
+      {
+        "id": "v22-a05",
+        "firstName": "Emlyn",
+        "lastName": "Lomax",
+        "fullName": "Emlyn Lomax",
+        "company": {
+          "id": "v22-co-05",
+          "name": "Elmstead Underwriting",
+          "domain": "www.elmstead-uw.example"
+        },
+        "emails": [
+          {
+            "email": "emlyn.lomax@elmstead-uw.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a06",
+        "firstName": "Fenn",
+        "lastName": "Stirling",
+        "fullName": "Fenn Stirling",
+        "company": {
+          "id": "v22-co-06",
+          "name": "Fairway Motor Group",
+          "domain": "www.fairway-motor.example"
+        },
+        "emails": [
+          {
+            "email": "fennstirling@mail.example",
+            "type": "private",
+            "confidence": "A",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a07",
+        "firstName": "Gale",
+        "lastName": "Fairlie",
+        "fullName": "Gale Fairlie",
+        "company": {
+          "id": "v22-co-07",
+          "name": "Galloway Specialist Insurance",
+          "domain": "www.galloway-specialist.example"
+        },
+        "emails": [
+          {
+            "email": "gale.fairlie@galloway-specialist.example",
+            "type": "work",
+            "confidence": "C",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a08",
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "Contact not found"
+        }
+      },
+      {
+        "id": "v22-a09",
+        "firstName": "Isla",
+        "lastName": "Thackeray",
+        "fullName": "Isla Thackeray",
+        "company": {
+          "id": "v22-co-09",
+          "name": "Inglewood Insurance Holdings",
+          "domain": "www.inglewood.example"
+        },
+        "emails": [
+          {
+            "email": "isla.thackeray@inglewood.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a10",
+        "firstName": "Jude",
+        "lastName": "Garside",
+        "fullName": "Jude Garside",
+        "company": {
+          "id": "v22-co-10",
+          "name": "Juniper Road Insurance",
+          "domain": "www.juniper-road.example"
+        },
+        "emails": [
+          {
+            "email": "jude.garside@juniper-road.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a11",
+        "firstName": "Kit",
+        "lastName": "Nightingale",
+        "fullName": "Kit Nightingale",
+        "company": {
+          "id": "v22-co-11",
+          "name": "Kingsmere Motor",
+          "domain": "www.kingsmere-motor.example"
+        },
+        "emails": [
+          {
+            "email": "kit.nightingale@kingsmere-motor.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a12",
+        "firstName": "Lowri",
+        "lastName": "Ashdown",
+        "fullName": "Lowri Ashdown",
+        "company": {
+          "id": "v22-co-12",
+          "name": "Larkfield Insurance",
+          "domain": "www.larkfield.example"
+        },
+        "emails": [
+          {
+            "email": "lowri.ashdown@larkfield.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a13",
+        "firstName": "Marlo",
+        "lastName": "Holloway",
+        "fullName": "Marlo Holloway",
+        "company": {
+          "id": "v22-co-13",
+          "name": "Meridian Cover",
+          "domain": "www.meridian-cover.example"
+        },
+        "emails": [
+          {
+            "email": "marlo.holloway@meridian-cover.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a14",
+        "firstName": "Nell",
+        "lastName": "Oakley",
+        "fullName": "Nell Oakley",
+        "company": {
+          "id": "v22-co-14",
+          "name": "Northdale Underwriting",
+          "domain": "www.northdale-uw.example"
+        },
+        "emails": [
+          {
+            "email": "nell.oakley@northdale-uw.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a15",
+        "firstName": "Orla",
+        "lastName": "Bellamy",
+        "fullName": "Orla Bellamy",
+        "company": {
+          "id": "v22-co-15",
+          "name": "Oakridge Protection",
+          "domain": "www.oakridge-protection.example"
+        },
+        "emails": [
+          {
+            "email": "orla.bellamy@oakridge-protection.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a16",
+        "firstName": "Perrin",
+        "lastName": "Ingram",
+        "fullName": "Perrin Ingram",
+        "company": {
+          "id": "v22-co-16",
+          "name": "Pembroke Motor Insurance",
+          "domain": "www.pembroke-motor.example"
+        },
+        "emails": [
+          {
+            "email": "perrin.ingram@pembroke-motor.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a17",
+        "firstName": "Quill",
+        "lastName": "Penrose",
+        "fullName": "Quill Penrose",
+        "company": {
+          "id": "v22-co-17",
+          "name": "Quayside Insurance",
+          "domain": "www.quayside.example"
+        },
+        "emails": [
+          {
+            "email": "quill.penrose@quayside.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a18",
+        "firstName": "Rhian",
+        "lastName": "Carver",
+        "fullName": "Rhian Carver",
+        "company": {
+          "id": "v22-co-18",
+          "name": "Redcliffe Claims",
+          "domain": "www.redcliffe-claims.example"
+        },
+        "emails": [
+          {
+            "email": "rhian.carver@redcliffe-claims.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a19",
+        "firstName": "Sol",
+        "lastName": "Jessop",
+        "fullName": "Sol Jessop",
+        "company": {
+          "id": "v22-co-19",
+          "name": "Saltmarsh Insurance",
+          "domain": "www.saltmarsh.example"
+        },
+        "emails": [
+          {
+            "email": "sol.jessop@saltmarsh.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-a20",
+        "firstName": "Tamsin",
+        "lastName": "Quarrie",
+        "fullName": "Tamsin Quarrie",
+        "company": {
+          "id": "v22-co-20",
+          "name": "Thornbury Partners Insurance",
+          "domain": "www.thornbury-partners.example"
+        },
+        "emails": [
+          {
+            "email": "tamsin.quarrie@thornbury-partners.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-b01",
+        "firstName": "Marlo",
+        "lastName": "Holloway",
+        "fullName": "Marlo Holloway",
+        "company": {
+          "id": "v22-co-01",
+          "name": "Ardent Motor Insurance",
+          "domain": "www.ardent-motor.example"
+        },
+        "emails": [
+          {
+            "email": "marlo.holloway@ardent-motor.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-b02",
+        "firstName": "Nell",
+        "lastName": "Oakley",
+        "fullName": "Nell Oakley",
+        "company": {
+          "id": "v22-co-02",
+          "name": "Bramble Claims Mutual",
+          "domain": "www.bramble-mutual.example"
+        },
+        "emails": [
+          {
+            "email": "nell.oakley@bramble-mutual.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      },
+      {
+        "id": "v22-b03",
+        "firstName": "Orla",
+        "lastName": "Bellamy",
+        "fullName": "Orla Bellamy",
+        "company": {
+          "id": "v22-co-03",
+          "name": "Cobalt Vehicle Cover",
+          "domain": "www.cobalt-vehicle.example"
+        },
+        "emails": [
+          {
+            "email": "orla.bellamy@cobalt-vehicle.example",
+            "type": "work",
+            "confidence": "A+",
+            "updateDate": "2026-08-01"
+          }
+        ],
+        "phones": []
+      }
+    ]
+  }
+}

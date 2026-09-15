@@ -81,6 +81,9 @@ export type ChooseIndustrySubmission = ChangeTarget & { requestId: string; term:
 /** Keep or drop before Reveal (lead gen v2.2 §9a): one person, or everyone chosen at that person's account. */
 export type ReviewSubmission = ChangeTarget & { personId: string; scope: "person" | "account"; decision: "kept" | "dropped" };
 
+/** Reveal emails: the figures the rep approved, and the id that makes a second press the same approval. */
+export type RevealSubmission = ChangeTarget & { requestId: string; expected: { toReveal: number; known: number; maxCredits: number } };
+
 /**
  * Start's pre-fill, as a keyword mapping.
  *

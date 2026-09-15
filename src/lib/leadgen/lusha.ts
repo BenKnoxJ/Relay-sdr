@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import {
+  LUSHA_ENRICH_MAX_IDS,
   LushaHttpError,
   LushaNoAnswerError,
   LushaNotSentError,
   type LushaClient,
   type LushaContact,
+  type LushaEnrichedContact,
   type LushaContactSearch,
   type LushaCountries,
   type LushaIndustries,
@@ -24,6 +26,10 @@ import {
   type ProviderSearchPage,
   type ProviderSearchRequest,
   type ProviderVocabulary,
+  type RevealAnswer,
+  type RevealProvider,
+  type RevealRequest,
+  type RevealedContact,
 } from "./provider";
 
 /**
@@ -246,6 +252,51 @@ export class LushaProvider implements LeadGenProvider {
     const hasMore =
       page.results.length === 0 ? false : total === null || total === undefined ? page.billing.resultsReturned >= request.pageSize : (request.page + 1) * request.pageSize < total;
     return { candidates: page.results.map((contact) => lushaCandidate(contact, this.countries)), charged: page.billing.creditsCharged, hasMore };
+  }
+}
+
+const optionalText = (value: string | null | undefined) => (value === null || value === undefined || value.trim() === "" ? undefined : value.trim());
+
+/**
+ * One enriched contact in Relay's terms. Lusha's `private` email type is
+ * Relay's `personal`; its confidence letter is kept as the grade, unread.
+ * A per-item error is a reason, never an email; an unknown code is a failure.
+ */
+export function lushaRevealed(result: LushaEnrichedContact): RevealedContact {
+  const code = result.error?.code;
+  if (code === "NOT_FOUND") return { status: "not_found" };
+  if (code === "COMPLIANCE_RESTRICTED") return { status: "restricted" };
+  if (code !== null && code !== undefined) return { status: "failed" };
+  // First and last name, as the preview built them, so the two compare like for like.
+  const name = [result.firstName, result.lastName].map((part) => part?.trim() ?? "").filter((part) => part !== "").join(" ") || (optionalText(result.fullName) ?? "");
+  const domain = optionalText(result.company?.domain);
+  const emails = (result.emails ?? []).flatMap((entry) => {
+    const address = optionalText(entry.email)?.toLowerCase();
+    if (address === undefined || !/^[^\s@]+@[^\s@]+$/.test(address)) return [];
+    const type = entry.type === "work" ? ("work" as const) : entry.type === "private" ? ("personal" as const) : ("unknown" as const);
+    return [{ address, type, grade: optionalText(entry.confidence) ?? null }];
+  });
+  return { status: "found", name, ...(domain === undefined ? {} : { domain }), emails };
+}
+
+/** Reveal emails over Lusha V3 enrich: emails only, at most 100 ids a request. */
+export class LushaRevealer implements RevealProvider {
+  readonly provider = "lusha" as const;
+  readonly maxIds = LUSHA_ENRICH_MAX_IDS;
+
+  constructor(private readonly client: LushaClient) {}
+
+  async revealEmails(request: RevealRequest): Promise<RevealAnswer> {
+    let page;
+    try {
+      page = await this.client.enrichEmails(request.providerIds);
+    } catch (error) {
+      throw asProviderError(error);
+    }
+    const asked = new Set(request.providerIds);
+    // Only the ids asked about: anything else in an answer was not bought on purpose.
+    const contacts = new Map(page.results.filter((result) => asked.has(result.id)).map((result) => [result.id, lushaRevealed(result)] as const));
+    return { contacts, charged: page.billing.creditsCharged };
   }
 }
 

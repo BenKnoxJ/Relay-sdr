@@ -5,9 +5,9 @@ import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
-import { accountsOf, buyerRolesOf, effectiveOf, reviewCounts, revealFromKept, searchLine } from "./accounts";
+import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, searchLine } from "./accounts";
 import { becomesLine, widenHeadings } from "./briefLines";
-import { deriveLeadGen, deriveResearch, storedPack, type LeadGenState } from "./derive";
+import { deriveLeadGen, deriveResearch, deriveReveal, storedPack, type LeadGenState } from "./derive";
 import { researchSections } from "./research";
 import { answersFor, chipFor, nextFor, type CampaignCounts, type CampaignState } from "./state";
 import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, ResearchActions, WidenChoice } from "./types";
@@ -92,13 +92,21 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           leadGen.job === null ? null : { status: leadGen.job.status, error: leadGen.job.error },
           leadGen.result === null ? null : { kind: leadGen.result.kind, after: leadGen.result.after },
         );
-  const state: CampaignState = people?.state ?? research.state;
+  // Once Reveal emails is pressed for this People found, the reveal is where the campaign is (v2.1 §11).
+  const revealRecord = people?.state === "peopleFound" ? (leadGen?.reveal ?? null) : null;
+  const revealed =
+    revealRecord === null
+      ? null
+      : deriveReveal(revealRecord.job === null ? null : { status: revealRecord.job.status, error: revealRecord.job.error }, revealRecord.result === null ? null : { kind: revealRecord.result.kind });
+  const state: CampaignState = revealed?.state ?? people?.state ?? research.state;
   const frozen = confirm === null ? null : leadGenHandoffSchema.safeParse((confirm.after as { handoff?: unknown } | null)?.handoff);
   const handoff = frozen?.success === true ? frozen.data : null;
   const sampleRun = confirm !== null && (confirm.after as { balanceSource?: unknown } | null)?.balanceSource === "sample";
   const spend = leadGen?.spend ?? null;
   const cap = handoff?.spend.searchCreditCap ?? 0;
   const found = people?.state === "peopleFound" ? people.pick : null;
+  const plan = found !== null && revealRecord === null ? (leadGen?.revealPlan ?? null) : null;
+  const canReveal = state === "peopleFound" && options.available && plan !== null && plan.kept > 0 && plan.toReveal + plan.known > 0;
   const failure = research.state === "failed" ? research.failure : null;
   // Try again puts the failed job back on the queue, so it is offered only
   // when there is a failed job to put back: not for a result Relay could not
@@ -112,7 +120,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     confirm: state === "planReady" && options.available,
     retryPeople: people?.state === "peopleNeedsYou" && people.retryable,
     chooseIndustry: people?.state === "peopleNeedsYou" && people.choosable,
-    review: people?.state === "peopleFound",
+    review: state === "peopleFound",
+    reveal: canReveal,
   };
   const counts: CampaignCounts = {
     progress: found === null ? null : { found: found.found.n, drafted: 0, approved: 0, sent: 0, replied: 0 },
@@ -146,13 +155,27 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           shortfall: found.shortfall ?? null,
           search: searchLine(handoff, effectiveOf(leadGen?.result?.after)),
           buyerRoles: buyerRolesOf(handoff),
-          accounts: accountsOf(leadGen?.people ?? [], handoff),
+          // After Reveal, the kept people only: nobody else was revealed.
+          accounts: accountsOf(leadGen?.people ?? [], handoff, revealRecord !== null),
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
           spend: { charged: spend?.charged ?? 0, reserved: spend?.reserved ?? 0, cap },
+          phase: revealed === null ? "review" : revealed.state === "revealing" ? "revealing" : "ready",
           // Kept people only: pending and dropped are never revealed (v2.2 §9a).
-          revealEstimate: revealFromKept(leadGen?.people ?? []),
+          revealPlan: plan,
+          revealResult:
+            revealRecord === null || revealed === null
+              ? null
+              : {
+                  running: revealed.state === "revealing" && !revealed.stopped,
+                  stopped: revealed.state === "revealing" && revealed.stopped,
+                  tally: revealTallyOf(leadGen?.people ?? []),
+                  charged: revealRecord.spend.charged,
+                  reserved: revealRecord.spend.reserved,
+                  maxCredits: revealRecord.after?.maxCredits ?? 0,
+                  notKept: (leadGen?.people ?? []).filter((row) => row.status === "chosen" && row.review !== "kept").length,
+                },
           sample: sampleRun,
         };
   const peopleNeedsYou: PeopleNeedsYouView | null =

@@ -2,9 +2,9 @@ import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import { env } from "@/lib/env";
 import { createLushaClient } from "@/lib/services/lusha";
 
-import { lushaBalance, lushaEnvironment } from "./lusha";
-import type { LeadGenProvider, ProviderVocabulary } from "./provider";
-import { SAMPLE_BALANCE_REMAINING, SAMPLE_SEARCH_CAP, sampleProvider, sampleVocabulary } from "./sample";
+import { LushaRevealer, lushaBalance, lushaEnvironment } from "./lusha";
+import type { LeadGenProvider, ProviderVocabulary, RevealProvider } from "./provider";
+import { SAMPLE_BALANCE_REMAINING, SAMPLE_SEARCH_CAP, SampleRevealProvider, sampleProvider, sampleVocabulary } from "./sample";
 import { DOCUMENTED_UNVERIFIED_PRICING, LUSHA_V3_PRICING, type SearchPricing } from "./spend";
 
 /**
@@ -37,6 +37,8 @@ export type LeadGenSetup = {
   readBalance(orgId: string): Promise<AccountBalance>;
   /** The provider and vocabulary a run uses. A live provider reads its metadata here. */
   environment(handoff: LeadGenHandoff): Promise<LeadGenEnvironment>;
+  /** The provider Reveal emails uses: emails only. */
+  revealer(): RevealProvider;
 };
 
 export function leadGenSetup(): LeadGenSetup | null {
@@ -52,6 +54,7 @@ export function leadGenSetup(): LeadGenSetup | null {
       pricing: LUSHA_V3_PRICING,
       readBalance: () => lushaBalance(client),
       environment: (handoff) => lushaEnvironment(client, handoff),
+      revealer: () => new LushaRevealer(client),
     };
   }
   if (e.RELAY_LEADGEN_PROVIDER !== "sample") return null;
@@ -62,5 +65,6 @@ export function leadGenSetup(): LeadGenSetup | null {
     pricing: DOCUMENTED_UNVERIFIED_PRICING,
     readBalance: async () => ({ remaining: SAMPLE_BALANCE_REMAINING, readAt: new Date(), source: "sample" }),
     environment: async (handoff) => ({ provider: sampleProvider(handoff), vocabulary: sampleVocabulary(handoff) }),
+    revealer: () => new SampleRevealProvider(),
   };
 }

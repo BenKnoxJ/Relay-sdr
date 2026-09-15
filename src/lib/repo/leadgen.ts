@@ -1,11 +1,12 @@
-import type { CampaignPerson, CreditLedgerEntry, Event, Job, Prisma, PrismaClient } from "@prisma/client";
+import type { CampaignPerson, CreditKind, CreditLedgerEntry, Event, Job, Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
 import { leadGenHandoffSchema, type LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import type { Person as FoundPerson } from "../../../agents/leadgen/output.schema";
 import type { FindPeopleResult } from "@/lib/leadgen/findPeople";
-import type { KnownPerson, OrgKnowledge } from "@/lib/leadgen/holds";
-import { held, type SpendEntry, type SpendPort } from "@/lib/leadgen/spend";
+import { Knowledge, type KnownPerson, type OrgKnowledge } from "@/lib/leadgen/holds";
+import { planReveal, revealTally, type RevealCandidate, type RevealCounts, type RevealOutcome, type RevealPlan } from "@/lib/leadgen/reveal";
+import { held, pricingById, type SearchPricing, type SpendEntry, type SpendPort } from "@/lib/leadgen/spend";
 
 import { mutate } from "./mutate";
 import { isUniqueViolation } from "./sideEffects";
@@ -140,6 +141,7 @@ function committed(entries: readonly Pick<CreditLedgerEntry, "state" | "charged"
 }
 
 export type LedgerScope = Scope & {
+  /** The Event whose cap this spend counts against: the Confirm for search, the reveal confirm for reveal. */
   confirmEventId: string;
   jobId: string;
   /** The job attempt: keys are per attempt, so a retried job reserves afresh. */
@@ -147,11 +149,16 @@ export type LedgerScope = Scope & {
   cap: number;
   balance: { remaining: number; readAt: Date };
   pricingAssumptions: string;
+  /** Search (the default) or reveal. Each cap counts its own kind; the balance counts every kind. */
+  kind?: CreditKind;
 };
 
 async function remainingIn(db: Db, scope: LedgerScope): Promise<number> {
+  const kind = scope.kind ?? "search";
   const [forConfirm, sinceSnapshot] = await Promise.all([
-    db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, confirmEventId: scope.confirmEventId }, select: { state: true, charged: true, worstCase: true } }),
+    // The cap: only this kind's spend under this approval. A reveal never uses up the search limit, nor a search the reveal's.
+    db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, confirmEventId: scope.confirmEventId, kind }, select: { state: true, charged: true, worstCase: true } }),
+    // The balance: everything the org has charged or holds since it was read, whatever the kind.
     db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, createdAt: { gte: scope.balance.readAt } }, select: { state: true, charged: true, worstCase: true } }),
   ]);
   return Math.min(scope.cap - committed(forConfirm), scope.balance.remaining - committed(sinceSnapshot));
@@ -175,7 +182,7 @@ export function persistedSpend(db: PrismaClient, scope: LedgerScope): SpendPort 
             briefVersion: scope.briefVersion,
             confirmEventId: scope.confirmEventId,
             jobId: scope.jobId,
-            kind: "search",
+            kind: scope.kind ?? "search",
             key: keyOf(key),
             worstCase,
             state: "reserved",
@@ -198,7 +205,11 @@ export function persistedSpend(db: PrismaClient, scope: LedgerScope): SpendPort 
       const updated = await db.creditLedgerEntry.updateMany({ where: { orgId: scope.orgId, key: keyOf(key), state: "reserved" }, data: { state: "released" } });
       if (updated.count !== 1) throw new Error(`${key}: no open reservation`);
     },
-    summary: async () => ({ ...(await confirmSpend(db, { orgId: scope.orgId, confirmEventId: scope.confirmEventId })), searchCreditCap: scope.cap, pricingAssumptions: scope.pricingAssumptions }),
+    summary: async () => ({
+      ...(await confirmSpend(db, { orgId: scope.orgId, confirmEventId: scope.confirmEventId, kind: scope.kind ?? "search" })),
+      searchCreditCap: scope.cap,
+      pricingAssumptions: scope.pricingAssumptions,
+    }),
     list: async (): Promise<readonly SpendEntry[]> =>
       (await db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, jobId: scope.jobId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] })).map((entry) => ({
         key: entry.key,
@@ -209,9 +220,12 @@ export function persistedSpend(db: PrismaClient, scope: LedgerScope): SpendPort 
   };
 }
 
-/** A Confirm's spend so far: charged, still reserved, and whether a charge ever passed its worst case. */
-export async function confirmSpend(db: Db, where: { orgId: string; confirmEventId: string }): Promise<{ charged: number; reserved: number; exceededDocumentedWorstCase: boolean }> {
-  const entries = await db.creditLedgerEntry.findMany({ where: { orgId: where.orgId, confirmEventId: where.confirmEventId } });
+/** An approval's spend so far, of one kind (search by default): charged, still reserved, and whether a charge ever passed its worst case. */
+export async function confirmSpend(
+  db: Db,
+  where: { orgId: string; confirmEventId: string; kind?: CreditKind },
+): Promise<{ charged: number; reserved: number; exceededDocumentedWorstCase: boolean }> {
+  const entries = await db.creditLedgerEntry.findMany({ where: { orgId: where.orgId, confirmEventId: where.confirmEventId, kind: where.kind ?? "search" } });
   return {
     charged: entries.reduce((total, entry) => total + (entry.state === "reconciled" ? (entry.charged ?? 0) : 0), 0),
     // Only what may still be charged: a released request never left Relay.
@@ -317,17 +331,226 @@ export async function recordLeadGenResult(db: PrismaClient, input: RecordLeadGen
 }
 
 // ---------------------------------------------------------------------------
+// Reveal emails (v2.1 §6, §9, §11; v2.2 §9a): the second spend gate.
+
+export const CAMPAIGN_REVEAL_CONFIRMED = "campaign.reveal_confirmed" as const;
+export const LEADGEN_REVEALED = "leadgen.revealed" as const;
+
+/** The job kind Reveal emails runs as. */
+export const REVEAL_JOB = "reveal" as const;
+
+/** One version's reveal job: one reveal per People found. */
+export function revealJobKey(campaignId: string, briefVersion: number): string {
+  return `campaign:${campaignId}:reveal:v${briefVersion}`;
+}
+
+/** The guard that makes a reveal's result one Event across retries. */
+export function revealGuardKey(jobId: string): string {
+  return `reveal:${jobId}`;
+}
+
+/** What a reveal job is given: which reveal confirm to read, and which search's people it covers. */
+export const revealJobInputSchema = z.object({ revealRequestId: z.string().min(1).max(200), leadGenJobId: z.string().min(1).max(100) }).strict();
+
+const countSchema = z.number().int().nonnegative();
+
+/** The `campaign.reveal_confirmed` Event's `after`, read defensively. */
+export const revealConfirmedSchema = z.object({
+  requestId: z.string().min(1),
+  briefVersion: z.number().int().positive(),
+  leadGenJobId: z.string().min(1),
+  /** The kept people it covers, by campaign row id. */
+  people: z.array(z.string().min(1)).min(1).max(50),
+  counts: z.object({ kept: countSchema, known: countSchema, toReveal: countSchema, free: countSchema, maxCredits: countSchema, noEmail: countSchema, unavailable: countSchema }),
+  maxCredits: countSchema,
+  pricingAssumptions: z.string().min(1),
+  balanceSnapshot: z.object({ remaining: z.number(), readAt: z.string().min(1) }).passthrough(),
+  balanceSource: z.enum(["sample", "live"]),
+  jobId: z.string().min(1),
+});
+export type RevealConfirmed = z.infer<typeof revealConfirmedSchema>;
+
+/** The reveal confirm for one search's People found, or null. */
+export async function findRevealConfirm(db: Db, where: { orgId: string; campaignId: string; leadGenJobId: string }): Promise<Event | null> {
+  return db.event.findFirst({
+    where: { orgId: where.orgId, campaignId: where.campaignId, kind: CAMPAIGN_REVEAL_CONFIRMED, after: { path: ["leadGenJobId"], equals: where.leadGenJobId } },
+    orderBy: [{ at: "asc" }, { id: "asc" }],
+  });
+}
+
+/** The reveal confirm a job names, by the request id that made it. */
+export async function findRevealConfirmByRequest(db: Db, where: { orgId: string; campaignId: string; requestId: string }): Promise<Event | null> {
+  return db.event.findFirst({
+    where: { orgId: where.orgId, campaignId: where.campaignId, kind: CAMPAIGN_REVEAL_CONFIRMED, after: { path: ["requestId"], equals: where.requestId } },
+  });
+}
+
+/** A reveal job's result Event. */
+export async function findRevealResult(db: Db, where: { orgId: string; jobId: string }): Promise<Event | null> {
+  return db.event.findFirst({ where: { orgId: where.orgId, kind: LEADGEN_REVEALED, after: { path: ["jobId"], equals: where.jobId } }, orderBy: [{ at: "asc" }, { id: "asc" }] });
+}
+
+/** A stored candidate as reveal reads it: its preview and nothing else. */
+export function revealCandidateOf(row: Pick<CampaignPerson, "id" | "providerId" | "personId" | "preview">): RevealCandidate {
+  const preview = row.preview !== null && typeof row.preview === "object" ? (row.preview as Record<string, unknown>) : {};
+  const text = (key: string) => (typeof preview[key] === "string" ? (preview[key] as string) : "");
+  const credits = preview.emailRevealCredits;
+  return {
+    id: row.id,
+    providerId: row.providerId,
+    personId: row.personId,
+    name: text("name"),
+    company: text("company"),
+    ...(text("domain") === "" ? {} : { domain: text("domain") }),
+    hasEmail: preview.hasEmail === true,
+    emailRevealCredits: typeof credits === "number" && Number.isInteger(credits) && credits >= 0 ? credits : null,
+  };
+}
+
+/** The kept people of one search's People found, in rank order: the only people Reveal emails ever takes. */
+export async function keptPeople(db: Db, where: Scope & { jobId: string }): Promise<CampaignPerson[]> {
+  return db.campaignPerson.findMany({ where: { ...where, status: "chosen", review: "kept" }, orderBy: [{ rank: "asc" }, { id: "asc" }] });
+}
+
+/** What Reveal emails would do for the kept people, from what the org already knows. No provider or CRM call. */
+export async function revealPlanFor(db: Db, where: Scope & { jobId: string }, pricing: Pick<SearchPricing, "revealPerEmail">): Promise<{ kept: CampaignPerson[]; plan: RevealPlan }> {
+  const [kept, knowledge] = await Promise.all([keptPeople(db, where), loadOrgKnowledge(db, where)]);
+  return { kept, plan: planReveal(kept.map(revealCandidateOf), new Knowledge(knowledge), pricing) };
+}
+
+export type RecordRevealInput = {
+  orgId: string;
+  job: Pick<Job, "id"> & { campaignId: string; briefVersion: number };
+  revealConfirmEventId: string;
+  leadGenJobId: string;
+  outcomes: readonly RevealOutcome[];
+  spend: { charged: number; reserved: number };
+  at: Date;
+};
+
+/**
+ * A reveal's result, once per job, in one transaction: each kept person's
+ * outcome on their campaign row, the Persons and provider records it
+ * resolved, any opt-out the CRM reported, and the `leadgen.revealed` Event
+ * with the counts. No email is written to the Event. A retried job that
+ * already recorded its result gets that Event back and writes nothing.
+ */
+export async function recordReveal(db: PrismaClient, input: RecordRevealInput): Promise<Event> {
+  const existing = await findRevealResult(db, { orgId: input.orgId, jobId: input.job.id });
+  if (existing !== null) return existing;
+  const tally = revealTally(input.outcomes);
+  try {
+    await mutate(db, {
+      orgId: input.orgId,
+      actor: { kind: "system" },
+      kind: LEADGEN_REVEALED,
+      campaignId: input.job.campaignId,
+      after: {
+        jobId: input.job.id,
+        revealConfirmEventId: input.revealConfirmEventId,
+        leadGenJobId: input.leadGenJobId,
+        briefVersion: input.job.briefVersion,
+        tally,
+        spend: input.spend,
+      },
+      apply: async (tx) => {
+        await tx.sideEffect.create({ data: { orgId: input.orgId, key: revealGuardKey(input.job.id), jobId: input.job.id } });
+        const personByEmail = new Map<string, string>();
+        for (const outcome of input.outcomes) {
+          let personId: string | null = null;
+          if (outcome.person !== null) {
+            if (outcome.person.existing) {
+              personId = outcome.person.personId;
+            } else {
+              const email = outcome.person.email.toLowerCase();
+              personId =
+                personByEmail.get(email) ??
+                (
+                  await tx.person.upsert({
+                    where: { orgId_email: { orgId: input.orgId, email } },
+                    create: { orgId: input.orgId, email, emailType: outcome.person.emailType, grade: outcome.person.grade, name: outcome.name },
+                    update: {},
+                    select: { id: true },
+                  })
+                ).id;
+              personByEmail.set(email, personId);
+            }
+          }
+          if (outcome.identity !== null) {
+            const linked = outcome.identity.toPerson ? personId : null;
+            await tx.providerIdentity.upsert({
+              where: { orgId_provider_providerId: { orgId: input.orgId, provider: "lusha", providerId: outcome.providerId } },
+              create: { orgId: input.orgId, provider: "lusha", providerId: outcome.providerId, status: outcome.identity.status, personId: linked },
+              update: { status: outcome.identity.status, personId: linked },
+            });
+          }
+          if (outcome.suppress !== null) {
+            await tx.contactSuppression.upsert({
+              where: { orgId_kind_value: { orgId: input.orgId, kind: outcome.suppress.kind, value: outcome.suppress.value } },
+              create: { orgId: input.orgId, kind: outcome.suppress.kind, value: outcome.suppress.value, reason: outcome.suppress.reason, source: "zoho" },
+              update: {},
+            });
+          }
+          const updated = await tx.campaignPerson.updateMany({
+            // Only this search's kept people, and only once.
+            where: {
+              id: outcome.id,
+              orgId: input.orgId,
+              campaignId: input.job.campaignId,
+              briefVersion: input.job.briefVersion,
+              jobId: input.leadGenJobId,
+              status: "chosen",
+              review: "kept",
+              reveal: null,
+            },
+            data: {
+              reveal: outcome.reveal,
+              revealHold: outcome.hold,
+              revealedAt: input.at,
+              ...(outcome.enrol && personId !== null ? { personId } : {}),
+              ...(outcome.reveal === "known" ? { source: "reused" as const } : {}),
+            },
+          });
+          if (updated.count !== 1) throw new Error(`reveal: campaign person ${outcome.id} is not a kept person awaiting reveal`);
+        }
+      },
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    // Another attempt recorded it first; its Event is the result.
+  }
+  const written = await findRevealResult(db, { orgId: input.orgId, jobId: input.job.id });
+  if (written === null) throw new Error(`reveal: the result Event for job ${input.job.id} was not found after writing it`);
+  return written;
+}
+
+// ---------------------------------------------------------------------------
 // What the campaign screen reads.
+
+/** A candidate with its Person's email, when it has one: only a revealed or known person's is ever shown. */
+export type StoredCandidate = CampaignPerson & { person?: { email: string } | null };
+
+export type RevealRecord = {
+  confirm: Event;
+  after: RevealConfirmed | null;
+  job: Job | null;
+  result: Event | null;
+  spend: { charged: number; reserved: number; exceededDocumentedWorstCase: boolean };
+};
 
 export type LeadGenRecord = {
   confirm: Event | null;
   job: Job | null;
   result: Event | null;
-  people: CampaignPerson[];
+  people: StoredCandidate[];
   spend: { charged: number; reserved: number; exceededDocumentedWorstCase: boolean } | null;
+  /** Once Reveal emails is pressed for this People found. */
+  reveal?: RevealRecord | null;
+  /** Before it is pressed: what it would do for the kept people. */
+  revealPlan?: RevealCounts | null;
 };
 
-export const NO_LEAD_GEN: LeadGenRecord = { confirm: null, job: null, result: null, people: [], spend: null };
+export const NO_LEAD_GEN: LeadGenRecord = { confirm: null, job: null, result: null, people: [], spend: null, reveal: null, revealPlan: null };
 
 export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: string; briefVersion: number }): Promise<LeadGenRecord> {
   const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
@@ -335,9 +558,40 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
   if (confirm === null) return NO_LEAD_GEN;
   const job = await latestLeadGenJob(db, scope);
   const result = job === null ? null : await findLeadGenResult(db, { orgId: campaign.orgId, jobId: job.id });
-  const people =
-    job !== null && result?.kind === LEADGEN_PICKED
-      ? await db.campaignPerson.findMany({ where: { ...scope, jobId: job.id }, orderBy: [{ status: "asc" }, { rank: "asc" }] })
-      : [];
-  return { confirm, job, result, people, spend: await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: confirm.id }) };
+  const found = job !== null && result?.kind === LEADGEN_PICKED;
+  const people = found
+    ? await db.campaignPerson.findMany({ where: { ...scope, jobId: job.id }, orderBy: [{ status: "asc" }, { rank: "asc" }], include: { person: { select: { email: true } } } })
+    : [];
+  const spend = await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: confirm.id });
+  if (!found) return { confirm, job, result, people, spend, reveal: null, revealPlan: null };
+
+  const revealConfirm = await findRevealConfirm(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
+  if (revealConfirm === null) {
+    let pricing: Pick<SearchPricing, "revealPerEmail"> | null = null;
+    try {
+      pricing = pricingById(handoffOf(confirm).spend.pricingAssumptions);
+    } catch {
+      pricing = null;
+    }
+    const plan = pricing === null ? null : (await revealPlanFor(db, { ...scope, jobId: job.id }, pricing)).plan.counts;
+    return { confirm, job, result, people, spend, reveal: null, revealPlan: plan };
+  }
+  const parsed = revealConfirmedSchema.safeParse(revealConfirm.after);
+  const revealJob = parsed.success ? await db.job.findFirst({ where: { orgId: campaign.orgId, id: parsed.data.jobId, kind: REVEAL_JOB } }) : null;
+  const revealResult = revealJob === null ? null : await findRevealResult(db, { orgId: campaign.orgId, jobId: revealJob.id });
+  return {
+    confirm,
+    job,
+    result,
+    people,
+    spend,
+    reveal: {
+      confirm: revealConfirm,
+      after: parsed.success ? parsed.data : null,
+      job: revealJob,
+      result: revealResult,
+      spend: await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: revealConfirm.id, kind: "reveal" }),
+    },
+    revealPlan: null,
+  };
 }

@@ -47,6 +47,8 @@ export const campaignsCopy = {
   /** A real plan, before Confirm can be pressed. */
   nextPlanReadyLive: "read the plan",
   nextFailed: "research needs you",
+  /** Research finished without ranking a play: nothing can be confirmed until the brief is edited. */
+  nextPlanIncomplete: "research is incomplete",
   nextFindingPeople: "pick your people",
   nextDrafting: "first drafts on the way",
   nextRunningDrafts: "drafts due today",
@@ -71,6 +73,7 @@ export const campaignsCopy = {
   stepResearching: "Researching",
   stepStopped: "Researching · stopped",
   stepNeedsYou: "Researching · needs you",
+  stepIncomplete: "Research incomplete",
   stepPlanReady: "Plan ready",
   stepFindingPeople: "Finding people",
   stepDrafting: "Drafting",
@@ -89,6 +92,21 @@ export const campaignsCopy = {
 
   /** Researching: a line, and no spinner (§23.1c; research v3 runs 20 to 45 minutes). */
   researchingNote: "Reading around the brief now. This usually takes 20 to 45 minutes.",
+  /** The same job, queued and not yet picked up: said as waiting, never as reading. */
+  researchingWaiting: "Waiting to start. Relay hasn't begun reading yet.",
+  researchingRunning: "Reading around the brief now.",
+  researchingUsually: "Usually 20 to 45 minutes.",
+  activitySince: "since",
+  /** What research produces, as a plain list under the waiting or running line. */
+  researchingProducesLabel: "What Relay is producing",
+  researchingProduces: [
+    "The market and why now",
+    "The kinds of buyer, and who runs, champions and signs off",
+    "Their pains, in their own words",
+    "What to say, and what not to claim",
+    "Example firms and how to find more",
+    "Ranked campaign plays to choose from",
+  ],
 
   /**
    * Research that did not finish (orchestrator §7, amended A1). One line of
@@ -134,6 +152,19 @@ export const campaignsCopy = {
   /** Confirm could not read the credit balance, so nothing was started (lead gen v2.1 §6). */
   confirmBalanceUnavailable: "Relay couldn't read the credit balance, so nothing has started. Try again in a minute.",
   findingNote: "Relay is finding people now. Nothing is revealed or sent.",
+  /** Finding accounts and people (lead gen v2.2): what the search does, in order, and that nothing is bought. */
+  findingWaiting: "Waiting to start. The search hasn't begun yet.",
+  findingRunning: "Searching now.",
+  findingLabel: "Finding accounts and people",
+  findingSteps: [
+    "Best-fit accounts first, from the plan's own search.",
+    "At each account, the person who runs the problem.",
+    "Then the people who champion it and sign it off, at the same accounts.",
+  ],
+  findingQuality: "Relay stops at good matches rather than fill every slot.",
+  findingCap: "Search limit",
+  findingNothingBought: "Emails are not bought. Nothing is sent.",
+  chipPlanIncomplete: "Research incomplete",
   chipPeopleFound: "Reviewing people",
   nextFindingPeopleLive: "finding people now",
   nextPeopleFound: "review the accounts found",
@@ -208,6 +239,9 @@ export const campaignsCopy = {
   actionSearchWith: "Search with this",
   actionSearching: "Searching",
   answerWaitingPeopleNeedsYou: "You. The reason is at the top of the page.",
+  answerWaitingIncomplete: "You. Research ran out of time before it ranked a play. Edit the brief and Relay looks again.",
+  answerIncomplete: "Research ran out of time before it ranked a campaign play, so there is nothing to confirm yet.",
+  answerCostResearch: "Research cost",
   answerWaitingPeopleFound: "Nothing yet. Revealing emails comes next.",
   answerWaitingFinding: "Nothing. Relay is finding people.",
   /** Where Confirm plan lands the rep. */
@@ -373,6 +407,105 @@ export const campaignsCopy = {
 
   /** The plan section, which is the research surface (§23.1c). */
   planLabel: "The plan, and the research behind it",
+
+  /**
+   * Plan ready as a decision (product-truth pass): research found N plays,
+   * recommends one, and Confirm starts with it. The others are read as
+   * written, ranked, and can be picked; confirming one of them waits on the
+   * confirm contract that carries a play.
+   */
+  playsFoundOne: "viable campaign play",
+  playsFoundMany: "viable campaign plays",
+  playsFoundLead: "Relay found",
+  playsRecommends: "It recommends starting with one.",
+  playsRecommendedLabel: "Recommended",
+  playsAlternativesLabel: "Other plays, ranked",
+  playsRank: "Play",
+  playsSelected: "Selected",
+  playsSelect: "Start with this instead",
+  playsDetail: "why now, who and the problem",
+  playsSelectRecommended: "Back to the recommended play",
+  playsWhyFirst: "Why this first",
+  playsWho: "Who",
+  playsPain: "The problem",
+  playsFirms: "Example firms",
+  playsChooseLater: "Confirming a play other than the recommended one arrives with the next update. Today Confirm starts with the recommended play.",
+  playsNoPlay: "Research ran out of time before it ranked a campaign play. There is nothing to confirm yet.",
+  playsIncompleteLabel: "Research incomplete",
+  playsIncompleteWritten: "written",
+  playsIncompleteMissing: "missing",
+  playsIncompleteNext: "Edit the brief and Relay looks again. Nothing was bought or sent.",
+  /** What Confirm does, in three plain lines. */
+  confirmDoesLabel: "What Confirm does",
+  confirmDoesFreeze: "Starts with this play and the kind of buyer it aims at.",
+  confirmDoesSearch: "Allows one search for accounts and people, up to",
+  confirmDoesNothing: "Buys no emails and sends nothing. You review everyone first.",
+  confirmStartsWith: "Confirm starts with",
+
+  /** The campaign page's support rail: three quiet tabs, and Ask Relay under them. */
+  railLabel: "Alongside this campaign",
+  railResearch: "Research",
+  railSpend: "Spend",
+  railBrief: "Brief",
+  railAsk: "Ask",
+  railResearchOpen: "Open the full research",
+  spendLabel: "Spend so far",
+  spendResearch: "Research",
+  spendSearch: "Search",
+  spendReveal: "Reveal",
+  spendNothingYet: "Nothing spent yet.",
+  spendCreditsOf: "of",
+  spendCreditsWord: "credits",
+  spendNoRecord: "no cost recorded",
+
+  /** The stage summary line under the title, one per state. */
+  summaryPeople: "people",
+  summaryPerson: "person",
+  summaryAccounts: "accounts",
+  summaryAccount: "account",
+  summaryAt: "at",
+  summaryKept: "kept",
+  summaryToReview: "to review",
+  summaryDropped: "dropped",
+  summaryRevealUpTo: "reveal up to",
+  summaryEmailsReady: "with an email",
+  summaryNoEmail: "without",
+  summaryNotKept: "not kept",
+  summaryPlays: "plays found",
+  summaryPlay: "play found",
+  summaryStartWith: "start with",
+  summaryWaiting: "Waiting to start",
+  summaryRunning: "Running",
+  summaryResearching: "Reading the market",
+  summaryFinding: "Searching for accounts and people",
+  summaryRevealing: "Revealing emails",
+  summaryUsed: "used",
+  summaryNothingYet: "Nothing yet",
+  summaryCredits: "credits",
+  summaryWeakerHeld: "weaker candidates held back",
+  summaryWidenOne: "way to widen",
+  summaryWidenMany: "ways to widen",
+  summaryReviewHint: "Keep the people you want to email. Reveal buys emails only for them.",
+  reviewHideReviewed: "Hide reviewed",
+  reviewShowAll: "Show all",
+  rolesMissingLead: "Nobody found for:",
+  evidenceExactTitle: "exact title",
+  evidenceCloseTitle: "close title",
+  evidenceEmail: "email available",
+  evidenceNoEmail: "no email listed",
+  evidenceSeed: "firm named by research",
+  evidenceReused: "already known to Relay",
+
+  /** The list's header counts, by bucket. */
+  bucketNeedsYou: "needs you",
+  bucketWorking: "working",
+  bucketDecide: "to decide",
+  bucketReady: "ready",
+  bucketDone: "done",
+  groupNeedsYou: "Needs you",
+  groupInProgress: "In progress",
+  groupReady: "Ready",
+  groupDone: "Done",
 
   /**
    * The campaign Overview (task 18): research's findings in six parts, each a
@@ -637,9 +770,19 @@ export const startCopy = {
   factsUpdated: "Facts updated",
   factsVersion: "version",
   factsMore: "More products as the knowledge base grows.",
+  /** When no signed facts file has been activated for the product yet: said plainly, never a made-up date. */
+  factsNone: "Product facts not yet activated for this product.",
   guessedHint: "Not in your sentence, so these are the suggested defaults.",
-  channelsHint:
-    "Email is always on. Calls adds one day 3 call to each sequence; turn it off if you will not phone.",
+  channelsHint: "Email is always on. Tick Calls only if you will phone: Relay adds a call for each person once the emails are written.",
+  /**
+   * Account-first (lead gen v2.2): the number is people, and Relay chooses the
+   * accounts and the mix of roles itself. The rep never configures accounts.
+   */
+  howManyHint:
+    "Relay finds the strongest-fit accounts first, then the people who run, champion and sign off the problem at each. You review them all before any email is bought.",
+  /** Why Start cannot be pressed, said beside it rather than left to be guessed. */
+  startBlockedMailbox: "Start is off until your mailbox is connected.",
+  startBlockedSentence: "Start is off until the sentence is read.",
 
   motionDirect: "Direct",
   motionChannel: "Channel",

@@ -142,15 +142,16 @@ describe("Plan ready: Confirm plan", () => {
     const onConfirm = vi.fn(async () => ({ id: "camp-people" }));
     render(<CampaignPage campaign={campaign(null)} onConfirm={onConfirm} />);
 
-    expect(screen.getByTestId("confirm-group").textContent).toBe(handoff.buyerGroup.name);
-    expect(screen.getByTestId("confirm-cap").textContent).toBe(`40 ${campaignsCopy.confirmCredits}`);
+    expect(screen.getByTestId("confirm-starts-with").textContent).toContain(handoff.buyerGroup.name);
+    expect(screen.getByTestId("confirm-cap").textContent).toBe(`${campaignsCopy.confirmDoesSearch} 40 ${campaignsCopy.confirmCredits}.`);
     expect(screen.getByTestId("confirm-sample").textContent).toBe(campaignsCopy.confirmSample);
     expect(screen.getByTestId("confirm-lawful").textContent).toBe(campaignsCopy.lawfulBasis);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.confirmNote);
 
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionConfirm }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
-    expect(onConfirm).toHaveBeenCalledWith({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String) });
+    // The play sent is the recommended one, named twice so the action can refuse a mismatch.
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String), playId: handoff.play.id, recommendedPlayId: handoff.play.id }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp-people?confirmed=1"));
   });
 
@@ -168,17 +169,26 @@ describe("Plan ready: Confirm plan", () => {
 });
 
 describe("Finding people", () => {
-  it("says Relay is finding people, with nothing to press", () => {
+  it("says the search is running, accounts first, with its limit and nothing to press", () => {
     render(<CampaignPage campaign={campaign({ job: { status: "running" } })} />);
-    expect(screen.getByTestId("finding-note").textContent).toBe(campaignsCopy.findingNote);
+    expect(screen.getByTestId("finding-note").textContent).toContain(campaignsCopy.findingRunning);
+    expect(screen.getByTestId("finding-note").textContent).toContain(handoff.buyerGroup.name);
+    expect(screen.getByTestId("finding-steps").querySelectorAll("li")).toHaveLength(campaignsCopy.findingSteps.length);
+    expect(document.body.textContent).toContain(`${campaignsCopy.findingCap}: 40 ${campaignsCopy.confirmCredits}`);
     expect(currentStep()).toBe(campaignsCopy.stepFindingPeople);
     expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
   });
 
-  it("no longer says people are found after you confirm, once the plan is confirmed", () => {
+  it("says a queued search is waiting, never searching", () => {
+    render(<CampaignPage campaign={campaign({ job: { status: "queued" } })} />);
+    expect(screen.getByTestId("finding-note").textContent).toContain(campaignsCopy.findingWaiting);
+    expect(screen.getByTestId("stage-activity").textContent).toBe(campaignsCopy.summaryWaiting);
+  });
+
+  it("no longer says nobody has been found, once the plan is confirmed", () => {
     render(<CampaignPage campaign={campaign({ job: { status: "running" } })} />);
-    expect(screen.getByText(campaignsCopy.peopleAfterConfirm)).toBeTruthy();
-    expect(screen.queryByText(campaignsCopy.peopleBeforeConfirm)).toBeNull();
+    fireEvent.click(screen.getByTestId("rail-tab-research"));
+    fireEvent.click(screen.getByTestId("overview-show"));
     expect(screen.getByText(campaignsCopy.groupsNoteConfirmed)).toBeTruthy();
     expect(screen.getByText(campaignsCopy.firmsNoteConfirmed)).toBeTruthy();
     expect(screen.queryByText(campaignsCopy.groupsNote)).toBeNull();
@@ -189,7 +199,8 @@ describe("Finding people", () => {
 describe("Plan ready keeps the notes for a plan not yet confirmed", () => {
   it("says nobody has been found yet and people come after Confirm", () => {
     render(<CampaignPage campaign={campaign(null)} />);
-    expect(screen.getByText(campaignsCopy.peopleBeforeConfirm)).toBeTruthy();
+    fireEvent.click(screen.getByTestId("rail-tab-research"));
+    fireEvent.click(screen.getByTestId("overview-show"));
     expect(screen.getByText(campaignsCopy.groupsNote)).toBeTruthy();
     expect(screen.getByText(campaignsCopy.firmsNote)).toBeTruthy();
   });
@@ -201,9 +212,13 @@ describe("People found", () => {
     expect(screen.getByTestId("found-count").textContent).toBe(`10 ${campaignsCopy.peopleFoundOf} 10`);
     expect(screen.getAllByTestId("found-person")).toHaveLength(10);
     expect(screen.queryByTestId("shortfall")).toBeNull();
-    expect(screen.getByTestId("spend-line").textContent).toBe(`${campaignsCopy.spendUsed} 12 ${campaignsCopy.spendOf} 40 ${campaignsCopy.spendCredits}`);
-    expect(screen.getByTestId("spend-sample").textContent).toBe(campaignsCopy.spendSample);
+    expect(screen.getByTestId("spend-line").textContent).toBe(`${campaignsCopy.spendUsed} 12 ${campaignsCopy.spendOf} 40 ${campaignsCopy.spendCredits} ${campaignsCopy.spendSample}`);
     expect(screen.getByTestId("edit-warning").textContent).toBe(campaignsCopy.editWarning);
+    // The rail's Spend tab says the same from the ledger, and marks sample credits.
+    fireEvent.click(screen.getByTestId("rail-tab-spend"));
+    expect(screen.getByTestId("spend-search").textContent).toBe(`12 ${campaignsCopy.spendCreditsOf} 40 ${campaignsCopy.spendCreditsWord}`);
+    expect(screen.getByTestId("spend-sample").textContent).toBe(campaignsCopy.spendSample);
+    fireEvent.click(screen.getByTestId("rail-tab-research"));
     const reveal = screen.getByRole("button", { name: campaignsCopy.actionReveal });
     expect(reveal.hasAttribute("disabled")).toBe(true);
     // Unmistakably not pressable: announced as disabled, and never drawn as the filled primary action.
@@ -292,8 +307,11 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     const chips = screen.getAllByTestId("role-chip").map((chip) => chip.textContent);
     const labels: string[] = [...Object.values(campaignsCopy.roleParts), campaignsCopy.relatedRole];
     expect(chips.every((chip) => labels.includes(chip ?? ""))).toBe(true);
-    const whys: string[] = [...Object.values(campaignsCopy.whyRole), campaignsCopy.whyRelated];
-    expect(screen.getAllByTestId("why-fits").every((line) => whys.includes(line.textContent ?? ""))).toBe(true);
+    // Every person carries what Relay actually has on them, never a line that reads the same for everyone.
+    const evidence: string[] = [campaignsCopy.evidenceExactTitle, campaignsCopy.evidenceCloseTitle, campaignsCopy.evidenceEmail, campaignsCopy.evidenceNoEmail, campaignsCopy.evidenceSeed, campaignsCopy.evidenceReused];
+    const lines = screen.getAllByTestId("why-fits").map((line) => line.textContent ?? "");
+    expect(lines.every((line) => line.split(campaignsCopy.noteJoin).every((part) => evidence.includes(part)))).toBe(true);
+    expect(lines.some((line) => line.includes(campaignsCopy.evidenceExactTitle))).toBe(true);
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
   });
 
@@ -353,11 +371,28 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(screen.getByTestId("reveal-estimate").textContent).toBe(campaignsCopy.revealNoneKept);
   });
 
-  it("shows only Found in progress until drafting, sending and replies exist", () => {
+  it("draws no progress counters: the stage summary says what exists, and nothing downstream", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
-    expect(screen.getAllByTestId("progress-count")).toHaveLength(1);
+    expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
     expect(screen.queryByText(campaignsCopy.progressDrafted)).toBeNull();
     expect(screen.queryByText(campaignsCopy.progressReplied)).toBeNull();
+    expect(screen.getByTestId("stage-line").textContent).toContain(`10 ${campaignsCopy.summaryPeople} ${campaignsCopy.summaryAt}`);
+    expect(screen.getByTestId("stage-line").textContent).toContain(`10 ${campaignsCopy.summaryToReview}`);
+  });
+
+  it("hides reviewed accounts on request, and shows them again", () => {
+    const people = reviewed(full, { 1: "kept", 2: "kept" });
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } })} onReview={vi.fn()} />);
+    const before = screen.getAllByTestId("found-account").length;
+    fireEvent.click(screen.getByTestId("hide-reviewed"));
+    expect(screen.getAllByTestId("found-account").length).toBeLessThan(before);
+    fireEvent.click(screen.getByTestId("hide-reviewed"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(before);
+  });
+
+  it("keeps Keep and Drop quiet until one is chosen", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    for (const button of screen.getAllByTestId("keep")) expect(button.className).not.toMatch(/\bbg-action\b/);
   });
 
   it("offers Keep account beside Drop account, only where an account has more than one person", async () => {
@@ -478,8 +513,10 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
     expect(write.hasAttribute("disabled")).toBe(true);
     expect(write.getAttribute("aria-disabled")).toBe("true");
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.outreachLater);
-    // No drafting, sending or reply counters come back.
-    expect(screen.getAllByTestId("progress-count")).toHaveLength(1);
+    // No drafting, sending or reply counters come back; the rail says what the reveal cost.
+    expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
+    fireEvent.click(screen.getByTestId("rail-tab-spend"));
+    expect(screen.getByTestId("spend-reveal").textContent).toBe(`1 ${campaignsCopy.spendCreditsOf} 2 ${campaignsCopy.spendCreditsWord}`);
     expect(document.body.textContent).not.toMatch(/phone|mobile/i);
   });
 

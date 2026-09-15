@@ -20,38 +20,76 @@ const AREAS = [
   navCopy.settings,
 ];
 
+/** What a rep sees until the example surfaces are switched on: the same order, two fewer. */
+const LIVE_AREAS = [navCopy.home, navCopy.campaigns, navCopy.settings];
+
+const labels = () =>
+  screen.getAllByRole("link").map((link) => within(link).getByTestId("nav-label").textContent);
+
 describe("Nav", () => {
-  it("shows the five areas in the signed order", () => {
-    render(<Nav role="rep" initials="BK" hasCampaign={false} />);
+  it("shows all five areas in the signed order when the example surfaces are on", () => {
+    render(<Nav role="rep" initials="BK" hasCampaign={false} showDemo />);
 
-    const labels = screen
-      .getAllByRole("link")
-      .map((link) => within(link).getByTestId("nav-label").textContent);
-
-    expect(labels).toEqual(AREAS);
-  });
-
-  it("hides Admin from a rep", () => {
-    render(<Nav role="rep" initials="BK" hasCampaign={false} />);
-
-    expect(screen.queryByText(navCopy.admin)).toBeNull();
-  });
-
-  it("shows Admin to an admin", () => {
-    render(<Nav role="admin" initials="BK" hasCampaign={false} />);
-
-    expect(screen.getByText(navCopy.admin)).toBeDefined();
+    expect(labels()).toEqual(AREAS);
   });
 
   /**
-   * The admin item is not a sixth link and must not become one by accident:
-   * §23.0 lands Admin in slice 3, and the signed mock draws it as a quiet
-   * dashed pill. A link here would take a rep's manager to a 404.
+   * Inbox and Content are fixtures until their rows exist. A pilot rep must
+   * not find a queue of invented replies one click from Home, so the nav
+   * carries three areas unless the environment says otherwise. The routes
+   * still answer by URL; only the links are gone.
    */
-  it("does not make Admin a link", () => {
-    render(<Nav role="admin" initials="BK" hasCampaign={false} />);
+  it("shows three areas, in the same order, when they are off, which is the default", () => {
+    const { unmount } = render(<Nav role="rep" initials="BK" hasCampaign={false} />);
+    expect(labels()).toEqual(LIVE_AREAS);
+    unmount();
 
-    expect(screen.getAllByRole("link")).toHaveLength(AREAS.length);
+    render(<Nav role="rep" initials="BK" hasCampaign={false} showDemo={false} />);
+    expect(labels()).toEqual(LIVE_AREAS);
+  });
+
+  /**
+   * There is no Admin pill for anyone. The Admin area lands in slice 3, and
+   * a dashed "you only" label with nothing behind it was a promise on the
+   * screen; it comes back as a link when there is somewhere to go.
+   */
+  it("carries no Admin item for a rep or an admin", () => {
+    const { unmount } = render(<Nav role="rep" initials="BK" hasCampaign={false} />);
+    expect(screen.queryByText(/admin/i)).toBeNull();
+    unmount();
+
+    render(<Nav role="admin" initials="BK" hasCampaign={false} />);
+    expect(screen.queryByText(/admin/i)).toBeNull();
+    expect("admin" in navCopy).toBe(false);
+  });
+
+  it("puts nothing in the nav that is not a link, the wordmark or the avatar", () => {
+    const { container } = render(<Nav role="admin" initials="BK" hasCampaign />);
+
+    // Every area is a link, "New campaign" is a link, and the only other
+    // text on the pill is the wordmark and the two initials.
+    const text = container.textContent ?? "";
+    const linkText = screen.getAllByRole("link").map((link) => link.textContent ?? "");
+    expect(text).toBe(`Relay${linkText.join("")}BK`);
+    expect(screen.getAllByRole("link")).toHaveLength(LIVE_AREAS.length + 1);
+  });
+
+  /**
+   * Phone: two rows and never three. The area links live in one scrolling
+   * row of their own, so a long list runs sideways rather than wrapping.
+   */
+  it("keeps the areas in one row of their own that scrolls rather than wraps", () => {
+    render(<Nav role="rep" initials="BK" hasCampaign showDemo />);
+
+    const row = screen.getByTestId("nav-areas");
+    expect(row.className).toContain("overflow-x-auto");
+    expect(row.className).toContain("w-full");
+    expect(row.className).not.toContain("flex-wrap");
+    for (const link of within(row).getAllByRole("link")) {
+      expect(link.className).toContain("whitespace-nowrap");
+    }
+    // "New campaign" is outside the row, so it stays on the first line.
+    expect(row.contains(screen.getByText(navCopy.newCampaign))).toBe(false);
   });
 
   it("leaves New campaign out of the nav until a campaign exists", () => {
@@ -80,7 +118,7 @@ describe("Nav", () => {
     const { rerender } = render(<Nav role="rep" initials="BK" hasCampaign={false} />);
     expect(screen.queryByTestId("nav-count")).toBeNull();
 
-    rerender(<Nav role="rep" initials="BK" hasCampaign={false} counts={{ inbox: 5 }} />);
+    rerender(<Nav role="rep" initials="BK" hasCampaign={false} counts={{ inbox: 5 }} showDemo />);
     expect(screen.getByTestId("nav-count").textContent).toBe("5");
   });
 

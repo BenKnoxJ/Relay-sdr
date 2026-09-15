@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { Nav } from "@/components/Nav";
+import { demoSurfacesShown } from "@/lib/env";
 import { initialsFor } from "@/lib/shell";
 import { isRefusal, me } from "@/server/api/caller";
 import { getSession } from "@/server/auth/session";
@@ -51,11 +52,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     // On paper the app's frame is left out: its padding and the nav are for moving around the screen.
+    //
+    // One measure for the whole screen: the nav and the page share a centred
+    // 1360px maximum, so on a wide monitor the pill and the cards under it
+    // keep the same left and right edges rather than the nav running the full
+    // width over a narrower page.
     <div className="px-6 pb-7 pt-card-rail print:p-0">
-      <div className="print:hidden">
-        <Nav role={who.role} initials={initialsFor(who.name, who.email)} hasCampaign={who.hasCampaign} />
+      <div className="mx-auto w-full max-w-[1360px] print:hidden">
+        <Nav
+          role={who.role}
+          initials={initialsFor(who.name, who.email)}
+          hasCampaign={who.hasCampaign}
+          showDemo={demoSurfacesShown()}
+        />
       </div>
-      <main>{children}</main>
+      <main className="mx-auto w-full max-w-[1360px]">{children}</main>
     </div>
   );
 }

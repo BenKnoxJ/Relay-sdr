@@ -8,6 +8,7 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
 import { hasLimits, limitsLine } from "@/lib/campaigns/briefLines";
+import type { ActiveFactsVersion } from "@/lib/campaigns/factsVersion";
 import {
   countryName,
   SIZE_UNITS,
@@ -259,6 +260,7 @@ export function StartForm({
   regions,
   howMany,
   howLong,
+  facts = null,
   mailboxConnected,
   onStart,
   edit,
@@ -278,6 +280,13 @@ export function StartForm({
   regions: readonly string[];
   howMany: readonly number[];
   howLong: readonly number[];
+  /**
+   * The facts version the org has activated for the one product, read from
+   * its row by the page, or null when none is. Never the literals on
+   * `PRODUCTS`: a date written in code is a fact that is true of nothing.
+   * Left out reads as none activated.
+   */
+  facts?: ActiveFactsVersion | null;
   mailboxConnected: boolean;
   /** Makes the campaign and asks for its research; comes back with where to go or a line to show. */
   onStart: (submission: StartSubmission) => Promise<StartResult>;
@@ -384,22 +393,28 @@ export function StartForm({
         {edit === undefined ? (
           <>
             <p className="type-label mb-1">{startCopy.question}</p>
-            {/* Step 1: the sentence, and one way back into it (mock 3d). */}
-            <div className="mb-4 flex items-center gap-2 rounded-pill border-control border-line bg-ground py-1.5 pl-4 pr-1.5">
+            {/*
+              Step 1: the sentence, and one way back into it (mock 3d). The
+              box wraps: on a phone a long sentence takes the width and the
+              button drops under it, rather than the button being squeezed
+              until its words fall outside the box. A pill with two rows of
+              text reads as a lozenge, so below `sm` it is the input radius.
+            */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-input border-control border-line bg-ground py-1.5 pl-4 pr-1.5 sm:rounded-pill">
               {editing ? (
                 <input
                   aria-label={startCopy.question}
                   value={said}
                   autoFocus
                   onChange={(event) => setSaid(event.target.value)}
-                  className="type-small flex-1 bg-transparent focus-visible:outline-none"
+                  className="type-small min-w-0 flex-1 basis-40 bg-transparent focus-visible:outline-none"
                 />
               ) : (
-                <span className="type-small flex-1">{said}</span>
+                <span className="type-small min-w-0 flex-1 basis-40 break-words">{said}</span>
               )}
               <PillButton
                 variant="text"
-                className="px-2.5"
+                className="shrink-0 whitespace-nowrap px-2.5"
                 onClick={() => {
                   // Re-reading the sentence re-pre-fills the card, which is the
                   // only moment §23.1d lets the pre-fill run. It happens where the
@@ -435,7 +450,9 @@ export function StartForm({
             hint={
               product === undefined
                 ? undefined
-                : `${startCopy.factsUpdated} ${product.factsUpdated}, ${startCopy.factsVersion} ${product.factsVersion}. ${startCopy.factsMore}`
+                : facts === null
+                  ? `${startCopy.factsNone} ${startCopy.factsMore}`
+                  : `${startCopy.factsUpdated} ${facts.activatedOn}, ${startCopy.factsVersion} ${facts.version}. ${startCopy.factsMore}`
             }
           >
             <select
@@ -503,7 +520,13 @@ export function StartForm({
 
           <Field
             label={startCopy.fieldHowManyHowLong}
-            hint={guessed("howMany") || guessed("weeks") ? startCopy.guessedHint : undefined}
+            // The guess first, when there is one, then what the number means:
+            // people, at the accounts Relay chooses (lead gen v2.2).
+            hint={
+              guessed("howMany") || guessed("weeks")
+                ? `${startCopy.guessedHint} ${startCopy.howManyHint}`
+                : startCopy.howManyHint
+            }
           >
             <div className="flex gap-chips">
               <select
@@ -701,15 +724,20 @@ export function StartForm({
                 {startCopy.editCancel}
               </Link>
             </>
-          ) : mailboxConnected ? (
-            <span className="type-small text-muted">{startCopy.startNote}</span>
-          ) : (
+          ) : !mailboxConnected ? (
+            // Why Start is off, then where to go about it.
             <span data-testid="connect-first" className="type-small text-muted">
-              {startCopy.connectFirst}{" "}
+              <span data-testid="start-blocked">{startCopy.startBlockedMailbox}</span> {startCopy.connectFirst}{" "}
               <Link href="/settings" className="text-action underline">
                 {startCopy.connectLink}
               </Link>
             </span>
+          ) : editing ? (
+            <span data-testid="start-blocked" className="type-small text-muted">
+              {startCopy.startBlockedSentence}
+            </span>
+          ) : (
+            <span className="type-small text-muted">{startCopy.startNote}</span>
           )}
         </div>
         {error === null ? null : (

@@ -49,8 +49,9 @@ function ReviewButton({ label, pressed, disabled, onPress, testId }: { label: st
       disabled={disabled}
       onClick={onPress}
       className={cn(
-        "type-small inline-flex min-h-8 items-center rounded-pill border px-3 font-semibold focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60",
-        pressed ? "border-transparent bg-action text-on-action" : "border-line text-action",
+        // Quiet until chosen (product-truth pass): a page of accounts must not be a wall of filled buttons.
+        "type-small inline-flex min-h-8 items-center rounded-pill border px-3 font-semibold transition-colors duration-micro ease-standard focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60",
+        pressed ? "border-transparent bg-action text-on-action" : "border-line bg-transparent text-muted hover:text-ink",
       )}
     >
       {label}
@@ -99,10 +100,10 @@ function Person({ person, roles, reviewing, busy, press }: { person: FoundPerson
             {person.revealWhy}
           </span>
         )}
-        {/* Why they fit matters while deciding; after the reveal, what came back matters more. */}
+        {/* What Relay actually has on them matters while deciding; after the reveal, what came back matters more. */}
         {reviewing ? (
           <span data-testid="why-fits" className="type-small mt-1 block text-muted">
-            {person.why}
+            {person.evidence.length > 0 ? person.evidence.join(c.noteJoin) : person.why}
           </span>
         ) : null}
       </span>
@@ -199,7 +200,7 @@ function RevealEstimate({ view }: { view: PeopleFoundView }) {
   const plan = view.revealPlan;
   if (plan === null) return null;
   return (
-    <p data-testid="reveal-estimate" className="type-small mt-1 text-muted">
+    <p data-testid="reveal-estimate" className="type-small mt-0.5 text-muted">
       {plan.kept === 0 ? (
         c.revealNoneKept
       ) : (
@@ -251,6 +252,9 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
   const c = campaignsCopy;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Hide reviewed: the accounts whose every person is decided fold away, so a long list shrinks to what still needs a decision.
+  const [hideReviewed, setHideReviewed] = useState(false);
+  const undecided = (account: AccountView) => account.people.some((person) => person.review === "pending");
   const multiRole = view.accounts.filter((account) => account.parts.length > 1).length;
   const reviewing = view.phase === "review";
   const label = view.phase === "ready" ? c.peopleReadyLabel : view.phase === "revealing" ? c.revealingLabel : c.peopleFoundLabel;
@@ -294,10 +298,35 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
                 {view.shortfall === "cap_reached" ? c.shortfallCapReached : view.shortfall === "fewer_strong_matches" ? c.shortfallFewerStrong : c.shortfallNoMore}
               </p>
             )}
-            <p data-testid="review-counts" className="type-small mt-1.5 text-muted">
-              {view.review.kept} {c.reviewCountKept} · {view.review.dropped} {c.reviewCountDropped} · {view.review.pending} {c.reviewCountPending}
-            </p>
-            <RevealEstimate view={view} />
+            {view.spare > 0 ? (
+              <p data-testid="spare-count" className="type-small mt-1 text-muted">
+                {view.spare} {c.summaryWeakerHeld}.
+              </p>
+            ) : null}
+            {view.rolesMissing.length > 0 ? (
+              <p data-testid="roles-missing" className="type-small mt-1 text-muted">
+                {c.rolesMissingLead} {view.rolesMissing.map((role) => `${c.roleParts[role.part]} (${role.title})`).join(", ")}.
+              </p>
+            ) : null}
+            <div data-testid="review-bar" className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-input border border-line bg-ground px-3 py-2">
+              <div>
+                <p data-testid="review-counts" className="type-small">
+                  <span className="font-semibold">{view.review.kept} {c.reviewCountKept}</span> · {view.review.dropped} {c.reviewCountDropped} · {view.review.pending} {c.reviewCountPending}
+                </p>
+                <RevealEstimate view={view} />
+              </div>
+              {view.accounts.some((account) => !undecided(account)) ? (
+                <button
+                  type="button"
+                  data-testid="hide-reviewed"
+                  aria-pressed={hideReviewed}
+                  onClick={() => setHideReviewed(!hideReviewed)}
+                  className="type-small inline-flex min-h-7 items-center rounded-pill border border-line px-3 font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+                >
+                  {hideReviewed ? c.reviewShowAll : c.reviewHideReviewed}
+                </button>
+              ) : null}
+            </div>
           </>
         ) : (
           <>
@@ -348,9 +377,11 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
           </>
         ) : (
           <ol className="mt-3 grid gap-3">
-            {view.accounts.map((account) => (
-              <Account key={account.personId} account={account} roles={view.roles} reviewing={reviewing} busy={busy} {...(press === undefined ? {} : { press })} />
-            ))}
+            {view.accounts
+              .filter((account) => !reviewing || !hideReviewed || undecided(account))
+              .map((account) => (
+                <Account key={account.personId} account={account} roles={view.roles} reviewing={reviewing} busy={busy} {...(press === undefined ? {} : { press })} />
+              ))}
           </ol>
         )}
 
@@ -360,15 +391,11 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
               {view.onHold} {c.peopleHeldBack}
             </p>
           ) : null}
-          <p data-testid="spend-line" className="type-small">
+          <p data-testid="spend-line" className="type-small text-muted">
             {c.spendUsed} {view.spend.charged} {c.spendOf} {view.spend.cap} {c.spendCredits}
             {view.spend.reserved > 0 ? ` ${view.spend.reserved} ${c.spendHeld}` : ""}
+            {view.sample ? ` ${c.spendSample}` : ""}
           </p>
-          {view.sample ? (
-            <p data-testid="spend-sample" className="type-small text-warn">
-              {c.spendSample}
-            </p>
-          ) : null}
           {reviewing && editHref !== undefined && spent ? (
             <p data-testid="edit-warning" className="type-small text-muted">
               {c.editWarning}

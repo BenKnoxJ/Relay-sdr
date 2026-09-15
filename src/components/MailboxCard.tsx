@@ -45,6 +45,11 @@ export type MailboxState =
  * of `expiring` is Disconnect and then Connect, and Disconnect destroys the
  * stored tokens — so recovering from an expiry the rep did not cause would mean
  * throwing away the connection first.
+ *
+ * Nothing here is allowed to be wider than a phone. An address is one word
+ * with no break in it, so it is told to break anywhere; the row it shares with
+ * the health chip wraps; and the four read-only rows wrap their values under
+ * their labels rather than running off the card.
  */
 export function MailboxCard({
   state,
@@ -73,14 +78,16 @@ export function MailboxCard({
 
       {state.connected ? (
         <div className="grid justify-items-start gap-3">
-          <div className="flex w-full items-start justify-between gap-3">
-            <div>
+          <div className="flex w-full flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               {/* The address is the heading of the card's content, so it is the
                   first thing read out; the provider sits under it as detail. */}
-              <p className="type-body text-ink">{state.address}</p>
+              <p className="type-body break-words text-ink [overflow-wrap:anywhere]">{state.address}</p>
               <p className="type-small text-muted">{state.provider}</p>
             </div>
-            <Chip tone={state.healthTone}>{state.health}</Chip>
+            <Chip tone={state.healthTone} className="shrink-0">
+              {state.health}
+            </Chip>
           </div>
 
           {state.healthNote === null ? null : (
@@ -131,9 +138,9 @@ export function MailboxCard({
  */
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-2.5">
+    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
       <span className="type-small w-[136px] shrink-0 text-muted">{label}</span>
-      <span className="type-body text-ink">{value}</span>
+      <span className="type-body min-w-0 text-ink">{value}</span>
     </div>
   );
 }

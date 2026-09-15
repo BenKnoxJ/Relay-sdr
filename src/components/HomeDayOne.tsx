@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * campaign)"), as drawn in section 1b of the signed mock.
  *
  * A single card carrying the Start screen's one-line brief box, with a connect
- * prompt above it for each connection that is not yet made. Nothing else is on
+ * prompt above it while the mailbox is not yet connected. Nothing else is on
  * the page and nothing else is clickable, which is the signed state and not a
  * placeholder for one.
  *
@@ -33,14 +33,11 @@ export function HomeDayOne({
   firstName: string;
   /** Already formatted by the server, so the markup does not depend on the reader's clock. */
   today: string;
-  connections: { mailbox: boolean; zoho: boolean };
+  connections: { mailbox: boolean };
   startBrief: (previous: string | null, form: FormData) => Promise<string | null>;
   rail?: React.ReactNode;
 }) {
-  const prompts = [
-    connections.mailbox ? null : homeCopy.connectMailbox,
-    connections.zoho ? null : homeCopy.connectZoho,
-  ].filter((line) => line !== null);
+  const prompts = [connections.mailbox ? null : homeCopy.connectMailbox].filter((line) => line !== null);
 
   return (
     <>
@@ -50,7 +47,12 @@ export function HomeDayOne({
         data-testid="home-grid"
         className={cn("grid gap-grid", rail === undefined ? null : "wide:grid-cols-home")}
       >
-        <div>
+        {/*
+          `min-w-0`: a grid track is `minmax(auto, 1fr)`, so without it the
+          item takes the brief box's intrinsic width as a floor and the card
+          runs off a 390px screen.
+        */}
+        <div className="min-w-0">
           {/* 640px and the 32px padding are the signed mock's own numbers (1b). */}
           <Card className="mx-auto mt-8 max-w-[640px] p-8 pb-7 text-center">
             <h2 className="type-heading mb-1.5">{homeCopy.briefQuestion}</h2>

@@ -90,7 +90,7 @@ describe("Print / save PDF", () => {
 
   it("hides the app's own frame on paper: the nav and the page padding", () => {
     const layout = readFileSync(path.join(import.meta.dirname, "..", "..", "..", "src", "app", "(app)", "layout.tsx"), "utf8");
-    expect(layout).toMatch(/<div className="print:hidden">\s*<Nav /);
+    expect(layout).toMatch(/<div className="[^"]*print:hidden[^"]*">\s*<Nav/);
     expect(layout).toContain("print:p-0");
   });
 

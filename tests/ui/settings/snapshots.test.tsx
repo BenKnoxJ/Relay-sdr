@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SettingsPage from "@/app/(app)/settings/page";
 import { mailboxCopy, voiceCopy } from "@/lib/copy/settings";
-import { resetProfile } from "@/lib/fixtures/repProfile";
+import { addSample, resetProfile } from "@/lib/fixtures/repProfile";
 
 /**
  * One snapshot per Settings state, in both themes: the page as it lands
- * (mock section 5), and the Your voice list unfolded with the Add box open.
+ * (mock section 5, on the empty fixture), and the Your voice list unfolded
+ * with seven emails in the adapter, as the mock draws it. Add is off until
+ * outreach, so its box is not a state to snapshot yet.
  *
  * Read for what it is, as `tests/ui/shell.test.tsx` says of its own: jsdom
  * applies no stylesheet, so the two themes produce the same markup unless a
@@ -42,9 +44,9 @@ const STATES = {
     await page();
   },
   "5-voice-open": async () => {
+    for (let i = 1; i <= 7; i += 1) addSample(`Subject ${i}\n\nOne line, and a second one.`, "2026-08-14");
     await page();
     fireEvent.click(screen.getByRole("button", { name: `${voiceCopy.show} 4 ${voiceCopy.more}` }));
-    fireEvent.click(screen.getByRole("button", { name: voiceCopy.add }));
   },
 };
 

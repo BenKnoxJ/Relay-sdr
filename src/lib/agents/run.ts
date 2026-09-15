@@ -1,6 +1,8 @@
 import type { AgentRun, AgentRunStep, Prisma, PrismaClient } from "@prisma/client";
 import {
+  asSchema,
   generateText,
+  jsonSchema,
   NoObjectGeneratedError,
   NoOutputGeneratedError,
   Output,
@@ -8,6 +10,7 @@ import {
   stepCountIs,
   type LanguageModel,
   type LanguageModelUsage,
+  type Schema,
   type ToolSet,
 } from "ai";
 
@@ -390,7 +393,7 @@ export async function runAgent<IN, OUT>({
         // `output`, not `experimental_output`: read off the installed types.
         // With tools in play the structured answer arrives as the final model
         // call's text, so it is a step like any other and is counted like one.
-        output: Output.object({ schema: definition.output }),
+        output: Output.object({ schema: objectShapedOutput(definition.output) }),
         onLanguageModelCallEnd: async (event) => {
           // On the Agent SDK this fires once, for the whole run, with the usage
           // summed over every turn — the rows were written per turn by the
@@ -989,6 +992,59 @@ export function rejectedAnswerText(error: unknown): string | null {
     current = (current as { cause?: unknown }).cause;
   }
   return null;
+}
+
+/**
+ * The definition's output schema as the structured-output tool the provider
+ * receives. The Messages API refuses a tool whose `input_schema` has `anyOf`,
+ * `oneOf` or `allOf` at the top level, and a discriminated union (outreach's
+ * message-or-call draft) is exactly that. Every member is an object, so the
+ * members are folded into one: every property any member has, only the keys
+ * every member requires, and the discriminator as the set of its values.
+ * What the model must answer does not change, and the answer is still
+ * validated by the signed zod schema itself. An object schema passes through
+ * untouched.
+ */
+export function objectShapedOutput<T>(output: Parameters<typeof asSchema<T>>[0]): Schema<T> {
+  const schema = asSchema(output);
+  type Json = Awaited<Schema<T>["jsonSchema"]>;
+  return jsonSchema<T>(
+    () => {
+      const json = schema.jsonSchema;
+      const fold = (value: Json): Json => foldUnion(value as unknown as JsonObject) as unknown as Json;
+      return typeof (json as PromiseLike<Json>).then === "function" ? Promise.resolve(json).then(fold) : fold(json as Json);
+    },
+    { validate: (value) => (schema.validate === undefined ? { success: true, value: value as T } : schema.validate(value)) },
+  );
+}
+
+type JsonObject = Record<string, unknown>;
+
+/** A top-level `anyOf` of object schemas folded into one object schema; anything else as it is. */
+export function foldUnion<J extends JsonObject>(json: J): J {
+  const members = json.anyOf;
+  if (json.type !== undefined || !Array.isArray(members) || members.length === 0) return json;
+  const objects = members.filter((member): member is JsonObject => member !== null && typeof member === "object" && (member as JsonObject).type === "object");
+  if (objects.length !== members.length) return json;
+  const properties: Record<string, unknown> = {};
+  const seen = new Map<string, unknown[]>();
+  for (const member of objects) {
+    for (const [key, value] of Object.entries((member.properties as Record<string, unknown> | undefined) ?? {})) {
+      const list = seen.get(key) ?? [];
+      list.push(value);
+      seen.set(key, list);
+    }
+  }
+  for (const [key, values] of seen) {
+    // The discriminator: each member pins it to one value; the fold offers the set.
+    const consts = values.map((value) => (value !== null && typeof value === "object" ? (value as JsonObject).const : undefined));
+    properties[key] = consts.every((value) => typeof value === "string") ? { type: "string", enum: [...new Set(consts as string[])] } : values[0];
+  }
+  const required = objects
+    .map((member) => new Set(Array.isArray(member.required) ? (member.required as string[]) : []))
+    .reduce((common, keys) => new Set([...common].filter((key) => keys.has(key))));
+  const { anyOf: _anyOf, ...rest } = json;
+  return { ...rest, type: "object", properties, required: [...required], additionalProperties: false } as unknown as J;
 }
 
 /** True when the thrown value is the SDK saying there is no structured answer. */

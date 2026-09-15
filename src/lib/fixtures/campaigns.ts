@@ -3,7 +3,7 @@ import { z } from "zod";
 import { itemSchema, planCardsSchema, type PlanCards } from "../../../agents/research/output.schema";
 import samplePack from "./research-plan.json";
 
-import { answersFor, chipFor, nextFor } from "@/lib/campaigns/state";
+import { chipFor, nextFor } from "@/lib/campaigns/state";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
 import { widenHeadings } from "@/lib/campaigns/briefLines";
 import type { Campaign, CampaignPack, CampaignSummary, WidenChoice } from "@/lib/campaigns/types";
@@ -133,14 +133,13 @@ function sampleWidenings(): WidenChoice[] {
   return options.map((option, index) => ({ index, dimension: option.dimension, heading: headings[index] ?? "", text: option.text, becomes: null, usable: true }));
 }
 
-type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask">;
+type Row = Omit<Campaign, "chip" | "next" | "nextIsAction">;
 
 function complete(row: Row): Campaign {
   return {
     ...row,
     chip: chipFor(row.state),
     ...nextFor(row.state, row),
-    ask: answersFor(row.state, row),
   };
 }
 

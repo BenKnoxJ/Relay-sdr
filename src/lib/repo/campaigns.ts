@@ -13,6 +13,7 @@ import { norm } from "@/lib/leadgen/normalise";
 import type { LeadGenSetup } from "@/lib/leadgen/setup";
 import { enqueue, reopenFailed } from "@/lib/jobs/queue";
 
+import { campaignActivityFor, type ActivityRow } from "./campaignActivity";
 import { ledgerGroupsFor, researchCostsFor } from "./campaignSummary";
 
 import { mutate } from "./mutate";
@@ -164,6 +165,8 @@ export type CampaignRecord = {
   ledger?: LedgerGroup[];
   /** Research's recorded model cost, per brief version. */
   researchCost?: ResearchCost[];
+  /** The campaign's own Events, reduced, newest first (the page's Activity). */
+  activity?: ActivityRow[];
 };
 
 type Owner = { orgId: string; userId: string };
@@ -179,12 +182,13 @@ export async function latestResearchJob(db: Prisma.TransactionClient, campaign: 
 async function withResearch(db: PrismaClient, campaign: Campaign): Promise<CampaignRecord> {
   const job = await latestResearchJob(db, campaign);
   const event = job === null ? null : await findResearchCompletedForJob(db, { orgId: campaign.orgId, jobId: job.id });
-  const [leadGen, ledger, researchCost] = await Promise.all([
+  const [leadGen, ledger, researchCost, activity] = await Promise.all([
     leadGenRecordFor(db, campaign),
     ledgerGroupsFor(db, campaign.orgId, [campaign.id]),
     researchCostsFor(db, campaign.orgId, [campaign.id]),
+    campaignActivityFor(db, { orgId: campaign.orgId, campaignId: campaign.id }),
   ]);
-  return { campaign, job, event, leadGen, ledger, researchCost };
+  return { campaign, job, event, leadGen, ledger, researchCost, activity };
 }
 
 /**

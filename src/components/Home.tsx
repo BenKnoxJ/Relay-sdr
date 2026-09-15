@@ -14,11 +14,14 @@ import { PageHeader } from "./PageHeader";
  * Home once the rep has a campaign (master doc §23.1, product-truth pass): a
  * navigator, not a dashboard.
  *
- * Three blocks in one column. What needs the rep, with the one thing to do
- * on each; what Relay is doing right now, said as what it is doing and not
- * as progress; and the box to start another campaign. No analytics and no
- * counts beyond the number beside each heading, because a number Home cannot
- * stand behind is a number the rep stops trusting.
+ * Blocks in one column, in the same five words the Campaigns list groups
+ * by (`bucketOf`): what needs the rep, with the one thing to do on each;
+ * what is theirs to decide; what is ready; what Relay is doing right now,
+ * said as what it is doing and not as progress; and the box to start
+ * another campaign. A block with nothing in it is not drawn, except the
+ * first: "nothing needs you" is worth saying. No analytics and no counts
+ * beyond the number beside each heading, because a number Home cannot stand
+ * behind is a number the rep stops trusting.
  *
  * Every row reads the backend's summary facts (`facts.stage`, `attention`,
  * `nextAction`, the counts) through `src/lib/campaigns/stageLine.ts`, so this
@@ -37,10 +40,10 @@ function Count({ n }: { n: number }) {
 }
 
 /** What needs the rep, or is theirs to decide: the name, why, and the one thing to do. */
-function NeedsYouRow({ campaign }: { campaign: WithFacts }) {
+function NeedsYouRow({ campaign, testId }: { campaign: WithFacts; testId: string }) {
   const line = reasonLineOf(campaign.facts) ?? stageLineOf(campaign.facts);
   return (
-    <Link href={`/campaigns/${campaign.id}`} data-testid="home-needs-you-row" className={ROW}>
+    <Link href={`/campaigns/${campaign.id}`} data-testid={testId} className={ROW}>
       <span className="min-w-0 flex-1">
         <span className="type-name block">{campaign.name}</span>
         {line === null ? null : <span className="type-small block text-muted sm:truncate">{line}</span>}
@@ -81,10 +84,12 @@ export function Home({
   campaigns: readonly CampaignSummary[];
   startBrief: (previous: string | null, form: FormData) => Promise<string | null>;
 }) {
-  // "Ready" sits with the decisions: emails are ready and outreach is the rep's next call.
   const stored = campaigns.filter(withFacts);
-  const needsYou = stored.filter((campaign) => bucketOf(campaign.facts) !== "working");
-  const working = stored.filter((campaign) => bucketOf(campaign.facts) === "working");
+  const inBucket = (bucket: ReturnType<typeof bucketOf>) => stored.filter((campaign) => bucketOf(campaign.facts) === bucket);
+  const needsYou = inBucket("needsYou");
+  const decide = inBucket("decide");
+  const ready = inBucket("ready");
+  const working = inBucket("working");
 
   return (
     <>
@@ -96,9 +101,25 @@ export function Home({
           {needsYou.length === 0 ? (
             <p className="type-small text-muted">{homeCopy.needsYouEmpty}</p>
           ) : (
-            needsYou.map((campaign) => <NeedsYouRow key={campaign.id} campaign={campaign} />)
+            needsYou.map((campaign) => <NeedsYouRow key={campaign.id} campaign={campaign} testId="home-needs-you-row" />)
           )}
         </Card>
+
+        {decide.length === 0 ? null : (
+          <Card label={homeCopy.decideLabel} aside={<Count n={decide.length} />}>
+            {decide.map((campaign) => (
+              <NeedsYouRow key={campaign.id} campaign={campaign} testId="home-decide-row" />
+            ))}
+          </Card>
+        )}
+
+        {ready.length === 0 ? null : (
+          <Card label={homeCopy.readyLabel} aside={<Count n={ready.length} />}>
+            {ready.map((campaign) => (
+              <NeedsYouRow key={campaign.id} campaign={campaign} testId="home-ready-row" />
+            ))}
+          </Card>
+        )}
 
         <Card label={homeCopy.workingLabel} aside={<Count n={working.length} />}>
           {working.length === 0 ? (

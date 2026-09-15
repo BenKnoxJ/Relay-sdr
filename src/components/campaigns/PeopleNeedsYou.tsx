@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
+import { Card } from "@/components/Card";
 import { PillButton } from "@/components/PillButton";
+import { TextLink } from "@/components/TextButton";
 import type { PeopleNeedsYouView } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
@@ -11,17 +13,20 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
  * what can be done. A choose-an-industry stop offers research's term's
  * closest matches as plain words, never provider ids, and searches again
  * with the one chosen; nothing is widened on the rep's behalf. Try again is
- * the page's header action; Edit brief is on the brief card.
+ * the page's header action; Edit brief is here too, because the card names
+ * it (final MVP pass).
  */
 export function PeopleNeedsYou({
   view,
   canRetry,
   spent,
+  editHref,
   onChoose,
 }: {
   view: PeopleNeedsYouView;
   canRetry: boolean;
   spent: boolean;
+  editHref?: string;
   onChoose?: (label: string) => Promise<string | null>;
 }) {
   const c = campaignsCopy;
@@ -43,8 +48,9 @@ export function PeopleNeedsYou({
   };
 
   return (
-    <div data-testid="people-needs-you" className="rounded-input bg-warn-bg px-3 py-2.5">
-      <p data-testid="people-reason" className="type-small text-warn">
+    <Card label={c.peopleNeedsYouLabel}>
+      <div data-testid="people-needs-you">
+      <p data-testid="people-reason" className="type-body max-w-measure text-warn">
         {view.line}
       </p>
       {view.choices.length > 0 && onChoose !== undefined ? (
@@ -63,7 +69,12 @@ export function PeopleNeedsYou({
           </PillButton>
         </fieldset>
       ) : (
-        <p className="type-small mt-1 text-warn">{canRetry ? c.haltNextRetry : c.haltNextEdit}</p>
+        <p className="type-small mt-1 text-muted">{canRetry ? c.haltNextRetry : c.haltNextEdit}</p>
+      )}
+      {editHref === undefined ? null : (
+        <TextLink href={editHref} data-testid="people-edit" className="mt-3">
+          {c.editBrief}
+        </TextLink>
       )}
       {spent ? (
         <p data-testid="edit-warning" className="type-small mt-1.5 text-muted">
@@ -75,6 +86,7 @@ export function PeopleNeedsYou({
           {error}
         </p>
       )}
-    </div>
+      </div>
+    </Card>
   );
 }

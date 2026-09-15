@@ -6,6 +6,7 @@ import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rolesMissingFrom, searchLine, spareCount } from "./accounts";
+import { activityEntriesOf } from "./activity";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
@@ -13,8 +14,8 @@ import type { ResearchResultFacts, StageResult } from "./stage";
 import { isAttention } from "./stage";
 import { revealLedgerOf, spendOf, summaryFactsOf, type PeopleGroup, type SummaryInput } from "./summary";
 import { researchSections } from "./research";
-import { answersFor, chipFor, haltLine, nextFor, revealStoppedLine, type CampaignCounts } from "./state";
-import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
+import { chipFor, haltLine, nextFor, type CampaignCounts } from "./state";
+import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, FindingView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
 
 /**
  * A stored campaign as its screens draw it.
@@ -154,7 +155,6 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const found = people?.state === "peopleFound" ? people.pick : null;
   const plan = found !== null && revealRecord === null ? (leadGen?.revealPlan ?? null) : null;
   const failure = derived.failure;
-  const retryable = derived.can.retry;
   const widenings = research.state === "stopped" ? widenChoices(researchBrief, research.pack.insufficient?.widenings ?? []) : null;
   const can = derived.can;
   const counts: CampaignCounts = {
@@ -164,12 +164,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     nextBatch: null,
     // From the persisted ledger: this version's search, charged, and what is left under this Confirm's cap.
     credits: confirm === null || spend === null || handoff === null ? null : { used: spend.charged, left: Math.max(0, cap - spend.charged - spend.reserved) },
-    spend: facts.spend,
     live: true,
-    failure,
-    retryable,
-    ...(people?.state === "peopleNeedsYou" ? { peopleReason: peopleReasonLine(people) } : {}),
-    ...(derived.stage === "reveal_needs_you" ? { revealStopped: revealStoppedLine(derived.attention?.reason) } : {}),
   };
   const pack = record.event === null ? null : storedPack(record.event.after);
 
@@ -217,6 +212,18 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
                 },
           sample: sampleRun,
         };
+  // Finding people, while it runs: the frozen search, said as it was frozen, and what it has used so far (final MVP pass).
+  const finding: FindingView | null =
+    derived.stage === "finding_people" && handoff !== null
+      ? {
+          groupName: handoff.buyerGroup.name,
+          search: searchLine(handoff, null),
+          roles: buyerRolesOf(handoff),
+          seedFirms: handoff.seedFirms.length,
+          cap,
+          startedAt: leadGen?.job?.createdAt instanceof Date ? leadGen.job.createdAt.toISOString() : null,
+        }
+      : null;
   const peopleNeedsYou: PeopleNeedsYouView | null =
     people?.state === "peopleNeedsYou"
       ? { reason: people.reason, line: peopleReasonLine(people), term: people.term ?? null, choices: people.choosable ? people.choices : [] }
@@ -232,7 +239,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     total: brief.howMany,
     facts,
     brief,
-    pack: research.state === "planReady" || research.state === "stopped" ? research.pack : null,
+    // The pack stays on the server (final MVP pass): the page reads the plays and the Overview, and only a stop reads the pack's own evidence.
+    pack: research.state === "stopped" ? research.pack : null,
     overview: research.state === "planReady" ? research.overview : null,
     plan: null,
     progress: counts.progress,
@@ -248,7 +256,6 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     draftsDueToday: 0,
     nextBatch: null,
     credits: counts.credits,
-    ask: answersFor(state, counts),
     live: true,
     failure,
     briefVersion: record.campaign.briefVersion,
@@ -260,6 +267,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     spentAtThisVersion: spend !== null && spend.charged + spend.reserved > 0,
     plays: pack === null || pack.insufficient !== undefined ? null : playsOf(pack),
     spend: facts.spend,
+    finding,
+    ...(record.activity === undefined ? {} : { activity: activityEntriesOf(record.activity) }),
   };
 }
 

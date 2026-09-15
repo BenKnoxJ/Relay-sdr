@@ -81,19 +81,11 @@ describe("the campaign page, by state", () => {
     expect(screen.getByTestId("campaign-toast").textContent).toBe(campaignsCopy.toastConfirmed);
   });
 
-  it("moves the six answers with the screen, not with the campaign it arrived as", () => {
+  it("has no Ask tab and no free-text box: a sample has no record to read activity from", () => {
     render(<CampaignPage campaign={campaign("uk-logistics-ops")} />);
-
-    // Ask Relay lives in the support rail, one tab away.
-    fireEvent.click(screen.getByTestId("rail-tab-ask"));
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askWhyStopped }));
-    expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerStoppedNone);
-
-    // The chip stays open across the pause: the answer under it is the thing
-    // that has to move, and it moves without being asked again.
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionPause }));
-
-    expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerPaused);
+    expect(screen.queryByTestId("rail-tab-ask")).toBeNull();
+    expect(screen.queryByTestId("rail-tab-activity")).toBeNull();
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
   });
 
   it("the research stop shows what it found, three widenings, and Widen the brief", () => {
@@ -170,10 +162,6 @@ describe("a real campaign", () => {
     // Nothing spent, and the rail says so.
     fireEvent.click(screen.getByTestId("rail-tab-spend"));
     expect(screen.getByTestId("spend-none").textContent).toBe(campaignsCopy.spendNothingYet);
-
-    fireEvent.click(screen.getByTestId("rail-tab-ask"));
-    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askCost }));
-    expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerCostNoCredits);
   });
 
   it("a queued job is said to be waiting, never reading", () => {
@@ -210,17 +198,27 @@ describe("a real campaign", () => {
     render(<CampaignPage campaign={live} />);
 
     expect(screen.getByTestId("plays-found").textContent).toContain(`${campaignsCopy.playsFoundLead} ${plays.length} ${campaignsCopy.playsFoundMany}`);
+    // The recommended play is read in full under the comparison, Who first.
     expect(screen.getByTestId("play-recommended").textContent).toContain(live.overview?.startWith?.groupName ?? "missing");
     const others = screen.getAllByTestId("play-alternative");
     expect(others).toHaveLength(plays.length - 1);
+    // Every play is compared on the same three things, in one table.
+    const table = screen.getByTestId("plays-compare");
+    for (const column of [campaignsCopy.playsColumnPlay, campaignsCopy.playsColumnWho, campaignsCopy.playsColumnWrongIf]) expect(table.textContent).toContain(column);
+    for (const play of plays) expect(table.textContent).toContain(play.wrongIf);
     // Confirm starts with the recommended play until another that can be searched is picked (lead gen v2.3).
     expect(screen.getByTestId("confirm-starts-with").textContent).toContain(plays[0]?.group.name ?? "missing");
     const executable = plays.slice(1).find((play) => play.executable);
     expect(executable).toBeDefined();
-    fireEvent.click(screen.getAllByTestId("play-select")[0]!);
+    const pick = others.find((row) => row.getAttribute("data-executable") === "true")?.querySelector("[data-testid=play-select]");
+    fireEvent.click(pick!);
     expect(screen.getByTestId("confirm-starts-with").textContent).toContain(executable?.group.name ?? "missing");
+    // The card under the table now reads the picked play, and the recommended one is a press away.
+    expect(screen.getByTestId("play-detail").textContent).toContain(executable?.group.name ?? "missing");
+    expect(screen.queryByTestId("play-recommended")).toBeNull();
     fireEvent.click(screen.getByTestId("play-select-recommended"));
     expect(screen.getByTestId("confirm-starts-with").textContent).toContain(plays[0]?.group.name ?? "missing");
+    expect(screen.getByTestId("play-recommended")).toBeDefined();
     // A play with no search can be read but never picked.
     for (const item of others) {
       const searchable = item.getAttribute("data-executable") === "true";

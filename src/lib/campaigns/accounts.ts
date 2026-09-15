@@ -120,8 +120,11 @@ function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" |
 }
 
 /**
- * The accounts, accounts first. Once Reveal emails is pressed (`keptOnly`),
- * only the kept people are listed: nobody else was, or will be, revealed.
+ * The accounts, accounts first. While the rep is reviewing, the accounts
+ * with someone still to decide come first (in Relay's order), then the
+ * decided ones, so the page opens on the work (final MVP pass). Once Reveal
+ * emails is pressed (`keptOnly`), only the kept people are listed, in
+ * Relay's order: nobody else was, or will be, revealed.
  */
 export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false): AccountView[] {
   const roles = handoff.version === 2;
@@ -130,7 +133,9 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
   for (const row of [...rows].filter((row) => row.status === "chosen" && (!keptOnly || row.review === "kept")).sort((a, b) => a.rank - b.rank)) {
     byKey.set(row.companyKey, [...(byKey.get(row.companyKey) ?? []), row]);
   }
-  return [...byKey.values()].map((members) => {
+  const undecided = (members: StoredPerson[]) => members.some((row) => reviewOf(row.review) === "pending");
+  const ordered = keptOnly ? [...byKey.values()] : [...byKey.values()].sort((a, b) => Number(undecided(b)) - Number(undecided(a)));
+  return ordered.map((members) => {
     const first = previewOf(members[0]!.preview);
     const seed = isSeedFirm(
       { providerId: members[0]!.id, name: first.name, title: first.title, company: first.company, ...(first.domain === null ? {} : { domain: first.domain }), hasEmail: false, emailRevealCredits: null },

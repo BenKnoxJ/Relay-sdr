@@ -507,7 +507,21 @@ export type CampaignSummaryFacts = {
   spend: CampaignSpendView;
 };
 
-export type AskAnswer = { id: string; question: string; answer: string };
+/** One line of a campaign's activity (final MVP pass): what happened, when, and who did it. */
+export type ActivityEntry = { id: string; at: string; when: string; by: string | null; line: string; detail: string | null };
+
+/** Finding accounts and people, as it runs: the confirmed search and what it has cost so far, never a bar. */
+export type FindingView = {
+  groupName: string;
+  /** The plan's search as it was frozen: countries, kinds of organisation, size. */
+  search: string;
+  roles: BuyerRoleView[];
+  /** Firms research named for this kind of buyer: what the search starts from. */
+  seedFirms: number;
+  cap: number;
+  /** When the job was created, ISO; the queue picks it up from there. */
+  startedAt: string | null;
+};
 
 export type CampaignSummary = {
   id: string;
@@ -552,7 +566,6 @@ export type Campaign = CampaignSummary & {
   nextBatch: { day: string; time: string } | null;
   /** Null until a credit has been spent. */
   credits: { used: number; left: number } | null;
-  ask: AskAnswer[];
   /**
    * True for a campaign read from the database. False for the sample campaigns
    * the component tests draw the later, signed states with (Running, Done):
@@ -580,4 +593,8 @@ export type Campaign = CampaignSummary & {
   plays?: ResearchPlayView[] | null;
   /** What the campaign has cost, each kind in its own unit. */
   spend?: CampaignSpendView;
+  /** Finding people, while it runs: the frozen search and what it has used so far. */
+  finding?: FindingView | null;
+  /** What has happened to this campaign, newest first. Absent on samples. */
+  activity?: ActivityEntry[];
 };

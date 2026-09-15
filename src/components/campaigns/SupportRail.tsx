@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
-import type { AskAnswer } from "@/lib/campaigns/state";
+import { TextLink } from "@/components/TextButton";
 import { usd } from "@/lib/campaigns/stageLine";
-import type { BriefFields, CampaignOverview, CampaignSpendView } from "@/lib/campaigns/types";
+import type { ActivityEntry, BriefFields, CampaignOverview, CampaignSpendView } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { researchCopy } from "@/lib/copy/research";
 import { cn } from "@/lib/utils";
 
-import { AskRelay } from "./AskRelay";
+import { ActivityList } from "./ActivityList";
 import { BriefCard } from "./BriefCard";
 import { Overview } from "./Overview";
 
@@ -21,11 +20,12 @@ import { Overview } from "./Overview";
  *
  * Research is the Overview folded to a line with the way into everything
  * research found; Spend is what this campaign has cost so far in each unit
- * it is counted in; Brief is the brief as read; Ask is the six questions.
- * Nothing here is the rep's job on this page, which is why it is quiet.
+ * it is counted in; Brief is the brief as read; Activity is what has
+ * happened, newest first. Nothing here is the rep's job on this page, which
+ * is why it is quiet. The tabs take the arrow keys, as tabs do.
  */
 
-type Tab = "research" | "spend" | "brief" | "ask";
+type Tab = "research" | "spend" | "brief" | "activity";
 
 export function SupportRail({
   overview,
@@ -33,7 +33,7 @@ export function SupportRail({
   spend,
   brief,
   editHref,
-  ask,
+  activity,
   initial = "research",
   confirmed = false,
   sample = false,
@@ -45,7 +45,8 @@ export function SupportRail({
   sample?: boolean;
   brief: BriefFields;
   editHref?: string;
-  ask: AskAnswer[];
+  /** Absent on a sample: there is no record behind it. */
+  activity?: readonly ActivityEntry[];
   initial?: Tab;
   confirmed?: boolean;
 }) {
@@ -54,13 +55,18 @@ export function SupportRail({
     ...(overview === null ? [] : [{ id: "research" as const, label: c.railResearch }]),
     { id: "spend", label: c.railSpend },
     { id: "brief", label: c.railBrief },
-    { id: "ask", label: c.railAsk },
+    ...(activity === undefined ? [] : [{ id: "activity" as const, label: c.railActivity }]),
   ];
   const [tab, setTab] = useState<Tab>(overview === null && initial === "research" ? "spend" : initial);
   const current = tabs.some((entry) => entry.id === tab) ? tab : (tabs[0]?.id ?? "spend");
+  const move = (from: Tab, by: 1 | -1) => {
+    const index = tabs.findIndex((entry) => entry.id === from);
+    const next = tabs[(index + by + tabs.length) % tabs.length];
+    if (next !== undefined) setTab(next.id);
+  };
 
   return (
-    <aside data-testid="support-rail" className="rounded-card border border-line bg-panel">
+    <aside data-testid="support-rail" className="rounded-card border border-line bg-panel wide:sticky wide:top-[calc(var(--relay-header-h,0px)+16px)]">
       <div role="tablist" aria-label={c.railLabel} className="flex flex-wrap gap-1 border-b border-line px-3 pt-2">
         {tabs.map((entry) => (
           <button
@@ -69,7 +75,12 @@ export function SupportRail({
             role="tab"
             data-testid={`rail-tab-${entry.id}`}
             aria-selected={current === entry.id}
+            tabIndex={current === entry.id ? 0 : -1}
             onClick={() => setTab(entry.id)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight") move(entry.id, 1);
+              if (event.key === "ArrowLeft") move(entry.id, -1);
+            }}
             className={cn(
               "-mb-px border-b-2 px-2 pb-2 pt-1 text-13 font-semibold transition-colors duration-micro ease-standard focus-visible:outline-none focus-visible:ring-2",
               current === entry.id ? "border-action text-ink" : "border-transparent text-muted hover:text-ink",
@@ -79,20 +90,20 @@ export function SupportRail({
           </button>
         ))}
       </div>
-      <div role="tabpanel" data-testid={`rail-panel-${current}`} className="p-card">
+      <div role="tabpanel" data-testid={`rail-panel-${current}`} className="max-h-[calc(100vh-var(--relay-header-h,0px)-72px)] overflow-y-auto p-card">
         {current === "research" && overview !== null ? (
           <div className="grid gap-3">
             {researchHref === undefined ? null : (
-              <Link href={researchHref} data-testid="rail-research-link" className="type-small inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
+              <TextLink href={researchHref} data-testid="rail-research-link">
                 {researchCopy.openLink}
-              </Link>
+              </TextLink>
             )}
             <Overview overview={overview} confirmed={confirmed} collapsed bare />
           </div>
         ) : null}
         {current === "spend" ? <SpendLines spend={spend} sample={sample} /> : null}
         {current === "brief" ? <BriefCard brief={brief} editHref={editHref} bare /> : null}
-        {current === "ask" ? <AskRelay questions={ask} bare /> : null}
+        {current === "activity" && activity !== undefined ? <ActivityList entries={activity} /> : null}
       </div>
     </aside>
   );

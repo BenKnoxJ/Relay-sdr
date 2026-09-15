@@ -1,10 +1,10 @@
-import Link from "next/link";
-
 import { Card } from "@/components/Card";
+import { TextLink } from "@/components/TextButton";
 import { failureLine } from "@/lib/campaigns/state";
-import type { CampaignSummaryFacts, InFlightWork, ResearchFailure } from "@/lib/campaigns/types";
+import type { CampaignSpendView, CampaignSummaryFacts, FindingView, InFlightWork, ResearchFailure } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { researchCopy } from "@/lib/copy/research";
+import { timeLabel } from "@/lib/shell";
 
 /**
  * The campaign page's main area in the states where Relay is working or
@@ -36,25 +36,85 @@ export function ResearchingCard({ inFlight }: { inFlight: InFlightWork | null | 
   );
 }
 
-/** Finding accounts and people (lead gen v2.2): the search, in order, the play it is for, its limit, and that nothing is bought. */
-export function FindingCard({ inFlight, groupName, cap }: { inFlight: InFlightWork | null | undefined; groupName: string | null; cap: number | null }) {
+/**
+ * Finding accounts and people (lead gen v2.2; final MVP pass): the search as
+ * it was frozen at Confirm, the roles it looks for, the firms it starts from,
+ * whether it is waiting its turn or running, and what it has used so far.
+ * Everything here is a fact Relay holds; nothing is a bar or a guess at how
+ * far along it is. Emails are not bought here.
+ */
+export function FindingCard({ inFlight, finding, groupName, spend }: { inFlight: InFlightWork | null | undefined; finding: FindingView | null; groupName: string | null; spend: CampaignSpendView["search"] | null }) {
   const c = campaignsCopy;
+  const queued = waiting(inFlight);
+  const name = finding?.groupName ?? groupName;
+  const started = finding?.startedAt === null || finding?.startedAt === undefined ? "" : timeLabel(finding.startedAt);
+  const cap = finding?.cap ?? spend?.cap ?? null;
   return (
     <Card label={c.findingLabel}>
-      <p data-testid="finding-note" className="type-body">
-        {waiting(inFlight) ? c.findingWaiting : c.findingRunning}
-        {groupName === null ? "" : ` ${c.peopleFoundFor} ${groupName}.`}
+      <p data-testid="finding-note" className="type-body max-w-measure">
+        {queued ? c.findingWaiting : c.findingRunning}
+        {name === null ? "" : ` ${c.peopleFoundFor} ${name}.`}
       </p>
+      {queued ? <p className="type-small mt-1 max-w-measure text-muted">{c.findingQueuedNote}</p> : null}
+      {finding === null ? null : (
+        <dl data-testid="finding-search" className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+          <dt className="type-small text-muted">{c.findingSearchLead}</dt>
+          <dd className="type-small max-w-measure [overflow-wrap:anywhere]">{finding.search.replace(`${c.accountFitSearch} `, "")}</dd>
+          {finding.roles.length === 0 ? null : (
+            <>
+              <dt className="type-small text-muted">{c.findingRolesLead}</dt>
+              <dd className="type-small max-w-measure">{finding.roles.map((role) => `${c.roleParts[role.part]} · ${role.title}`).join(c.noteJoin)}</dd>
+            </>
+          )}
+          {finding.seedFirms === 0 ? null : (
+            <>
+              <dt className="type-small text-muted">{c.findingSeedsLead}</dt>
+              <dd className="type-small">
+                {finding.seedFirms} {finding.seedFirms === 1 ? c.findingSeedsOne : c.findingSeedsMany}
+              </dd>
+            </>
+          )}
+        </dl>
+      )}
       <ol data-testid="finding-steps" className="mt-3 grid list-decimal gap-1 pl-5">
         {c.findingSteps.map((line) => (
-          <li key={line} className="type-small">
+          <li key={line} className="type-small max-w-measure">
             {line}
           </li>
         ))}
       </ol>
-      <p className="type-small mt-3 text-muted">
-        {c.findingQuality}
-        {cap === null ? "" : ` ${c.findingCap}: ${cap} ${c.confirmCredits}.`} {c.findingNothingBought}
+      <div data-testid="finding-spend" className="mt-3 grid gap-0.5 border-t border-line pt-3">
+        <p className="type-small text-muted">
+          {c.findingQuality}
+          {cap === null ? "" : ` ${c.findingCap}: ${cap} ${c.confirmCredits}.`} {c.findingNothingBought}
+        </p>
+        {spend !== null && spend.held > 0 ? (
+          <p data-testid="finding-held" className="type-mono text-13">
+            {c.findingHeldLead} {spend.held} {c.spendCreditsWord}
+          </p>
+        ) : null}
+        {spend !== null && spend.charged > 0 ? (
+          <p data-testid="finding-charged" className="type-mono text-13">
+            {c.findingChargedLead} {spend.charged} {c.spendCreditsWord}
+          </p>
+        ) : null}
+        {!queued && started !== "" ? (
+          <p data-testid="finding-started" className="type-mono text-13 text-muted">
+            {c.findingStartedLead} {started}
+          </p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/** Revealing emails, while it runs: waiting its turn or running, and that nothing is sent. */
+export function RevealingCard({ inFlight }: { inFlight: InFlightWork | null | undefined }) {
+  const c = campaignsCopy;
+  return (
+    <Card label={c.revealingLabel}>
+      <p data-testid="revealing-note" className="type-body max-w-measure">
+        {waiting(inFlight) ? `${c.summaryWaiting}. ${c.findingQueuedNote}` : c.revealingNote}
       </p>
     </Card>
   );
@@ -85,7 +145,7 @@ export function ResearchNeedsYouCard({
   const research = facts?.research ?? null;
   return (
     <Card label={noPlay ? c.playsIncompleteLabel : c.stepNeedsYou}>
-      <p data-testid={noPlay ? "incomplete-note" : "failed-note"} className="type-body text-warn">
+      <p data-testid={noPlay ? "incomplete-note" : "failed-note"} className="type-body max-w-measure text-warn">
         {failureLine(failure)} {c.failedNothingSpent} {noPlay ? "" : canRetry ? c.failedNextRetry : c.failedNextEdit}
       </p>
       {noPlay && research !== null ? (
@@ -98,14 +158,14 @@ export function ResearchNeedsYouCard({
       ) : null}
       <div className="mt-3 flex flex-wrap gap-4">
         {editHref === undefined ? null : (
-          <Link href={editHref} data-testid="incomplete-edit" className="type-small inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
+          <TextLink href={editHref} data-testid="incomplete-edit">
             {c.editBrief}
-          </Link>
+          </TextLink>
         )}
         {noPlay && researchHref !== undefined ? (
-          <Link href={researchHref} data-testid="incomplete-research" className="type-small inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
+          <TextLink href={researchHref} data-testid="incomplete-research">
             {researchCopy.openLink}
-          </Link>
+          </TextLink>
         ) : null}
       </div>
     </Card>
@@ -117,14 +177,14 @@ export function RevealNeedsYouCard({ line, retryable, editHref }: { line: string
   const c = campaignsCopy;
   return (
     <Card label={c.revealNeedsYouLabel}>
-      <p data-testid="reveal-stopped" className="type-body text-warn">
+      <p data-testid="reveal-stopped" className="type-body max-w-measure text-warn">
         {line}
       </p>
       <p className="type-small mt-2 text-muted">{retryable ? c.revealNeedsYouRetry : c.revealNeedsYouNoRetry}</p>
       {editHref === undefined ? null : (
-        <Link href={editHref} data-testid="reveal-edit" className="type-small mt-3 inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2">
+        <TextLink href={editHref} data-testid="reveal-edit" className="mt-3">
           {c.editBrief}
-        </Link>
+        </TextLink>
       )}
     </Card>
   );

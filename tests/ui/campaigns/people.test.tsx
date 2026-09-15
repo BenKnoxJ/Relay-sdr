@@ -184,12 +184,21 @@ describe("Plan ready: Confirm plan", () => {
 });
 
 describe("Finding people", () => {
-  it("says the search is running, accounts first, with its limit and nothing to press", () => {
-    render(<CampaignPage campaign={campaign({ job: { status: "running" } })} />);
+  it("says the search is running, accounts first, with the frozen search, its limit and nothing to press", () => {
+    render(<CampaignPage campaign={campaign({ job: { status: "running", createdAt: AT } })} />);
     expect(screen.getByTestId("finding-note").textContent).toContain(campaignsCopy.findingRunning);
     expect(screen.getByTestId("finding-note").textContent).toContain(handoff.buyerGroup.name);
     expect(screen.getByTestId("finding-steps").querySelectorAll("li")).toHaveLength(campaignsCopy.findingSteps.length);
     expect(document.body.textContent).toContain(`${campaignsCopy.findingCap}: 40 ${campaignsCopy.confirmCredits}`);
+    // The search as Confirm froze it: countries, kinds of organisation, size, the roles, and the firms it starts from. No bar.
+    const search = screen.getByTestId("finding-search").textContent ?? "";
+    expect(search).toContain("United Kingdom");
+    expect(search).toContain(campaignsCopy.findingRolesLead);
+    for (const role of handoff.buyerRoles) expect(search).toContain(role.title);
+    expect(search).toContain(`${handoff.seedFirms.length} ${campaignsCopy.findingSeedsMany}`);
+    expect(screen.getByTestId("finding-started").textContent).toContain(campaignsCopy.findingStartedLead);
+    expect(document.querySelector("progress")).toBeNull();
+    expect(document.querySelector("[role=progressbar]")).toBeNull();
     expect(currentStep()).toBe(campaignsCopy.stepFindingPeople);
     expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
   });
@@ -319,14 +328,15 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     // Each role's needs appear exactly once, in the buyer roles summary.
     expect(screen.getByTestId("buyer-roles").textContent).toContain(campaignsCopy.buyerRolesLabel);
     expect(document.body.textContent?.split("Less manual checking.").length).toBe(2);
-    // Every person carries the role they play and one short line naming it.
+    // Every person carries the role they play, as a word rather than a chip.
     const chips = screen.getAllByTestId("role-chip").map((chip) => chip.textContent);
     const labels: string[] = [...Object.values(campaignsCopy.roleParts), campaignsCopy.relatedRole];
     expect(chips.every((chip) => labels.includes(chip ?? ""))).toBe(true);
     // Every person carries what Relay actually has on them, never a line that reads the same for everyone.
     const evidence: string[] = [campaignsCopy.evidenceExactTitle, campaignsCopy.evidenceCloseTitle, campaignsCopy.evidenceEmail, campaignsCopy.evidenceNoEmail, campaignsCopy.evidenceSeed, campaignsCopy.evidenceReused];
+    const cities = new Set(full.chosen.map((person) => person.city).filter((city): city is string => typeof city === "string"));
     const lines = screen.getAllByTestId("why-fits").map((line) => line.textContent ?? "");
-    expect(lines.every((line) => line.split(campaignsCopy.noteJoin).every((part) => evidence.includes(part)))).toBe(true);
+    expect(lines.every((line) => line.split(campaignsCopy.noteJoin).every((part) => evidence.includes(part) || cities.has(part)))).toBe(true);
     expect(lines.some((line) => line.includes(campaignsCopy.evidenceExactTitle))).toBe(true);
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
   });
@@ -396,14 +406,30 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(screen.getByTestId("stage-line").textContent).toContain(`10 ${campaignsCopy.summaryToReview}`);
   });
 
-  it("hides reviewed accounts on request, and shows them again", () => {
+  it("puts the accounts still to decide first, folds a decided account to one line on request, and opens it again", () => {
     const people = reviewed(full, { 1: "kept", 2: "kept" });
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } })} onReview={vi.fn()} />);
-    const before = screen.getAllByTestId("found-account").length;
-    fireEvent.click(screen.getByTestId("hide-reviewed"));
-    expect(screen.getAllByTestId("found-account").length).toBeLessThan(before);
-    fireEvent.click(screen.getByTestId("hide-reviewed"));
-    expect(screen.getAllByTestId("found-account")).toHaveLength(before);
+    const accounts = screen.getAllByTestId("found-account");
+    const decided = accounts.filter((account) => account.getAttribute("data-decided") === "true");
+    expect(decided).toHaveLength(1);
+    // Last, not first: the page opens on the work.
+    expect(accounts[accounts.length - 1]).toBe(decided[0]);
+    // A short list keeps decided accounts open, quiet; Collapse reviewed folds them to one line with the decision and no Keep or Drop.
+    expect(decided[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(screen.getByTestId("show-reviewed").textContent).toBe(`${campaignsCopy.reviewCollapseReviewed} (1)`);
+    fireEvent.click(screen.getByTestId("show-reviewed"));
+    expect(decided[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(decided[0]?.querySelectorAll("[data-testid=found-person]")).toHaveLength(0);
+    expect(decided[0]?.querySelectorAll("[data-testid=keep]")).toHaveLength(0);
+    expect(decided[0]?.textContent).toContain(campaignsCopy.reviewAllKept);
+    // Change opens that one; Show reviewed opens them all.
+    fireEvent.click(decided[0]!.querySelector("[data-testid=account-change]")!);
+    expect(decided[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(decided[0]?.querySelectorAll("[data-testid=found-person]").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("show-reviewed").textContent).toBe(`${campaignsCopy.reviewShowReviewed} (1)`);
+    fireEvent.click(screen.getByTestId("show-reviewed"));
+    expect(screen.getAllByTestId("found-account")).toHaveLength(accounts.length);
+    expect(screen.getAllByTestId("found-account").every((account) => account.getAttribute("data-collapsed") === null)).toBe(true);
   });
 
   it("keeps Keep and Drop quiet until one is chosen", () => {

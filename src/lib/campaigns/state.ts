@@ -1,8 +1,6 @@
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
-import type { AskAnswer, CampaignSpendView, ResearchFailure } from "./types";
-
-export type { AskAnswer } from "./types";
+import type { ResearchFailure } from "./types";
 
 /**
  * Where a campaign is, and what that is called on screen (master doc §23.1c,
@@ -16,8 +14,8 @@ export type { AskAnswer } from "./types";
  * string table.
  *
  * Everything here is derived from a campaign's state and its counts, and
- * nothing here holds any: the chip word, the step, the one action, the "next"
- * line and the six answers are all functions of what the caller already has.
+ * nothing here holds any: the chip word, the step, the one action and the
+ * "next" line are all functions of what the caller already has.
  */
 
 /** The seven signed steps, in order. */
@@ -131,7 +129,7 @@ export function actionFor(
 }
 
 /**
- * The counts a "next" line and an answer are computed from.
+ * The counts a "next" line is computed from.
  *
  * A structural type rather than the `Campaign` it is read off, so this module
  * stays free of the research contract. A null count is one that does not exist
@@ -145,15 +143,6 @@ export type CampaignCounts = {
   nextBatch: { day: string; time: string } | null;
   credits: { used: number; left: number } | null;
   live?: boolean;
-  failure?: ResearchFailure | null;
-  /** Research itself failed, so Try again is offered (orchestrator A1, item 6). */
-  retryable?: boolean;
-  /** Why finding people needs the rep, in words (lead gen v2.1 §11). */
-  peopleReason?: string;
-  /** What the campaign has cost, every brief version, each kind apart. */
-  spend?: CampaignSpendView;
-  /** Set when revealing emails stopped and needs the rep: why, in words. */
-  revealStopped?: string;
 };
 
 /** The line that says why research did not finish (orchestrator §7, amended A1). */
@@ -220,100 +209,6 @@ export function nextFor(
   }
 }
 
-/**
- * The six fixed questions (orchestrator §8), answered from counts and state.
- *
- * Every answer is assembled from the caller's numbers and the copy file's
- * fragments, so nothing a rep reads here is written anywhere but
- * `src/lib/copy/campaigns.ts`. The model's job later is to phrase these; §8
- * says it never computes them, which is why computing them without one is
- * honest rather than a stand-in.
- *
- * It takes the state as an argument rather than reading it off the campaign,
- * because the campaign page moves between states without the campaign
- * changing, and an answer that lagged the screen would be worse than none.
- */
-export function answersFor(state: CampaignState, counts: CampaignCounts): AskAnswer[] {
-  const c = campaignsCopy;
-  const p = counts.progress;
-  const live = counts.live === true;
-
-  const going =
-    p === null
-      ? c.answerNothingFound
-      : p.found === 0
-        ? c.answerNothingYet
-        : `${p.sent} ${c.answerSent}, ${p.replied} ${c.answerReplied}. ${p.drafted} ${c.answerDrafted} ${c.of} ${p.found} ${c.answerFound}.`;
-
-  const waiting =
-    counts.revealStopped !== undefined
-      ? c.answerWaitingRevealStopped
-      : state === "peopleNeedsYou"
-      ? c.answerWaitingPeopleNeedsYou
-      : state === "revealing"
-        ? c.answerWaitingRevealing
-        : state === "peopleReady"
-          ? c.answerWaitingPeopleReady
-          : state === "peopleFound"
-        ? c.answerWaitingPeopleFound
-        : state === "findingPeople" && live
-          ? c.answerWaitingFinding
-          : state === "failed"
-      ? counts.retryable === true
-        ? c.answerWaitingFailed
-        : c.answerWaitingFailedEdit
-      : state === "planReady"
-        ? live
-          ? c.answerWaitingPlanLive
-          : c.answerWaitingConfirm
-        : state === "stopped"
-          ? c.answerWaitingWiden
-          : counts.draftsDueToday > 0 && state !== "paused"
-            ? `${counts.draftsDueToday} ${c.answerWaitingDrafts}`
-            : c.answerWaitingNothing;
-
-  const replies =
-    p === null || p.replied === 0
-      ? c.answerRepliesNone
-      : `${p.replied} ${c.answerRepliesLead} ${counts.outcomes?.warm ?? 0} ${c.answerRepliesWarm}${c.noteJoin}${counts.outcomes?.meetings ?? 0} ${c.answerRepliesMeetings}.`;
-
-  const batch =
-    counts.nextBatch === null || state === "paused"
-      ? c.answerBatchNone
-      : `${c.answerBatchLead} ${counts.nextBatch.day} ${c.answerBatchAt} ${counts.nextBatch.time}.`;
-
-  const cost =
-    counts.spend !== undefined
-      ? costLine(counts.spend)
-      : counts.credits === null
-      ? c.answerCostNoCredits
-      : counts.credits.used === 0
-        ? c.answerCostNothing
-        : `${counts.credits.used} ${c.answerCostUsed} ${counts.credits.left} ${c.answerCostLeft}`;
-
-  const why =
-    counts.revealStopped !== undefined
-      ? counts.revealStopped
-      : state === "paused"
-      ? c.answerPaused
-      : state === "stopped"
-        ? c.answerStopped
-        : state === "failed"
-          ? failureLine(counts.failure)
-          : state === "peopleNeedsYou"
-            ? (counts.peopleReason ?? c.haltFailed)
-            : c.answerStoppedNone;
-
-  return [
-    { id: "how-going", question: c.askHowGoing, answer: going },
-    { id: "waiting", question: c.askWaiting, answer: waiting },
-    { id: "replies", question: c.askReplies, answer: replies },
-    { id: "next-batch", question: c.askNextBatch, answer: batch },
-    { id: "cost", question: c.askCost, answer: cost },
-    { id: "why-stopped", question: c.askWhyStopped, answer: why },
-  ];
-}
-
 /** Why finding people needs the rep, in words, from the halt reason and the term it names (lead gen v2.1 §11). */
 export function haltLine(reason: string, term?: string | null): string {
   const c = campaignsCopy;
@@ -352,20 +247,4 @@ export function revealStoppedLine(reason: string | undefined | null): string {
     default:
       return campaignsCopy.revealStopped;
   }
-}
-
-/**
- * "What has this cost?", for a stored campaign: every brief version it has
- * had, search and reveal credits apart, what is left under this version's
- * search limit, and anything still held. Credits only; research's model cost
- * is in dollars and is never added to them.
- */
-export function costLine(spend: CampaignSpendView): string {
-  const c = campaignsCopy;
-  const all = spend.allVersions;
-  const held = all.searchHeld + all.revealHeld;
-  if (all.searchCharged + all.revealCharged + held === 0) return spend.search.cap === null ? c.answerCostNoCredits : c.answerCostNothing;
-  const used = [`${all.searchCharged} ${c.answerCostSearch}`, ...(all.revealCharged + all.revealHeld > 0 ? [`${all.revealCharged} ${c.answerCostReveal}`] : [])].join(` ${c.answerCostAnd} `);
-  const left = spend.search.cap === null ? [] : [`${Math.max(0, spend.search.cap - spend.search.charged - spend.search.held)} ${c.answerCostLeftUnder}`];
-  return [`${used}.`, ...left, ...(held > 0 ? [`${held} ${c.answerCostHeld}`] : [])].join(" ");
 }

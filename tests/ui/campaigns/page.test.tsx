@@ -180,7 +180,8 @@ describe("a real campaign", () => {
     const queued = { ...liveCampaign("researching"), activity: { phase: "waiting" as const, since: null }, summary: { ...liveCampaign("researching").summary, waiting: true, line: campaignsCopy.summaryWaiting } };
     render(<CampaignPage campaign={queued} />);
     expect(screen.getByTestId("researching-note").textContent).toBe(`${campaignsCopy.researchingWaiting} ${campaignsCopy.researchingUsually}`);
-    expect(screen.getByTestId("stage-activity").textContent).toBe(campaignsCopy.summaryWaiting);
+    expect(screen.getByTestId("stage-line").textContent).toBe(campaignsCopy.summaryWaiting);
+    expect(screen.queryByTestId("stage-activity")).toBeNull();
   });
 
   it("on a complete plan, draws Confirm plan but cannot press it, and says why", () => {

@@ -18,7 +18,8 @@ export function StageSummary({ summary, activity, when }: { summary: StageSummar
           {summary.line}
         </p>
       )}
-      {activity === null ? null : (
+      {/* A waiting job is already the line itself: said once, not twice. */}
+      {activity === null || (activity.phase === "waiting" && summary.line === campaignsCopy.summaryWaiting) ? null : (
         <p data-testid="stage-activity" className="type-small mt-0.5 text-muted">
           {activity.phase === "waiting" ? campaignsCopy.summaryWaiting : `${campaignsCopy.summaryRunning}${since === null ? "" : ` ${campaignsCopy.activitySince} ${since}`}`}
         </p>

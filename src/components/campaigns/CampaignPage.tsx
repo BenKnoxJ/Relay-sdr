@@ -346,7 +346,7 @@ export function CampaignPage({
       <div className="mb-grid flex flex-wrap items-start justify-between gap-3">
         <div>
           <PageHeader title={campaign.name} className="mb-2" />
-          <StateRow state={state} />
+          <StateRow state={state} stuck={state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true} />
         </div>
         {action === null ? null : (
           <div className="flex flex-col items-end gap-1.5">

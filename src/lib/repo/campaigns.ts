@@ -911,8 +911,8 @@ export async function confirmReveal(db: PrismaClient, input: RevealInput): Promi
       campaignId: campaign.id,
       briefVersion: campaign.briefVersion,
     });
-    // One reveal per version: its key having a job already means one was confirmed and is not this one.
-    if (deduped) throw new CampaignChangeRefused("wrong_state");
+    // Unreachable under the lock, after the reveal-confirm check above: a job under this key is somebody else's.
+    if (deduped) throw new Error("reveal: this version's reveal key already had a job");
     return {
       campaign,
       job: revealJob,

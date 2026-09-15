@@ -250,6 +250,27 @@ describe("the approval", () => {
   });
 });
 
+describe("presses that race", () => {
+  it("@proof makes two overlapping presses one approval, whether they share a request id or not", async () => {
+    const { campaign, chosen } = await found();
+    await decide(campaign, chosen[0]!.id);
+    const requestId = randomUUID();
+    const same = await Promise.allSettled([approve(campaign, { requestId }), approve(campaign, { requestId })]);
+    expect(same.every((result) => result.status === "fulfilled")).toBe(true);
+    expect(same.map((result) => (result.status === "fulfilled" ? result.value.repeated : null)).sort()).toEqual([false, true]);
+
+    // A second tab and a reload racing the first press: one lands, the other is refused.
+    const other = await found();
+    await decide(other.campaign, other.chosen[0]!.id);
+    const tabs = await Promise.all([refusalOf(approve(other.campaign)), refusalOf(approve(other.campaign)), refusalOf(approve(other.campaign))]);
+    expect(tabs.filter((result) => result === "ok")).toHaveLength(1);
+    expect(tabs.filter((result) => result === "wrong_state")).toHaveLength(2);
+
+    expect(await prisma.event.count({ where: { kind: CAMPAIGN_REVEAL_CONFIRMED } })).toBe(2);
+    for (const id of [campaign.id, other.campaign.id]) expect(await prisma.job.count({ where: { campaignId: id, kind: REVEAL_JOB } })).toBe(1);
+  });
+});
+
 describe("the reveal job", () => {
   it("@proof writes the Person, the provider record, the campaign row, the reveal ledger and one Event, and the page shows the email", async () => {
     const { campaign, chosen } = await found();
@@ -382,6 +403,25 @@ describe("reuse, never twice, and suppression", () => {
     const two = await found();
     // Held before ranking in the next search: never chosen, so never offered for a reveal.
     expect(two.byProvider.has("l-003")).toBe(false);
+  });
+
+  it("@proof never buys a record known to be invalid, the wrong person or restricted, and buys the rest", async () => {
+    const { campaign, chosen } = await found();
+    const [invalid, wrong, restricted, good] = chosen;
+    for (const [row, status] of [[invalid, "invalid_id"], [wrong, "wrong_person"], [restricted, "restricted"]] as const) {
+      await prisma.providerIdentity.create({ data: { orgId: ORG, provider: "lusha", providerId: row!.providerId, personId: null, status } });
+    }
+    for (const row of [invalid, wrong, restricted]) await decide(campaign, row!.id);
+    expect((await view(campaign)).peopleFound?.revealPlan).toMatchObject({ kept: 3, toReveal: 0, unavailable: 3 });
+    expect(await refusalOf(approve(campaign))).toBe("nothing_to_reveal");
+
+    await decide(campaign, good!.id);
+    await approve(campaign);
+    const { provider } = await reveal(await revealJob(campaign.id), [{ contacts: everyone(), charged: 1 }]);
+    expect(provider.calls.map((call) => call.providerIds)).toEqual([[good!.providerId]]);
+    for (const row of [invalid, wrong, restricted]) {
+      expect(await prisma.campaignPerson.findUniqueOrThrow({ where: { id: row!.id } })).toMatchObject({ reveal: "held", revealHold: "provider_unusable", personId: null });
+    }
   });
 
   it("@proof blocks a person under an org-wide do-not-contact, and writes a CRM opt-out org-wide", async () => {

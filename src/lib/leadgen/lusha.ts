@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import {
   LUSHA_ENRICH_MAX_IDS,
+  LushaBadResponseError,
   LushaHttpError,
   LushaNoAnswerError,
   LushaNotSentError,
@@ -291,6 +292,8 @@ export class LushaRevealer implements RevealProvider {
     try {
       page = await this.client.enrichEmails(request.providerIds);
     } catch (error) {
+      // A success status with a body Relay cannot read reached the provider and may have been charged.
+      if (error instanceof LushaBadResponseError) throw new ProviderUnknownOutcomeError(error.message);
       throw asProviderError(error);
     }
     const asked = new Set(request.providerIds);

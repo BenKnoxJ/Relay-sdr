@@ -230,7 +230,15 @@ export const campaignsRouter = createTRPCRouter({
         })
         .strict(),
     )
-    .mutation(({ ctx, input }) => refusing(confirmReveal(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() }))),
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return { id: (await confirmReveal(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() })).campaign.id };
+      } catch (error) {
+        // Its own words where revealing is not set up; every other refusal as the other changes say it.
+        if (error instanceof CampaignChangeRefused && error.refusal === "not_available") throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.revealNotAvailable });
+        asRefusal(error);
+      }
+    }),
 
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();

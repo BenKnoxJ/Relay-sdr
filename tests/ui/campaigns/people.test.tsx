@@ -486,5 +486,8 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
   it("says when a reveal stopped before it finished, and that nothing more will be bought", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "failed", done: false, maxCredits: 2, charged: 0, reserved: 2 } })} />);
     expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStopped);
+    // The step row says it is stuck too, as the banner does.
+    const step = screen.getAllByTestId("state-step").find((item) => item.getAttribute("aria-current") === "step")!;
+    expect(step.className).toMatch(/\bbg-warn-bg\b/);
   });
 });

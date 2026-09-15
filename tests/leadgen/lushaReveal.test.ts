@@ -98,6 +98,8 @@ describe("the answer in Relay's words", () => {
       [async () => Promise.reject(Object.assign(new Error("timed out"), { name: "TimeoutError" })), ProviderUnknownOutcomeError],
       [async () => json({ message: "slow down" }, 429), ProviderBusyError],
       [async () => json({ message: "down" }, 503), ProviderUnknownOutcomeError],
+      // It reached the provider and answered success, but in a shape Relay cannot read: it may have been charged.
+      [async () => json({ results: "not a list" }), ProviderUnknownOutcomeError],
     ];
     for (const [fetchImpl, kind] of cases) {
       await expect(new LushaRevealer(new LushaClient(KEY, { fetchImpl })).revealEmails({ key: "k", providerIds: ["c-1"] })).rejects.toBeInstanceOf(kind as never);

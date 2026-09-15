@@ -8,8 +8,8 @@ import type { SearchPricing, SpendEntry, SpendPort } from "./spend";
  * Reveal emails, the second spend gate (lead gen v2.1 §6, §7, §9; v2.2 §9a),
  * provider-free: which kept people Relay already knows, which it asks the
  * provider for, and what each answer comes to. It takes the kept people and
- * everything else as arguments, calls only the provider it was handed, and
- * persists nothing.
+ * everything else as arguments, calls only the provider and the CRM check it
+ * was handed, and persists nothing.
  *
  * Only kept people ever reach here; pending and dropped are never revealed.
  * Before anything is bought:

@@ -28,6 +28,7 @@ const LINES: readonly string[] = [
   campaignsCopy.revealNothing,
   campaignsCopy.revealChanged,
   campaignsCopy.revealOverBalance,
+  campaignsCopy.revealNotAvailable,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {

@@ -30,9 +30,10 @@ const LABELS: Record<CampaignStep, string> = {
   done: campaignsCopy.stepDone,
 };
 
-export function StateRow({ state }: { state: CampaignState }) {
+export function StateRow({ state, stuck = false }: { state: CampaignState; stuck?: boolean }) {
   const current = stepIndexFor(state);
-  const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou";
+  // `stuck`: a state that is otherwise fine but stopped before it finished (a reveal that did not complete).
+  const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou" || stuck;
 
   return (
     <ol aria-label={campaignsCopy.stepsLabel} className="flex flex-wrap items-center gap-1.5">
@@ -47,7 +48,11 @@ export function StateRow({ state }: { state: CampaignState }) {
                 ? campaignsCopy.stepFindingNeedsYou
                 : step === "findingPeople" && state === "peopleFound"
                   ? campaignsCopy.stepReviewingPeople
-                  : LABELS[step];
+                  : step === "findingPeople" && state === "revealing"
+                    ? campaignsCopy.stepRevealing
+                    : step === "findingPeople" && state === "peopleReady"
+                      ? campaignsCopy.stepPeopleReady
+                      : LABELS[step];
         return (
           <li
             key={step}

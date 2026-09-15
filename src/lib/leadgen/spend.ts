@@ -60,6 +60,11 @@ export const LUSHA_V3_PRICING: SearchPricing = {
   revealPerEmail: 1,
 };
 
+/** A frozen pricing id back to its model; null for an id this build does not know. */
+export function pricingById(id: string): SearchPricing | null {
+  return [DOCUMENTED_UNVERIFIED_PRICING, LUSHA_V3_PRICING].find((pricing) => pricing.id === id) ?? null;
+}
+
 /** The most any documented model could charge for one request of `pageSize` results. */
 export function documentedWorstCaseCharge(pageSize: number, pricing: SearchPricing): number {
   if (!Number.isInteger(pageSize) || pageSize < 1) throw new Error("documentedWorstCaseCharge: pageSize is a positive whole number");

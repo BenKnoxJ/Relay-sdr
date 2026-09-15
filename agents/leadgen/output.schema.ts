@@ -51,7 +51,7 @@ export type HoldReason = (typeof HOLD_REASONS)[number];
 export const CONTACT_SUPPRESSION_REASONS = ["opted_out", "dnc"] as const;
 
 /** A provider record's state (v2.1 §9). Not a fact about the human or the company. */
-export const PROVIDER_IDENTITY_STATUSES = ["usable", "no_email", "invalid_id", "wrong_person"] as const;
+export const PROVIDER_IDENTITY_STATUSES = ["usable", "no_email", "invalid_id", "wrong_person", "restricted"] as const;
 
 /**
  * Why People found shows X of N (v2.1 §4, §11). `fewer_strong_matches` is

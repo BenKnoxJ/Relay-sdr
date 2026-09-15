@@ -2,7 +2,7 @@
 
 import { TRPCError } from "@trpc/server";
 
-import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -25,6 +25,10 @@ const LINES: readonly string[] = [
   campaignsCopy.confirmNoRecipe,
   campaignsCopy.confirmOverCap,
   campaignsCopy.confirmBalanceUnavailable,
+  campaignsCopy.revealNothing,
+  campaignsCopy.revealChanged,
+  campaignsCopy.revealOverBalance,
+  campaignsCopy.revealNotAvailable,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {
@@ -115,6 +119,18 @@ export async function chooseIndustry(submission: ChooseIndustrySubmission): Prom
       requestId: submission.requestId,
       term: submission.term,
       label: submission.label,
+    }),
+  );
+}
+
+/** Reveal emails: the second spend approval, with the figures the rep saw (lead gen v2.1 §6). */
+export async function revealEmails(submission: RevealSubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.revealEmails({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+      expected: submission.expected,
     }),
   );
 }

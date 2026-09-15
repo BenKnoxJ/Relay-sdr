@@ -247,6 +247,8 @@ export type ResearchActions = {
   chooseIndustry?: boolean;
   /** Keep or drop the people found (lead gen v2.2 §9a). */
   review?: boolean;
+  /** Reveal emails can be pressed: somebody kept has an email to reveal or reuse (lead gen v2.1 §6). */
+  reveal?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -269,7 +271,13 @@ export type RolePartView = "runs" | "champions" | "signs";
 /** The rep's decision before Reveal (lead gen v2.2 §9a). Pending is not kept. */
 export type ReviewView = "pending" | "kept" | "dropped";
 
-/** One person under an account, as the rep reads them: no provider ids, no email, no taxonomy. */
+/** What Reveal emails came to for one kept person (lead gen v2.1 §7, §9). */
+export type RevealStateView = "revealed" | "known" | "no_email" | "suppressed" | "held" | "failed";
+
+/**
+ * One person under an account, as the rep reads them: no provider ids and no
+ * taxonomy. An email only once it is revealed or already known, and usable.
+ */
 export type FoundPersonView = {
   id: string;
   rank: number;
@@ -284,6 +292,36 @@ export type FoundPersonView = {
   /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
   why: string;
   review: ReviewView;
+  /** Null until Reveal emails has run for them. */
+  reveal: RevealStateView | null;
+  /** The usable email: only for revealed and already known people. */
+  email: string | null;
+  /** Why there is no usable email, in words; null when there is one or nothing was revealed. */
+  revealWhy: string | null;
+};
+
+/** What Reveal emails would do for the kept people, before it is pressed (the figures the rep approves). */
+export type RevealPlanView = {
+  kept: number;
+  known: number;
+  toReveal: number;
+  free: number;
+  maxCredits: number;
+  noEmail: number;
+  unavailable: number;
+};
+
+/** What Reveal emails came to, once pressed. */
+export type RevealResultView = {
+  /** Still running, or stopped before it finished. */
+  running: boolean;
+  stopped: boolean;
+  tally: Record<RevealStateView, number>;
+  charged: number;
+  reserved: number;
+  maxCredits: number;
+  /** Chosen people the rep did not keep: never revealed. */
+  notKept: number;
 };
 
 /** One of the confirmed group's roles, shown once above the accounts with what research says it needs. */
@@ -318,8 +356,15 @@ export type PeopleFoundView = {
   review: { kept: number; dropped: number; pending: number };
   onHold: number;
   spend: { charged: number; reserved: number; cap: number };
-  /** What revealing the KEPT people's emails would use: pending and dropped count for nothing (v2.2 §9a). */
-  revealEstimate: { kept: number; toBuy: number; reused: number; credits: number };
+  /**
+   * Where the list is: the rep reviewing it, Reveal emails running, or the
+   * emails ready. After Reveal, only the kept people are listed.
+   */
+  phase: "review" | "revealing" | "ready";
+  /** Reviewing: what revealing the KEPT people's emails would do; pending and dropped count for nothing (v2.2 §9a). Null when it cannot be worked out. */
+  revealPlan: RevealPlanView | null;
+  /** Revealing or ready: what it came to. */
+  revealResult: RevealResultView | null;
   sample: boolean;
 };
 

@@ -94,6 +94,9 @@ function setup(over: Partial<LeadGenSetup> = {}): LeadGenSetup {
     environment: async () => {
       throw new Error("tests hand the handler its provider");
     },
+    revealer: () => {
+      throw new Error("tests hand the handler its provider");
+    },
     ...over,
   };
 }
@@ -381,12 +384,12 @@ describe("reuse, identity and one enrolment per person", () => {
       const row = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: campaign.id, providerId: "l-001" } });
       expect(row).toMatchObject({ source: "reused", personId, status: "chosen" });
       // Nothing is kept yet, so nothing would be revealed: pending is not kept (v2.2 §9a).
-      expect((await campaignView(campaign)).peopleFound?.revealEstimate).toEqual({ kept: 0, toBuy: 0, reused: 0, credits: 0 });
+      expect((await campaignView(campaign)).peopleFound?.revealPlan).toEqual({ kept: 0, known: 0, toReveal: 0, free: 0, maxCredits: 0, noEmail: 0, unavailable: 0 });
       for (const chosen of await prisma.campaignPerson.findMany({ where: { campaignId: campaign.id, status: "chosen" } })) {
         await reviewPeople(prisma, { orgId: ORG, userId: REP, campaignId: campaign.id, briefVersion: 1, personId: chosen.id, scope: "person", decision: "kept" });
       }
       const view = await campaignView(campaign);
-      expect(view.peopleFound?.revealEstimate).toMatchObject({ kept: 10, reused: 1, toBuy: 9 });
+      expect(view.peopleFound?.revealPlan).toMatchObject({ kept: 10, known: 1, toReveal: 9, maxCredits: 9 });
       expect(view.peopleFound?.accounts.flatMap((account) => account.people).find((person) => person.reused)).toBeDefined();
     }
   });
@@ -534,7 +537,7 @@ describe("keep or drop before Reveal (v2.2 §9a)", () => {
     expect(chosen.find((row) => titleOf(row) === "Deputy Head of Claims")).toMatchObject({ rolePart: "signs", roleTitle: "Head of claims", roleMatch: "phrase" });
     const view = await campaignView(campaign);
     expect(view.peopleFound?.review).toEqual({ kept: 0, dropped: 0, pending: 10 });
-    expect(view.peopleFound?.revealEstimate).toEqual({ kept: 0, toBuy: 0, reused: 0, credits: 0 });
+    expect(view.peopleFound?.revealPlan).toEqual({ kept: 0, known: 0, toReveal: 0, free: 0, maxCredits: 0, noEmail: 0, unavailable: 0 });
     // Each person says the role they matched; each role's needs are said once, above the accounts.
     const people = view.peopleFound!.accounts.flatMap((account) => account.people);
     expect(people.find((person) => person.role === "runs")?.why).toBe(campaignsCopy.whyRole.runs);
@@ -566,7 +569,7 @@ describe("keep or drop before Reveal (v2.2 §9a)", () => {
     expect(view.peopleFound?.review).toEqual({ kept: 1, dropped: 1, pending: 8 });
     expect(view.peopleFound?.accounts.flatMap((account) => account.people).find((person) => person.id === first!.id)?.review).toBe("kept");
     // Only the kept person counts towards a reveal.
-    expect(view.peopleFound?.revealEstimate).toEqual({ kept: 1, toBuy: 1, reused: 0, credits: 1 });
+    expect(view.peopleFound?.revealPlan).toEqual({ kept: 1, known: 0, toReveal: 1, free: 0, maxCredits: 1, noEmail: 0, unavailable: 0 });
 
     // The same press again changes nothing and records nothing; a decision can still be changed.
     expect((await review(campaign, first!.id, "kept")).changed).toEqual([]);

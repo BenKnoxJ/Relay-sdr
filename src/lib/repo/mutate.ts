@@ -76,6 +76,15 @@ export type EventKind =
   /// `after` the decision and who it covered; the rows change in the same
   /// transaction.
   | "campaign.people_reviewed"
+  /// A rep pressed Reveal emails, the second spend gate (lead gen v2.1 §6,
+  /// v2.2 §9a): `after` has the kept people it covers, the counts and the
+  /// credit maximum the rep saw, and the balance read for it; the reveal job
+  /// is enqueued in the same transaction.
+  | "campaign.reveal_confirmed"
+  /// A reveal job finished: each kept person's outcome is on their campaign
+  /// row, the Person and provider records are written in the same
+  /// transaction, and `after` has the counts. No email is in the Event.
+  | "leadgen.revealed"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the

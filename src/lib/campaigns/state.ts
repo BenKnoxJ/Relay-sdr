@@ -40,7 +40,7 @@ export type CampaignStep = (typeof CAMPAIGN_STEPS)[number];
  * with a reason for the rep (lead gen v2.1 §11). None adds a step to the
  * line; each marks one.
  */
-export type CampaignState = CampaignStep | "stopped" | "failed" | "paused" | "peopleFound" | "peopleNeedsYou";
+export type CampaignState = CampaignStep | "stopped" | "failed" | "paused" | "peopleFound" | "peopleNeedsYou" | "revealing" | "peopleReady";
 
 /** The chip's one word. Total over the states, so a new one cannot fall through. */
 export function chipFor(state: CampaignState): string {
@@ -53,6 +53,8 @@ export function chipFor(state: CampaignState): string {
     findingPeople: campaignsCopy.chipFindingPeople,
     peopleFound: campaignsCopy.chipPeopleFound,
     peopleNeedsYou: campaignsCopy.chipNeedsYou,
+    revealing: campaignsCopy.chipRevealing,
+    peopleReady: campaignsCopy.chipPeopleReady,
     drafting: campaignsCopy.chipDrafting,
     running: campaignsCopy.chipRunning,
     paused: campaignsCopy.chipPaused,
@@ -65,12 +67,12 @@ export function chipFor(state: CampaignState): string {
 export function stepIndexFor(state: CampaignState): number {
   if (state === "stopped" || state === "failed") return CAMPAIGN_STEPS.indexOf("researching");
   if (state === "paused") return CAMPAIGN_STEPS.indexOf("running");
-  if (state === "peopleFound" || state === "peopleNeedsYou") return CAMPAIGN_STEPS.indexOf("findingPeople");
+  if (state === "peopleFound" || state === "peopleNeedsYou" || state === "revealing" || state === "peopleReady") return CAMPAIGN_STEPS.indexOf("findingPeople");
   return CAMPAIGN_STEPS.indexOf(state);
 }
 
 export type CampaignAction = {
-  kind: "confirm" | "pause" | "resume" | "widen" | "retry" | "reveal" | "retryPeople";
+  kind: "confirm" | "pause" | "resume" | "widen" | "retry" | "reveal" | "retryPeople" | "outreach";
   label: string;
   next: CampaignState;
   disabled?: boolean;
@@ -91,7 +93,7 @@ export function actionFor(
   state: CampaignState,
   live = false,
   retryable = false,
-  people: { confirm?: boolean; retryPeople?: boolean } = {},
+  people: { confirm?: boolean; retryPeople?: boolean; reveal?: boolean; revealBlocked?: string } = {},
 ): CampaignAction | null {
   if (live) {
     if (state === "planReady") {
@@ -101,8 +103,14 @@ export function actionFor(
         : { kind: "confirm", label: campaignsCopy.actionConfirm, next: "findingPeople", disabled: true, note: campaignsCopy.confirmLater };
     }
     if (state === "failed" && retryable) return { kind: "retry", label: campaignsCopy.actionTryAgain, next: "researching" };
-    // The second spend gate is drawn, and cannot be pressed until revealing emails exists.
-    if (state === "peopleFound") return { kind: "reveal", label: campaignsCopy.actionReveal, next: "peopleFound", disabled: true, note: campaignsCopy.revealLater };
+    // The second spend approval: it opens the figures to confirm, and only once somebody kept has an email to reveal or reuse.
+    if (state === "peopleFound") {
+      return people.reveal === true
+        ? { kind: "reveal", label: campaignsCopy.actionReveal, next: "revealing", note: campaignsCopy.revealNote }
+        : { kind: "reveal", label: campaignsCopy.actionReveal, next: "revealing", disabled: true, note: people.revealBlocked ?? campaignsCopy.revealKeepFirst };
+    }
+    // Outreach is next and not built: drawn, never pressable.
+    if (state === "peopleReady") return { kind: "outreach", label: campaignsCopy.actionWriteEmails, next: "peopleReady", disabled: true, note: campaignsCopy.outreachLater };
     if (state === "peopleNeedsYou" && people.retryPeople === true) return { kind: "retryPeople", label: campaignsCopy.actionTryAgain, next: "findingPeople" };
     return null;
   }
@@ -184,6 +192,10 @@ export function nextFor(
       return { next: campaignsCopy.nextPeopleFound, nextIsAction: false };
     case "peopleNeedsYou":
       return { next: campaignsCopy.nextPeopleNeedsYou, nextIsAction: true };
+    case "revealing":
+      return { next: campaignsCopy.nextRevealing, nextIsAction: false };
+    case "peopleReady":
+      return { next: campaignsCopy.nextPeopleReady, nextIsAction: false };
     case "drafting":
       return { next: campaignsCopy.nextDrafting, nextIsAction: false };
     case "paused":
@@ -228,7 +240,11 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
   const waiting =
     state === "peopleNeedsYou"
       ? c.answerWaitingPeopleNeedsYou
-      : state === "peopleFound"
+      : state === "revealing"
+        ? c.answerWaitingRevealing
+        : state === "peopleReady"
+          ? c.answerWaitingPeopleReady
+          : state === "peopleFound"
         ? c.answerWaitingPeopleFound
         : state === "findingPeople" && live
           ? c.answerWaitingFinding

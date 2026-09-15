@@ -11,7 +11,8 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 import { NO_CRM } from "@/lib/leadgen/crm";
 import { FakeLeadGenProvider } from "@/lib/leadgen/fakeProvider";
 import { findPeople } from "@/lib/leadgen/findPeople";
-import type { LeadGenRecord } from "@/lib/repo/leadgen";
+import type { RevealCounts } from "@/lib/leadgen/reveal";
+import type { LeadGenRecord, RevealConfirmed } from "@/lib/repo/leadgen";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 import type { LeadGenHandoffV2 } from "../../../agents/leadgen/input.schema";
 import type { Pick } from "../../../agents/leadgen/output.schema";
@@ -88,7 +89,18 @@ function rows(pick: Pick, reusedId?: string): CampaignPerson[] {
   );
 }
 
-type Stage = { job?: Partial<Job> | null; result?: { kind: string; output: unknown } | null; people?: CampaignPerson[]; spend?: { charged: number; reserved: number } };
+type Stage = {
+  job?: Partial<Job> | null;
+  result?: { kind: string; output: unknown } | null;
+  people?: CampaignPerson[];
+  spend?: { charged: number; reserved: number };
+  /** Reviewing: what Reveal emails would do for the kept people. */
+  revealPlan?: RevealCounts | null;
+  /** Once Reveal emails is pressed: the reveal job's status, whether it recorded its result, and its spend. */
+  reveal?: { status: Job["status"]; done: boolean; maxCredits: number; charged: number; reserved: number };
+};
+
+const NO_PLAN: RevealCounts = { kept: 0, known: 0, toReveal: 0, free: 0, maxCredits: 0, noEmail: 0, unavailable: 0 };
 
 /** A planned campaign, confirmed or not, as `toCampaign` reads it from the router's record. */
 function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Campaign {
@@ -102,6 +114,17 @@ function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Cam
           result: stage.result == null ? null : ({ id: "event-result", kind: stage.result.kind, after: { output: stage.result.output } } as unknown as Event),
           people: stage.people ?? [],
           spend: { charged: stage.spend?.charged ?? 0, reserved: stage.spend?.reserved ?? 0, exceededDocumentedWorstCase: false },
+          revealPlan: stage.reveal === undefined ? (stage.revealPlan === undefined ? NO_PLAN : stage.revealPlan) : null,
+          reveal:
+            stage.reveal === undefined
+              ? null
+              : {
+                  confirm: { id: "event-reveal", after: {} } as unknown as Event,
+                  after: { maxCredits: stage.reveal.maxCredits } as RevealConfirmed,
+                  job: { id: "job-reveal", status: stage.reveal.status, error: null } as Job,
+                  result: stage.reveal.done ? ({ id: "event-revealed", kind: "leadgen.revealed", after: {} } as unknown as Event) : null,
+                  spend: { charged: stage.reveal.charged, reserved: stage.reveal.reserved, exceededDocumentedWorstCase: false },
+                },
         };
   const record = {
     campaign: { id: "camp-people", orgId: "org_ui", ownerUserId: "user_ui", name: "Claims people", briefVersion: 1, brief, startRequestId: "req", createdAt: AT, updatedAt: AT },
@@ -173,7 +196,7 @@ describe("Plan ready keeps the notes for a plan not yet confirmed", () => {
 });
 
 describe("People found", () => {
-  it("lists the people found, N of N, with the spend from the ledger and Reveal emails drawn but not pressable", () => {
+  it("lists the people found, N of N, with the spend from the ledger, and Reveal emails not pressable while nobody is kept", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: rows(full), spend: { charged: 12, reserved: 0 } })} />);
     expect(screen.getByTestId("found-count").textContent).toBe(`10 ${campaignsCopy.peopleFoundOf} 10`);
     expect(screen.getAllByTestId("found-person")).toHaveLength(10);
@@ -187,7 +210,8 @@ describe("People found", () => {
     expect(reveal.getAttribute("aria-disabled")).toBe("true");
     expect(reveal.className).not.toMatch(/\bbg-action\b/);
     expect(reveal.className).toMatch(/\bcursor-not-allowed\b/);
-    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealLater);
+    // It says what the rep needs to do first.
+    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealKeepFirst);
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
     // The research folds away once there are accounts to review, one press from open.
     expect(screen.getByTestId("overview-folded")).toBeTruthy();
@@ -306,7 +330,13 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
   });
 
   it("shows each decision, counts them, and estimates a reveal for the kept people only", () => {
-    render(<CampaignPage campaign={found(reviewed(full, { 1: "kept", 2: "kept", 3: "dropped" }))} onReview={vi.fn()} />);
+    const people = reviewed(full, { 1: "kept", 2: "kept", 3: "dropped" });
+    render(
+      <CampaignPage
+        campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 }, revealPlan: { ...NO_PLAN, kept: 2, toReveal: 2, maxCredits: 2 } })}
+        onReview={vi.fn()}
+      />,
+    );
     expect(screen.getByTestId("review-counts").textContent).toBe(
       `2 ${campaignsCopy.reviewCountKept} · 1 ${campaignsCopy.reviewCountDropped} · 7 ${campaignsCopy.reviewCountPending}`,
     );
@@ -314,7 +344,7 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(states.filter((state) => state === "kept")).toHaveLength(2);
     expect(states.filter((state) => state === "dropped")).toHaveLength(1);
     expect(screen.getByTestId("reveal-estimate").textContent).toBe(`${campaignsCopy.revealKeptAbout} 2 ${campaignsCopy.revealCredits}`);
-    // Reveal is still not pressable.
+    // Reveal emails is pressable only where the page was given a way to send it.
     expect(screen.getByRole("button", { name: campaignsCopy.actionReveal }).hasAttribute("disabled")).toBe(true);
   });
 
@@ -328,5 +358,136 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(screen.getAllByTestId("progress-count")).toHaveLength(1);
     expect(screen.queryByText(campaignsCopy.progressDrafted)).toBeNull();
     expect(screen.queryByText(campaignsCopy.progressReplied)).toBeNull();
+  });
+
+  it("offers Keep account beside Drop account, only where an account has more than one person", async () => {
+    const onReview = vi.fn(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={found(rows(full))} onReview={onReview} />);
+    for (const account of screen.getAllByTestId("found-account")) {
+      const people = account.querySelectorAll("[data-testid=found-person]").length;
+      expect(account.querySelector("[data-testid=keep-account]") !== null).toBe(people > 1);
+    }
+    fireEvent.click(screen.getAllByTestId("keep-account")[0]!);
+    await waitFor(() => expect(onReview).toHaveBeenCalledWith(expect.objectContaining({ scope: "account", decision: "kept" })));
+  });
+});
+
+describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
+  const PLAN: RevealCounts = { kept: 4, known: 1, toReveal: 2, free: 1, maxCredits: 2, noEmail: 1, unavailable: 0 };
+  const keptRows = () => rows(full).map((row) => ({ ...row, review: row.rank <= 4 ? "kept" : row.rank === 5 ? "dropped" : "pending" }) as CampaignPerson);
+  const reviewing = (plan: RevealCounts) => campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), spend: { charged: 12, reserved: 0 }, revealPlan: plan });
+
+  it("@proof shows who will be bought and the most it can cost, and sends one approval with exactly those figures", async () => {
+    const onReveal = vi.fn(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={reviewing(PLAN)} onReview={vi.fn()} onReveal={onReveal} />);
+    const button = screen.getByRole("button", { name: campaignsCopy.actionReveal });
+    expect(button.hasAttribute("disabled")).toBe(false);
+    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealNote);
+    // Pressing Reveal emails buys nothing: it opens the figures.
+    fireEvent.click(button);
+    expect(onReveal).not.toHaveBeenCalled();
+    expect(screen.getByTestId("reveal-kept").textContent).toBe("4");
+    expect(screen.getByTestId("reveal-known").textContent).toBe(`1 · ${campaignsCopy.revealNoCredits}`);
+    expect(screen.getByTestId("reveal-to-reveal").textContent).toBe(`2 · ${campaignsCopy.revealUpTo} 2 ${campaignsCopy.revealCreditMany}`);
+    expect(screen.getByTestId("reveal-no-email").textContent).toBe("1");
+    expect(screen.queryByTestId("reveal-unavailable")).toBeNull();
+    expect(screen.getByTestId("reveal-free").textContent).toBe(`1 ${campaignsCopy.revealFreeTail}`);
+    expect(screen.getByText(campaignsCopy.revealEmailsOnly)).toBeTruthy();
+
+    const confirm = screen.getByTestId("reveal-confirm");
+    expect(confirm.textContent).toBe(`${campaignsCopy.revealButtonReveal} 2 ${campaignsCopy.revealButtonEmailMany} ${campaignsCopy.revealUpTo} 2 ${campaignsCopy.revealCreditMany}`);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(onReveal).toHaveBeenCalledTimes(1));
+    expect(onReveal).toHaveBeenCalledWith({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String), expected: { toReveal: 2, known: 1, maxCredits: 2 } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp-people?revealing=1"));
+  });
+
+  it("closes without sending anything, and shows a refusal where the figures changed", async () => {
+    const onReveal = vi.fn(async () => ({ error: campaignsCopy.revealChanged }));
+    render(<CampaignPage campaign={reviewing(PLAN)} onReview={vi.fn()} onReveal={onReveal} />);
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionReveal }));
+    fireEvent.click(screen.getByTestId("reveal-cancel"));
+    expect(screen.queryByTestId("reveal-card")).toBeNull();
+    expect(onReveal).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionReveal }));
+    fireEvent.click(screen.getByTestId("reveal-confirm"));
+    await waitFor(() => expect(screen.getByTestId("reveal-error").textContent).toBe(campaignsCopy.revealChanged));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("says the known-only reveal costs nothing, and says why Reveal cannot be pressed when nothing kept can be revealed", () => {
+    const { unmount } = render(<CampaignPage campaign={reviewing({ ...NO_PLAN, kept: 1, known: 1 })} onReview={vi.fn()} onReveal={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionReveal }));
+    expect(screen.getByTestId("reveal-confirm").textContent).toBe(`${campaignsCopy.revealButtonAdd} 1 ${campaignsCopy.revealButtonKnownOne} ${campaignsCopy.revealNoCredits}`);
+    unmount();
+    render(<CampaignPage campaign={reviewing({ ...NO_PLAN, kept: 2, noEmail: 2 })} onReview={vi.fn()} onReveal={vi.fn()} />);
+    expect(screen.getByRole("button", { name: campaignsCopy.actionReveal }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.revealNothingToReveal);
+  });
+
+  it("while revealing: says so, lists the kept people only, and offers no keep, drop or action", () => {
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "running", done: false, maxCredits: 2, charged: 0, reserved: 2 } })} onReview={vi.fn()} onReveal={vi.fn()} />);
+    expect(screen.getByTestId("revealing-note").textContent).toBe(campaignsCopy.revealingNote);
+    expect(currentStep()).toBe(campaignsCopy.stepRevealing);
+    expect(screen.getAllByTestId("found-person")).toHaveLength(4);
+    expect(screen.queryByTestId("keep")).toBeNull();
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionReveal })).toBeNull();
+    expect(screen.getByTestId("reveal-spend").textContent).toBe(`${campaignsCopy.revealUsed} 0 ${campaignsCopy.revealUsedOf} 2 ${campaignsCopy.spendCredits} 2 ${campaignsCopy.spendHeld}`);
+  });
+
+  it("@proof once ready: shows each usable email, says plainly why the others have none, and points to outreach without pretending it works", () => {
+    const outcomes: Record<number, { reveal: CampaignPerson["reveal"]; revealHold?: string; email?: string }> = {
+      1: { reveal: "revealed", email: "person1@firm1.example" },
+      2: { reveal: "known", email: "person2@firm2.example" },
+      3: { reveal: "no_email", revealHold: "no_email" },
+      4: { reveal: "suppressed", revealHold: "opted_out", email: "hidden@firm4.example" },
+    };
+    const people = keptRows().map((row) => {
+      const outcome = outcomes[row.rank];
+      return (outcome === undefined ? row : { ...row, reveal: outcome.reveal, revealHold: outcome.revealHold ?? null, person: outcome.email === undefined ? null : { email: outcome.email } }) as CampaignPerson;
+    });
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, reveal: { status: "done", done: true, maxCredits: 2, charged: 1, reserved: 0 } })} onReview={vi.fn()} onReveal={vi.fn()} />);
+
+    expect(currentStep()).toBe(campaignsCopy.stepPeopleReady);
+    expect(screen.getByTestId("ready-counts").textContent).toBe(`2 ${campaignsCopy.readyEmails} · 2 ${campaignsCopy.readyWithout}`);
+    expect(screen.getByTestId("reveal-spend").textContent).toBe(`${campaignsCopy.revealUsed} 1 ${campaignsCopy.revealUsedOf} 2 ${campaignsCopy.spendCredits}`);
+    expect(screen.getByTestId("not-kept").textContent).toBe(`6 ${campaignsCopy.accountPeople} ${campaignsCopy.notKept}`);
+    expect(screen.getAllByTestId("person-email").map((email) => email.textContent)).toEqual(["person1@firm1.example", "person2@firm2.example"]);
+    // A narrow screen may break an address at the @ and nowhere else, and one press selects all of it.
+    const email = screen.getAllByTestId("person-email")[0]!;
+    expect(email.innerHTML).toBe("person1<wbr>@firm1.example");
+    expect(email.className).toMatch(/\bselect-all\b/);
+    // An opted-out person's address is never shown, even though Relay holds it.
+    expect(document.body.textContent).not.toContain("hidden@firm4.example");
+    expect(screen.getAllByTestId("reveal-chip").map((chip) => chip.textContent)).toEqual([
+      campaignsCopy.revealChip.revealed,
+      campaignsCopy.revealChip.known,
+      campaignsCopy.revealChip.no_email,
+      campaignsCopy.revealChip.suppressed,
+    ]);
+    expect(screen.getAllByTestId("reveal-why").map((line) => line.textContent)).toEqual([campaignsCopy.revealWhy.no_email, campaignsCopy.revealWhy.opted_out]);
+    // Accounts with an email to write to come first; the rest are folded, a press away.
+    expect(screen.getByTestId("ready-accounts").textContent).toContain("person1@firm1.example");
+    expect(screen.getByTestId("not-ready").textContent).toContain(campaignsCopy.revealWhy.no_email);
+    expect(screen.getByTestId("not-ready").textContent).not.toContain("@");
+    expect(screen.queryByTestId("keep")).toBeNull();
+    expect(screen.queryByTestId("why-fits")).toBeNull();
+    // Outreach is obviously next, and obviously not built.
+    expect(screen.getByTestId("outreach-next").textContent).toContain(campaignsCopy.outreachNextLabel);
+    const write = screen.getByRole("button", { name: campaignsCopy.actionWriteEmails });
+    expect(write.hasAttribute("disabled")).toBe(true);
+    expect(write.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.outreachLater);
+    // No drafting, sending or reply counters come back.
+    expect(screen.getAllByTestId("progress-count")).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(/phone|mobile/i);
+  });
+
+  it("says when a reveal stopped before it finished, and that nothing more will be bought", () => {
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: keptRows(), reveal: { status: "failed", done: false, maxCredits: 2, charged: 0, reserved: 2 } })} />);
+    expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStopped);
+    // The step row says it is stuck too, as the banner does.
+    const step = screen.getAllByTestId("state-step").find((item) => item.getAttribute("aria-current") === "step")!;
+    expect(step.className).toMatch(/\bbg-warn-bg\b/);
   });
 });

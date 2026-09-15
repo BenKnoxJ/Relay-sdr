@@ -4,7 +4,7 @@ import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign } from "@/server/campaigns";
 
-import { chooseIndustry, confirmPlan, retryPeople, retryResearch, reviewPeople, widenResearch } from "./actions";
+import { chooseIndustry, confirmPlan, retryPeople, retryResearch, revealEmails, reviewPeople, widenResearch } from "./actions";
 
 /**
  * One campaign (master doc §23.1c, mock 3b and 3c).
@@ -36,7 +36,9 @@ export default async function CampaignDetailPage({
         ? campaignsCopy.toastLookingAgain
         : query.confirmed === "1"
           ? campaignsCopy.toastFinding
-          : null;
+          : query.revealing === "1"
+            ? campaignsCopy.toastRevealing
+            : null;
 
   return (
     <CampaignPage
@@ -50,6 +52,7 @@ export default async function CampaignDetailPage({
       onRetryPeople={retryPeople}
       onChooseIndustry={chooseIndustry}
       onReview={reviewPeople}
+      onReveal={revealEmails}
     />
   );
 }

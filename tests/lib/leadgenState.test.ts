@@ -76,8 +76,21 @@ describe("the new states on the line", () => {
     expect(chipFor("peopleNeedsYou")).toBe(campaignsCopy.chipNeedsYou);
   });
 
-  it("draws Reveal emails and never lets it be pressed yet", () => {
-    expect(actionFor("peopleFound", true)).toMatchObject({ kind: "reveal", disabled: true, note: campaignsCopy.revealLater });
+  it("lets Reveal emails be pressed only once somebody kept has an email to reveal, and says why not otherwise", () => {
+    expect(actionFor("peopleFound", true)).toMatchObject({ kind: "reveal", disabled: true, note: campaignsCopy.revealKeepFirst });
+    expect(actionFor("peopleFound", true, false, { revealBlocked: campaignsCopy.revealNothingToReveal })).toMatchObject({ disabled: true, note: campaignsCopy.revealNothingToReveal });
+    const open = actionFor("peopleFound", true, false, { reveal: true });
+    expect(open).toMatchObject({ kind: "reveal", note: campaignsCopy.revealNote });
+    expect(open?.disabled).toBeUndefined();
+  });
+
+  it("marks Finding people while revealing and once people are ready, and draws Write emails but never lets it be pressed", () => {
+    expect(stepIndexFor("revealing")).toBe(CAMPAIGN_STEPS.indexOf("findingPeople"));
+    expect(stepIndexFor("peopleReady")).toBe(CAMPAIGN_STEPS.indexOf("findingPeople"));
+    expect(chipFor("revealing")).toBe(campaignsCopy.chipRevealing);
+    expect(chipFor("peopleReady")).toBe(campaignsCopy.chipPeopleReady);
+    expect(actionFor("revealing", true)).toBeNull();
+    expect(actionFor("peopleReady", true)).toMatchObject({ kind: "outreach", disabled: true, note: campaignsCopy.outreachLater });
   });
 
   it("lets Confirm be pressed only where finding people is set up", () => {

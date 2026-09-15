@@ -13,18 +13,25 @@ import { enqueue, reopenFailed } from "@/lib/jobs/queue";
 
 import { mutate } from "./mutate";
 import { RESEARCH_COMPLETED, findResearchCompletedForJob } from "./research";
+import { pricingById } from "@/lib/leadgen/spend";
 import {
   CAMPAIGN_CONFIRMED,
+  CAMPAIGN_REVEAL_CONFIRMED,
   LEADGEN_HALTED,
   LEADGEN_PICKED,
   LEADGEN_RERUN,
   LEAD_GEN_JOB,
+  REVEAL_JOB,
   findConfirmEvent,
   findLeadGenResult,
+  findRevealConfirm,
+  handoffOf,
   latestLeadGenJob,
   leadGenJobInputSchema,
   leadGenJobKey,
   leadGenRecordFor,
+  revealJobKey,
+  revealPlanFor,
   type LeadGenRecord,
 } from "./leadgen";
 import { isUniqueViolation } from "./sideEffects";
@@ -212,7 +219,7 @@ export async function hasCampaign(db: PrismaClient, owner: Owner): Promise<boole
 export const CAMPAIGN_BRIEF_CHANGED = "campaign.brief_changed" as const;
 export const CAMPAIGN_RESEARCH_RETRIED = "campaign.research_retried" as const;
 
-type ChangeKind = typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED | typeof CAMPAIGN_CONFIRMED | typeof LEADGEN_RERUN;
+type ChangeKind = typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED | typeof CAMPAIGN_CONFIRMED | typeof LEADGEN_RERUN | typeof CAMPAIGN_REVEAL_CONFIRMED;
 
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
 export type ChangeRefusal =
@@ -241,7 +248,13 @@ export type ChangeRefusal =
   /** The search limit is more than the credits available. */
   | "over_cap"
   /** The provider's credit balance could not be read, so nothing was frozen or started. */
-  | "balance_unavailable";
+  | "balance_unavailable"
+  /** Reveal emails with nobody kept who has an email to reveal or reuse. */
+  | "nothing_to_reveal"
+  /** The kept people or the reveal's figures changed since the page the rep approved was drawn. */
+  | "estimate_changed"
+  /** The reveal's credit maximum is more than the credits available. */
+  | "reveal_over_balance";
 
 export class CampaignChangeRefused extends Error {
   constructor(
@@ -799,6 +812,8 @@ export async function reviewPeople(db: PrismaClient, input: ReviewInput): Promis
         const job = await latestLeadGenJob(tx, scope);
         const result = job === null ? null : await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: job.id });
         if (job === null || result?.kind !== LEADGEN_PICKED) throw new CampaignChangeRefused("wrong_state");
+        // Once Reveal emails is pressed, the kept set it covers is final.
+        if ((await findRevealConfirm(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id })) !== null) throw new CampaignChangeRefused("wrong_state");
 
         const current = { ...scope, jobId: job.id, status: "chosen" as const };
         const pressed = await tx.campaignPerson.findFirst({ where: { ...current, id: input.personId } });
@@ -824,4 +839,101 @@ export async function reviewPeople(db: PrismaClient, input: ReviewInput): Promis
     if (error instanceof NothingToReview) return { campaign: error.campaign, changed: [] };
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Reveal emails: the second spend gate (lead gen v2.1 §6, §11; v2.2 §9a).
+
+export type RevealInput = ChangeInput & {
+  briefVersion: number;
+  /** The figures the rep approved, as the page showed them. Anything different is refused, never quietly bought. */
+  expected: { toReveal: number; known: number; maxCredits: number };
+  /** How finding people is set up here; null when it is not, and Reveal is refused. */
+  setup: LeadGenSetup | null;
+};
+
+/**
+ * Reveal emails: the rep's one explicit approval for buying emails. One
+ * transaction records the `campaign.reveal_confirmed` Event, covering the
+ * kept people of the current search and the credit maximum the rep saw, and
+ * enqueues the one reveal job for them. Nothing is revealed here.
+ *
+ * The plan is worked out again under the campaign lock, from the kept rows and
+ * what the org already knows, with the same function the page used, and must
+ * match what the rep approved. The balance is read before the transaction, as
+ * Confirm reads it, and the maximum must fit inside it.
+ *
+ * A repeated press (the same request id) is the press that landed. Once a
+ * reveal is confirmed, the kept set is final: another press, a reload or a
+ * second tab is refused, and keep and drop are refused too.
+ */
+export async function confirmReveal(db: PrismaClient, input: RevealInput): Promise<ChangeResult> {
+  const setup = input.setup;
+  if (setup === null) throw new CampaignChangeRefused("not_available");
+  required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, CAMPAIGN_REVEAL_CONFIRMED);
+  let balance: Awaited<ReturnType<typeof setup.readBalance>>;
+  try {
+    balance = await setup.readBalance(input.orgId);
+  } catch {
+    throw new CampaignChangeRefused("balance_unavailable");
+  }
+
+  return change(db, input, CAMPAIGN_REVEAL_CONFIRMED, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(tx, input, CAMPAIGN_REVEAL_CONFIRMED, (after) => after.briefVersion === input.briefVersion);
+    checkVersion(campaign, input.briefVersion);
+
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const confirm = await findConfirmEvent(tx, scope);
+    const job = confirm === null ? null : await latestLeadGenJob(tx, scope);
+    const result = job === null ? null : await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: job.id });
+    if (confirm === null || job === null || result?.kind !== LEADGEN_PICKED) throw new CampaignChangeRefused("wrong_state");
+    if ((await findRevealConfirm(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id })) !== null) throw new CampaignChangeRefused("wrong_state");
+
+    // The pricing the search froze: the page's figures were worked out with it too.
+    const pricing = pricingById(handoffOf(confirm).spend.pricingAssumptions);
+    if (pricing === null || pricing.id !== setup.pricing.id) throw new CampaignChangeRefused("not_available");
+    const { kept, plan } = await revealPlanFor(tx, { ...scope, jobId: job.id }, pricing);
+    const counts = plan.counts;
+    if (counts.toReveal + counts.known === 0) throw new CampaignChangeRefused("nothing_to_reveal");
+    if (counts.toReveal !== input.expected.toReveal || counts.known !== input.expected.known || counts.maxCredits !== input.expected.maxCredits) {
+      throw new CampaignChangeRefused("estimate_changed");
+    }
+    if (counts.maxCredits > balance.remaining) throw new CampaignChangeRefused("reveal_over_balance");
+
+    const { job: revealJob, deduped } = await enqueue(tx, {
+      orgId: campaign.orgId,
+      ownerUserId: campaign.ownerUserId,
+      kind: REVEAL_JOB,
+      idempotencyKey: revealJobKey(campaign.id, campaign.briefVersion),
+      input: { revealRequestId: input.requestId, leadGenJobId: job.id },
+      campaignId: campaign.id,
+      briefVersion: campaign.briefVersion,
+    });
+    // Unreachable under the lock, after the reveal-confirm check above: a job under this key is somebody else's.
+    if (deduped) throw new Error("reveal: this version's reveal key already had a job");
+    return {
+      campaign,
+      job: revealJob,
+      before: { briefVersion: campaign.briefVersion },
+      after: {
+        requestId: input.requestId,
+        briefVersion: campaign.briefVersion,
+        leadGenJobId: job.id,
+        people: kept.map((row) => row.id),
+        counts,
+        maxCredits: counts.maxCredits,
+        pricingAssumptions: pricing.id,
+        balanceSnapshot: {
+          remaining: balance.remaining,
+          ...(balance.used === undefined ? {} : { used: balance.used }),
+          ...(balance.total === undefined ? {} : { total: balance.total }),
+          readAt: balance.readAt.toISOString(),
+        },
+        balanceSource: balance.source,
+        jobId: revealJob.id,
+      },
+    };
+  });
 }

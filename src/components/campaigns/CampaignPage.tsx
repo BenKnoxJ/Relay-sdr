@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
-import type { ChooseIndustrySubmission, RetrySubmission, ReviewSubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
 import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
@@ -22,6 +22,7 @@ import { WidenCard } from "./WidenCard";
 import { ConfirmCard } from "./ConfirmCard";
 import { PeopleFound } from "./PeopleFound";
 import { PeopleNeedsYou } from "./PeopleNeedsYou";
+import { RevealCard } from "./RevealCard";
 
 /**
  * The campaign page (§23.1c, mock 3b and 3c).
@@ -51,6 +52,7 @@ export function CampaignPage({
   onRetryPeople,
   onChooseIndustry,
   onReview,
+  onReveal,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
@@ -67,6 +69,8 @@ export function CampaignPage({
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
   /** Keep or drop people found, one or a whole account (a server action; lead gen v2.2 §9a). */
   onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
+  /** Reveal emails for the kept people, with the figures shown (a server action; lead gen v2.1 §6). */
+  onReveal?: (submission: RevealSubmission) => Promise<StartResult>;
 }) {
   const router = useRouter();
   const [state, setState] = useState<CampaignState>(campaign.state);
@@ -80,10 +84,17 @@ export function CampaignPage({
   const target = { campaignId: campaign.id, briefVersion: campaign.briefVersion };
   const editHref = live && campaign.can.edit ? `/campaigns/${campaign.id}/edit` : undefined;
 
+  // Reveal emails opens its figures first; nothing is bought until the confirm inside them is pressed.
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const revealPlan = campaign.peopleFound?.revealPlan ?? null;
   const action = actionFor(state, live, campaign.can.retry, {
     confirm: campaign.can.confirm === true && onConfirm !== undefined,
     retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
+    reveal: campaign.can.reveal === true && onReveal !== undefined,
+    revealBlocked: revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst,
   });
+  const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady"];
   /*
     Recomputed from the state the SCREEN is in, not from the state the campaign
     arrived in. Pause moves the page and the six answers together, and an Ask
@@ -163,7 +174,7 @@ export function CampaignPage({
 
   const plan =
     // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
-    campaign.overview !== null && (state === "planReady" || state === "findingPeople" || state === "peopleFound" || state === "peopleNeedsYou") ? (
+    campaign.overview !== null && (state === "planReady" || state === "findingPeople" || state === "peopleNeedsYou" || peopleStates.includes(state)) ? (
       <>
         <Overview
           overview={campaign.overview}
@@ -171,7 +182,7 @@ export function CampaignPage({
           researchHref={live ? `/campaigns/${campaign.id}/research` : undefined}
           confirmed={state !== "planReady"}
           // Once there are accounts to review, the research folds away; it is one press from open.
-          collapsed={state === "peopleFound"}
+          collapsed={peopleStates.includes(state)}
         />
         {state === "planReady" && campaign.confirmPlan ? (
           <div className="mt-grid">
@@ -224,7 +235,7 @@ export function CampaignPage({
     <Card label={campaignsCopy.peopleLabel}>
       {campaign.people === null ? (
         <p className="type-small text-muted">
-          {state === "findingPeople" || state === "peopleFound" || state === "peopleNeedsYou" ? campaignsCopy.peopleAfterConfirm : campaignsCopy.peopleBeforeConfirm}
+          {state === "findingPeople" || state === "peopleNeedsYou" || peopleStates.includes(state) ? campaignsCopy.peopleAfterConfirm : campaignsCopy.peopleBeforeConfirm}
         </p>
       ) : (
         <>
@@ -277,9 +288,32 @@ export function CampaignPage({
       : undefined;
 
   const peopleFound =
-    state === "peopleFound" && campaign.peopleFound ? (
+    peopleStates.includes(state) && campaign.peopleFound ? (
       <PeopleFound view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} onReview={review} />
     ) : null;
+
+  /** Reveal emails, confirmed: the server checks the figures again and lands the rep on the campaign, revealing. */
+  const confirmReveal = async () => {
+    if (onReveal === undefined || revealPlan === null || pending) return;
+    setPending(true);
+    setRevealError(null);
+    try {
+      const result = await onReveal({
+        ...target,
+        requestId,
+        expected: { toReveal: revealPlan.toReveal, known: revealPlan.known, maxCredits: revealPlan.maxCredits },
+      });
+      if ("id" in result) {
+        router.push(`/campaigns/${result.id}?revealing=1`);
+        router.refresh();
+        return;
+      }
+      setRevealError(result.error);
+    } catch {
+      setRevealError(campaignsCopy.cannotChange);
+    }
+    setPending(false);
+  };
 
   const choose =
     live && campaign.can.chooseIndustry === true && onChooseIndustry !== undefined && campaign.peopleNeedsYou?.term
@@ -294,7 +328,7 @@ export function CampaignPage({
   const column =
     state === "planReady"
       ? [plan, brief, ask]
-      : state === "peopleFound"
+      : peopleStates.includes(state)
         ? [peopleFound, brief, ask, plan]
       : leadsWithProgress
         ? [progress, plan, ask]
@@ -312,7 +346,7 @@ export function CampaignPage({
       <div className="mb-grid flex flex-wrap items-start justify-between gap-3">
         <div>
           <PageHeader title={campaign.name} className="mb-2" />
-          <StateRow state={state} />
+          <StateRow state={state} stuck={state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true} />
         </div>
         {action === null ? null : (
           <div className="flex flex-col items-end gap-1.5">
@@ -331,6 +365,10 @@ export function CampaignPage({
                 }
                 if (live && action.kind === "confirm") {
                   void submit(onConfirm, confirmed);
+                  return;
+                }
+                if (action.kind === "reveal") {
+                  setRevealOpen(true);
                   return;
                 }
                 if (action.kind === "retryPeople") {
@@ -366,6 +404,21 @@ export function CampaignPage({
       {state === "researching" ? (
         <p data-testid="researching-note" className="type-body mb-grid text-muted">
           {campaignsCopy.researchingNote}
+        </p>
+      ) : null}
+
+      {state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true ? (
+        <div className="mb-grid">
+          <RevealCard plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />
+        </div>
+      ) : null}
+
+      {state === "revealing" ? (
+        <p
+          data-testid={campaign.peopleFound?.revealResult?.stopped === true ? "reveal-stopped" : "revealing-note"}
+          className={campaign.peopleFound?.revealResult?.stopped === true ? "type-small mb-grid rounded-input bg-warn-bg px-3 py-2.5 text-warn" : "type-body mb-grid text-muted"}
+        >
+          {campaign.peopleFound?.revealResult?.stopped === true ? campaignsCopy.revealStopped : campaignsCopy.revealingNote}
         </p>
       ) : null}
 

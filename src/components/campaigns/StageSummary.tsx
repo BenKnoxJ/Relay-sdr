@@ -9,10 +9,21 @@ import { cn } from "@/lib/utils";
  * the backend's summary facts, at the size a rep reads first. A queued job
  * reads as waiting, never as running.
  */
-export function StageSummary({ facts }: { facts: CampaignSummaryFacts | undefined }) {
+export function StageSummary({
+  facts,
+  detail,
+  quietWhenAttention = false,
+}: {
+  facts: CampaignSummaryFacts | undefined;
+  /** A page-only addition to the line, such as the recommended play's name on Plan ready. */
+  detail?: string | null;
+  /** On the campaign page the card beneath carries the reason in full, so the line steps back rather than say it twice. */
+  quietWhenAttention?: boolean;
+}) {
   if (facts === undefined) return null;
-  const line = stageLineOf(facts);
   const warn = facts.attention !== null;
+  const base = warn && quietWhenAttention ? null : stageLineOf(facts);
+  const line = base === null ? null : detail === undefined || detail === null ? base : `${base}${campaignsCopy.noteJoin}${detail}`;
   const running = facts.inFlight !== null && !isWaiting(facts);
   return (
     <div data-testid="stage-summary" className="min-w-0 [overflow-wrap:anywhere]">

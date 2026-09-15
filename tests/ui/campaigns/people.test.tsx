@@ -131,12 +131,13 @@ function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Cam
     stage === null
       ? []
       : [
-          ...(stage.spend === undefined ? [] : [{ briefVersion: 1, kind: "search", state: "reconciled", rows: 1, charged: stage.spend.charged, worstCase: stage.spend.charged }]),
+          ...(stage.spend === undefined ? [] : [{ briefVersion: 1, kind: "search", state: "reconciled", rows: 1, charged: stage.spend.charged, worstCase: stage.spend.charged, confirmEventId: "event-confirm" }]),
+          // Reveal rows count against the reveal approval itself, so a stopped reveal's recovery reads only its own rows.
           ...(stage.reveal === undefined
             ? []
             : [
-                ...(stage.reveal.charged > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reconciled", rows: 1, charged: stage.reveal.charged, worstCase: stage.reveal.charged }] : []),
-                ...(stage.reveal.reserved > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reserved", rows: 1, charged: 0, worstCase: stage.reveal.reserved }] : []),
+                ...(stage.reveal.charged > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reconciled", rows: 1, charged: stage.reveal.charged, worstCase: stage.reveal.charged, confirmEventId: "event-reveal" }] : []),
+                ...(stage.reveal.reserved > 0 ? [{ briefVersion: 1, kind: "reveal", state: "reserved", rows: 1, charged: 0, worstCase: stage.reveal.reserved, confirmEventId: "event-reveal" }] : []),
               ]),
         ];
   const record = {

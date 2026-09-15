@@ -21,6 +21,8 @@ import {
   type ChangeResult,
 } from "@/lib/repo/campaigns";
 import { campaignSummariesForOwner } from "@/lib/repo/campaignSummary";
+import { campaignActivityFor } from "@/lib/repo/campaignActivity";
+import { activityOf } from "@/lib/campaigns/activity";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
 /**
@@ -272,6 +274,19 @@ export const campaignsRouter = createTRPCRouter({
     if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
     return toCampaign(record, leadGenOptions());
   }),
+
+  /**
+   * What has happened on one of the rep's own campaigns, newest first, in
+   * their words, from its Events (convergence audit §J). NOT_FOUND for a
+   * campaign that is not theirs.
+   */
+  activity: repProcedure
+    .input(z.object({ id: campaignId, limit: z.number().int().min(1).max(50).optional() }).strict())
+    .query(async ({ ctx, input }) => {
+      const rows = await campaignActivityFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id, ...(input.limit === undefined ? {} : { limit: input.limit }) });
+      if (rows === null) throw new TRPCError({ code: "NOT_FOUND" });
+      return { entries: activityOf(rows, ctx.userId) };
+    }),
 
   /** What Relay learned (task 19): one of the rep's own campaigns, with its finished research read whole. */
   research: repProcedure.input(z.object({ id: campaignId }).strict()).query(async ({ ctx, input }) => {

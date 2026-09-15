@@ -370,6 +370,45 @@ export type PeopleFoundView = {
   sample: boolean;
 };
 
+/**
+ * Finding people while it runs: what the frozen Confirm asked for, and what
+ * the ledger says so far. Every figure is persisted: nothing is estimated.
+ */
+export type FindingView = {
+  groupName: string;
+  /** The plan's search, as the Confirm froze it. */
+  search: string;
+  buyerRoles: BuyerRoleView[];
+  /** Firms research named for the group: where the search starts. */
+  seedFirms: number;
+  /** When this search was put on the queue, where it is known. */
+  since: string | null;
+  /** This version's search credits: the cap Confirm approved, charged so far, and held for requests still open. */
+  credits: { cap: number; charged: number; held: number };
+};
+
+/** One line of a campaign's activity, newest first, in a rep's words. */
+export type ActivityEntry = {
+  id: string;
+  at: string;
+  kind:
+    | "created"
+    | "brief_changed"
+    | "research_retried"
+    | "research_done"
+    | "confirmed"
+    | "people_found"
+    | "people_stopped"
+    | "people_rerun"
+    | "people_reviewed"
+    | "reveal_confirmed"
+    | "revealed"
+    | "reveal_retried";
+  /** Who did it: the rep reading, Relay itself, or someone else by first name. */
+  actor: { kind: "you" | "relay" | "person"; name: string | null };
+  line: string;
+};
+
 /** Why finding people needs the rep (lead gen v2.1 §11), in words, with any plain-words choices. */
 export type PeopleNeedsYouView = {
   reason: string;
@@ -570,4 +609,6 @@ export type Campaign = CampaignSummary & {
   plays?: ResearchPlayView[] | null;
   /** What the campaign has cost, each kind in its own unit. */
   spend?: CampaignSpendView;
+  /** While people are being found: the frozen search, its roles and seed firms, and the credits so far. */
+  finding?: FindingView | null;
 };

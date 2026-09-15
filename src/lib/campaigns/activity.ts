@@ -19,6 +19,12 @@ export type ActivityRow = {
   projection: unknown;
 };
 
+/**
+ * The Event kinds the activity reads, and what each is called here. The SQL
+ * projection in `src/lib/repo/campaignActivity.ts` names the fields each kind
+ * needs; a kind added here needs its line there too (a kind with no
+ * projection reads as no fields, and its line falls back to plain words).
+ */
 const KINDS: Record<string, ActivityEntry["kind"]> = {
   "campaign.created": "created",
   "campaign.brief_changed": "brief_changed",
@@ -56,7 +62,7 @@ function lineOf(kind: ActivityEntry["kind"], p: Record<string, unknown>): string
     case "confirmed": {
       const group = text(p.group);
       const lead = p.selection === "chosen" ? c.activityConfirmedChosen : c.activityConfirmed;
-      return `${group === null ? c.activityConfirmed.replace(/ for$/, "") : `${lead} ${group}`}. ${c.lawfulBasisConfirmed}.`;
+      return `${group === null ? c.activityConfirmedNoGroup : `${lead} ${group}`}. ${c.lawfulBasisConfirmed}.`;
     }
     case "people_found":
       return `${c.activityFound} ${num(p.found)} ${c.of} ${num(p.of)} ${c.activityPeople}`;

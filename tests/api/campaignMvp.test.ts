@@ -238,3 +238,11 @@ describe("campaigns.activity", () => {
     expect(entries.find((entry) => entry.kind === "research_done")?.line).toBe(campaignsCopy.activityResearchStopped);
   });
 });
+
+describe("activity lines, from the words alone", () => {
+  it("says a Confirm whose group could not be read in its own words, not by trimming another line", async () => {
+    const { activityOf } = await import("@/lib/campaigns/activity");
+    const [entry] = activityOf([{ id: "e1", kind: "campaign.confirmed", at: new Date("2026-09-15T12:00:00Z"), actorKind: "user", actorUserId: "u1", actorName: "Sam Rep", projection: { group: null } }], "u2");
+    expect(entry).toMatchObject({ kind: "confirmed", actor: { kind: "person", name: "Sam" }, line: `${campaignsCopy.activityConfirmedNoGroup}. ${campaignsCopy.lawfulBasisConfirmed}.` });
+  });
+});

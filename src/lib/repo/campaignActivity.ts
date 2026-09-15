@@ -24,6 +24,8 @@ export async function campaignActivityFor(db: Db, scope: { orgId: string; userId
            e.actor_kind::text AS "actorKind",
            e.actor_user_id AS "actorUserId",
            u.name AS "actorName",
+           -- One branch per kind in ACTIVITY_KINDS (src/lib/campaigns/activity.ts) whose line needs fields;
+           -- keep the two in step. Kinds whose line is fixed words have no branch.
            CASE e.kind
              WHEN 'campaign.brief_changed' THEN jsonb_build_object('cause', e.after->'cause', 'briefVersion', e.after->'briefVersion')
              WHEN 'research.completed' THEN jsonb_build_object('outcome', e.after->'outcome')

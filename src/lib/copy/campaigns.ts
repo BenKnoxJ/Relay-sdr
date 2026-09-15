@@ -539,6 +539,8 @@ export const campaignsCopy = {
   activityResearchStopped: "Research stopped: not enough evidence",
   activityConfirmed: "Plan confirmed for",
   activityConfirmedChosen: "Plan confirmed with a play you chose, for",
+  /** A Confirm whose group name could not be read. */
+  activityConfirmedNoGroup: "Plan confirmed",
   activityFound: "Found",
   activityPeople: "people",
   activityPerson: "person",

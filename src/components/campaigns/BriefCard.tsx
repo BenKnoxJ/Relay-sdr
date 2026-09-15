@@ -34,6 +34,7 @@ export function BriefCard({
   brief,
   summary,
   editHref,
+  bare = false,
 }: {
   brief: BriefFields;
   /**
@@ -46,6 +47,8 @@ export function BriefCard({
   summary?: string;
   /** Where Edit brief goes. Absent makes the card read only with no way to change it. */
   editHref?: string;
+  /** Drawn inside another panel (the support rail): no card of its own. */
+  bare?: boolean;
 }) {
   const scope = brief.scope;
   const fields: [string, string][] = [
@@ -65,8 +68,8 @@ export function BriefCard({
     ...(brief.existingCustomers.trim() === "" ? [] : [[campaignsCopy.fieldCustomers, brief.existingCustomers] as [string, string]]),
   ];
 
-  return (
-    <Card label={campaignsCopy.briefLabel}>
+  const body = (
+    <>
       {summary === undefined ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
           {fields.map(([label, value]) => (
@@ -91,6 +94,7 @@ export function BriefCard({
           </Link>
         </div>
       )}
-    </Card>
+    </>
   );
+  return bare ? <div data-testid="brief-bare">{body}</div> : <Card label={campaignsCopy.briefLabel}>{body}</Card>;
 }

@@ -75,6 +75,14 @@ export type WidenSubmission = ChangeTarget & { optionIndex: number; requestId: s
 /** Try again: the id that makes a second press the same retry. */
 export type RetrySubmission = ChangeTarget & { requestId: string };
 
+/**
+ * Confirm plan, with the play the rep chose (product-truth pass). Today the
+ * server starts with research's rank-1 play whatever is sent, and the page
+ * only lets Confirm be pressed with the recommended play; the field is here so
+ * the page and the action are ready for the confirm contract that carries one.
+ */
+export type ConfirmSubmission = RetrySubmission & { playId?: string | null };
+
 /** A chosen industry from a Needs you: the term research wrote, the plain-words label chosen, and the id that makes a second press the same choice. */
 export type ChooseIndustrySubmission = ChangeTarget & { requestId: string; term: string; label: string };
 

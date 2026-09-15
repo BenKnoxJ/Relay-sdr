@@ -100,8 +100,8 @@ function Alternative({ play, group, selected, onSelect }: { play: ResearchPlayVi
       aria-current={selected ? "true" : undefined}
       className={cn("min-w-0 rounded-input border p-3", selected ? "border-action bg-soft/40" : "border-line bg-ground")}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 sm:flex-1">
           <p className="type-small">
             <span className="type-mono mr-1.5 text-11 text-muted">
               {c.playsRank} {play.rank}
@@ -118,7 +118,7 @@ function Alternative({ play, group, selected, onSelect }: { play: ResearchPlayVi
             aria-pressed={selected}
             onClick={onSelect}
             className={cn(
-              "type-small inline-flex min-h-7 shrink-0 items-center rounded-pill border px-3 font-semibold focus-visible:outline-none focus-visible:ring-2",
+              "type-small inline-flex min-h-7 shrink-0 items-center self-start rounded-pill border px-3 font-semibold focus-visible:outline-none focus-visible:ring-2",
               selected ? "border-transparent bg-action text-on-action" : "border-line text-action",
             )}
           >

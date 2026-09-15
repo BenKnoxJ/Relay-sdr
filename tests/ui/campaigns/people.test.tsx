@@ -542,8 +542,9 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
     render(<CampaignPage campaign={stopped} onRetryReveal={onRetryReveal} />);
     // Never drawn as live work: the stage line and the card both say it stopped, and why.
     expect(screen.getByTestId("reveal-stopped").textContent).toBe(campaignsCopy.revealStoppedRetry);
-    expect(screen.getByTestId("stage-line").textContent).toBe(campaignsCopy.revealStoppedRetry);
+    expect(screen.queryByTestId("stage-line")).toBeNull();
     expect(screen.queryByTestId("revealing-note")).toBeNull();
+    expect(screen.queryByTestId("ready-counts")).toBeNull();
     expect(currentStep()).toBe(campaignsCopy.stepRevealNeedsYou);
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionTryAgain }));
     await waitFor(() => expect(onRetryReveal).toHaveBeenCalledTimes(1));

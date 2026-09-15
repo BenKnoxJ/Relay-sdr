@@ -250,7 +250,8 @@ describe("a real campaign", () => {
     expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
     expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
     expect(screen.getByTestId("incomplete-note").textContent).toContain(campaignsCopy.failedNoPlay);
-    expect(screen.getByTestId("stage-line").textContent).toBe(campaignsCopy.failedNoPlay);
+    // The card carries the reason; the line under the title steps back rather than say it twice.
+    expect(screen.queryByTestId("stage-line")).toBeNull();
     expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe("/campaigns/camp-noplay/edit");
     expect(screen.getByTestId("incomplete-edit").getAttribute("href")).toBe("/campaigns/camp-noplay/edit");
     expect(screen.getByTestId("incomplete-research").getAttribute("href")).toBe("/campaigns/camp-noplay/research");

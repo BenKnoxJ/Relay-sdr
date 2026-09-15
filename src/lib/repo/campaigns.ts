@@ -4,12 +4,16 @@ import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { researchRawSchema } from "../../../agents/research/output.schema";
 import { haltSchema } from "../../../agents/leadgen/output.schema";
 import { nameFrom, researchJobInputSchema, sameBrief, widenedBrief, type ResearchBrief, type ResearchJobInput } from "@/lib/campaigns/brief";
-import { deriveResearch, failureOf, storedPack } from "@/lib/campaigns/derive";
+import { deriveResearch, failureOf, leadGenResultOf, storedPack } from "@/lib/campaigns/derive";
 import { buildLeadGenHandoff } from "@/lib/campaigns/leadgenHandoff";
+import { editAllowed, inFlight, leadGenRetryable, researchRetryable, revealRecovery } from "@/lib/campaigns/retry";
+import { revealLedgerOf, type LedgerGroup, type ResearchCost } from "@/lib/campaigns/summary";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { norm } from "@/lib/leadgen/normalise";
 import type { LeadGenSetup } from "@/lib/leadgen/setup";
 import { enqueue, reopenFailed } from "@/lib/jobs/queue";
+
+import { ledgerGroupsFor, researchCostsFor } from "./campaignSummary";
 
 import { mutate } from "./mutate";
 import { RESEARCH_COMPLETED, findResearchCompletedForJob } from "./research";
@@ -25,11 +29,13 @@ import {
   findConfirmEvent,
   findLeadGenResult,
   findRevealConfirm,
+  findRevealResult,
   handoffOf,
   latestLeadGenJob,
   leadGenJobInputSchema,
   leadGenJobKey,
   leadGenRecordFor,
+  revealConfirmedSchema,
   revealJobKey,
   revealPlanFor,
   type LeadGenRecord,
@@ -149,7 +155,16 @@ export async function createCampaign(db: PrismaClient, input: CreateCampaignInpu
 
 /** A campaign with what its screen is derived from: the latest research job at its brief version, and that job's Event. */
 /** A campaign with what its screen is derived from, and, once confirmed, its lead gen (lead gen v2.1 §11). */
-export type CampaignRecord = { campaign: Campaign; job: Job | null; event: Event | null; leadGen?: LeadGenRecord };
+export type CampaignRecord = {
+  campaign: Campaign;
+  job: Job | null;
+  event: Event | null;
+  leadGen?: LeadGenRecord;
+  /** The campaign's credit ledger, every version, grouped (product-truth foundation). */
+  ledger?: LedgerGroup[];
+  /** Research's recorded model cost, per brief version. */
+  researchCost?: ResearchCost[];
+};
 
 type Owner = { orgId: string; userId: string };
 
@@ -164,7 +179,12 @@ export async function latestResearchJob(db: Prisma.TransactionClient, campaign: 
 async function withResearch(db: PrismaClient, campaign: Campaign): Promise<CampaignRecord> {
   const job = await latestResearchJob(db, campaign);
   const event = job === null ? null : await findResearchCompletedForJob(db, { orgId: campaign.orgId, jobId: job.id });
-  return { campaign, job, event, leadGen: await leadGenRecordFor(db, campaign) };
+  const [leadGen, ledger, researchCost] = await Promise.all([
+    leadGenRecordFor(db, campaign),
+    ledgerGroupsFor(db, campaign.orgId, [campaign.id]),
+    researchCostsFor(db, campaign.orgId, [campaign.id]),
+  ]);
+  return { campaign, job, event, leadGen, ledger, researchCost };
 }
 
 /**
@@ -219,7 +239,15 @@ export async function hasCampaign(db: PrismaClient, owner: Owner): Promise<boole
 export const CAMPAIGN_BRIEF_CHANGED = "campaign.brief_changed" as const;
 export const CAMPAIGN_RESEARCH_RETRIED = "campaign.research_retried" as const;
 
-type ChangeKind = typeof CAMPAIGN_BRIEF_CHANGED | typeof CAMPAIGN_RESEARCH_RETRIED | typeof CAMPAIGN_CONFIRMED | typeof LEADGEN_RERUN | typeof CAMPAIGN_REVEAL_CONFIRMED;
+export const CAMPAIGN_REVEAL_RETRIED = "campaign.reveal_retried" as const;
+
+type ChangeKind =
+  | typeof CAMPAIGN_BRIEF_CHANGED
+  | typeof CAMPAIGN_RESEARCH_RETRIED
+  | typeof CAMPAIGN_CONFIRMED
+  | typeof LEADGEN_RERUN
+  | typeof CAMPAIGN_REVEAL_CONFIRMED
+  | typeof CAMPAIGN_REVEAL_RETRIED;
 
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
 export type ChangeRefusal =
@@ -243,6 +271,8 @@ export type ChangeRefusal =
   | "no_ranked_group"
   /** The kind of buyer research ranks first has no targeting recipe. */
   | "no_recipe"
+  /** The play the rep chose is not one the current plan ranks (lead gen v2.3). */
+  | "unknown_candidate"
   /** Research has not reached a plan. */
   | "research_not_ready"
   /** The search limit is more than the credits available. */
@@ -502,14 +532,18 @@ export async function editCampaignBrief(db: PrismaClient, input: EditInput): Pro
     );
     checkVersion(campaign, input.fromBriefVersion);
 
+    // Never while any of the version's work is still queued or running: research
+    // reading, people being found (lead gen v2.1 §11), or emails being revealed.
     const view = stateOf(await researchNow(tx, campaign));
-    if (view.state === "researching") throw new CampaignChangeRefused("wrong_state");
-    // Not while people are being found at this version (lead gen v2.1 §11).
     const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
     const finding = await latestLeadGenJob(tx, scope);
-    if (finding !== null && (finding.status === "queued" || finding.status === "running") && (await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: finding.id })) === null) {
-      throw new CampaignChangeRefused("wrong_state");
-    }
+    const revealing = await tx.job.findFirst({ where: { ...scope, kind: REVEAL_JOB, status: { in: ["queued", "running"] } } });
+    const allowed = editAllowed({
+      researchInFlight: view.state === "researching",
+      leadGenInFlight: finding !== null && inFlight(finding) && (await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: finding.id })) === null,
+      revealInFlight: revealing !== null && (await findRevealResult(tx, { orgId: campaign.orgId, jobId: revealing.id })) === null,
+    });
+    if (!allowed) throw new CampaignChangeRefused("wrong_state");
 
     const brief = briefOf(campaign);
     if (sameBrief(brief, input.brief)) throw new CampaignChangeRefused("unchanged");
@@ -573,7 +607,7 @@ export async function retryResearch(db: PrismaClient, input: RetryInput): Promis
     checkVersion(campaign, input.briefVersion);
 
     const { job, event } = await researchNow(tx, campaign);
-    if (job === null || event !== null || job.status !== "failed") throw new CampaignChangeRefused("wrong_state");
+    if (job === null || !researchRetryable(job, event !== null)) throw new CampaignChangeRefused("wrong_state");
     const reopened = await reopenFailed(tx, { orgId: campaign.orgId, jobId: job.id });
     // Unreachable under the lock, and refused rather than assumed if it ever is.
     if (reopened === null) throw new CampaignChangeRefused("wrong_state");
@@ -605,6 +639,8 @@ export async function retryResearch(db: PrismaClient, input: RetryInput): Promis
 
 export type ConfirmInput = ChangeInput & {
   fromBriefVersion: number;
+  /** The play the rep chose (an m16 candidate id, lead gen v2.3). Absent: research's top-ranked play. */
+  candidateId?: string;
   /** How finding people is set up here; null when it is not, and Confirm is refused. */
   setup: LeadGenSetup | null;
   now?: () => Date;
@@ -636,14 +672,29 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
   return change(db, input, CAMPAIGN_CONFIRMED, async (tx) => {
     const campaign = await lockOwnCampaign(tx, input);
     if (campaign === null) throw new CampaignChangeRefused("not_found");
-    await alreadyMade(tx, input, CAMPAIGN_CONFIRMED, (after) => after.briefVersion === input.fromBriefVersion);
+    // A repeat of the same press names the same version and the same choice:
+    // the same play when it named one, and no play when it took the default.
+    await alreadyMade(
+      tx,
+      input,
+      CAMPAIGN_CONFIRMED,
+      (after) =>
+        after.briefVersion === input.fromBriefVersion &&
+        (input.candidateId === undefined
+          ? after.selection !== "chosen"
+          : (after.handoff as { play?: { id?: unknown } } | undefined)?.play?.id === input.candidateId),
+    );
     checkVersion(campaign, input.fromBriefVersion);
     const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
     if ((await findConfirmEvent(tx, scope)) !== null) throw new CampaignChangeRefused("wrong_state", "already confirmed");
 
     const research = await researchNow(tx, campaign);
     const pack = research.event === null ? null : storedPack(research.event.after);
-    if (stateOf(research).state !== "planReady" || research.job === null || research.event === null || pack === null) {
+    const view = stateOf(research);
+    // A finished plan with no play that can be searched is refused with its
+    // own reason (no ranked group, no recipe), which the handoff builder names.
+    const noPlay = view.state === "failed" && view.failure === "no_play";
+    if ((view.state !== "planReady" && !noPlay) || research.job === null || research.event === null || pack === null) {
       throw new CampaignChangeRefused("wrong_state");
     }
     if (setup.searchCreditCap > balance.remaining) throw new CampaignChangeRefused("over_cap");
@@ -653,6 +704,7 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
       brief: briefOf(campaign),
       research: { jobId: research.job.id, eventId: research.event.id, pack },
       confirmRequestId: input.requestId,
+      ...(input.candidateId === undefined ? {} : { candidateId: input.candidateId }),
       spend: {
         searchCreditCap: setup.searchCreditCap,
         balanceSnapshot: {
@@ -686,6 +738,8 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
         requestId: input.requestId,
         briefVersion: campaign.briefVersion,
         handoff: JSON.parse(JSON.stringify(built.handoff)) as Prisma.InputJsonObject,
+        // Whether the rep chose the play or took research's top-ranked one (lead gen v2.3).
+        selection: input.candidateId === undefined ? "default" : "chosen",
         balanceSource: balance.source,
         jobId: job.id,
       },
@@ -730,8 +784,8 @@ export async function rerunPeople(db: PrismaClient, input: RerunInput): Promise<
       const offered = halt?.reason === "choose_industry" && halt.term !== undefined && norm(halt.term) === norm(input.choice.term) && (halt.choices ?? []).includes(input.choice.label);
       if (!offered) throw new CampaignChangeRefused("bad_option");
     } else {
-      const retryable = (result === null && job.status === "failed") || halt?.reason === "provider_busy" || halt?.reason === "took_too_long";
-      if (!retryable) throw new CampaignChangeRefused("wrong_state");
+      // The page's Try again reads the same rule (`leadGenRetryable`).
+      if (!leadGenRetryable(job, leadGenResultOf(result === null ? null : { kind: result.kind, after: result.after }))) throw new CampaignChangeRefused("wrong_state");
     }
 
     const previous = leadGenJobInputSchema.parse(job.input);
@@ -933,6 +987,60 @@ export async function confirmReveal(db: PrismaClient, input: RevealInput): Promi
         },
         balanceSource: balance.source,
         jobId: revealJob.id,
+      },
+    };
+  });
+}
+
+export type RevealRetryInput = ChangeInput & { briefVersion: number };
+
+/**
+ * Try again on Reveal emails (product-truth foundation, 2026-09-15): only for
+ * a reveal job that failed before any request left Relay, so nothing can
+ * have been charged. The same job goes back on the queue (`reopenFailed`), for
+ * the same kept people under the same approval; its ledger keys are per
+ * attempt, so it reserves afresh under the same cap.
+ *
+ * A reveal whose request may have reached the provider (a reservation open
+ * or unknown, or a charge with no result recorded) is never retried: buying
+ * again could buy the same emails twice. `revealRecovery` decides, and the
+ * campaign page reads the same rule.
+ */
+export async function retryReveal(db: PrismaClient, input: RevealRetryInput): Promise<ChangeResult> {
+  return change(db, input, CAMPAIGN_REVEAL_RETRIED, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(tx, input, CAMPAIGN_REVEAL_RETRIED, (after) => after.briefVersion === input.briefVersion);
+    checkVersion(campaign, input.briefVersion);
+
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const confirm = await findConfirmEvent(tx, scope);
+    const job = confirm === null ? null : await latestLeadGenJob(tx, scope);
+    const result = job === null ? null : await findLeadGenResult(tx, { orgId: campaign.orgId, jobId: job.id });
+    if (confirm === null || job === null || result?.kind !== LEADGEN_PICKED) throw new CampaignChangeRefused("wrong_state");
+    const revealConfirm = await findRevealConfirm(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
+    const approved = revealConfirm === null ? null : revealConfirmedSchema.safeParse(revealConfirm.after);
+    if (revealConfirm === null || approved?.success !== true) throw new CampaignChangeRefused("wrong_state");
+    const revealJob = await tx.job.findFirst({ where: { orgId: campaign.orgId, id: approved.data.jobId, kind: REVEAL_JOB } });
+    if (revealJob === null || (await findRevealResult(tx, { orgId: campaign.orgId, jobId: revealJob.id })) !== null) throw new CampaignChangeRefused("wrong_state");
+
+    const ledger = revealLedgerOf(await ledgerGroupsFor(tx, campaign.orgId, [campaign.id]), revealConfirm.id);
+    if (!revealRecovery(revealJob, ledger).retryable) throw new CampaignChangeRefused("wrong_state");
+    const reopened = await reopenFailed(tx, { orgId: campaign.orgId, jobId: revealJob.id });
+    // Unreachable under the lock, and refused rather than assumed if it ever is.
+    if (reopened === null) throw new CampaignChangeRefused("wrong_state");
+    return {
+      campaign,
+      job: reopened,
+      before: { briefVersion: campaign.briefVersion, jobId: revealJob.id, status: revealJob.status, attempts: revealJob.attempts, maxAttempts: revealJob.maxAttempts },
+      after: {
+        requestId: input.requestId,
+        briefVersion: campaign.briefVersion,
+        jobId: reopened.id,
+        status: reopened.status,
+        attempts: reopened.attempts,
+        maxAttempts: reopened.maxAttempts,
+        ledger,
       },
     };
   });

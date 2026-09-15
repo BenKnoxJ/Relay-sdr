@@ -66,12 +66,18 @@ describe("the signed definitions", () => {
     expect(loadDefinition("leadgen").definition).toMatch(/v2\.2 · SIGNED by the product owner 2026-09-14/);
     // v2.2 is carried whole, notes included: any change to the signed text must change this fingerprint on purpose.
     const leadgen = loadDefinition("leadgen").definition;
-    const v22 = leadgen.slice(leadgen.indexOf("# Relay agent definition — Lead gen (v2.2, signed)"));
+    // v2.2 runs to where v2.3 begins (the blank line between them belongs to neither).
+    const v22 = leadgen.slice(leadgen.indexOf("# Relay agent definition — Lead gen (v2.2, signed)"), leadgen.indexOf("# Relay agent definition: Lead gen (v2.3, signed)") - 1);
     expect(createHash("sha256").update(v22).digest("hex")).toBe("0f66de5945233eb7ddedff891f9f8a2e563944967cc55729e51ae7825fea108f");
     expect(v22).toContain("**§8a: the lead title limit is removed.**");
     expect(v22).toContain("ledger state `released`, which counts for nothing against the cap");
     expect(v22).toContain("Drop account appears only on accounts with more than one person.");
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A2: lead gen v2\.1 integration/);
+    // Lead gen v2.3 (choosing the play) is carried whole after v2.2, and the orchestrator carries its A3.
+    const v23 = leadgen.slice(leadgen.indexOf("# Relay agent definition: Lead gen (v2.3, signed)"));
+    expect(v23).toMatch(/v2\.3 · SIGNED by the product owner 2026-09-15/);
+    expect(createHash("sha256").update(v23).digest("hex")).toBe("7bdb728287e4cefa1f9f02ee73fa2697d364f79659f47eb7c3aa92ac900a667c");
+    expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A3: choosing the play/);
   });
 
   it("memoises, and re-reads after a reset", () => {

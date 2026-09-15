@@ -11,7 +11,7 @@ import { serverCaller } from "@/server/api/caller";
  * component learns where a campaign comes from.
  */
 
-export async function listCampaigns(): Promise<{ campaigns: CampaignSummary[]; counts: { running: number; done: number } }> {
+export async function listCampaigns(): Promise<{ campaigns: CampaignSummary[]; counts: { running: number; needsYou: number; done: number } }> {
   return (await serverCaller()).campaigns.list();
 }
 

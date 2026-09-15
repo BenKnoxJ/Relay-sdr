@@ -204,7 +204,7 @@ describe("a real campaign", () => {
 
     const note = screen.getByTestId("plan-partial").textContent ?? "";
     expect(note).toContain(campaignsCopy.planPartial);
-    expect(note).toContain(campaignsCopy.partNames.m04);
+    expect(note).toContain(campaignsCopy.partNames.m14);
     expect(note).not.toMatch(/\bm\d\d\b|repSummary|execSummary/);
   });
 

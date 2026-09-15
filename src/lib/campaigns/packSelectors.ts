@@ -44,6 +44,12 @@ export function topCandidate(pack: PackShape): Candidate | undefined {
     .find((candidate) => ids.includes(candidate.archetypeId));
 }
 
+/** One of research's campaign candidates (m16) by id, when it is for a kind of buyer the pack describes. */
+export function candidateById(pack: PackShape, id: string): Candidate | undefined {
+  const ids = archetypeIds(pack);
+  return completeModule(pack, "m16")?.candidates.find((candidate) => candidate.id === id && ids.includes(candidate.archetypeId));
+}
+
 /**
  * The kinds of buyer (m03) in the order research ranks the campaigns for them
  * (m16): the rank-1 group first, and a group with no campaign last. Every

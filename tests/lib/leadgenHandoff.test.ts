@@ -44,6 +44,47 @@ function facts(pack: PackShape, over: Partial<ConfirmFacts> = {}): ConfirmFacts 
   };
 }
 
+describe("buildLeadGenHandoff with a chosen play (lead gen v2.3)", () => {
+  it("freezes the rank-2 play the rep chose: its group, that group's roles, its recipe and its seed firms", () => {
+    const pack = completePack();
+    const second = mod(pack, "m16").candidates.slice().sort((a, b) => a.rank - b.rank)[1]!;
+    const result = buildLeadGenHandoff(facts(pack, { candidateId: second.id }));
+    if (!result.ok) throw new Error(result.refusal);
+    const { handoff } = result;
+    expect(leadGenHandoffV2Schema.safeParse(handoff).success).toBe(true);
+    expect(handoff.play).toEqual({ id: second.id });
+    expect(handoff.buyerGroup).toEqual({ id: second.archetypeId, name: expect.any(String), sourceRank: second.rank });
+    expect(handoff.buyerGroup.id).not.toBe(topCandidate(pack)?.archetypeId);
+    expect(handoff.targeting).toEqual({ ...leadgenRecipe(pack, second.archetypeId), locations: [] });
+    const roles = mod(pack, "m03").archetypes.find((group) => group.id === second.archetypeId)!.roles;
+    expect(handoff.buyerRoles).toEqual(roles.map((role) => ({ title: role.title, seniority: role.seniority, part: role.part, needs: role.needs })));
+    expect(handoff.seedFirms.map((firm) => firm.name)).toEqual(mod(pack, "m04").perArchetype.find((entry) => entry.archetypeId === second.archetypeId)!.seedFirms.map((firm) => firm.name));
+  });
+
+  it("is the rank-1 play when the rep names it, the same as naming none", () => {
+    const pack = completePack();
+    const top = topCandidate(pack)!;
+    const named = buildLeadGenHandoff(facts(pack, { candidateId: top.id }));
+    const unnamed = buildLeadGenHandoff(facts(pack));
+    expect(named).toEqual(unnamed);
+  });
+
+  it("refuses a play this pack does not rank, or ranks for a kind of buyer it does not describe", () => {
+    const pack = completePack();
+    expect(buildLeadGenHandoff(facts(pack, { candidateId: "candidate-from-another-plan" }))).toEqual({ ok: false, refusal: "unknown_candidate" });
+    const orphan = completePack();
+    mod(orphan, "m16").candidates[1]!.archetypeId = "no-such-group";
+    expect(buildLeadGenHandoff(facts(orphan, { candidateId: mod(orphan, "m16").candidates[1]!.id }))).toEqual({ ok: false, refusal: "unknown_candidate" });
+  });
+
+  it("refuses a chosen play whose kind of buyer has no recipe, and never swaps in another", () => {
+    const pack = completePack();
+    const second = mod(pack, "m16").candidates.slice().sort((a, b) => a.rank - b.rank)[1]!;
+    mod(pack, "m04").perArchetype = mod(pack, "m04").perArchetype.filter((entry) => entry.archetypeId !== second.archetypeId);
+    expect(buildLeadGenHandoff(facts(pack, { candidateId: second.id }))).toEqual({ ok: false, refusal: "no_recipe" });
+  });
+});
+
 describe("buildLeadGenHandoff", () => {
   it("freezes the top-ranked group, its recipe and its seed firms, with the rank as provenance", () => {
     const pack = completePack();

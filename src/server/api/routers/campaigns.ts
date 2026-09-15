@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { BriefRefusedError, briefFieldsSchema, nameFrom, toResearchBrief, type ResearchBrief } from "@/lib/campaigns/brief";
-import { listCounts, toCampaign, toCampaignResearch, toSummary } from "@/lib/campaigns/view";
+import { listCounts, summaryRowOf, toCampaign, toCampaignResearch } from "@/lib/campaigns/view";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { leadGenSetup } from "@/lib/leadgen/setup";
 import {
@@ -13,13 +13,14 @@ import {
   createCampaign,
   editCampaignBrief,
   getCampaignForOwner,
-  listCampaignsForOwner,
   rerunPeople,
   retryResearch,
+  retryReveal,
   reviewPeople,
   widenCampaign,
   type ChangeResult,
 } from "@/lib/repo/campaigns";
+import { campaignSummariesForOwner } from "@/lib/repo/campaignSummary";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
 /**
@@ -44,6 +45,8 @@ import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 const campaignId = z.string().min(1).max(100);
 const briefVersion = z.number().int().min(1).max(1_000_000);
 const requestId = z.string().uuid();
+/** A research play's id, as the campaign page names it (an m16 candidate id). */
+const candidateId = z.string().min(1).max(200);
 
 /** A refused change as the code and line a page can show; anything else is a fault and is rethrown. */
 function asRefusal(error: unknown): never {
@@ -67,6 +70,8 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNoGroup });
     case "no_recipe":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmNoRecipe });
+    case "unknown_candidate":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmUnknownPlay });
     case "over_cap":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.confirmOverCap });
     case "balance_unavailable":
@@ -161,9 +166,11 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Confirm plan (lead gen v2.1 §6; orchestrator A2): the frozen handoff, the
    * lawful-basis record and the one lead gen job, from the version on screen.
+   * `candidateId` names the play the rep chose (lead gen v2.3); left out,
+   * research's top-ranked play is confirmed, as before.
    */
   confirm: repProcedure
-    .input(z.object({ campaignId, fromBriefVersion: briefVersion, requestId }).strict())
+    .input(z.object({ campaignId, fromBriefVersion: briefVersion, requestId, candidateId: candidateId.optional() }).strict())
     .mutation(({ ctx, input }) =>
       refusing(confirmCampaign(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() })),
     ),
@@ -240,10 +247,24 @@ export const campaignsRouter = createTRPCRouter({
       }
     }),
 
+  /**
+   * Try again on Reveal emails: only a reveal that failed before any request
+   * left Relay, so nothing can have been charged (product-truth foundation).
+   */
+  retryReveal: repProcedure
+    .input(z.object({ campaignId, briefVersion, requestId }).strict())
+    .mutation(({ ctx, input }) => refusing(retryReveal(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input }))),
+
+  /**
+   * The rep's campaigns for Home and Campaigns: each row carries its summary
+   * facts (stage, what needs the rep, counts, spend), read in a fixed number
+   * of queries without loading any research pack, person or org-wide record.
+   */
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();
-    const campaigns = (await listCampaignsForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map((record) => toCampaign(record, options));
-    return { campaigns: campaigns.map(toSummary), counts: listCounts(campaigns) };
+    const rows = await campaignSummariesForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId }, { leadGenAvailable: options.available });
+    const campaigns = rows.map(({ campaign, input }) => summaryRowOf(campaign, input));
+    return { campaigns, counts: listCounts(campaigns) };
   }),
 
   get: repProcedure.input(z.object({ id: campaignId }).strict()).query(async ({ ctx, input }) => {

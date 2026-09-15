@@ -6,7 +6,7 @@ import type { Campaign } from "@/lib/campaigns/types";
 import { toCampaign } from "@/lib/campaigns/view";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
-import { briefFields, completePack, partialBrief, playablePartialPack, stoppedBrief, stoppedPack } from "../../lib/campaignPacks";
+import { briefFields, completePack, partialBrief, partialPack, playablePartialPack, stoppedBrief, stoppedPack } from "../../lib/campaignPacks";
 
 /**
  * Real campaigns, built the way the router builds them (`toCampaign` over a
@@ -16,7 +16,8 @@ import { briefFields, completePack, partialBrief, playablePartialPack, stoppedBr
  */
 
 /** `unreadable` is research that finished with nothing Relay could read: needs you, and no Try again. */
-export type LiveKind = "researching" | "complete" | "partial" | "stopped" | "failed" | "unreadable";
+/** `noplay` is a finished pack that ranked no play Relay can search: research needs you, with the pack still readable. */
+export type LiveKind = "researching" | "complete" | "partial" | "noplay" | "stopped" | "failed" | "unreadable";
 
 const AT = new Date("2026-09-12T12:00:00Z");
 
@@ -24,10 +25,10 @@ export function liveCampaign(kind: LiveKind): Campaign {
   const brief: ResearchBrief =
     kind === "stopped"
       ? (stoppedBrief() as ResearchBrief)
-      : kind === "partial"
+      : kind === "partial" || kind === "noplay"
         ? (partialBrief() as ResearchBrief)
         : toResearchBrief(briefFields());
-  const pack = kind === "complete" ? completePack() : kind === "partial" ? playablePartialPack() : kind === "stopped" ? stoppedPack() : null;
+  const pack = kind === "complete" ? completePack() : kind === "partial" ? playablePartialPack() : kind === "noplay" ? partialPack() : kind === "stopped" ? stoppedPack() : null;
 
   const campaign = {
     id: `camp-${kind}`,

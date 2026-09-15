@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { bucketOf, isWaiting, reasonLineOf, stageLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
@@ -19,10 +20,10 @@ import { PageHeader } from "./PageHeader";
  * counts beyond the number beside each heading, because a number Home cannot
  * stand behind is a number the rep stops trusting.
  *
- * The buckets are the stage summary's (`src/lib/campaigns/summary.ts`), so
- * this page, the Campaigns list and the campaign page agree on where a
- * campaign is. Done campaigns are not here: Home is about what is next, and
- * the list keeps the record.
+ * Every row reads the backend's summary facts (`facts.stage`, `attention`,
+ * `nextAction`, the counts) through `src/lib/campaigns/stageLine.ts`, so this
+ * page, the Campaigns list and the campaign page agree on where a campaign
+ * is. A campaign with no facts (a sample) is not drawn here.
  *
  * Pure: every value arrives as a prop, so the route can be a server component
  * that resolves the session and this can be rendered in a test without one.
@@ -36,12 +37,13 @@ function Count({ n }: { n: number }) {
 }
 
 /** What needs the rep, or is theirs to decide: the name, why, and the one thing to do. */
-function NeedsYouRow({ campaign }: { campaign: CampaignSummary }) {
+function NeedsYouRow({ campaign }: { campaign: WithFacts }) {
+  const line = reasonLineOf(campaign.facts) ?? stageLineOf(campaign.facts);
   return (
     <Link href={`/campaigns/${campaign.id}`} data-testid="home-needs-you-row" className={ROW}>
       <span className="min-w-0 flex-1">
         <span className="type-name block">{campaign.name}</span>
-        <span className="type-small block text-muted sm:truncate">{campaign.summary.reason ?? campaign.summary.line}</span>
+        {line === null ? null : <span className="type-small block text-muted sm:truncate">{line}</span>}
       </span>
       <span className="type-small text-action">{campaign.next}</span>
     </Link>
@@ -49,22 +51,21 @@ function NeedsYouRow({ campaign }: { campaign: CampaignSummary }) {
 }
 
 /** What Relay is doing: the name, the line of what it has, and the word for where it is. */
-function WorkingRow({ campaign }: { campaign: CampaignSummary }) {
+function WorkingRow({ campaign }: { campaign: WithFacts }) {
   return (
     <Link href={`/campaigns/${campaign.id}`} data-testid="home-working-row" className={ROW}>
       <span className="min-w-0 flex-1">
         <span className="type-name block">{campaign.name}</span>
-        <span className="type-small block text-muted sm:truncate">{campaign.summary.line ?? campaign.motionLine}</span>
+        <span className="type-small block text-muted sm:truncate">{stageLineOf(campaign.facts) ?? campaign.motionLine}</span>
       </span>
       {/* A queued job is waiting, and the chip says so: never "Researching" for a job nothing has picked up. */}
-      {campaign.summary.waiting ? (
-        <Chip>{campaignsCopy.summaryWaiting}</Chip>
-      ) : (
-        <Chip tone="ok">{campaign.summary.stage}</Chip>
-      )}
+      {isWaiting(campaign.facts) ? <Chip>{campaignsCopy.summaryWaiting}</Chip> : <Chip tone="ok">{campaign.chip}</Chip>}
     </Link>
   );
 }
+
+type WithFacts = CampaignSummary & { facts: NonNullable<CampaignSummary["facts"]> };
+const withFacts = (campaign: CampaignSummary): campaign is WithFacts => campaign.facts !== undefined;
 
 export function Home({
   firstName,
@@ -81,8 +82,9 @@ export function Home({
   startBrief: (previous: string | null, form: FormData) => Promise<string | null>;
 }) {
   // "Ready" sits with the decisions: emails are ready and outreach is the rep's next call.
-  const needsYou = campaigns.filter((campaign) => ["needsYou", "decide", "ready"].includes(campaign.summary.bucket));
-  const working = campaigns.filter((campaign) => campaign.summary.bucket === "working");
+  const stored = campaigns.filter(withFacts);
+  const needsYou = stored.filter((campaign) => bucketOf(campaign.facts) !== "working");
+  const working = stored.filter((campaign) => bucketOf(campaign.facts) === "working");
 
   return (
     <>

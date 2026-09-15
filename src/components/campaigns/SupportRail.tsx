@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { AskAnswer } from "@/lib/campaigns/state";
-import { usd } from "@/lib/campaigns/state";
-import type { BriefFields, CampaignOverview, SpendView } from "@/lib/campaigns/types";
+import { usd } from "@/lib/campaigns/stageLine";
+import type { BriefFields, CampaignOverview, CampaignSpendView } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { researchCopy } from "@/lib/copy/research";
 import { cn } from "@/lib/utils";
@@ -36,10 +36,13 @@ export function SupportRail({
   ask,
   initial = "research",
   confirmed = false,
+  sample = false,
 }: {
   overview: CampaignOverview | null;
   researchHref?: string;
-  spend: SpendView | null;
+  spend: CampaignSpendView | null;
+  /** People and credits are samples, never a live account. */
+  sample?: boolean;
   brief: BriefFields;
   editHref?: string;
   ask: AskAnswer[];
@@ -87,7 +90,7 @@ export function SupportRail({
             <Overview overview={overview} confirmed={confirmed} collapsed bare />
           </div>
         ) : null}
-        {current === "spend" ? <SpendLines spend={spend} /> : null}
+        {current === "spend" ? <SpendLines spend={spend} sample={sample} /> : null}
         {current === "brief" ? <BriefCard brief={brief} editHref={editHref} bare /> : null}
         {current === "ask" ? <AskRelay questions={ask} bare /> : null}
       </div>
@@ -95,21 +98,31 @@ export function SupportRail({
   );
 }
 
-/** What this campaign has spent so far, in the unit each spend is counted in. Nothing is drawn as a zero of work that has not happened. */
-export function SpendLines({ spend }: { spend: SpendView | null }) {
+/**
+ * What this campaign has spent so far, from the backend's spend facts: each
+ * kind in its own unit, never added together. Nothing is drawn as a zero of
+ * work that has not happened: before Confirm there is no search line, before
+ * Reveal no reveal line, and research with no recorded cost says so.
+ */
+export function SpendLines({ spend, sample = false }: { spend: CampaignSpendView | null; sample?: boolean }) {
   const c = campaignsCopy;
-  if (spend === null || (spend.researchUsd === null && spend.search === null && spend.reveal === null)) {
+  const search = spend === null || spend.search.cap === null ? null : spend.search;
+  const reveal = spend === null || spend.reveal.max === null ? null : spend.reveal;
+  const researchUsd = spend?.research.usd ?? null;
+  if (search === null && reveal === null && researchUsd === null) {
     return (
       <p data-testid="spend-none" className="type-small text-muted">
         {c.spendNothingYet}
       </p>
     );
   }
+  const held = (n: number) => (n > 0 ? ` · ${n} ${c.spendHeldShort}` : "");
   const rows: [string, string, string][] = [
-    ["spend-research", c.spendResearch, spend.researchUsd === null ? c.spendNoRecord : usd(spend.researchUsd)],
-    ...(spend.search === null ? [] : [["spend-search", c.spendSearch, `${spend.search.charged} ${c.spendCreditsOf} ${spend.search.cap} ${c.spendCreditsWord}`] as [string, string, string]]),
-    ...(spend.reveal === null ? [] : [["spend-reveal", c.spendReveal, `${spend.reveal.charged} ${c.spendCreditsOf} ${spend.reveal.max} ${c.spendCreditsWord}`] as [string, string, string]]),
+    ["spend-research", c.spendResearch, researchUsd === null ? c.spendNoRecord : usd(researchUsd)],
+    ...(search === null ? [] : [["spend-search", c.spendSearch, `${search.charged} ${c.spendCreditsOf} ${search.cap} ${c.spendCreditsWord}${held(search.held)}`] as [string, string, string]]),
+    ...(reveal === null ? [] : [["spend-reveal", c.spendReveal, `${reveal.charged} ${c.spendCreditsOf} ${reveal.max} ${c.spendCreditsWord}${held(reveal.held)}`] as [string, string, string]]),
   ];
+  const earlier = spend !== null && spend.allVersions.searchCharged + spend.allVersions.revealCharged > (search?.charged ?? 0) + (reveal?.charged ?? 0);
   return (
     <div data-testid="spend-lines">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
@@ -122,7 +135,12 @@ export function SpendLines({ spend }: { spend: SpendView | null }) {
           </div>
         ))}
       </dl>
-      {spend.sample ? (
+      {earlier && spend !== null ? (
+        <p data-testid="spend-earlier" className="type-small mt-2 text-muted">
+          {c.spendEarlierVersions} {spend.allVersions.searchCharged} {c.spendSearch.toLowerCase()} · {spend.allVersions.revealCharged} {c.spendReveal.toLowerCase()} {c.spendCreditsWord}.
+        </p>
+      ) : null}
+      {sample ? (
         <p data-testid="spend-sample" className="type-small mt-2 text-warn">
           {c.spendSample}
         </p>

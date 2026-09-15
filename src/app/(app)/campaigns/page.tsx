@@ -4,13 +4,10 @@ import { Card } from "@/components/Card";
 import { CampaignRow } from "@/components/campaigns/CampaignRow";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
-import type { CampaignSummary } from "@/lib/campaigns/types";
-import { sortForList, type ListCounts } from "@/lib/campaigns/view";
+import { bucketOfRow, countBuckets, sortForList, type Bucket, type BucketCounts } from "@/lib/campaigns/stageLine";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { emptyCopy } from "@/lib/copy/empty";
 import { listCampaigns } from "@/server/campaigns";
-
-type Bucket = CampaignSummary["summary"]["bucket"];
 
 /**
  * The header note: only the buckets with something in them, in the order the
@@ -18,7 +15,7 @@ type Bucket = CampaignSummary["summary"]["bucket"];
  * "running" for a campaign that has not finished: research is not running,
  * it is reading, and a queued job is waiting.
  */
-function headerNote(counts: ListCounts): string {
+function headerNote(counts: BucketCounts): string {
   const parts: [number, string][] = [
     [counts.needsYou, campaignsCopy.bucketNeedsYou],
     [counts.decide, campaignsCopy.bucketDecide],
@@ -53,7 +50,7 @@ const GROUPS: { label: string; buckets: Bucket[] }[] = [
  * The rows are the rep's own campaigns, read through `src/server/campaigns.ts`.
  */
 export default async function CampaignsPage() {
-  const { campaigns, counts } = await listCampaigns();
+  const { campaigns } = await listCampaigns();
 
   if (campaigns.length === 0) {
     return (
@@ -81,7 +78,7 @@ export default async function CampaignsPage() {
   const sorted = sortForList(campaigns);
   const groups = GROUPS.map((group) => ({
     ...group,
-    campaigns: sorted.filter((campaign) => group.buckets.includes(campaign.summary.bucket)),
+    campaigns: sorted.filter((campaign) => group.buckets.includes(bucketOfRow(campaign))),
   })).filter((group) => group.campaigns.length > 0);
 
   return (
@@ -91,7 +88,7 @@ export default async function CampaignsPage() {
         top right, which is where the signed mock draws it (3a). The empty
         branch above keeps its own way in, which is Home's brief box.
       */}
-      <PageHeader title={campaignsCopy.title} note={headerNote(counts)} />
+      <PageHeader title={campaignsCopy.title} note={headerNote(countBuckets(campaigns))} />
 
       <Card className="p-0">
         {groups.map((group) => (

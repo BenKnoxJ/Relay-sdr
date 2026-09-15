@@ -30,10 +30,10 @@ const LABELS: Record<CampaignStep, string> = {
   done: campaignsCopy.stepDone,
 };
 
-export function StateRow({ state, stuck = false }: { state: CampaignState; stuck?: boolean }) {
+export function StateRow({ state, stuck = false }: { state: CampaignState; /** A reveal that stopped and needs the rep (`facts.stage === "reveal_needs_you"`). */ stuck?: boolean }) {
   const current = stepIndexFor(state);
   // `stuck`: a state that is otherwise fine but stopped before it finished (a reveal that did not complete).
-  const warn = state === "stopped" || state === "failed" || state === "planIncomplete" || state === "peopleNeedsYou" || stuck;
+  const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou" || stuck;
 
   return (
     <ol aria-label={campaignsCopy.stepsLabel} className="flex flex-wrap items-center gap-1.5">
@@ -44,14 +44,14 @@ export function StateRow({ state, stuck = false }: { state: CampaignState; stuck
             ? campaignsCopy.stepStopped
             : step === "researching" && state === "failed"
               ? campaignsCopy.stepNeedsYou
-              : step === "researching" && state === "planIncomplete"
-                ? campaignsCopy.stepIncomplete
               : step === "findingPeople" && state === "peopleNeedsYou"
                 ? campaignsCopy.stepFindingNeedsYou
                 : step === "findingPeople" && state === "peopleFound"
                   ? campaignsCopy.stepReviewingPeople
                   : step === "findingPeople" && state === "revealing"
-                    ? campaignsCopy.stepRevealing
+                    ? stuck
+                      ? campaignsCopy.stepRevealNeedsYou
+                      : campaignsCopy.stepRevealing
                     : step === "findingPeople" && state === "peopleReady"
                       ? campaignsCopy.stepPeopleReady
                       : LABELS[step];

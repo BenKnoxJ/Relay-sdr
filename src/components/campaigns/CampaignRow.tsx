@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Chip } from "@/components/Chip";
+import { bucketOfRow, stageLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
@@ -21,8 +22,9 @@ import { cn } from "@/lib/utils";
  * that says what is happening does not need to also say what is not.
  */
 export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
-  const { summary } = campaign;
-  const line = summary.line ?? campaign.motionLine;
+  const facts = campaign.facts;
+  const bucket = bucketOfRow(campaign);
+  const line = (facts === undefined ? null : stageLineOf(facts)) ?? campaign.motionLine;
   const contacted =
     campaign.contacted !== null && campaign.contacted > 0
       ? `${campaign.contacted} ${campaignsCopy.of} ${campaign.total} ${campaignsCopy.contacted}`
@@ -46,7 +48,7 @@ export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
         </span>
       </span>
 
-      <Chip tone={summary.bucket === "needsYou" ? "warn" : summary.bucket === "ready" ? "ok" : "default"}>{campaign.chip}</Chip>
+      <Chip tone={bucket === "needsYou" ? "warn" : bucket === "ready" ? "ok" : "default"}>{campaign.chip}</Chip>
 
       <span
         data-testid="campaign-next"

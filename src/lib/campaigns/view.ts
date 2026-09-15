@@ -7,10 +7,14 @@ import type { CampaignRecord } from "@/lib/repo/campaigns";
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, searchLine } from "./accounts";
 import { becomesLine, widenHeadings } from "./briefLines";
-import { deriveLeadGen, deriveResearch, deriveReveal, storedPack, type LeadGenState } from "./derive";
+import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
+import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
+import type { ResearchResultFacts, StageResult } from "./stage";
+import { isAttention } from "./stage";
+import { revealLedgerOf, spendOf, summaryFactsOf, type PeopleGroup, type SummaryInput } from "./summary";
 import { researchSections } from "./research";
-import { answersFor, chipFor, nextFor, type CampaignCounts, type CampaignState } from "./state";
-import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, ResearchActions, WidenChoice } from "./types";
+import { answersFor, chipFor, nextFor, type CampaignCounts } from "./state";
+import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
 
 /**
  * A stored campaign as its screens draw it.
@@ -73,6 +77,82 @@ function peopleReasonLine(people: Extract<LeadGenState, { state: "peopleNeedsYou
   }
 }
 
+/** Why revealing emails stopped, in words, by what Relay knows about its spend. */
+function revealStoppedLine(reason: string | undefined): string {
+  switch (reason) {
+    case "reveal_failed":
+      return campaignsCopy.revealStoppedRetry;
+    case "reveal_spend_unresolved":
+      return campaignsCopy.revealStoppedHeld;
+    case "reveal_failed_terminal":
+      return campaignsCopy.revealStoppedFailed;
+    default:
+      return campaignsCopy.revealStopped;
+  }
+}
+
+/** The chip and the "next" line: a stopped reveal draws as revealing but reads as needing the rep. */
+function headline(derived: StageResult, counts: CampaignCounts): { chip: string; next: string; nextIsAction: boolean } {
+  if (derived.stage === "reveal_needs_you") return { chip: campaignsCopy.chipNeedsYou, next: campaignsCopy.nextRevealNeedsYou, nextIsAction: true };
+  return { chip: chipFor(derived.state), ...nextFor(derived.state, counts) };
+}
+
+/**
+ * The summary's inputs from the whole record the campaign page loads: the
+ * same facts the list builds from its grouped queries, so the page and the
+ * list derive the same stage and count the same people and spend.
+ */
+function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: LeadGenOptions): SummaryInput {
+  const pack = record.event === null ? null : storedPack(record.event.after);
+  const leadGen = record.leadGen ?? null;
+  const frozen = leadGen?.confirm === null || leadGen?.confirm === undefined ? null : leadGenHandoffSchema.safeParse((leadGen.confirm.after as { handoff?: unknown } | null)?.handoff);
+  const handoff = frozen?.success === true ? frozen.data : null;
+  const result = leadGen?.result === null || leadGen?.result === undefined ? null : leadGenResultOf({ kind: leadGen.result.kind, after: leadGen.result.after });
+  const revealRecord = result?.kind === "picked" ? (leadGen?.reveal ?? null) : null;
+  const ledger = record.ledger ?? [];
+  const facts = pack === null || pack.insufficient !== undefined ? null : playFactsOf(pack);
+  const researchResult: ResearchResultFacts | null =
+    record.event === null
+      ? null
+      : pack === null
+        ? { readable: false }
+        : pack.insufficient !== undefined
+          ? { readable: true, outcome: "insufficient", usableWidenings: widenChoices(brief, pack.insufficient.widenings).filter((choice) => choice.usable).length }
+          : { readable: true, outcome: pack.partial ? "partial" : "complete", executablePlays: facts === null ? 0 : executablePlayCount(facts) };
+  const people: PeopleGroup[] | null =
+    result?.kind === "picked"
+      ? (leadGen?.people ?? []).map((row) => ({ status: row.status, review: row.review, reveal: row.reveal, rolePart: row.rolePart, companyKey: row.companyKey, count: 1 }))
+      : null;
+  const plan = leadGen?.revealPlan ?? null;
+  return {
+    campaign: { id: record.campaign.id, name: record.campaign.name, briefVersion: record.campaign.briefVersion, createdAt: record.campaign.createdAt, updatedAt: record.campaign.updatedAt },
+    stage: {
+      research: { job: record.job, result: researchResult },
+      confirmed: leadGen?.confirm !== null && leadGen?.confirm !== undefined,
+      leadGen: leadGen === null || leadGen.confirm === null ? null : { job: leadGen.job, result },
+      reveal: revealRecord === null ? null : { job: revealRecord.job, hasResult: revealRecord.result !== null, ledger: revealLedgerOf(ledger, record.campaign.briefVersion) },
+      revealPlan: revealRecord === null && plan !== null ? { kept: plan.kept, toReveal: plan.toReveal, known: plan.known } : null,
+      leadGenAvailable: options.available,
+    },
+    research:
+      researchResult === null || !researchResult.readable
+        ? null
+        : researchResult.outcome === "insufficient"
+          ? { outcome: "insufficient", plays: 0, viablePlays: 0 }
+          : { outcome: researchResult.outcome, plays: facts === null ? 0 : rankedPlays(facts).length, viablePlays: researchResult.executablePlays },
+    confirmed:
+      handoff === null
+        ? null
+        : { groupId: handoff.buyerGroup.id, groupName: handoff.buyerGroup.name, playId: handoff.version === 2 ? handoff.play.id : null, sourceRank: handoff.buyerGroup.sourceRank },
+    people,
+    spend: spendOf(ledger, record.researchCost ?? [], {
+      briefVersion: record.campaign.briefVersion,
+      searchCap: handoff?.spend.searchCreditCap ?? null,
+      revealMax: revealRecord?.after?.maxCredits ?? null,
+    }),
+  };
+}
+
 export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_LEAD_GEN_SETUP): Campaign {
   // Written by `createCampaign` from a brief research's schema accepted, so a
   // row that no longer parses is a defect worth failing on, not one to draw.
@@ -82,6 +162,9 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     record.job === null ? null : { status: record.job.status, error: record.job.error },
     record.event === null ? null : { after: record.event.after },
   );
+  // One derivation for the stage, what the rep can do and what the server will accept.
+  const { facts, derived } = summaryFactsOf(summaryInputOf(record, researchBrief, options));
+  const state = derived.state;
   // Once the version is confirmed, finding people is where the campaign is (lead gen v2.1 §11).
   const leadGen = record.leadGen ?? null;
   const confirm = research.state === "planReady" && leadGen !== null ? leadGen.confirm : null;
@@ -98,7 +181,6 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     revealRecord === null
       ? null
       : deriveReveal(revealRecord.job === null ? null : { status: revealRecord.job.status, error: revealRecord.job.error }, revealRecord.result === null ? null : { kind: revealRecord.result.kind });
-  const state: CampaignState = revealed?.state ?? people?.state ?? research.state;
   const frozen = confirm === null ? null : leadGenHandoffSchema.safeParse((confirm.after as { handoff?: unknown } | null)?.handoff);
   const handoff = frozen?.success === true ? frozen.data : null;
   const sampleRun = confirm !== null && (confirm.after as { balanceSource?: unknown } | null)?.balanceSource === "sample";
@@ -106,35 +188,25 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const cap = handoff?.spend.searchCreditCap ?? 0;
   const found = people?.state === "peopleFound" ? people.pick : null;
   const plan = found !== null && revealRecord === null ? (leadGen?.revealPlan ?? null) : null;
-  const canReveal = state === "peopleFound" && options.available && plan !== null && plan.kept > 0 && plan.toReveal + plan.known > 0;
-  const failure = research.state === "failed" ? research.failure : null;
-  // Try again puts the failed job back on the queue, so it is offered only
-  // when there is a failed job to put back: not for a result Relay could not
-  // read, which Edit brief is for.
-  const retryable = state === "failed" && record.job?.status === "failed" && record.event === null;
+  const failure = derived.failure;
+  const retryable = derived.can.retry;
   const widenings = research.state === "stopped" ? widenChoices(researchBrief, research.pack.insufficient?.widenings ?? []) : null;
-  const can: ResearchActions = {
-    widen: widenings !== null && widenings.some((choice) => choice.usable),
-    edit: state === "planReady" || state === "stopped" || state === "failed" || state === "peopleFound" || state === "peopleNeedsYou",
-    retry: retryable,
-    confirm: state === "planReady" && options.available,
-    retryPeople: people?.state === "peopleNeedsYou" && people.retryable,
-    chooseIndustry: people?.state === "peopleNeedsYou" && people.choosable,
-    review: state === "peopleFound",
-    reveal: canReveal,
-  };
+  const can = derived.can;
   const counts: CampaignCounts = {
     progress: found === null ? null : { found: found.found.n, drafted: 0, approved: 0, sent: 0, replied: 0 },
     outcomes: null,
     draftsDueToday: 0,
     nextBatch: null,
-    // From the persisted ledger: charged, and what is left under this Confirm's cap.
+    // From the persisted ledger: this version's search, charged, and what is left under this Confirm's cap.
     credits: confirm === null || spend === null || handoff === null ? null : { used: spend.charged, left: Math.max(0, cap - spend.charged - spend.reserved) },
+    spend: facts.spend,
     live: true,
     failure,
     retryable,
     ...(people?.state === "peopleNeedsYou" ? { peopleReason: peopleReasonLine(people) } : {}),
+    ...(derived.stage === "reveal_needs_you" ? { revealStopped: revealStoppedLine(derived.attention?.reason) } : {}),
   };
+  const pack = record.event === null ? null : storedPack(record.event.after);
 
   const confirmPlan: ConfirmPlanView | null =
     state === "planReady"
@@ -188,10 +260,10 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     name: record.campaign.name,
     motionLine: motionLine(brief),
     state,
-    chip: chipFor(state),
+    ...headline(derived, counts),
     contacted: null,
     total: brief.howMany,
-    ...nextFor(state, counts),
+    facts,
     brief,
     pack: research.state === "planReady" || research.state === "stopped" ? research.pack : null,
     overview: research.state === "planReady" ? research.overview : null,
@@ -219,6 +291,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     peopleFound,
     peopleNeedsYou,
     spentAtThisVersion: spend !== null && spend.charged + spend.reserved > 0,
+    plays: pack === null || pack.insufficient !== undefined ? null : playsOf(pack),
+    spend: facts.spend,
   };
 }
 
@@ -229,7 +303,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
  */
 export function toCampaignResearch(record: CampaignRecord): CampaignResearchPage {
   const campaign = toCampaign(record);
-  const pack = campaign.state === "planReady" && record.event !== null ? storedPack(record.event.after) : null;
+  // A finished plan, and a finished pack whose plays cannot be searched: what research found is still the rep's to read.
+  const pack = (campaign.state === "planReady" || campaign.failure === "no_play") && record.event !== null ? storedPack(record.event.after) : null;
   return {
     id: campaign.id,
     name: campaign.name,
@@ -262,17 +337,43 @@ export function widenChoices(brief: ResearchBrief, options: readonly unknown[]):
 }
 
 export function toSummary(campaign: Campaign): CampaignSummary {
-  const { id, name, motionLine: line, state, chip, contacted, total, next, nextIsAction } = campaign;
-  return { id, name, motionLine: line, state, chip, contacted, total, next, nextIsAction };
+  const { id, name, motionLine: line, state, chip, contacted, total, next, nextIsAction, facts } = campaign;
+  return { id, name, motionLine: line, state, chip, contacted, total, next, nextIsAction, ...(facts === undefined ? {} : { facts }) };
 }
 
 /**
- * How the list's header counts itself: "2 running · 1 done". Everything that is
- * neither done nor stopped is still going, which is how the signed mock counts.
+ * A list row from the summary's inputs alone (`campaignSummariesForOwner`):
+ * no pack, no people and nothing org-wide is loaded, and the stage, chip and
+ * line come from the same derivation as the campaign page.
  */
-export function listCounts(campaigns: readonly Pick<CampaignSummary, "state">[]): { running: number; done: number } {
+export function summaryRowOf(campaign: { brief: unknown }, input: SummaryInput): CampaignSummary {
+  const brief = briefFieldsFrom(researchBriefSchema.parse(campaign.brief));
+  const { facts, derived } = summaryFactsOf(input);
+  const counts: CampaignCounts = { progress: null, outcomes: null, draftsDueToday: 0, nextBatch: null, credits: null, live: true };
   return {
-    running: campaigns.filter((campaign) => campaign.state !== "done" && campaign.state !== "stopped").length,
+    id: facts.id,
+    name: facts.name,
+    motionLine: motionLine(brief),
+    state: derived.state,
+    ...headline(derived, counts),
+    contacted: null,
+    total: brief.howMany,
+    facts,
+  };
+}
+
+/**
+ * How the list's header counts itself: "2 running · 1 needs you · 1 done". A
+ * campaign that needs the rep (a stop included) is never counted as running.
+ */
+export function listCounts(campaigns: readonly Pick<CampaignSummary, "state" | "facts">[]): { running: number; needsYou: number; done: number } {
+  const needsYou = (campaign: Pick<CampaignSummary, "state" | "facts">) =>
+    campaign.facts !== undefined ? isAttention(campaign.facts.stage) : campaign.state === "failed" || campaign.state === "stopped" || campaign.state === "peopleNeedsYou";
+  return {
+    running: campaigns.filter((campaign) => campaign.state !== "done" && !needsYou(campaign)).length,
+    needsYou: campaigns.filter(needsYou).length,
     done: campaigns.filter((campaign) => campaign.state === "done").length,
   };
 }
+
+export type { CampaignSummaryFacts };

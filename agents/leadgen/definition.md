@@ -490,3 +490,20 @@ Company search, a CampaignAccount table, running several plays, choosing another
    - Each person's "why they fit" names the role they matched.
    - Each role's needs are shown once, in a buyer-roles summary.
    - Drop account appears only on accounts with more than one person.
+
+# Relay agent definition: Lead gen (v2.3, signed)
+**v2.3 · SIGNED by the product owner 2026-09-15 · amends `leadgen.v2.1.signed.md` §3 and `leadgen.v2.2.signed.md` §15a; where they differ, v2.3 wins**
+
+## 1. The rep may choose the play (amends v2.1 §3, adapter rules)
+- Confirm may name one of Research's campaign candidates (m16) by id. When it names none, the adapter chooses the top-ranked candidate (`topCandidate`), exactly as before.
+- A named candidate must be in the pack Confirm reads, for a kind of buyer that pack describes (m03). Otherwise Confirm is refused (`unknown_candidate`) and nothing is frozen or started.
+- The chosen candidate's kind of buyer must have a recipe (m04). Otherwise Confirm is refused (`no_recipe`). Relay never swaps in another candidate or group, whether the rep named one or not.
+- The handoff freezes the chosen candidate's kind of buyer, that group's roles as Research wrote them, its recipe as the targeting, and its seed firms. `play.id` is the chosen candidate's id and `buyerGroup.sourceRank` is its rank. Both stay provenance only: lead gen never reads them to decide anything.
+- The `campaign.confirmed` Event records whether the rep chose the play or took the default (`selection: "chosen"` or `"default"`). A repeated Confirm press is the same press only when it names the same play.
+- Plan ready needs at least one candidate that can be confirmed: a kind of buyer the pack describes, with a recipe. A finished pack with none is research that needs the rep (`no_play`), not a plan.
+
+## 2. A known limitation, unchanged
+Recipe, roles and seed firms belong to a kind of buyer, not to a candidate. Two candidates for the same kind of buyer therefore search the same way; only `play.id` and `sourceRank` differ. Making the search candidate-specific would change the handoff and Research, and is not part of v2.3.
+
+## 3. Still not here (amends v2.2 §15a)
+Choosing another play leaves the list: it is §1 above. The rest of v2.2 §15a stands.

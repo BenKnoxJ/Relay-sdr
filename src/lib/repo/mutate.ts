@@ -85,6 +85,8 @@ export type EventKind =
   /// row, the Person and provider records are written in the same
   /// transaction, and `after` has the counts. No email is in the Event.
   | "leadgen.revealed"
+  /// A reveal that failed before any request left Relay, put back on the queue (product-truth foundation, 2026-09-15).
+  | "campaign.reveal_retried"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the

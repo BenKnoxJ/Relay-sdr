@@ -6,7 +6,7 @@ import type { Campaign } from "@/lib/campaigns/types";
 import { toCampaign } from "@/lib/campaigns/view";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
-import { briefFields, completePack, partialBrief, partialPack, stoppedBrief, stoppedPack } from "../../lib/campaignPacks";
+import { briefFields, completePack, partialBrief, playablePartialPack, stoppedBrief, stoppedPack } from "../../lib/campaignPacks";
 
 /**
  * Real campaigns, built the way the router builds them (`toCampaign` over a
@@ -27,7 +27,7 @@ export function liveCampaign(kind: LiveKind): Campaign {
       : kind === "partial"
         ? (partialBrief() as ResearchBrief)
         : toResearchBrief(briefFields());
-  const pack = kind === "complete" ? completePack() : kind === "partial" ? partialPack() : kind === "stopped" ? stoppedPack() : null;
+  const pack = kind === "complete" ? completePack() : kind === "partial" ? playablePartialPack() : kind === "stopped" ? stoppedPack() : null;
 
   const campaign = {
     id: `camp-${kind}`,

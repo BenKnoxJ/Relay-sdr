@@ -1,6 +1,6 @@
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
-import type { AskAnswer, ResearchFailure } from "./types";
+import type { AskAnswer, CampaignSpendView, ResearchFailure } from "./types";
 
 export type { AskAnswer } from "./types";
 
@@ -72,7 +72,7 @@ export function stepIndexFor(state: CampaignState): number {
 }
 
 export type CampaignAction = {
-  kind: "confirm" | "pause" | "resume" | "widen" | "retry" | "reveal" | "retryPeople" | "outreach";
+  kind: "confirm" | "pause" | "resume" | "widen" | "retry" | "reveal" | "retryPeople" | "retryReveal" | "outreach";
   label: string;
   next: CampaignState;
   disabled?: boolean;
@@ -93,7 +93,7 @@ export function actionFor(
   state: CampaignState,
   live = false,
   retryable = false,
-  people: { confirm?: boolean; retryPeople?: boolean; reveal?: boolean; revealBlocked?: string } = {},
+  people: { confirm?: boolean; retryPeople?: boolean; reveal?: boolean; revealBlocked?: string; retryReveal?: boolean } = {},
 ): CampaignAction | null {
   if (live) {
     if (state === "planReady") {
@@ -109,6 +109,8 @@ export function actionFor(
         ? { kind: "reveal", label: campaignsCopy.actionReveal, next: "revealing", note: campaignsCopy.revealNote }
         : { kind: "reveal", label: campaignsCopy.actionReveal, next: "revealing", disabled: true, note: people.revealBlocked ?? campaignsCopy.revealKeepFirst };
     }
+    // A reveal that failed before any request left Relay: the same job back on the queue.
+    if (state === "revealing" && people.retryReveal === true) return { kind: "retryReveal", label: campaignsCopy.actionTryAgain, next: "revealing" };
     // Outreach is next and not built: drawn, never pressable.
     if (state === "peopleReady") return { kind: "outreach", label: campaignsCopy.actionWriteEmails, next: "peopleReady", disabled: true, note: campaignsCopy.outreachLater };
     if (state === "peopleNeedsYou" && people.retryPeople === true) return { kind: "retryPeople", label: campaignsCopy.actionTryAgain, next: "findingPeople" };
@@ -148,6 +150,10 @@ export type CampaignCounts = {
   retryable?: boolean;
   /** Why finding people needs the rep, in words (lead gen v2.1 §11). */
   peopleReason?: string;
+  /** What the campaign has cost, every brief version, each kind apart. */
+  spend?: CampaignSpendView;
+  /** Set when revealing emails stopped and needs the rep: why, in words. */
+  revealStopped?: string;
 };
 
 /** The line that says why research did not finish (orchestrator §7, amended A1). */
@@ -159,6 +165,8 @@ export function failureLine(failure: ResearchFailure | null | undefined): string
       return campaignsCopy.failedBadOutput;
     case "not_started":
       return campaignsCopy.failedNotStarted;
+    case "no_play":
+      return campaignsCopy.failedNoPlay;
     default:
       return campaignsCopy.failedOther;
   }
@@ -238,7 +246,9 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
         : `${p.sent} ${c.answerSent}, ${p.replied} ${c.answerReplied}. ${p.drafted} ${c.answerDrafted} ${c.of} ${p.found} ${c.answerFound}.`;
 
   const waiting =
-    state === "peopleNeedsYou"
+    counts.revealStopped !== undefined
+      ? c.answerWaitingRevealStopped
+      : state === "peopleNeedsYou"
       ? c.answerWaitingPeopleNeedsYou
       : state === "revealing"
         ? c.answerWaitingRevealing
@@ -273,14 +283,18 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
       : `${c.answerBatchLead} ${counts.nextBatch.day} ${c.answerBatchAt} ${counts.nextBatch.time}.`;
 
   const cost =
-    counts.credits === null
+    counts.spend !== undefined
+      ? costLine(counts.spend)
+      : counts.credits === null
       ? c.answerCostNoCredits
       : counts.credits.used === 0
         ? c.answerCostNothing
         : `${counts.credits.used} ${c.answerCostUsed} ${counts.credits.left} ${c.answerCostLeft}`;
 
   const why =
-    state === "paused"
+    counts.revealStopped !== undefined
+      ? counts.revealStopped
+      : state === "paused"
       ? c.answerPaused
       : state === "stopped"
         ? c.answerStopped
@@ -298,4 +312,20 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
     { id: "cost", question: c.askCost, answer: cost },
     { id: "why-stopped", question: c.askWhyStopped, answer: why },
   ];
+}
+
+/**
+ * "What has this cost?", for a stored campaign: every brief version it has
+ * had, search and reveal credits apart, what is left under this version's
+ * search limit, and anything still held. Credits only; research's model cost
+ * is in dollars and is never added to them.
+ */
+export function costLine(spend: CampaignSpendView): string {
+  const c = campaignsCopy;
+  const all = spend.allVersions;
+  const held = all.searchHeld + all.revealHeld;
+  if (all.searchCharged + all.revealCharged + held === 0) return spend.search.cap === null ? c.answerCostNoCredits : c.answerCostNothing;
+  const used = [`${all.searchCharged} ${c.answerCostSearch}`, ...(all.revealCharged + all.revealHeld > 0 ? [`${all.revealCharged} ${c.answerCostReveal}`] : [])].join(` ${c.answerCostAnd} `);
+  const left = spend.search.cap === null ? [] : [`${Math.max(0, spend.search.cap - spend.search.charged - spend.search.held)} ${c.answerCostLeftUnder}`];
+  return [`${used}.`, ...left, ...(held > 0 ? [`${held} ${c.answerCostHeld}`] : [])].join(" ");
 }

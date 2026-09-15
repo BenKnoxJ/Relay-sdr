@@ -106,3 +106,6 @@ Lead gen v2.1 (`leadgen.v2.1.signed.md`) replaces this definition wherever the t
 7. **Edit brief** (A1 item 5) is also offered from People found and from a lead gen needs-you, with lead gen v2.1 §11's spend warning. It is not offered while searching or revealing, nor at People ready in this slice.
 8. **§8 question 5** ("What has this cost?") reads the credit ledger.
 9. §4's `lead_gen` and `reveal` job kinds stand; A1 item 7's key convention (no attempt in the key; the queue counts attempts) applies to both.
+
+## 15. Amendment A3: choosing the play (approved by the product owner, 2026-09-15)
+Amends A2 item 2. The buyer group in the handoff is chosen at the campaign boundary: the campaign candidate the rep chose on Plan ready or, when they chose none, Research's top-ranked candidate (lead gen v2.3 §1). Lead gen only reads it. Research is unchanged: it still ranks the candidates, and the top-ranked one is still the default.

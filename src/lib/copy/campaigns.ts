@@ -98,6 +98,8 @@ export const campaignsCopy = {
   failedBadOutput: "Relay's research came back in a shape it could not use.",
   failedOther: "Relay's research did not finish.",
   failedNotStarted: "Relay's research has not started.",
+  /** Research finished, but no play it ranked has a search Relay can run: there is nothing to confirm. */
+  failedNoPlay: "Relay's research finished, but none of the campaigns it ranked says who to search for. Edit the brief and Relay looks again.",
   failedNothingSpent: "Nothing was bought or sent.",
   /** What the rep can do about it: Try again when the research itself failed, and Edit brief always. */
   failedNextRetry: "Try again, or edit the brief.",
@@ -126,6 +128,8 @@ export const campaignsCopy = {
   confirmNotAvailable: "Finding people isn't switched on here yet.",
   confirmNoGroup: "Research didn't rank a kind of buyer to start with. Edit the brief and Relay looks again.",
   confirmNoRecipe: "Research didn't say who to search for in the kind of buyer it ranks first. Edit the brief and Relay looks again.",
+  /** The play the rep chose is not one this plan ranks any more (lead gen v2.3). */
+  confirmUnknownPlay: "That campaign is no longer in this plan. Reload the page and choose again.",
   confirmOverCap: "The search limit is more than the credits available.",
   /** Confirm could not read the credit balance, so nothing was started (lead gen v2.1 §6). */
   confirmBalanceUnavailable: "Relay couldn't read the credit balance, so nothing has started. Try again in a minute.",
@@ -249,6 +253,12 @@ export const campaignsCopy = {
   nextPeopleReady: "emails ready, outreach comes next",
   revealingNote: "Relay is revealing emails for the people you kept. Nothing is sent.",
   revealStopped: "Revealing emails stopped before it finished. Nothing more will be bought for it.",
+  /** A stopped reveal, by what Relay knows about its spend (product-truth foundation). */
+  nextRevealNeedsYou: "revealing emails needs you",
+  revealStoppedRetry: "Revealing emails stopped before any request reached the provider, so nothing was bought. Try again, or edit the brief.",
+  revealStoppedHeld: "Revealing emails stopped after a request may have reached the provider. Its credits are held, and Relay won't buy these emails again on its own. Edit the brief to start again.",
+  revealStoppedFailed: "Revealing emails stopped and can't be tried again as it is. Nothing more will be bought for it. Edit the brief to start again.",
+  answerWaitingRevealStopped: "You. Revealing emails stopped; the reason is at the top of the page.",
   answerWaitingRevealing: "Nothing. Relay is revealing emails.",
   answerWaitingPeopleReady: "Nothing yet. Writing to these people comes next.",
   revealingLabel: "Revealing emails",
@@ -351,6 +361,12 @@ export const campaignsCopy = {
   answerCostLeft: "left.",
   answerCostNothing: "Nothing has been spent on this campaign.",
   answerCostNoCredits: "No credits have been spent on this campaign.",
+  /** The cost answer across every brief version, search and reveal apart (product-truth foundation). */
+  answerCostSearch: "search credits used",
+  answerCostReveal: "reveal credits used",
+  answerCostAnd: "and",
+  answerCostLeftUnder: "left under this search's limit.",
+  answerCostHeld: "more held while Relay checks what was charged.",
   answerStoppedNone: "Nothing is paused or stopped.",
   answerPaused: "You paused it. Resume puts the queue and the schedule back.",
   answerStopped: "Relay stopped: not enough evidence to write a plan. Widen the brief and it looks again.",

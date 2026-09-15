@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { deriveResearch, failureOf } from "@/lib/campaigns/derive";
 
-import { completePack, partialPack, stoppedPack } from "./campaignPacks";
+import { completePack, partialPack, playablePartialPack, stoppedPack } from "./campaignPacks";
 
 /**
  * Where a campaign's research is (orchestrator v2 amendment A1, item 8): read
@@ -57,13 +57,19 @@ describe("deriveResearch", () => {
     expect(view.pack.chosenArchetypeId).toBeDefined();
   });
 
-  it("is plan ready on a partial pack, and the pack says what is missing", () => {
-    const view = deriveResearch(job("done"), event(partialPack()));
+  it("is plan ready on a partial pack that still has a play to search, and the pack says what is missing", () => {
+    const view = deriveResearch(job("done"), event(playablePartialPack()));
     expect(view.state).toBe("planReady");
     if (view.state !== "planReady") return;
     expect(view.pack.partial).toBe(true);
-    expect(view.pack.missingModules).toContain("m04");
-    expect(view.pack.missingModules).not.toContain("m03");
+    expect(view.pack.missingModules).toEqual(["m14"]);
+  });
+
+  it("is failed, no play, on a partial pack that ranked no play it can search: there is nothing to confirm", () => {
+    // Brief B's signed run wrote m03 but not m04 or m16: no recipe and no ranked play.
+    const pack = partialPack();
+    expect(pack.missingModules).toContain("m04");
+    expect(deriveResearch(job("done"), event(pack))).toEqual({ state: "failed", failure: "no_play" });
   });
 
   it("is stopped on an insufficient pack, although that pack is partial too", () => {

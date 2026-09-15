@@ -14,7 +14,7 @@ import { ensureUser, type Actor } from "@/server/auth/upsertUser";
 import { emptyAll, resetDatabase } from "../db/harness";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
 
-import { completePack, partialPack, startInput, stoppedPack } from "../lib/campaignPacks";
+import { completePack, partialPack, playablePartialPack, startInput, stoppedPack } from "../lib/campaignPacks";
 
 /**
  * The campaigns router: the real router over the real database, with only the
@@ -172,7 +172,7 @@ describe("campaigns.get and campaigns.list", () => {
 
     const { campaigns, counts } = await caller(rep()).campaigns.list();
     expect(campaigns.map((c) => c.id)).toEqual([second.id, first.id]);
-    expect(counts).toEqual({ running: 2, done: 0 });
+    expect(counts).toEqual({ running: 2, needsYou: 0, done: 0 });
     expect(campaigns[0]).toMatchObject({ contacted: null, next: campaignsCopy.nextResearching, nextIsAction: false });
   });
 
@@ -187,14 +187,26 @@ describe("campaigns.get and campaigns.list", () => {
     expect(campaign.next).toBe(campaignsCopy.nextPlanReadyLive);
   });
 
-  it("is Plan ready and says so when research is partial", async () => {
+  it("is Plan ready and says so when research is partial and a play can still be searched", async () => {
     const { id, job } = await started();
-    await finish(job, partialPack(), "partial");
+    await finish(job, playablePartialPack(), "partial");
 
     const campaign = await caller(rep()).campaigns.get({ id });
     expect(campaign.state).toBe("planReady");
     expect(campaign.pack?.partial).toBe(true);
     expect(campaign.pack?.missingModules.length).toBeGreaterThan(0);
+  });
+
+  it("needs the rep, not Plan ready, when a partial pack ranked no play that can be searched", async () => {
+    const { id, job } = await started();
+    await finish(job, partialPack(), "partial");
+
+    const campaign = await caller(rep()).campaigns.get({ id });
+    expect(campaign).toMatchObject({ state: "failed", failure: "no_play", chip: campaignsCopy.chipNeedsYou, overview: null });
+    expect(campaign.can).toMatchObject({ confirm: false, retry: false, edit: true });
+    expect(campaign.facts).toMatchObject({ stage: "research_needs_you", attention: { kind: "needs_you", reason: "no_play", retryable: false }, nextAction: "edit_brief" });
+    expect(campaign.ask.find((a) => a.id === "why-stopped")?.answer).toBe(campaignsCopy.failedNoPlay);
+    expect((await caller(rep()).campaigns.list()).counts).toEqual({ running: 0, needsYou: 1, done: 0 });
   });
 
   it("is Stopped on an insufficient result, with the evidence it cites and research's own options", async () => {
@@ -206,7 +218,7 @@ describe("campaigns.get and campaigns.list", () => {
     expect(campaign.state).toBe("stopped");
     expect(campaign.pack?.insufficient?.widenings).toEqual(pack.insufficient!.widenings);
     expect(campaign.pack?.stopEvidence?.map((item) => item.id)).toEqual(pack.insufficient!.evidenceIds);
-    expect((await caller(rep()).campaigns.list()).counts).toEqual({ running: 0, done: 0 });
+    expect((await caller(rep()).campaigns.list()).counts).toEqual({ running: 0, needsYou: 1, done: 0 });
   });
 
   it("needs the rep when research failed, and gives the reason in words", async () => {
@@ -240,7 +252,8 @@ describe("campaigns.research", () => {
   it("reads a partial plan too, naming what was not written and ranking nothing research did not rank", async () => {
     const { id, job } = await started();
     await finish(job, partialPack(), "partial");
-    expect((await caller(rep()).campaigns.get({ id })).state).toBe("planReady");
+    // Research needs the rep (no play can be searched), and what it found is still theirs to read.
+    expect((await caller(rep()).campaigns.get({ id })).failure).toBe("no_play");
     const page = await caller(rep()).campaigns.research({ id });
     expect(page.research?.partial).toEqual(partialPack().missingModules);
     expect(page.research?.unwritten.pains).toEqual(["m05", "m06"]);
@@ -324,7 +337,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const campaign = await caller(rep()).campaigns.get({ id });
     const options = stoppedPack().insufficient!.widenings;
 
-    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
     expect(campaign.briefVersion).toBe(1);
     expect(campaign.widenings?.map((choice) => choice.text)).toEqual(options.map((option) => option.text));
     expect(campaign.widenings?.map((choice) => choice.heading)).toEqual([
@@ -361,7 +374,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
   it("edits the brief from Plan ready, and refuses an unchanged brief and research still reading", async () => {
     const { id, job } = await started();
     await finish(job, completePack(), "complete");
-    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
 
     await expect(caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 1, requestId: uuid(), brief: startInput().brief })).rejects.toMatchObject({
       code: "BAD_REQUEST",
@@ -385,7 +398,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const { id, job } = await started();
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", error: "research: bad_output — x", attempts: 1 } });
     const before = await caller(rep()).campaigns.get({ id });
-    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
     expect(before.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailed);
 
     expect(await caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).toEqual({ id });

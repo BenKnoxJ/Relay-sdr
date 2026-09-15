@@ -249,6 +249,8 @@ export type ResearchActions = {
   review?: boolean;
   /** Reveal emails can be pressed: somebody kept has an email to reveal or reuse (lead gen v2.1 §6). */
   reveal?: boolean;
+  /** Try again on a reveal that failed before any request left Relay. */
+  retryReveal?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -376,8 +378,124 @@ export type PeopleNeedsYouView = {
   choices: string[];
 };
 
-/** Why research did not finish, in the words of orchestrator §7 (amended A1). */
-export type ResearchFailure = "took_too_long" | "bad_output" | "failed" | "not_started";
+/**
+ * Why research did not finish, in the words of orchestrator §7 (amended A1).
+ * `no_play`: research finished, but no play it ranked can be searched, so
+ * there is nothing to confirm.
+ */
+export type ResearchFailure = "took_too_long" | "bad_output" | "failed" | "not_started" | "no_play";
+
+// ---------------------------------------------------------------------------
+// The campaign's truth, as the backend derives it (product-truth foundation,
+// 2026-09-15). One derivation (`src/lib/campaigns/stage.ts`) feeds the
+// campaign page and the Home and Campaigns summaries alike.
+
+/**
+ * Where a campaign is, one value per persisted condition. No two conditions
+ * that need different things from the rep share a value.
+ */
+export type CampaignStage =
+  | "researching"
+  | "research_needs_you"
+  | "research_stopped"
+  | "plan_ready"
+  | "finding_people"
+  | "people_needs_you"
+  | "reviewing_people"
+  | "revealing"
+  | "reveal_needs_you"
+  | "people_ready";
+
+/** Work Relay is doing for the campaign right now, and whether it is still waiting its turn or running. */
+export type InFlightWork = { kind: "research" | "lead_gen" | "reveal"; status: "queued" | "running" };
+
+/**
+ * The rep is needed. `reason` is a machine word, never shown as it is:
+ * research's failure (`took_too_long`, `bad_output`, `failed`, `not_started`,
+ * `no_play`), a stop (`insufficient`), finding people's halt reason or
+ * `failed`, or a reveal that stopped (`reveal_spend_unresolved`,
+ * `reveal_failed`, `reveal_failed_terminal`, `reveal_stopped`).
+ */
+export type CampaignAttention = { kind: "needs_you" | "stopped"; reason: string; retryable: boolean };
+
+/** The one thing the rep can do next that the server will accept, or null while Relay works or nothing is built yet. */
+export type CampaignNextAction =
+  | "confirm"
+  | "widen"
+  | "retry_research"
+  | "edit_brief"
+  | "retry_people"
+  | "choose_industry"
+  | "review_people"
+  | "retry_reveal";
+
+/**
+ * One of research's campaign plays (m16), as the rep compares them. Research's
+ * own words, with internal names taken out; no module structure.
+ */
+export type ResearchPlayView = {
+  /** What Confirm names to freeze this play. */
+  id: string;
+  rank: number;
+  /** Confirm freezes this one when the rep names none: research's top-ranked play. */
+  recommended: boolean;
+  group: { id: string; name: string };
+  leadAngle: string;
+  whyNow: string;
+  wrongIf: string;
+  channels: string[];
+  /** The kind of buyer's roles: who runs it, champions it and signs it off. */
+  roles: { part: "signs" | "champions" | "runs"; title: string }[];
+  /** The firms research named for this play in particular. */
+  seedFirms: string[];
+  /** Every firm research named for its kind of buyer: what the search starts from. */
+  groupSeedFirms: number;
+  /** It has a search recipe, so it can be confirmed. */
+  executable: boolean;
+};
+
+/**
+ * What the campaign has cost, kept in its own units. Search and reveal are
+ * provider credits; research is US dollars of model use. They are never added
+ * together. `held` is what an open or unknown request may still have cost, at
+ * its documented worst case.
+ */
+export type CampaignSpendView = {
+  /** This brief version's search, under its Confirm. Cap null before Confirm. */
+  search: { cap: number | null; charged: number; held: number };
+  /** This brief version's reveal. Max null before Reveal emails is pressed. */
+  reveal: { max: number | null; charged: number; held: number };
+  /** Every brief version the campaign has had. */
+  allVersions: { searchCharged: number; searchHeld: number; revealCharged: number; revealHeld: number };
+  /** Model cost of research, where research recorded any. */
+  research: { usd: number | null; usdThisVersion: number | null };
+};
+
+/**
+ * A campaign in a few numbers, for Home and Campaigns: built without loading
+ * its research pack, its people or anything org-wide, and derived by the same
+ * rules as the campaign page.
+ */
+export type CampaignSummaryFacts = {
+  id: string;
+  name: string;
+  briefVersion: number;
+  createdAt: string;
+  updatedAt: string;
+  stage: CampaignStage;
+  inFlight: InFlightWork | null;
+  attention: CampaignAttention | null;
+  nextAction: CampaignNextAction | null;
+  /** Null until research has a readable result at this version. */
+  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number } | null;
+  /** The play Confirm froze at this version. */
+  confirmed: { groupId: string; groupName: string; playId: string | null; sourceRank: number } | null;
+  /** The latest search's chosen people at this version. */
+  people: { accounts: number; multiRoleAccounts: number; chosen: number; pending: number; kept: number; dropped: number } | null;
+  /** What Reveal emails came to, once it has run. */
+  reveal: { revealed: number; known: number; noEmail: number; suppressed: number; held: number; failed: number; emailsReady: number } | null;
+  spend: CampaignSpendView;
+};
 
 export type AskAnswer = { id: string; question: string; answer: string };
 
@@ -396,6 +514,8 @@ export type CampaignSummary = {
   next: string;
   /** True when the "next" line is the campaign's own action, so it reads in the accent. */
   nextIsAction: boolean;
+  /** The backend's facts about a stored campaign. Absent on the sample campaigns. */
+  facts?: CampaignSummaryFacts;
 };
 
 export type Campaign = CampaignSummary & {
@@ -446,4 +566,8 @@ export type Campaign = CampaignSummary & {
   spentAtThisVersion?: boolean;
   /** On a stop, research's widening options as the rep chooses between them. Null in every other state. */
   widenings: WidenChoice[] | null;
+  /** Every play research ranked that the rep could start with, best first. Null until there is a readable plan. */
+  plays?: ResearchPlayView[] | null;
+  /** What the campaign has cost, each kind in its own unit. */
+  spend?: CampaignSpendView;
 };

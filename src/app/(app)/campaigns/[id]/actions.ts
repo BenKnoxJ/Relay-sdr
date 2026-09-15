@@ -23,6 +23,7 @@ const LINES: readonly string[] = [
   campaignsCopy.confirmNotAvailable,
   campaignsCopy.confirmNoGroup,
   campaignsCopy.confirmNoRecipe,
+  campaignsCopy.confirmUnknownPlay,
   campaignsCopy.confirmOverCap,
   campaignsCopy.confirmBalanceUnavailable,
   campaignsCopy.revealNothing,
@@ -88,12 +89,24 @@ export async function editBrief(target: ChangeTarget, submission: StartSubmissio
   );
 }
 
-/** Confirm plan: the first spend gate (lead gen v2.1 §6). */
-export async function confirmPlan(submission: RetrySubmission): Promise<StartResult> {
+/** Confirm plan: the first spend gate (lead gen v2.1 §6), for the play the rep chose, or research's first when they chose none (v2.3). */
+export async function confirmPlan(submission: RetrySubmission & { candidateId?: string }): Promise<StartResult> {
   return answered(async () =>
     (await serverCaller()).campaigns.confirm({
       campaignId: submission.campaignId,
       fromBriefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+      ...(submission.candidateId === undefined ? {} : { candidateId: submission.candidateId }),
+    }),
+  );
+}
+
+/** Try again on Reveal emails, where nothing can have been charged. */
+export async function retryRevealEmails(submission: RetrySubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.retryReveal({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
       requestId: submission.requestId,
     }),
   );

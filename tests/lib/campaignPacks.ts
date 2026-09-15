@@ -43,6 +43,18 @@ export function partialPack(): PackShape {
   return packOf(fixture("research-b-telephony-channel-v3.2.json").output);
 }
 
+/**
+ * A partial plan that can still be confirmed: the complete pack with one part
+ * a limit left unwritten (m14), so its plays keep their groups and recipes.
+ * The signed brief B run (`partialPack`) is partial too, but wrote no plays at
+ * all, so it is research that needs the rep (`no_play`), not a plan.
+ */
+export function playablePartialPack(): PackShape {
+  const pack = completePack();
+  const { m14: _cut, ...modules } = pack.modules;
+  return researchRawSchema.parse({ ...pack, modules, partial: true, missingModules: ["m14"], outcome: "partial" });
+}
+
 export function stoppedPack(): PackShape {
   return packOf(fixture("research-c-thin-vets-v3.2-rerun.json").output);
 }

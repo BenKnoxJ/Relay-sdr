@@ -5,6 +5,9 @@ import { moduleItems, planCards, researchRawSchema, type Item, type PackShape } 
 import { haltSchema, leadgenOutputSchema, type Halt, type Pick } from "../../../agents/leadgen/output.schema";
 
 import { overviewOf } from "./overview";
+import { executablePlayCount, playFactsOf } from "./plays";
+import { leadGenRetryable } from "./retry";
+import type { LeadGenResult } from "./stage";
 import type { CampaignOverview, CampaignPack, ResearchFailure } from "./types";
 
 /**
@@ -27,6 +30,7 @@ import type { CampaignOverview, CampaignPack, ResearchFailure } from "./types";
  * | any                   | insufficient             | stopped                        |
  * | any                   | partial                  | planReady (the pack says so)   |
  * | any                   | complete                 | planReady                      |
+ * | any                   | no play can be searched  | failed, no_play                |
  *
  * The Event wins whatever the job says: the handler writes it before the job
  * is marked done, so a job still `running` with an Event has finished.
@@ -86,8 +90,13 @@ export function failureOf(error: string | null): ResearchFailure {
 function fromEvent(after: unknown): ResearchView {
   const pack = storedPack(after);
   if (pack === null) return { state: "failed", failure: "bad_output" };
+  if (pack.insufficient === undefined) {
+    // A plan is something the rep can confirm: at least one play research
+    // ranked has a kind of buyer the pack describes and a search recipe for it.
+    if (executablePlayCount(playFactsOf(pack)) === 0) return { state: "failed", failure: "no_play" };
+    return { state: "planReady", pack: planCards(pack), overview: overviewOf(pack) };
+  }
   const view = planCards(pack);
-  if (pack.insufficient === undefined) return { state: "planReady", pack: view, overview: overviewOf(pack) };
 
   const byId = new Map([...moduleItems(pack, "m00"), ...moduleItems(pack, "m01")].map((item) => [item.id, item]));
   const stopEvidence = pack.insufficient.evidenceIds
@@ -178,9 +187,18 @@ export function deriveLeadGen(job: ResearchJobSnapshot | null, result: { kind: s
     case "failed":
     case "cancelled":
       return failureOf(job.error) === "took_too_long"
-        ? { state: "peopleNeedsYou", reason: "took_too_long", choices: [], retryable: true, choosable: false }
-        : failed(true);
+        ? { state: "peopleNeedsYou", reason: "took_too_long", choices: [], retryable: leadGenRetryable(job, null), choosable: false }
+        : failed(leadGenRetryable(job, null));
     case "done":
       return failed(false);
   }
+}
+
+/** A lead gen result Event as the stage derivation reads it: people picked, a halt, or a result Relay could not read. */
+export function leadGenResultOf(result: { kind: string; after: unknown } | null): LeadGenResult | null {
+  if (result === null) return null;
+  const view = deriveLeadGen(null, result);
+  if (view.state === "peopleFound") return { kind: "picked" };
+  if (view.state === "peopleNeedsYou" && view.reason !== "failed") return { kind: "halted", reason: view.reason, choices: view.choices.length };
+  return { kind: "unreadable" };
 }

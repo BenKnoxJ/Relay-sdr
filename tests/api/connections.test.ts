@@ -323,7 +323,7 @@ describe("connections.get", () => {
       healthTone: "ok",
       cap: ORG_DEFAULT_DAILY_CAP,
       adminCap: ORG_DEFAULT_DAILY_CAP,
-      capNote: `of ${ORG_DEFAULT_DAILY_CAP} set by your admin`,
+      capNote: `${mailboxCopy.capOf} ${ORG_DEFAULT_DAILY_CAP} ${mailboxCopy.capCeiling}`,
       window: "09:00 to 16:30",
       days: "Monday, Tuesday, Wednesday, Thursday",
       ramp: "Starts at 5 a day and builds up.",

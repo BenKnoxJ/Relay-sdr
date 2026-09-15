@@ -6,8 +6,8 @@
  *
  * Interpolation happens at the call site, never here: the copy sweep in
  * `tests/lib/copy.test.ts` refuses a function, because a template's strings
- * live in a closure it cannot read. So the pieces of "of 10 set by your admin"
- * are separate words and `connections.get` assembles them.
+ * live in a closure it cannot read. So the pieces of "of 10 (Relay's starting
+ * limit)" are separate words and `connections.get` assembles them.
  */
 export const settingsCopy = {
   title: "Settings",
@@ -31,8 +31,8 @@ export const settingsCopy = {
  */
 export const linkedinCopy = {
   profileLabel: "Your profile",
-  /** An example of the shape, not a value: the field's placeholder. */
-  placeholder: "https://www.linkedin.com/in/your-name",
+  /** The shape of a profile link, not a value: the field's placeholder. */
+  placeholder: "https://www.linkedin.com/in/…",
   /** Under the field, as the mock draws it. */
   note: "Relay prepares LinkedIn messages for you to paste. Posting from Relay arrives with Content.",
   /** When the link is not a LinkedIn profile link. */
@@ -49,7 +49,7 @@ export const voiceCopy = {
   /** "7 emails", "1 email", or the line for none. */
   email: "email",
   emails: "emails",
-  none: "No emails yet. Paste five to ten you are proud of and Relay writes more like them.",
+  none: "Paste 5 to 10 emails you are proud of. Relay uses them as examples in every draft and never sends them.",
   /** The button under the first three rows: "Show 4 more", then "Show fewer". */
   show: "Show",
   more: "more",
@@ -70,6 +70,8 @@ export const voiceCopy = {
   addCancel: "Cancel",
   /** After an email lands in the list. */
   addedLine: "Added",
+  /** Under the Add control while it is off: there is no row to save a voice into until outreach. */
+  addComing: "Saving your voice arrives with outreach.",
   /** An empty box. */
   empty: "Paste the email first.",
   /** Why Add is gone once there are ten. */
@@ -127,10 +129,14 @@ export const mailboxCopy = {
   /** Shown under the chip when the mailbox needs connecting again. */
   needsRelinkWhy: "Microsoft stopped accepting the connection. Connect it again to carry on.",
 
-  /** The cap field, and the phrase that says whose ceiling it is. */
+  /**
+   * The cap field, and the phrase that says where the ceiling comes from.
+   * The ceiling is Relay's own starting number, not a setting an admin made:
+   * there is no admin area yet, and saying there was sent reps looking for it.
+   */
   capLabel: "Emails a day",
   capOf: "of",
-  capCeiling: "set by your admin",
+  capCeiling: "(Relay's starting limit)",
   capTooHigh: "You can lower this, but only your admin can raise it.",
 
   windowLabel: "Sending window",

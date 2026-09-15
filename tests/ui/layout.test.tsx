@@ -18,9 +18,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import { fireEvent, render, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import ShellError from "@/app/(app)/error";
+import Loading from "@/app/(app)/loading";
+import NotFound from "@/app/(app)/not-found";
+import { shellCopy } from "@/lib/copy/shell";
 import { fonts } from "@/lib/tokens";
 
 vi.mock("next/font/google", () => {
@@ -112,4 +117,44 @@ describe("font loading", () => {
       });
     });
   }
+});
+
+/**
+ * The three states of the signed-in shell that are not a page: waiting on
+ * one, a fault on one, and an address that is not one. Each is rep words
+ * from `copy/shell.ts`, and the fault says the one thing a rep needs to know
+ * before pressing anything.
+ */
+describe("the shell's states", () => {
+  it("loads with one quiet line and no spinner", () => {
+    const { container } = render(<Loading />);
+
+    expect(screen.getByRole("status").textContent).toBe(shellCopy.loading);
+    expect(container.querySelector("svg, .animate-spin")).toBeNull();
+    expect(screen.getByRole("status").className).toContain("type-small");
+  });
+
+  it("says something went wrong, that nothing was bought or sent, and offers Reload", () => {
+    const reset = vi.fn();
+    render(<ShellError error={new Error("ECONNREFUSED 127.0.0.1:5435")} reset={reset} />);
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(shellCopy.errorHeading);
+    expect(screen.getByText(shellCopy.errorBody)).toBeDefined();
+    expect(shellCopy.errorBody).toContain("Nothing was bought or sent.");
+    // The fault itself never reaches the screen.
+    expect(document.body.textContent).not.toContain("ECONNREFUSED");
+
+    fireEvent.click(screen.getByRole("button", { name: shellCopy.reload }));
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a missing page is not here, with one link Home", () => {
+    render(<NotFound />);
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(shellCopy.notFoundHeading);
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]?.getAttribute("href")).toBe("/");
+    expect(links[0]?.textContent).toBe(shellCopy.notFoundHome);
+  });
 });

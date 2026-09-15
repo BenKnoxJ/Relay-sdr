@@ -17,7 +17,7 @@ const PAGES = {
     <HomeDayOne
       firstName="Ben"
       today="Mon 7 Sep"
-      connections={{ mailbox: false, zoho: false }}
+      connections={{ mailbox: false }}
       startBrief={async () => null}
     />
   ),

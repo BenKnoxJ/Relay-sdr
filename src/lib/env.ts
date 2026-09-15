@@ -160,6 +160,14 @@ const schema = z
     /** Local development only: sign every request in as this rep. */
     DEV_USER_EMAIL: optional(z.string().email()),
     /**
+     * `show` puts the example surfaces (Inbox, Content) in the nav. Until
+     * there are Draft rows to read, the whole Inbox is `src/lib/fixtures/inbox.ts`,
+     * and a pilot rep must not find a queue of invented replies one click
+     * from Home. The routes stay reachable by URL either way; only the nav
+     * links turn on this. Unset, including in production, is hidden.
+     */
+    RELAY_DEMO_SURFACES: optional(z.enum(["show"])),
+    /**
      * Unset or blank means production, not development.
      *
      * `INTEGRATIONS` folds an empty value to its safe end (`mock`); this one
@@ -416,6 +424,11 @@ export function env(): Env {
 /** Test-only: drop the memoised environment so a later call re-reads `process.env`. */
 export function resetEnv(): void {
   cached = undefined;
+}
+
+/** Whether the nav shows the example surfaces (`RELAY_DEMO_SURFACES=show`). */
+export function demoSurfacesShown(): boolean {
+  return env().RELAY_DEMO_SURFACES === "show";
 }
 
 /**

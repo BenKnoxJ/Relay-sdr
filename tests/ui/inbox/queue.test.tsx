@@ -22,10 +22,9 @@ const rows = () => screen.getAllByTestId("queue-row");
 const selectedRow = () => rows().find((row) => row.getAttribute("aria-current") === "true");
 const nameOf = (row: HTMLElement) => row.querySelector(".font-semibold.text-ink")?.textContent;
 
-/** A queue with nothing in it, and the adapter's own next-drafts time. */
+/** A queue with nothing in it. */
 function empty(): Queue {
-  const queue = listQueue();
-  return { items: [], counts: { replies: 0, calls: 0, drafts: 0 }, nextDrafts: queue.nextDrafts };
+  return { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
 }
 
 describe("the queue", () => {
@@ -46,26 +45,39 @@ describe("the queue", () => {
     ]);
   });
 
-  it("counts what is waiting in the header note", () => {
+  /**
+   * The queue is the fixture until there are rows, and the page says so: a
+   * banner that stays whatever the rep does, and "example" where the signed
+   * mock put the counts. A count of examples is a number true of nothing.
+   */
+  it("banners the whole queue as examples, and keeps the banner up as rows are worked", () => {
     render(<InboxPage />);
 
-    expect(
-      screen.getByText(
-        `2 ${inboxCopy.replies}${inboxCopy.countJoin}1 ${inboxCopy.call}${inboxCopy.countJoin}3 ${inboxCopy.drafts}`,
-      ),
-    ).toBeDefined();
+    const banner = screen.getByTestId("inbox-demo-banner");
+    expect(banner.textContent).toBe(inboxCopy.demoBanner);
+    expect(banner.className).toContain("bg-warn-bg");
+    expect(banner.compareDocumentPosition(rows()[0] as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getAllByTestId("reply-label")[0] as HTMLElement);
+    expect(screen.getByTestId("inbox-demo-banner")).toBeDefined();
   });
 
-  it("drops a kind from the note once none of it is waiting, as the mock's 2c does", () => {
+  it("says example in the header note, never a count of what is waiting", () => {
     render(<InboxPage />);
 
-    // Label both replies away.
-    fireEvent.click(screen.getAllByTestId("reply-label")[0] as HTMLElement);
-    fireEvent.click(screen.getAllByTestId("reply-label")[0] as HTMLElement);
+    const note = screen.getByText(inboxCopy.exampleNote);
+    const header = note.closest("header");
+    expect(header).not.toBeNull();
+    expect(header?.textContent).not.toMatch(/[0-9]+ (replies|reply|calls|call|drafts|draft)/);
+    // The adapter still counts; the page just does not put the number on the screen.
+    expect(listQueue().counts).toEqual({ replies: 2, calls: 1, drafts: 3 });
+  });
 
-    expect(
-      screen.getByText(`1 ${inboxCopy.call}${inboxCopy.countJoin}3 ${inboxCopy.drafts}`),
-    ).toBeDefined();
+  it("greets nobody by name in the fixture reply, so no rep reads another person's name as theirs", () => {
+    render(<InboxPage />);
+
+    expect(document.body.textContent).not.toContain("Hi Ben");
+    expect(screen.getByText(/^Hi there,/)).toBeDefined();
   });
 
   it("has no filter, no search and no tabs", () => {
@@ -239,16 +251,17 @@ describe("the queue", () => {
   });
 
   describe("empty", () => {
-    it("says all clear, when the next drafts land, and that replies arrive as they come", () => {
+    it("says all clear and that replies arrive as they come, and promises no day for the next drafts", () => {
       render(<Inbox initial={empty()} />);
 
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(inboxCopy.title);
       expect(screen.getByText(inboxCopy.nothingWaiting)).toBeDefined();
       expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(inboxCopy.emptyHeading);
-      expect(
-        screen.getByText(`${inboxCopy.nextDrafts} Thursday 09:00. ${inboxCopy.repliesLand}`),
-      ).toBeDefined();
+      expect(screen.getByText(inboxCopy.repliesLand)).toBeDefined();
+      expect(document.body.textContent).not.toMatch(/Thursday|Next drafts/);
       expect(screen.queryAllByRole("button")).toHaveLength(0);
+      // The banner stays even here: the empty queue is still the fixture's.
+      expect(screen.getByTestId("inbox-demo-banner")).toBeDefined();
     });
 
     it("is what the rep reaches by working every row", () => {

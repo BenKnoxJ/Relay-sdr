@@ -289,7 +289,11 @@ export function CampaignPage({
           )}
         </div>
         <div className="mt-2">
-          <StageSummary facts={facts} />
+          <StageSummary
+            facts={facts}
+            quietWhenAttention
+            detail={state === "planReady" && recommendedId !== null ? `${campaignsCopy.summaryStartWith} ${plays.find((play) => play.id === (candidateId ?? recommendedId))?.group.name ?? ""}` : null}
+          />
         </div>
       </div>
 

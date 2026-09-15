@@ -4,11 +4,10 @@ import { itemSchema, planCardsSchema, type PlanCards } from "../../../agents/res
 import samplePack from "./research-plan.json";
 
 import { answersFor, chipFor, nextFor } from "@/lib/campaigns/state";
-import { stageSummaryFor } from "@/lib/campaigns/summary";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
 import { widenHeadings } from "@/lib/campaigns/briefLines";
 import type { Campaign, CampaignPack, CampaignSummary, WidenChoice } from "@/lib/campaigns/types";
-import { listCounts as countList, type ListCounts } from "@/lib/campaigns/view";
+import { listCounts as countList } from "@/lib/campaigns/view";
 
 export type { BriefFields, Campaign, CampaignPack, CampaignSummary } from "@/lib/campaigns/types";
 
@@ -134,7 +133,7 @@ function sampleWidenings(): WidenChoice[] {
   return options.map((option, index) => ({ index, dimension: option.dimension, heading: headings[index] ?? "", text: option.text, becomes: null, usable: true }));
 }
 
-type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask" | "summary" | "createdAt">;
+type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask">;
 
 function complete(row: Row): Campaign {
   return {
@@ -142,8 +141,6 @@ function complete(row: Row): Campaign {
     chip: chipFor(row.state),
     ...nextFor(row.state, row),
     ask: answersFor(row.state, row),
-    summary: stageSummaryFor({ state: row.state, live: false, activity: null, plays: 0, startWith: null, peopleFound: null, failure: null, peopleReason: null, widenings: 0 }),
-    createdAt: "2026-09-01T00:00:00.000Z",
   };
 }
 
@@ -338,7 +335,7 @@ export function listCampaigns(): CampaignSummary[] {
 }
 
 /** How the sample list's header counts itself, by bucket. */
-export function listCounts(): ListCounts {
+export function listCounts(): ReturnType<typeof countList> {
   return countList(listCampaigns());
 }
 

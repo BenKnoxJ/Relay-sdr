@@ -130,7 +130,7 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
       research: { job: record.job, result: researchResult },
       confirmed: leadGen?.confirm !== null && leadGen?.confirm !== undefined,
       leadGen: leadGen === null || leadGen.confirm === null ? null : { job: leadGen.job, result },
-      reveal: revealRecord === null ? null : { job: revealRecord.job, hasResult: revealRecord.result !== null, ledger: revealLedgerOf(ledger, record.campaign.briefVersion) },
+      reveal: revealRecord === null ? null : { job: revealRecord.job, hasResult: revealRecord.result !== null, ledger: revealLedgerOf(ledger, revealRecord.confirm.id) },
       revealPlan: revealRecord === null && plan !== null ? { kept: plan.kept, toReveal: plan.toReveal, known: plan.known } : null,
       leadGenAvailable: options.available,
     },

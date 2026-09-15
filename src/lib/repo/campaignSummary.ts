@@ -27,11 +27,11 @@ import { LEAD_GEN_JOB, REVEAL_JOB } from "./leadgen";
 type Db = PrismaClient | Prisma.TransactionClient;
 type Owner = { orgId: string; userId: string };
 
-/** The credit ledger of some of an org's campaigns, grouped by version, kind and state. */
+/** The credit ledger of some of an org's campaigns, grouped by version, approval, kind and state. */
 export async function ledgerGroupsFor(db: Db, orgId: string, campaignIds: readonly string[]): Promise<(LedgerGroup & { campaignId: string })[]> {
   if (campaignIds.length === 0) return [];
   const groups = await db.creditLedgerEntry.groupBy({
-    by: ["campaignId", "briefVersion", "kind", "state"],
+    by: ["campaignId", "briefVersion", "confirmEventId", "kind", "state"],
     where: { orgId, campaignId: { in: [...campaignIds] } },
     _sum: { charged: true, worstCase: true },
     _count: { _all: true },
@@ -39,6 +39,7 @@ export async function ledgerGroupsFor(db: Db, orgId: string, campaignIds: readon
   return groups.map((group) => ({
     campaignId: group.campaignId,
     briefVersion: group.briefVersion,
+    confirmEventId: group.confirmEventId,
     kind: group.kind,
     state: group.state,
     rows: group._count._all,
@@ -65,12 +66,13 @@ export async function researchCostsFor(db: Db, orgId: string, campaignIds: reado
 
 type JobRow = { id: string; campaignId: string | null; briefVersion: number | null; kind: string; status: JobStatus; error: string | null; createdAt: Date };
 
-type EventRow = { kind: string; campaignId: string; jobId: string | null; briefVersion: number | null; projection: unknown };
+type EventRow = { id: string; kind: string; campaignId: string; jobId: string | null; briefVersion: number | null; projection: unknown };
 
 /** The result Events, each reduced to what a summary reads. */
 async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly string[]): Promise<EventRow[]> {
   return db.$queryRaw<EventRow[]>`
-    SELECT e.kind,
+    SELECT e.id,
+           e.kind,
            e.campaign_id AS "campaignId",
            e.after->>'jobId' AS "jobId",
            CASE WHEN jsonb_typeof(e.after->'briefVersion') = 'number' THEN (e.after->>'briefVersion')::int END AS "briefVersion",
@@ -202,7 +204,7 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           research: { job: row.researchJob, result: research.stage },
           confirmed: row.confirm !== null,
           leadGen: row.confirm === null ? null : { job: row.leadGenJob, result: leadGenResult },
-          reveal: row.revealConfirm === null ? null : { job: row.revealJob, hasResult: row.revealResult !== null, ledger: revealLedgerOf(campaignLedger, campaign.briefVersion) },
+          reveal: row.revealConfirm === null ? null : { job: row.revealJob, hasResult: row.revealResult !== null, ledger: revealLedgerOf(campaignLedger, row.revealConfirm.id) },
           revealPlan: null,
           leadGenAvailable: options.leadGenAvailable,
         },

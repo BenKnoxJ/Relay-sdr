@@ -22,6 +22,8 @@ export type PeopleGroup = {
 /** One group of the campaign's credit ledger. */
 export type LedgerGroup = {
   briefVersion: number;
+  /** The approval the spend counts against: the Confirm for search, the reveal confirm for reveal. */
+  confirmEventId: string;
   kind: "search" | "reveal";
   state: "reserved" | "reconciled" | "unreconciled" | "released";
   /** Rows in the group. */
@@ -72,10 +74,14 @@ export function revealCountsOf(groups: readonly PeopleGroup[]): NonNullable<Camp
   return { revealed, known, noEmail: sum("no_email"), suppressed: sum("suppressed"), held: sum("held"), failed: sum("failed"), emailsReady: revealed + known };
 }
 
-/** The reveal ledger's rows at one brief version, by state: what a stopped reveal's recovery reads. */
-export function revealLedgerOf(groups: readonly LedgerGroup[], briefVersion: number): LedgerCounts {
+/**
+ * One reveal approval's ledger rows, by state: what a stopped reveal's
+ * recovery reads. Keyed by the approval itself (the `campaign.reveal_confirmed`
+ * Event), so no other reveal's rows can ever block or clear this one's retry.
+ */
+export function revealLedgerOf(groups: readonly LedgerGroup[], revealConfirmEventId: string): LedgerCounts {
   const counts = { ...NO_LEDGER };
-  for (const group of groups) if (group.kind === "reveal" && group.briefVersion === briefVersion) counts[group.state] += group.rows;
+  for (const group of groups) if (group.kind === "reveal" && group.confirmEventId === revealConfirmEventId) counts[group.state] += group.rows;
   return counts;
 }
 

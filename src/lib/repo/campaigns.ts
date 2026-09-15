@@ -672,14 +672,17 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
   return change(db, input, CAMPAIGN_CONFIRMED, async (tx) => {
     const campaign = await lockOwnCampaign(tx, input);
     if (campaign === null) throw new CampaignChangeRefused("not_found");
-    // A repeat of the same press names the same version and, when it named one, the same play.
+    // A repeat of the same press names the same version and the same choice:
+    // the same play when it named one, and no play when it took the default.
     await alreadyMade(
       tx,
       input,
       CAMPAIGN_CONFIRMED,
       (after) =>
         after.briefVersion === input.fromBriefVersion &&
-        (input.candidateId === undefined || (after.handoff as { play?: { id?: unknown } } | undefined)?.play?.id === input.candidateId),
+        (input.candidateId === undefined
+          ? after.selection !== "chosen"
+          : (after.handoff as { play?: { id?: unknown } } | undefined)?.play?.id === input.candidateId),
     );
     checkVersion(campaign, input.fromBriefVersion);
     const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
@@ -1017,11 +1020,11 @@ export async function retryReveal(db: PrismaClient, input: RevealRetryInput): Pr
     if (confirm === null || job === null || result?.kind !== LEADGEN_PICKED) throw new CampaignChangeRefused("wrong_state");
     const revealConfirm = await findRevealConfirm(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
     const approved = revealConfirm === null ? null : revealConfirmedSchema.safeParse(revealConfirm.after);
-    if (approved?.success !== true) throw new CampaignChangeRefused("wrong_state");
+    if (revealConfirm === null || approved?.success !== true) throw new CampaignChangeRefused("wrong_state");
     const revealJob = await tx.job.findFirst({ where: { orgId: campaign.orgId, id: approved.data.jobId, kind: REVEAL_JOB } });
     if (revealJob === null || (await findRevealResult(tx, { orgId: campaign.orgId, jobId: revealJob.id })) !== null) throw new CampaignChangeRefused("wrong_state");
 
-    const ledger = revealLedgerOf(await ledgerGroupsFor(tx, campaign.orgId, [campaign.id]), campaign.briefVersion);
+    const ledger = revealLedgerOf(await ledgerGroupsFor(tx, campaign.orgId, [campaign.id]), revealConfirm.id);
     if (!revealRecovery(revealJob, ledger).retryable) throw new CampaignChangeRefused("wrong_state");
     const reopened = await reopenFailed(tx, { orgId: campaign.orgId, jobId: revealJob.id });
     // Unreachable under the lock, and refused rather than assumed if it ever is.

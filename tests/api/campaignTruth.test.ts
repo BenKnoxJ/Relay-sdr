@@ -173,6 +173,18 @@ describe("every play research ranked, and choosing one", () => {
     expect(await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId, candidateId: second!.id })).toEqual({ id });
     expect(await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId, candidateId: second!.id })).toEqual({ id });
     expect(await failureOf(caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId, candidateId: first!.id }))).toBe(`CONFLICT: ${campaignsCopy.changedSince}`);
+    // Naming no play is a different choice from naming one, whichever play the default would be.
+    expect(await failureOf(caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId }))).toBe(`CONFLICT: ${campaignsCopy.changedSince}`);
+    expect(await prisma.job.count({ where: { campaignId: id, kind: LEAD_GEN_JOB } })).toBe(1);
+  });
+
+  it("answers a repeated default press as that press, and refuses the same press naming a play", async () => {
+    const { id } = await planned();
+    const second = (await caller(rep()).campaigns.get({ id })).plays![1]!;
+    const requestId = crypto.randomUUID();
+    expect(await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId })).toEqual({ id });
+    expect(await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId })).toEqual({ id });
+    expect(await failureOf(caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId, candidateId: second.id }))).toBe(`CONFLICT: ${campaignsCopy.changedSince}`);
     expect(await prisma.job.count({ where: { campaignId: id, kind: LEAD_GEN_JOB } })).toBe(1);
   });
 

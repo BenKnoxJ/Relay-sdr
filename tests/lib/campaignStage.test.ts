@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { leadGenRetryable, NO_LEDGER, researchRetryable, revealRecovery, type LedgerCounts } from "@/lib/campaigns/retry";
 import { deriveStage, isAttention, type StageInput } from "@/lib/campaigns/stage";
+import { revealLedgerOf, type LedgerGroup } from "@/lib/campaigns/summary";
 import { listCounts } from "@/lib/campaigns/view";
 import type { CampaignStage } from "@/lib/campaigns/types";
 
@@ -141,6 +142,16 @@ describe("the shared retry rules", () => {
     expect(revealRecovery({ status: "failed", error: null }, ledger({ reconciled: 1 }))).toEqual({ reason: "spend_unresolved", retryable: false });
     expect(revealRecovery({ status: "cancelled", error: null }, NO_LEDGER)).toEqual({ reason: "stopped", retryable: false });
     expect(revealRecovery(null, NO_LEDGER)).toEqual({ reason: "stopped", retryable: false });
+  });
+});
+
+describe("a reveal's ledger, for its recovery", () => {
+  it("counts one reveal approval's rows only, never another approval's at the same version", () => {
+    const group = (confirmEventId: string, kind: LedgerGroup["kind"], state: LedgerGroup["state"], rows: number): LedgerGroup => ({ briefVersion: 1, confirmEventId, kind, state, rows, charged: 0, worstCase: rows });
+    const groups = [group("reveal-a", "reveal", "released", 2), group("reveal-b", "reveal", "unreconciled", 1), group("confirm-a", "search", "unreconciled", 3)];
+    expect(revealLedgerOf(groups, "reveal-a")).toEqual({ ...NO_LEDGER, released: 2 });
+    expect(revealRecovery({ status: "failed", error: null }, revealLedgerOf(groups, "reveal-a")).retryable).toBe(true);
+    expect(revealRecovery({ status: "failed", error: null }, revealLedgerOf(groups, "reveal-b")).retryable).toBe(false);
   });
 });
 

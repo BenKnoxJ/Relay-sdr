@@ -182,7 +182,8 @@ describe("Finding people", () => {
   it("says a queued search is waiting, never searching", () => {
     render(<CampaignPage campaign={campaign({ job: { status: "queued" } })} />);
     expect(screen.getByTestId("finding-note").textContent).toContain(campaignsCopy.findingWaiting);
-    expect(screen.getByTestId("stage-activity").textContent).toBe(campaignsCopy.summaryWaiting);
+    expect(screen.getByTestId("stage-line").textContent).toBe(campaignsCopy.summaryWaiting);
+    expect(screen.queryByTestId("stage-activity")).toBeNull();
   });
 
   it("no longer says nobody has been found, once the plan is confirmed", () => {

@@ -173,7 +173,7 @@ export function Inbox({ initial }: { initial?: Queue }) {
           <EmptyState heading={inboxCopy.emptyHeading} body={inboxCopy.repliesLand} />
         </Card>
       ) : (
-        <div data-testid="inbox-grid" className="grid items-start gap-grid wide:grid-cols-inbox">
+        <div data-testid="inbox-grid" className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-inbox">
           <QueueList items={items} selectedId={selected.id} onSelect={setSelectedId} />
           {/*
             Keyed by id, so a card's own state (an edit in progress, the reject

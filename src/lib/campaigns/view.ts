@@ -14,7 +14,7 @@ import type { ResearchResultFacts, StageResult } from "./stage";
 import { isAttention } from "./stage";
 import { revealLedgerOf, spendOf, summaryFactsOf, type PeopleGroup, type SummaryInput } from "./summary";
 import { researchSections } from "./research";
-import { answersFor, chipFor, haltLine, nextFor, revealStoppedLine, type CampaignCounts } from "./state";
+import { chipFor, haltLine, nextFor, type CampaignCounts } from "./state";
 import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
 
 /**
@@ -155,7 +155,6 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const found = people?.state === "peopleFound" ? people.pick : null;
   const plan = found !== null && revealRecord === null ? (leadGen?.revealPlan ?? null) : null;
   const failure = derived.failure;
-  const retryable = derived.can.retry;
   const widenings = research.state === "stopped" ? widenChoices(researchBrief, research.pack.insufficient?.widenings ?? []) : null;
   const can = derived.can;
   const counts: CampaignCounts = {
@@ -165,12 +164,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     nextBatch: null,
     // From the persisted ledger: this version's search, charged, and what is left under this Confirm's cap.
     credits: confirm === null || spend === null || handoff === null ? null : { used: spend.charged, left: Math.max(0, cap - spend.charged - spend.reserved) },
-    spend: facts.spend,
     live: true,
-    failure,
-    retryable,
-    ...(people?.state === "peopleNeedsYou" ? { peopleReason: peopleReasonLine(people) } : {}),
-    ...(derived.stage === "reveal_needs_you" ? { revealStopped: revealStoppedLine(derived.attention?.reason) } : {}),
   };
   const pack = record.event === null ? null : storedPack(record.event.after);
 
@@ -251,7 +245,6 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     draftsDueToday: 0,
     nextBatch: null,
     credits: counts.credits,
-    ask: answersFor(state, counts),
     live: true,
     failure,
     briefVersion: record.campaign.briefVersion,

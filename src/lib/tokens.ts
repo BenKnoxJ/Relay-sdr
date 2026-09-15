@@ -275,7 +275,7 @@ export const border = { hairline: 1, input: 1.5 } as const;
 export const layouts = {
   home: "1.5fr 1fr",
   inbox: "340px 1fr",
-  campaign: "1.4fr 1fr",
+  campaign: "1.6fr 1fr",
   singleColumnBelow: 820,
 } as const;
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
+import { PillLink } from "@/components/PillLink";
+import { headerActionOf, type HeaderAction } from "@/lib/campaigns/headerAction";
 import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
-import { actionFor, answersFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
+import { actionFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
@@ -18,7 +20,7 @@ import { PlanDecision } from "./PlanDecision";
 import { PlanSection } from "./PlanCards";
 import { ProgressCounts } from "./ProgressCounts";
 import { RevealCard } from "./RevealCard";
-import { FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard } from "./StageNotes";
+import { FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard, RevealingCard } from "./StageNotes";
 import { StageSummary } from "./StageSummary";
 import { StateRow } from "./StateRow";
 import { SupportRail } from "./SupportRail";
@@ -27,9 +29,12 @@ import { WidenCard } from "./WidenCard";
 /**
  * The campaign page (§23.1c), state-led (product-truth pass).
  *
- * Three things are constant: the header (name, the steps, ONE action matching
- * the state), the stage summary under it (the same words as the list row and
- * Home), and the support rail (Research, Spend, Brief, Ask as quiet tabs).
+ * Three things are constant: the header (name, the steps, ONE action, which
+ * is the backend's `facts.nextAction` in words), the stage summary under it
+ * (the same words as the list row and Home), and the support rail (Research,
+ * Spend, Brief, Activity as quiet tabs). While Relay works the page asks the
+ * server again every so often, so a queued job becomes a running one and a
+ * finished one becomes the next stage without a reload.
  * The main area is the rep's job in this state and nothing else: what
  * research is producing while it reads; the plays to decide between when a
  * plan is ready; the accounts to keep or drop; the emails once revealed. A
@@ -90,21 +95,53 @@ export function CampaignPage({
   const [revealOpen, setRevealOpen] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
   const revealPlan = campaign.peopleFound?.revealPlan ?? null;
-  const action = actionFor(state, live, campaign.can.retry, {
-    confirm: campaign.can.confirm === true && onConfirm !== undefined,
-    retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
-    reveal: campaign.can.reveal === true && onReveal !== undefined,
-    revealBlocked: revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst,
-    retryReveal: campaign.can.retryReveal === true && onRetryReveal !== undefined,
-  });
+  const revealBlocked = revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst;
+  // The header's one control: the backend's next action for a stored campaign; a sample keeps its signed screen actions.
+  const action: HeaderAction | ReturnType<typeof actionFor> =
+    facts !== undefined
+      ? headerActionOf(
+          facts,
+          campaign.can,
+          {
+            confirm: onConfirm !== undefined,
+            retry: onRetry !== undefined && campaign.can.retry,
+            retryPeople: onRetryPeople !== undefined && campaign.can.retryPeople === true,
+            retryReveal: onRetryReveal !== undefined && campaign.can.retryReveal === true,
+            reveal: onReveal !== undefined,
+          },
+          { ...(editHref === undefined ? {} : { editHref }), revealBlocked },
+        )
+      : actionFor(state, live, campaign.can.retry, {
+          confirm: campaign.can.confirm === true && onConfirm !== undefined,
+          retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
+          reveal: campaign.can.reveal === true && onReveal !== undefined,
+          revealBlocked,
+          retryReveal: campaign.can.retryReveal === true && onRetryReveal !== undefined,
+        });
   const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady"];
-  const answers = answersFor(state, { ...campaign, retryable: campaign.can.retry });
-  const answerTo = (...ids: string[]) =>
-    ids
-      .map((id) => answers.find((answer) => answer.id === id)?.answer)
-      .filter((line) => line !== undefined)
-      .join(" ");
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
+
+  // While Relay works, ask the server again every little while: a queued job becomes running, a finished one the next stage.
+  const working = facts?.inFlight !== null && facts?.inFlight !== undefined;
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(() => router.refresh(), 15_000);
+    return () => clearInterval(timer);
+  }, [working, router]);
+
+  // The sticky header's height, for what sits under it (the rail) to stick below rather than behind it.
+  const header = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = header.current;
+    const root = page.current;
+    if (element === null || root === null || typeof ResizeObserver === "undefined") return;
+    const set = () => root.style.setProperty("--relay-header-h", `${element.offsetHeight}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const lookingAgain = (id: string) => {
     router.push(`/campaigns/${id}?again=1`);
@@ -193,9 +230,9 @@ export function CampaignPage({
   } else if (state === "planReady" && campaign.overview !== null && live) {
     main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={campaign.confirmPlan ?? null} selectedId={candidateId} onSelect={setCandidateId} />);
   } else if (state === "findingPeople") {
-    main.push(<FindingCard key="finding" inFlight={facts?.inFlight} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} cap={campaign.spend?.search.cap ?? null} />);
+    main.push(<FindingCard key="finding" inFlight={facts?.inFlight} finding={campaign.finding ?? null} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} spend={facts?.spend.search ?? campaign.spend?.search ?? null} />);
   } else if (state === "peopleNeedsYou" && campaign.peopleNeedsYou) {
-    main.push(<PeopleNeedsYou key="needs-you" view={campaign.peopleNeedsYou} canRetry={campaign.can.retryPeople === true} spent={campaign.spentAtThisVersion === true} onChoose={choose} />);
+    main.push(<PeopleNeedsYou key="needs-you" view={campaign.peopleNeedsYou} canRetry={campaign.can.retryPeople === true} spent={campaign.spentAtThisVersion === true} editHref={editHref} onChoose={choose} />);
   } else if (peopleStates.includes(state) && campaign.peopleFound) {
     if (state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true) {
       main.push(<RevealCard key="reveal" plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />);
@@ -205,11 +242,7 @@ export function CampaignPage({
       if (revealNeedsYou || campaign.peopleFound.revealResult?.stopped === true) {
         main.push(<RevealNeedsYouCard key="reveal-stopped" line={revealStoppedLine(facts?.attention?.reason)} retryable={campaign.can.retryReveal === true} editHref={editHref} />);
       } else {
-        main.push(
-          <p key="revealing" data-testid="revealing-note" className="type-body text-muted">
-            {facts?.inFlight?.status === "queued" ? campaignsCopy.summaryWaiting : campaignsCopy.revealingNote}
-          </p>,
-        );
+        main.push(<RevealingCard key="revealing" inFlight={facts?.inFlight} />);
       }
     }
     main.push(<PeopleFound key="people" view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} onReview={review} />);
@@ -219,7 +252,7 @@ export function CampaignPage({
     if (leadsWithProgress && campaign.progress !== null) {
       main.push(
         <Card key="progress" label={campaignsCopy.progressLabel}>
-          <ProgressCounts progress={campaign.progress} note={state === "running" ? answerTo("waiting", "next-batch") : undefined} />
+          <ProgressCounts progress={campaign.progress} />
         </Card>,
       );
     }
@@ -230,10 +263,11 @@ export function CampaignPage({
   }
 
   return (
-    <>
+    <div ref={page}>
       <div
+        ref={header}
         data-testid="campaign-header"
-        className="-mx-6 mb-grid border-b border-line bg-ground px-6 pb-3 pt-1 wide:sticky wide:top-0 wide:z-10"
+        className="-mx-6 mb-grid border-b border-line bg-panel px-6 pb-3 pt-1 wide:sticky wide:top-0 wide:z-10"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -242,40 +276,48 @@ export function CampaignPage({
           </div>
           {action === null ? null : (
             <div className="flex flex-col items-end gap-1.5">
-              <PillButton
-                variant={state === "running" ? "outline" : "primary"}
-                disabled={action.disabled === true || pending}
-                aria-disabled={action.disabled === true ? true : undefined}
-                className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
-                onClick={() => {
-                  if (action.disabled === true) return;
-                  if (action.kind === "retry") {
-                    void submit(onRetry);
-                    return;
-                  }
-                  if (live && action.kind === "confirm") {
-                    void confirmWithPlay();
-                    return;
-                  }
-                  if (action.kind === "reveal") {
-                    setRevealOpen(true);
-                    return;
-                  }
-                  if (action.kind === "retryPeople") {
-                    void submit(onRetryPeople);
-                    return;
-                  }
-                  if (action.kind === "retryReveal") {
-                    void submit(onRetryReveal);
-                    return;
-                  }
-                  setState(action.next);
-                  setToast(campaignsCopy.toastConfirmed);
-                }}
-              >
-                {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
-              </PillButton>
-              {action.note === undefined ? null : (
+              {action.kind === "editBrief" ? (
+                <PillLink href={action.href} data-testid="header-edit-brief">
+                  {action.label}
+                </PillLink>
+              ) : (
+                <PillButton
+                  variant={state === "running" ? "outline" : "primary"}
+                  disabled={action.disabled === true || pending}
+                  aria-disabled={action.disabled === true ? true : undefined}
+                  className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
+                  onClick={() => {
+                    if (action.disabled === true) return;
+                    if (action.kind === "retry") {
+                      void submit(onRetry);
+                      return;
+                    }
+                    if (live && action.kind === "confirm") {
+                      void confirmWithPlay();
+                      return;
+                    }
+                    if (action.kind === "reveal") {
+                      setRevealOpen(true);
+                      return;
+                    }
+                    if (action.kind === "retryPeople") {
+                      void submit(onRetryPeople);
+                      return;
+                    }
+                    if (action.kind === "retryReveal") {
+                      void submit(onRetryReveal);
+                      return;
+                    }
+                    if ("next" in action) {
+                      setState(action.next);
+                      setToast(campaignsCopy.toastConfirmed);
+                    }
+                  }}
+                >
+                  {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
+                </PillButton>
+              )}
+              {action.kind === "editBrief" || action.note === undefined ? null : (
                 <p data-testid="action-note" className="type-small max-w-measure text-right text-muted">
                   {action.note}
                 </p>
@@ -312,12 +354,12 @@ export function CampaignPage({
           sample={campaign.confirmPlan?.sample === true || campaign.peopleFound?.sample === true}
           brief={campaign.brief}
           editHref={editHref}
-          ask={answers}
+          {...(campaign.activity === undefined ? {} : { activity: campaign.activity })}
           confirmed={state !== "planReady"}
           // The rail opens on what the rep is likeliest to want beside the work: the plan once there are people, the brief before.
           initial={peopleStates.includes(state) ? "research" : "brief"}
         />
       </div>
-    </>
+    </div>
   );
 }

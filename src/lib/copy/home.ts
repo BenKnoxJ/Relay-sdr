@@ -31,9 +31,11 @@ export const homeCopy = {
    */
   connectMailbox: "Connect your mailbox in Settings",
 
-  /** The three blocks once there is a campaign (product-truth pass). */
-  needsYouLabel: "Needs your attention",
+  /** The blocks once there is a campaign (product-truth pass): the Campaigns list's own group words. */
+  needsYouLabel: "Needs you",
   needsYouEmpty: "Nothing needs you right now.",
+  decideLabel: "To decide",
+  readyLabel: "Ready",
   workingLabel: "Relay is working",
   workingEmpty: "Nothing is running.",
   startLabel: "Start a campaign",

@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-
 import { Card } from "@/components/Card";
-import { Chip } from "@/components/Chip";
+import { TextButton } from "@/components/TextButton";
 import type { CampaignOverview, ConfirmPlanView, ResearchPlayView } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
@@ -11,11 +9,13 @@ import { cn } from "@/lib/utils";
 import { PackItem } from "./PackItem";
 
 /**
- * Plan ready as a decision (product-truth pass, on the backend's plays):
- * research found N plays it could rank, recommends the first, and Confirm
- * freezes the one the rep names (`candidateId`, lead gen v2.3). Rank 1 is
- * selected until the rep picks another. A play research gave no search for
- * can be read but not confirmed, and says so.
+ * Plan ready as a decision (product-truth pass, on the backend's plays; final
+ * MVP pass): research found N plays it could rank and recommends the first.
+ * Where there is more than one, a comparison table puts every play's Who,
+ * Why now and Wrong if side by side, one press selects a play, and one card
+ * under the table reads the selected play in full. Confirm freezes the one
+ * the rep names (`candidateId`, lead gen v2.3). A play research gave no
+ * search for can be read but not confirmed, and says so.
  *
  * The full research is not here. It is one press away in the support rail
  * and on its own page; this card is what the rep decides on.
@@ -32,142 +32,132 @@ export function playsLine(count: number): string {
   return `${c.playsFoundLead} ${count} ${count === 1 ? c.playsFoundOne : c.playsFoundMany}.`;
 }
 
-function Roles({ roles }: { roles: ResearchPlayView["roles"] }) {
+/** The roles in one phrase, who runs it first: "Head of Claims · Claims Director". */
+function rolesLine(roles: ResearchPlayView["roles"]): string {
   const c = campaignsCopy;
-  return (
-    <>
-      {(["runs", "champions", "signs"] as const).map((part) => {
-        const titles = roles.filter((role) => role.part === part).map((role) => role.title);
-        return titles.length === 0 ? null : (
-          <span key={part} className="mr-3 inline-block">
-            <span className="text-muted">{c.roleParts[part]}:</span> {titles.join(", ")}
-          </span>
-        );
-      })}
-    </>
-  );
+  return (["runs", "champions", "signs"] as const)
+    .flatMap((part) => roles.filter((role) => role.part === part).map((role) => `${c.roleParts[part]}: ${role.title}`))
+    .join(c.noteJoin);
 }
 
 type GroupDetail = { sizeRange: string; situation: string } | null;
 
-function Recommended({ play, group, pain, selected }: { play: ResearchPlayView; group: GroupDetail; pain: CampaignOverview["pain"]; selected: boolean }) {
+/** Who, in one line for the table: the kind of buyer's size, and who runs the problem there. */
+function whoShort(play: ResearchPlayView, group: GroupDetail): string {
   const c = campaignsCopy;
-  const firstPain = pain?.pains[0] ?? null;
-  const rows: [string, React.ReactNode][] = [
-    [c.playsWhyFirst, play.leadAngle],
-    [c.startWhyNow, play.whyNow],
-    [
-      c.playsWho,
-      <>
-        {play.group.name}
-        {group === null || group.sizeRange === "" ? null : <span className="text-muted"> · {group.sizeRange}</span>}
-        <span className="mt-0.5 block">
-          <Roles roles={play.roles} />
-        </span>
-      </>,
-    ],
-    ...(firstPain === null ? [] : [[c.playsPain, <PackItem key="pain" item={firstPain} quoteFirst />] as [string, React.ReactNode]]),
-    [c.startWrongIf, play.wrongIf],
-    ...(play.seedFirms.length === 0 ? [] : [[c.playsFirms, play.seedFirms.join(", ")] as [string, React.ReactNode]]),
-    [c.startChannels, play.channels.map((channel) => CHANNELS[channel] ?? channel).join(", ")],
-  ];
+  const runs = play.roles.filter((role) => role.part === "runs").map((role) => role.title);
+  const parts = [...(group === null || group.sizeRange === "" ? [] : [group.sizeRange]), ...(runs.length === 0 ? [] : [`${c.roleParts.runs}: ${runs.join(", ")}`])];
+  return parts.join(c.noteJoin);
+}
+
+function Compare({ plays, groupOf, selectedId, onSelect }: { plays: readonly ResearchPlayView[]; groupOf: (play: ResearchPlayView) => GroupDetail; selectedId: string | null; onSelect: (id: string) => void }) {
+  const c = campaignsCopy;
   return (
-    <section data-testid="play-recommended" aria-current={selected ? "true" : undefined} className={cn("rounded-input border p-3", selected ? "border-action bg-soft/40" : "border-line")}>
-      <div className="mb-1.5 flex flex-wrap items-center gap-2">
-        <Chip tone="ok">{c.playsRecommendedLabel}</Chip>
-        {selected ? <span className="type-small text-action">{c.playsSelected}</span> : null}
+    <section data-testid="plays-compare" aria-label={c.playsCompareLabel} className="min-w-0">
+      <h3 className="type-label mb-1.5">{c.playsCompareLabel}</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse">
+          <thead>
+            <tr className="border-b border-line text-left">
+              {[c.playsColumnPlay, c.playsColumnWho, c.playsColumnWrongIf].map((column) => (
+                <th key={column} scope="col" className="type-label pb-1.5 pr-3 font-medium">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {plays.map((play) => {
+              const selected = play.id === selectedId;
+              return (
+                <tr
+                  key={play.id}
+                  data-testid={play.recommended ? "play-recommended-row" : "play-alternative"}
+                  data-executable={play.executable}
+                  aria-current={selected ? "true" : undefined}
+                  className={cn("border-b border-line align-top last:border-b-0", selected ? "bg-soft/40" : "")}
+                >
+                  <td className="w-[28%] min-w-[160px] py-2 pr-3">
+                    {play.executable ? (
+                      <button
+                        type="button"
+                        data-testid="play-select"
+                        aria-pressed={selected}
+                        onClick={() => onSelect(play.id)}
+                        className="type-small text-left font-semibold text-ink focus-visible:outline-none focus-visible:ring-2"
+                      >
+                        <span className="type-mono mr-1.5 text-11 text-muted">{play.rank}</span>
+                        {play.group.name}
+                      </button>
+                    ) : (
+                      <span className="type-small block font-semibold text-muted">
+                        <span className="type-mono mr-1.5 text-11">{play.rank}</span>
+                        {play.group.name}
+                      </span>
+                    )}
+                    <span className="type-mono mt-0.5 block text-11 text-muted">
+                      {play.recommended ? c.playsRecommendedLabel : ""}
+                      {play.recommended && selected ? " · " : ""}
+                      {selected ? <span className="text-action">{c.playsSelected}</span> : null}
+                      {play.executable ? "" : `${play.recommended || selected ? " · " : ""}${c.playsSelectDisabled}`}
+                    </span>
+                  </td>
+                  <td className="w-[30%] py-2 pr-3">
+                    <span className="type-small block text-12">{whoShort(play, groupOf(play))}</span>
+                  </td>
+                  <td className="w-[42%] py-2">
+                    <span className="type-small block text-12 [overflow-wrap:anywhere]">{play.wrongIf}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <h3 className="type-name mb-2">{play.group.name}</h3>
-      <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 wide:grid-cols-[auto_minmax(0,1fr)]">
-        {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="type-small font-semibold">{label}</dt>
-            <dd className="type-small min-w-0 [overflow-wrap:anywhere]">{value}</dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }
 
-function Alternative({ play, group, selected, onSelect }: { play: ResearchPlayView; group: GroupDetail; selected: boolean; onSelect: () => void }) {
+/** The selected play in full, Who first: what the rep is confirming. */
+function Detail({ play, group, pain }: { play: ResearchPlayView; group: GroupDetail; pain: CampaignOverview["pain"] }) {
   const c = campaignsCopy;
-  const [open, setOpen] = useState(false);
+  const firstPain = play.recommended ? (pain?.pains[0] ?? null) : null;
+  const rows: [string, React.ReactNode][] = [
+    [
+      c.playsWho,
+      <>
+        <span className="font-semibold">{play.group.name}</span>
+        {group === null || group.sizeRange === "" ? null : <span className="text-muted"> · {group.sizeRange}</span>}
+        <span className="mt-0.5 block">{rolesLine(play.roles)}</span>
+        {group === null || group.situation === "" ? null : <span className="mt-0.5 block text-muted">{group.situation}</span>}
+      </>,
+    ],
+    [c.startWhyNow, play.whyNow],
+    [c.startWrongIf, play.wrongIf],
+    [c.playsWhyFirst, play.leadAngle],
+    ...(firstPain === null ? [] : [[c.playsPain, <PackItem key="pain" item={firstPain} quoteFirst />] as [string, React.ReactNode]]),
+    ...(play.seedFirms.length === 0 ? [] : [[c.playsFirms, play.seedFirms.join(", ")] as [string, React.ReactNode]]),
+    [c.startChannels, play.channels.map((channel) => CHANNELS[channel] ?? channel).join(", ")],
+  ];
   return (
-    <li
-      data-testid="play-alternative"
-      data-executable={play.executable}
-      aria-current={selected ? "true" : undefined}
-      className={cn("min-w-0 rounded-input border p-3", selected ? "border-action bg-soft/40" : "border-line bg-ground")}
-    >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 sm:flex-1">
-          <p className="type-small">
-            <span className="type-mono mr-1.5 text-11 text-muted">
-              {c.playsRank} {play.rank}
-            </span>
-            <span className="font-semibold">{play.group.name}</span>
-            {selected ? <span className="ml-1.5 text-action">{c.playsSelected}</span> : null}
-          </p>
-          <p className="type-small mt-0.5 text-muted [overflow-wrap:anywhere]">{play.leadAngle}</p>
-        </div>
-        {play.executable ? (
-          <button
-            type="button"
-            data-testid="play-select"
-            aria-pressed={selected}
-            onClick={onSelect}
-            className={cn(
-              "type-small inline-flex min-h-7 shrink-0 items-center self-start rounded-pill border px-3 font-semibold focus-visible:outline-none focus-visible:ring-2",
-              selected ? "border-transparent bg-action text-on-action" : "border-line text-action",
-            )}
-          >
-            {c.playsSelect}
-          </button>
-        ) : (
-          <Chip>{c.playsSelectDisabled}</Chip>
-        )}
-      </div>
-      {play.executable ? null : (
-        <p data-testid="play-not-searchable" className="type-small mt-1.5 text-muted">
-          {c.playsNotSearchable}
-        </p>
-      )}
-      <button
-        type="button"
-        aria-expanded={open}
-        data-testid="play-more"
-        onClick={() => setOpen(!open)}
-        className="type-small mt-1.5 inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
-      >
-        {open ? c.overviewHide : c.overviewShow} {c.playsDetail}
-      </button>
-      {open ? (
-        <dl className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 wide:grid-cols-[auto_minmax(0,1fr)]">
-          <dt className="type-small font-semibold">{c.startWhyNow}</dt>
-          <dd className="type-small [overflow-wrap:anywhere]">{play.whyNow}</dd>
-          <dt className="type-small font-semibold">{c.playsWho}</dt>
-          <dd className="type-small">
-            {group === null || group.sizeRange === "" ? null : <span className="text-muted">{group.sizeRange} · </span>}
-            <Roles roles={play.roles} />
-          </dd>
-          {group === null || group.situation === "" ? null : (
-            <>
-              <dt className="type-small font-semibold">{c.playsSituation}</dt>
-              <dd className="type-small [overflow-wrap:anywhere]">{group.situation}</dd>
-            </>
-          )}
-          <dt className="type-small font-semibold">{c.startWrongIf}</dt>
-          <dd className="type-small [overflow-wrap:anywhere]">{play.wrongIf}</dd>
-          {play.seedFirms.length === 0 ? null : (
-            <>
-              <dt className="type-small font-semibold">{c.playsFirms}</dt>
-              <dd className="type-small">{play.seedFirms.join(", ")}</dd>
-            </>
-          )}
-        </dl>
-      ) : null}
-    </li>
+    <section data-testid={play.recommended ? "play-recommended" : "play-detail"} data-rank={play.rank} className="border-t border-line pt-3">
+      <p className="type-label mb-1.5">
+        {c.playsDetailLabel}
+        <span className="type-mono ml-2 text-11 font-normal text-muted">
+          {c.playsSelectedRank} {play.rank}
+          {play.recommended ? ` · ${c.playsRecommendedLabel}` : ""}
+        </span>
+      </p>
+      <h3 className="type-name mb-2">{play.group.name}</h3>
+      <dl className="grid max-w-measure grid-cols-1 gap-x-3 gap-y-1.5 wide:max-w-none wide:grid-cols-[auto_minmax(0,1fr)]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="type-small font-semibold">{label}</dt>
+            <dd className="type-small min-w-0 max-w-measure [overflow-wrap:anywhere]">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -187,7 +177,6 @@ export function PlanDecision({
 }) {
   const c = campaignsCopy;
   const recommended = plays.find((play) => play.recommended) ?? null;
-  const others = plays.filter((play) => !play.recommended);
   const selected = plays.find((play) => play.id === selectedId) ?? recommended;
   const offRecommended = selected !== null && recommended !== null && selected.id !== recommended.id;
   const groupOf = (play: ResearchPlayView): GroupDetail => {
@@ -200,7 +189,7 @@ export function PlanDecision({
     <Card label={c.planLabel}>
       <div data-testid="plan-decision" className="grid min-w-0 gap-4 [overflow-wrap:anywhere]">
         <div>
-          <p data-testid="plays-found" className="type-body-large">
+          <p data-testid="plays-found" className="type-body-large max-w-measure">
             {playsLine(plays.length)} {plays.length > 1 ? c.playsRecommends : ""}
           </p>
           <p className="type-small mt-0.5 text-muted">
@@ -209,28 +198,14 @@ export function PlanDecision({
           </p>
         </div>
 
-        {recommended === null ? null : <Recommended play={recommended} group={groupOf(recommended)} pain={overview.pain} selected={selected?.id === recommended.id} />}
+        {plays.length > 1 ? <Compare plays={plays} groupOf={groupOf} selectedId={selected?.id ?? null} onSelect={onSelect} /> : null}
 
-        {others.length === 0 ? null : (
-          <section data-testid="plays-alternatives">
-            <h3 className="type-label mb-1.5">{c.playsAlternativesLabel}</h3>
-            <ul className="grid gap-2">
-              {others.map((play) => (
-                <Alternative key={play.id} play={play} group={groupOf(play)} selected={selected?.id === play.id} onSelect={() => onSelect(play.id)} />
-              ))}
-            </ul>
-            {offRecommended && recommended !== null ? (
-              <button
-                type="button"
-                data-testid="play-select-recommended"
-                onClick={() => onSelect(recommended.id)}
-                className="type-small mt-2 inline-flex min-h-6 items-center font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
-              >
-                {c.playsSelectRecommended}
-              </button>
-            ) : null}
-          </section>
-        )}
+        {selected === null ? null : <Detail play={selected} group={groupOf(selected)} pain={overview.pain} />}
+        {offRecommended && recommended !== null ? (
+          <TextButton data-testid="play-select-recommended" onClick={() => onSelect(recommended.id)} className="-mt-2 justify-self-start">
+            {c.playsSelectRecommended}
+          </TextButton>
+        ) : null}
 
         {confirmPlan === null ? null : (
           <section data-testid="confirm-card" className="border-t border-line pt-3">
@@ -238,7 +213,7 @@ export function PlanDecision({
             <p data-testid="confirm-starts-with" className="type-small mb-1.5">
               <span className="font-semibold">{c.confirmStartsWith}</span> {selected?.group.name ?? confirmPlan.groupName ?? ""}
             </p>
-            <ul className="grid gap-1">
+            <ul className="grid max-w-measure gap-1">
               <li className="type-small">{c.confirmDoesFreeze}</li>
               {confirmPlan.available && confirmPlan.searchCreditCap !== null ? (
                 <li className="type-small" data-testid="confirm-cap">
@@ -247,7 +222,7 @@ export function PlanDecision({
               ) : null}
               <li className="type-small">{c.confirmDoesNothing}</li>
             </ul>
-            <p className="type-small mt-1.5 text-muted">
+            <p className="type-small mt-1.5 max-w-measure text-muted">
               <span className="font-semibold">{c.confirmLawful}:</span> <span data-testid="confirm-lawful">{confirmPlan.lawfulBasis}</span>
             </p>
             {confirmPlan.available && confirmPlan.sample ? (

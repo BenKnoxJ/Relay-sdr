@@ -151,9 +151,9 @@ describe("campaigns.get and campaigns.list", () => {
       nextBatch: null,
     });
     expect(campaign.brief.who).toBe("Practice owners at independent vets in Orkney");
-    const answers = Object.fromEntries(campaign.ask.map((a) => [a.id, a.answer]));
-    expect(answers["how-going"]).toBe(campaignsCopy.answerNothingFound);
-    expect(answers.cost).toBe(campaignsCopy.answerCostNoCredits);
+    // Nothing has been spent, and the activity is the one thing that has happened.
+    expect(campaign.spend?.search.cap).toBeNull();
+    expect(campaign.activity?.map((entry) => entry.kind)).toEqual(["created"]);
   });
 
   it("@proof shows a campaign to its owner only: another rep and another org get NOT_FOUND", async () => {
@@ -197,6 +197,7 @@ describe("campaigns.get and campaigns.list", () => {
     const campaign = await caller(rep()).campaigns.get({ id });
     expect(campaign.state).toBe("planReady");
     expect(campaign.pack).toBeNull();
+    expect(campaign.facts?.research?.outcome).toBe("partial");
     expect(campaign.overview?.partial.length).toBeGreaterThan(0);
   });
 
@@ -208,7 +209,7 @@ describe("campaigns.get and campaigns.list", () => {
     expect(campaign).toMatchObject({ state: "failed", failure: "no_play", chip: campaignsCopy.chipNeedsYou, overview: null });
     expect(campaign.can).toMatchObject({ confirm: false, retry: false, edit: true });
     expect(campaign.facts).toMatchObject({ stage: "research_needs_you", attention: { kind: "needs_you", reason: "no_play", retryable: false }, nextAction: "edit_brief" });
-    expect(campaign.ask.find((a) => a.id === "why-stopped")?.answer).toBe(campaignsCopy.failedNoPlay);
+    expect(campaign.activity?.[0]?.line).toBe(campaignsCopy.activityResearchPartial);
     expect((await caller(rep()).campaigns.list()).counts).toEqual({ running: 0, needsYou: 1, done: 0 });
   });
 
@@ -230,8 +231,7 @@ describe("campaigns.get and campaigns.list", () => {
 
     const campaign = await caller(rep()).campaigns.get({ id });
     expect(campaign).toMatchObject({ state: "failed", failure: "took_too_long", chip: campaignsCopy.chipNeedsYou, pack: null });
-    const why = campaign.ask.find((a) => a.id === "why-stopped")?.answer;
-    expect(why).toBe(campaignsCopy.failedTookTooLong);
+    expect(campaign.facts?.attention).toEqual({ kind: "needs_you", reason: "took_too_long", retryable: true });
     expect(JSON.stringify(campaign)).not.toContain("rail was reached");
   });
 });
@@ -402,7 +402,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", error: "research: bad_output — x", attempts: 1 } });
     const before = await caller(rep()).campaigns.get({ id });
     expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
-    expect(before.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailed);
+    expect(before.facts?.nextAction).toBe("retry_research");
 
     expect(await caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).toEqual({ id });
     expect(await caller(rep()).campaigns.get({ id })).toMatchObject({ state: "researching", briefVersion: 1 });
@@ -414,6 +414,6 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     await prisma.job.update({ where: { id: other.job.id }, data: { status: "done" } });
     const unreadable = await caller(rep()).campaigns.get({ id: other.id });
     expect(unreadable).toMatchObject({ state: "failed", can: { widen: false, edit: true, retry: false } });
-    expect(unreadable.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailedEdit);
+    expect(unreadable.facts?.nextAction).toBe("edit_brief");
   });
 });

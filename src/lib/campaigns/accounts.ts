@@ -125,8 +125,11 @@ function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" |
 }
 
 /**
- * The accounts, accounts first. Once Reveal emails is pressed (`keptOnly`),
- * only the kept people are listed: nobody else was, or will be, revealed.
+ * The accounts, accounts first. While the rep is reviewing, the accounts
+ * with someone still to decide come first (in Relay's order), then the
+ * decided ones, so the page opens on the work (final MVP pass). Once Reveal
+ * emails is pressed (`keptOnly`), only the kept people are listed, in
+ * Relay's order: nobody else was, or will be, revealed.
  */
 export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false): AccountView[] {
   const roles = handoff.version === 2;

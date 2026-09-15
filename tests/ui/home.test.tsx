@@ -348,8 +348,11 @@ describe("Home with campaigns", () => {
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(`${homeCopy.welcome}, Ben`);
     expect(screen.getByRole("heading", { level: 2, name: homeCopy.needsYouLabel })).toBeDefined();
+    expect(screen.getByRole("heading", { level: 2, name: homeCopy.decideLabel })).toBeDefined();
+    expect(screen.getByRole("heading", { level: 2, name: homeCopy.readyLabel })).toBeDefined();
 
-    const rows = screen.getAllByTestId("home-needs-you-row");
+    // The same three words the Campaigns list groups by: what needs the rep, what is theirs to decide, what is ready.
+    const rows = [...screen.getAllByTestId("home-needs-you-row"), ...screen.getAllByTestId("home-decide-row"), ...screen.getAllByTestId("home-ready-row")];
     expect(rows.map((row) => row.getAttribute("href"))).toEqual(["/campaigns/camp-failed", "/campaigns/camp-plan", "/campaigns/camp-ready"]);
 
     // The name, the reason, and the campaign's own next sentence, without "Next:".
@@ -428,6 +431,8 @@ describe("Home with campaigns", () => {
     expect(screen.getByText(homeCopy.needsYouEmpty)).toBeDefined();
     expect(screen.getByText(homeCopy.workingEmpty)).toBeDefined();
     expect(screen.queryAllByTestId("home-needs-you-row")).toHaveLength(0);
+    expect(screen.queryAllByTestId("home-decide-row")).toHaveLength(0);
+    expect(screen.queryAllByTestId("home-ready-row")).toHaveLength(0);
     expect(screen.queryAllByTestId("home-working-row")).toHaveLength(0);
   });
 });

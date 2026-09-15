@@ -546,8 +546,6 @@ export type CampaignSummaryFacts = {
   spend: CampaignSpendView;
 };
 
-export type AskAnswer = { id: string; question: string; answer: string };
-
 export type CampaignSummary = {
   id: string;
   name: string;
@@ -591,7 +589,6 @@ export type Campaign = CampaignSummary & {
   nextBatch: { day: string; time: string } | null;
   /** Null until a credit has been spent. */
   credits: { used: number; left: number } | null;
-  ask: AskAnswer[];
   /**
    * True for a campaign read from the database. False for the sample campaigns
    * the component tests draw the later, signed states with (Running, Done):
@@ -621,4 +618,6 @@ export type Campaign = CampaignSummary & {
   spend?: CampaignSpendView;
   /** While people are being found: the frozen search, its roles and seed firms, and the credits so far. */
   finding?: FindingView | null;
+  /** What has happened to this campaign, newest first. Absent on samples. */
+  activity?: ActivityEntry[];
 };

@@ -51,15 +51,18 @@ describe("the Campaigns list", () => {
     expect(rows.slice(1).map((row) => row.getAttribute("href"))).toEqual([byState("planReady"), byState("running"), byState("done")]);
   });
 
-  it("groups the rows under Needs you, In progress and Done, and draws no empty group", async () => {
+  it("groups the rows in Home's own five words, and draws no empty group", async () => {
     render(await CampaignsPage());
 
     expect(screen.getAllByTestId("campaign-group").map((group) => group.textContent)).toEqual([
       campaignsCopy.groupNeedsYou,
-      campaignsCopy.groupInProgress,
+      campaignsCopy.groupDecide,
+      campaignsCopy.groupWorking,
       campaignsCopy.groupDone,
     ]);
     expect(screen.queryByText(campaignsCopy.groupReady)).toBeNull();
+    // Nothing has been spent, so the header carries no spend line rather than a row of zeros.
+    expect(screen.queryByTestId("campaigns-spend")).toBeNull();
   });
 
   it("carries the name, the one line, the chip and the next line", async () => {

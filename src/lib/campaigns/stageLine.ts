@@ -131,6 +131,49 @@ export function countBuckets(campaigns: readonly Pick<CampaignSummary, "facts" |
 
 const ORDER: Record<Bucket, number> = { needsYou: 0, decide: 1, ready: 2, working: 3, done: 4 };
 
+/** The groups Home and the Campaigns list read in, in order, with the one word each is called by. */
+export const BUCKETS: readonly Bucket[] = ["needsYou", "decide", "ready", "working", "done"];
+
+export function groupLabelOf(bucket: Bucket): string {
+  const c = campaignsCopy;
+  return { needsYou: c.groupNeedsYou, decide: c.groupDecide, ready: c.groupReady, working: c.groupWorking, done: c.groupDone }[bucket];
+}
+
+/** The header's count words, by group: "1 needs you · 2 to decide · 1 working". Only the groups with something in them. */
+export function countsLineOf(counts: BucketCounts): string {
+  const c = campaignsCopy;
+  const words: Record<Bucket, string> = { needsYou: c.bucketNeedsYou, decide: c.bucketDecide, ready: c.bucketReady, working: c.bucketWorking, done: c.bucketDone };
+  return BUCKETS.filter((bucket) => counts[bucket] > 0)
+    .map((bucket) => `${counts[bucket]} ${words[bucket]}`)
+    .join(c.noteJoin);
+}
+
+/**
+ * What every campaign in the list has cost so far, each kind in its own unit
+ * and never added together: "Spent so far: 21 search credits · 5 reveal
+ * credits · $16.03 research". Null while nothing has been spent, so the
+ * header never carries a zero.
+ */
+export function listSpendLineOf(campaigns: readonly Pick<CampaignSummary, "facts">[]): string | null {
+  const c = campaignsCopy;
+  let search = 0;
+  let reveal = 0;
+  let research = 0;
+  for (const campaign of campaigns) {
+    const spend = campaign.facts?.spend;
+    if (spend === undefined) continue;
+    search += spend.allVersions.searchCharged;
+    reveal += spend.allVersions.revealCharged;
+    research += spend.research.usd ?? 0;
+  }
+  const parts = [
+    ...(search > 0 ? [`${search} ${c.listSpendSearch}`] : []),
+    ...(reveal > 0 ? [`${reveal} ${c.listSpendReveal}`] : []),
+    ...(research > 0 ? [`${usd(research)} ${c.listSpendResearch}`] : []),
+  ];
+  return parts.length === 0 ? null : `${c.listSpendLead} ${parts.join(c.noteJoin)}`;
+}
+
 /** The list's order: what needs the rep first, then what is theirs to decide, then what is ready, then what Relay is doing, then done; newest first within each. */
 export function sortForList<T extends Pick<CampaignSummary, "facts" | "state">>(campaigns: readonly T[]): T[] {
   const when = (campaign: T) => campaign.facts?.createdAt ?? "";

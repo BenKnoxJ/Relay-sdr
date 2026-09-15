@@ -340,7 +340,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const campaign = await caller(rep()).campaigns.get({ id });
     const options = stoppedPack().insufficient!.widenings;
 
-    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
+    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false, write: false });
     expect(campaign.briefVersion).toBe(1);
     expect(campaign.widenings?.map((choice) => choice.text)).toEqual(options.map((option) => option.text));
     expect(campaign.widenings?.map((choice) => choice.heading)).toEqual([
@@ -377,7 +377,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
   it("edits the brief from Plan ready, and refuses an unchanged brief and research still reading", async () => {
     const { id, job } = await started();
     await finish(job, completePack(), "complete");
-    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
+    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false, write: false });
 
     await expect(caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 1, requestId: uuid(), brief: startInput().brief })).rejects.toMatchObject({
       code: "BAD_REQUEST",
@@ -401,7 +401,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const { id, job } = await started();
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", error: "research: bad_output — x", attempts: 1 } });
     const before = await caller(rep()).campaigns.get({ id });
-    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false });
+    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false, retryReveal: false, write: false });
     expect(before.facts?.nextAction).toBe("retry_research");
 
     expect(await caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).toEqual({ id });

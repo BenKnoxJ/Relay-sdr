@@ -1,17 +1,19 @@
 import { z } from "zod";
 
-import { factIdSchema, idSchema, itemObject, withCeilingRule } from "../_shared/item.schema";
+import { factIdSchema, idSchema, itemObject, itemSchema, withCeilingRule } from "../_shared/item.schema";
+import { ROLE_PARTS } from "../leadgen/input.schema";
 import { productFactsSchema } from "../research/input.schema";
 import { hookSchema, planArchetypeSchema as archetypeSchema } from "../research/output.schema";
-import { revealedPersonSchema } from "../leadgen/output.schema";
+import { angleSchema } from "../research/output/modules";
 
 /**
- * What one draft job is given — `outreach.v2.signed.md` §3 and §4.
+ * What one draft job is given — `outreach.v2.signed.md` §3 and §4, as amended
+ * by v2.1 §2 (signed 2026-09-15).
  *
- * The person comes from lead gen's revealed shape and the archetype and hook
- * from the research pack, imported rather than restated: §3's input list is a
- * contract between three agents, and a local copy of any of those shapes is a
- * place for the three to drift apart.
+ * The archetype, hook, angles and proof come from the research pack, imported
+ * rather than restated: §3's input list is a contract between agents, and a
+ * local copy of any of those shapes is a place for them to drift apart. The
+ * person is Relay's revealed Person (v2.1 §2), not lead gen's preview shape.
  */
 
 export const TOUCH_KINDS = ["email1", "email2", "breakup", "li_connect", "li_dm", "call"] as const;
@@ -42,12 +44,54 @@ export const threadEntrySchema = z
   })
   .strict();
 
-/** §3: the matched slice of the pack, at the brief version this campaign is on. */
+/** v2.1 §2: the revealed person, as Relay holds them. Only a usable work email reaches the writer. */
+export const outreachPersonSchema = z
+  .object({
+    id: z.string().min(1).max(100),
+    name: z.string().min(1).max(200),
+    firstName: z.string().min(1).max(100),
+    title: z.string().min(1).max(200),
+    company: z.string().min(1).max(200),
+    domain: z.string().min(1).max(253).optional(),
+    email: z.string().email().max(320),
+    city: z.string().min(1).max(120).optional(),
+  })
+  .strict();
+
+/** v2.1 §2: the confirmed group's role this person plays, and what research says it needs. */
+export const buyerRoleSchema = z
+  .object({
+    /** The id a `role_pain` opener may name. */
+    id: idSchema,
+    part: z.enum(ROLE_PARTS),
+    title: z.string().min(1).max(500),
+    needs: z.string().min(1).max(4000),
+  })
+  .strict();
+
+/** v2.1 §2: the account, and the one piece of account evidence Relay holds (a firm research named). */
+export const accountSchema = z
+  .object({
+    company: z.string().min(1).max(200),
+    domain: z.string().min(1).max(253).optional(),
+    seedEvidence: z.string().min(1).max(500).optional(),
+  })
+  .strict();
+
+/** §3, and v2.1 §2's additions: the confirmed archetype's slice of the pack at this brief version. */
 export const packSliceSchema = z
   .object({
     briefVersion: z.number().int().positive(),
     archetype: archetypeSchema,
-    hook: hookSchema,
+    hook: hookSchema.optional(),
+    /** m09's angles for this archetype, best first. */
+    angles: z.array(angleSchema).max(5),
+    /** m09's do and don't lines. */
+    doDont: z.array(z.object({ use: z.string().min(1).max(500), avoid: z.string().min(1).max(500), why: z.string().max(2000).optional() }).strict()).max(12),
+    /** m09's verbatim buyer phrases, which a draft may reuse as they are. */
+    verbatim: z.array(itemSchema).max(8),
+    /** m15 proof items marked `allowed`; nothing else may carry social proof. */
+    proof: z.array(z.object({ factId: factIdSchema, text: z.string().min(1).max(2000), note: z.string().max(2000).optional() }).strict()).max(6),
   })
   .strict();
 
@@ -63,10 +107,10 @@ export const voiceSchema = z
 export const standardSchema = z
   .object({
     version: z.number().int().positive(),
-    /** §6: the eight rules are the law. */
-    rules: z.array(z.string().min(1).max(1000)).length(8),
+    /** §6: the eight rules, and v2.1's ninth. */
+    rules: z.array(z.string().min(1).max(1000)).min(8).max(12),
     exemplars: z.array(z.string().min(1).max(5000)).max(20),
-    /** Injected as a list (§6 rule 5); hashed snapshot from the wiki (§7). */
+    /** v2.1 §6: the short, high-precision tell list, injected as a list and gated in code. */
     bannedLexicon: z.array(z.string().min(1).max(80)).max(500),
   })
   .strict();
@@ -79,17 +123,38 @@ export const lookupItemSchema = withCeilingRule(
 export const lookupResultSchema = z
   .object({
     items: z.array(lookupItemSchema).max(3),
-    /** §4: dated within 12 months, about this person or firm, from a stored page, quotable. */
+    /** §4 and v2.1 §3: dated within 12 months, about this person or firm, quotable, relevant and professional. */
     usable: z.boolean(),
-    /** What the lookup cost, recorded on the draft (§4). */
+    /** What the lookup used, recorded on the draft (§4). A maximum, not a quota (v2.1 §3). */
     searches: z.number().int().nonnegative().max(2),
     fetches: z.number().int().nonnegative().max(2),
   })
   .strict();
 
+/** v2.1 §2: one of the campaign's recent drafts, as the writer must not echo it. */
+export const recentDraftSchema = z
+  .object({
+    opening: z.string().min(1).max(600),
+    ask: z.string().min(1).max(300),
+    subject: z.string().max(200).optional(),
+    sameAccount: z.boolean(),
+  })
+  .strict();
+
+/** v2.1 §6: the one corrective redraft, with what failed. */
+export const redraftSchema = z
+  .object({
+    findings: z.array(z.string().min(1).max(500)).min(1).max(20),
+    previous: z.object({ subject: z.string().max(200).optional(), body: z.string().max(5000), ask: z.string().max(300) }).strict(),
+  })
+  .strict();
+
 export const outreachInputSchema = z
   .object({
-    person: revealedPersonSchema,
+    person: outreachPersonSchema,
+    /** Absent for a Related role. */
+    buyerRole: buyerRoleSchema.optional(),
+    account: accountSchema,
     touch: touchSchema,
     thread: z.array(threadEntrySchema).max(20),
     pack: packSliceSchema,
@@ -98,8 +163,9 @@ export const outreachInputSchema = z
     voice: voiceSchema,
     standard: standardSchema,
     lookup: lookupResultSchema,
-    /** §6 rule 8: the campaign's last twenty openers, to avoid echoing. */
-    recentOpeners: z.array(z.string().min(1).max(600)).max(20),
+    /** v2.1 §2, replacing `recentOpeners`: the campaign's last twenty drafts, to avoid echoing. */
+    recentDrafts: z.array(recentDraftSchema).max(20),
+    redraft: redraftSchema.optional(),
   })
   .strict()
   .superRefine((input, ctx) => {
@@ -116,4 +182,8 @@ export const outreachInputSchema = z
   });
 
 export type OutreachInput = z.infer<typeof outreachInputSchema>;
+export type OutreachPerson = z.infer<typeof outreachPersonSchema>;
+export type LookupItem = z.infer<typeof lookupItemSchema>;
+export type LookupResult = z.infer<typeof lookupResultSchema>;
+export type RecentDraft = z.infer<typeof recentDraftSchema>;
 export { factIdSchema, idSchema };

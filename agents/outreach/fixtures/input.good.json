@@ -1,20 +1,23 @@
 {
   "person": {
     "id": "p2",
-    "lushaId": "l-1002",
     "name": "Helen Marsh",
+    "firstName": "Helen",
     "title": "Claims Operations Director",
     "company": "Westbury Mutual",
     "domain": "westburymutual.co.uk",
-    "country": "GB",
-    "hasEmail": true,
-    "score": 6,
-    "whyPicked": "Exact title match at a firm on your starting list, with an email we can reach.",
-    "rank": 1,
-    "companyKey": "westburymutual.co.uk",
-    "email": "helen.marsh@westburymutual.co.uk",
-    "status": "verified",
-    "source": "bought"
+    "email": "helen.marsh@westburymutual.co.uk"
+  },
+  "buyerRole": {
+    "id": "role-runs",
+    "part": "runs",
+    "title": "Claims operations lead",
+    "needs": "Sees which calls drive complaints early enough to coach the habit out, without adding checkers."
+  },
+  "account": {
+    "company": "Westbury Mutual",
+    "domain": "westburymutual.co.uk",
+    "seedEvidence": "Research named this firm for the plan."
   },
   "touch": {
     "kind": "email1",
@@ -127,7 +130,54 @@
         "i360.read-every-call",
         "i360.evidence-pack"
       ]
-    }
+    },
+    "angles": [
+      {
+        "id": "angle-read-every-call",
+        "rank": 1,
+        "text": "Every call read, not one in fifty, so a bad habit shows in days.",
+        "confidence": "moderate",
+        "channelFit": [
+          "email"
+        ]
+      },
+      {
+        "id": "angle-complaint-cause",
+        "rank": 2,
+        "text": "Name the conversations behind a complaint, not just the complaint.",
+        "confidence": "moderate",
+        "channelFit": [
+          "email"
+        ]
+      }
+    ],
+    "doDont": [
+      {
+        "use": "one call in fifty",
+        "avoid": "low quality assurance coverage",
+        "why": "The handlers' own words."
+      }
+    ],
+    "verbatim": [
+      {
+        "id": "verbatim-one-in-fifty",
+        "text": "Handlers describe the sampling rate in their own words.",
+        "accessedAt": "2026-09-08",
+        "evidence": {
+          "urls": [
+            "https://reddit.com/a/phrase-one-in-fifty"
+          ],
+          "primary": false,
+          "domains": [
+            "reddit.com"
+          ]
+        },
+        "confidence": "weak",
+        "quote": "one call in fifty and a prayer",
+        "publishedAt": "2026-04-02"
+      }
+    ],
+    "proof": []
   },
   "facts": {
     "product": "Insights360",
@@ -154,7 +204,7 @@
     "howIWrite": "Plain sentences. No hype."
   },
   "standard": {
-    "version": 2,
+    "version": 1,
     "rules": [
       "Open on the referenced item in one sentence.",
       "One pain, never two.",
@@ -192,12 +242,18 @@
           ]
         },
         "confidence": "weak",
-        "about": "firm"
+        "about": "person"
       }
     ],
     "usable": true,
-    "searches": 2,
+    "searches": 1,
     "fetches": 1
   },
-  "recentOpeners": []
+  "recentDrafts": [
+    {
+      "opening": "When quality checking covers one call in fifty, most of what drives a complaint goes unheard.",
+      "ask": "Is that a problem you are working on this year?",
+      "sameAccount": false
+    }
+  ]
 }

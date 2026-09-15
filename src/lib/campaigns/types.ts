@@ -251,6 +251,8 @@ export type ResearchActions = {
   reveal?: boolean;
   /** Try again on a reveal that failed before any request left Relay. */
   retryReveal?: boolean;
+  /** Write emails can be pressed: people are ready with a usable email and it has not been pressed at this version (outreach v2.1). */
+  write?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -308,7 +310,12 @@ export type FoundPersonView = {
   email: string | null;
   /** Why there is no usable email, in words; null when there is one or nothing was revealed. */
   revealWhy: string | null;
+  /** Once Write emails is pressed: their first email's state, or null. */
+  draft?: DraftStateView | null;
 };
+
+/** Where a person's first email is (outreach v2.1). */
+export type DraftStateView = "writing" | "to_review" | "needs_you" | "failed" | "approved" | "rejected";
 
 /** What Reveal emails would do for the kept people, before it is pressed (the figures the rep approves). */
 export type RevealPlanView = {
@@ -379,6 +386,10 @@ export type PeopleFoundView = {
   revealPlan: RevealPlanView | null;
   /** Revealing or ready: what it came to. */
   revealResult: RevealResultView | null;
+  /** Once Write emails is pressed: the first emails, counted by state. Null before. */
+  drafts?: Record<DraftStateView, number> | null;
+  /** People ready: how many kept people have an email to write to. */
+  writable?: number;
   sample: boolean;
 };
 
@@ -415,7 +426,11 @@ export type ActivityEntry = {
     | "people_reviewed"
     | "reveal_confirmed"
     | "revealed"
-    | "reveal_retried";
+    | "reveal_retried"
+    | "drafts_requested"
+    | "drafted"
+    | "draft_approved"
+    | "draft_rejected";
   /** Who did it: the rep reading, Relay itself, or someone else by first name. */
   actor: { kind: "you" | "relay" | "person"; name: string | null };
   line: string;
@@ -455,10 +470,14 @@ export type CampaignStage =
   | "reviewing_people"
   | "revealing"
   | "reveal_needs_you"
-  | "people_ready";
+  | "people_ready"
+  /** Write emails pressed (outreach v2.1): first emails being drafted, drafted and waiting on the rep, or all decided with some ready to send. */
+  | "drafting"
+  | "drafts_ready"
+  | "ready_to_send";
 
 /** Work Relay is doing for the campaign right now, and whether it is still waiting its turn or running. */
-export type InFlightWork = { kind: "research" | "lead_gen" | "reveal"; status: "queued" | "running" };
+export type InFlightWork = { kind: "research" | "lead_gen" | "reveal" | "outreach"; status: "queued" | "running" };
 
 /**
  * The rep is needed. `reason` is a machine word, never shown as it is:
@@ -478,7 +497,9 @@ export type CampaignNextAction =
   | "retry_people"
   | "choose_industry"
   | "review_people"
-  | "retry_reveal";
+  | "retry_reveal"
+  | "write_emails"
+  | "review_drafts";
 
 /**
  * One of research's campaign plays (m16), as the rep compares them. Research's
@@ -545,6 +566,8 @@ export type CampaignSummaryFacts = {
   people: { accounts: number; multiRoleAccounts: number; chosen: number; pending: number; kept: number; dropped: number } | null;
   /** What Reveal emails came to, once it has run. */
   reveal: { revealed: number; known: number; noEmail: number; suppressed: number; held: number; failed: number; emailsReady: number } | null;
+  /** Once Write emails is pressed: the first emails by where they are. Null before. */
+  drafts: { writing: number; toReview: number; needsYou: number; approved: number; rejected: number; failed: number } | null;
   spend: CampaignSpendView;
 };
 

@@ -41,7 +41,9 @@ export function stateOf(item: QueueItem): string | null {
     case "call":
       return inboxCopy.stateToday;
     case "draft":
-      return item.needsYou === null ? item.sends.day : null;
+      if (item.needsYou !== null) return null;
+      // A real Email 1 has no send slot yet (outreach v2.1: nothing is sent).
+      return item.sends === null ? inboxCopy.stateToReview : item.sends.day;
   }
 }
 

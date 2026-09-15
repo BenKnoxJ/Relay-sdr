@@ -19,6 +19,7 @@ const facts = (over: Partial<CampaignSummaryFacts>): CampaignSummaryFacts => ({
   confirmed: null,
   people: null,
   reveal: null,
+  drafts: null,
   spend: NO_SPEND,
   ...over,
 });

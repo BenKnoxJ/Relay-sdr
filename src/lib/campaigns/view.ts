@@ -12,10 +12,11 @@ import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPac
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
 import type { ResearchResultFacts, StageResult } from "./stage";
 import { isAttention } from "./stage";
+import type { OutreachFacts } from "./stage";
 import { revealLedgerOf, spendOf, summaryFactsOf, type PeopleGroup, type SummaryInput } from "./summary";
 import { researchSections } from "./research";
 import { chipFor, haltLine, nextFor, type CampaignCounts } from "./state";
-import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
+import type { BriefFields, Campaign, CampaignResearchPage, CampaignSummary, CampaignSummaryFacts, ConfirmPlanView, DraftStateView, PeopleFoundView, PeopleNeedsYouView, WidenChoice } from "./types";
 
 /**
  * A stored campaign as its screens draw it.
@@ -60,6 +61,9 @@ function peopleReasonLine(people: Extract<LeadGenState, { state: "peopleNeedsYou
 /** The chip and the "next" line: a stopped reveal draws as revealing but reads as needing the rep. */
 function headline(derived: StageResult, counts: CampaignCounts): { chip: string; next: string; nextIsAction: boolean } {
   if (derived.stage === "reveal_needs_you") return { chip: campaignsCopy.chipNeedsYou, next: campaignsCopy.nextRevealNeedsYou, nextIsAction: true };
+  if (derived.stage === "drafts_ready") return derived.attention === null ? { chip: campaignsCopy.chipDraftsReady, next: campaignsCopy.nextDraftsReady, nextIsAction: true } : { chip: campaignsCopy.chipNeedsYou, next: campaignsCopy.nextFailed, nextIsAction: true };
+  if (derived.stage === "ready_to_send") return { chip: campaignsCopy.chipReadyToSend, next: campaignsCopy.nextReadyToSend, nextIsAction: false };
+  if (derived.stage === "drafting") return { chip: campaignsCopy.chipDrafting, next: campaignsCopy.nextDrafting, nextIsAction: false };
   return { chip: chipFor(derived.state), ...nextFor(derived.state, counts) };
 }
 
@@ -90,6 +94,7 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
       ? (leadGen?.people ?? []).map((row) => ({ status: row.status, review: row.review, reveal: row.reveal, rolePart: row.rolePart, companyKey: row.companyKey, count: 1 }))
       : null;
   const plan = leadGen?.revealPlan ?? null;
+  const outreach: OutreachFacts | null = revealRecord === null || revealRecord.result === null ? null : outreachFactsOf(leadGen?.people ?? [], leadGen?.outreach ?? null);
   return {
     campaign: { id: record.campaign.id, name: record.campaign.name, briefVersion: record.campaign.briefVersion, createdAt: record.campaign.createdAt, updatedAt: record.campaign.updatedAt },
     stage: {
@@ -99,6 +104,7 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
       reveal: revealRecord === null ? null : { job: revealRecord.job, hasResult: revealRecord.result !== null, ledger: revealLedgerOf(ledger, revealRecord.confirm.id) },
       revealPlan: revealRecord === null && plan !== null ? { kept: plan.kept, toReveal: plan.toReveal, known: plan.known } : null,
       leadGenAvailable: options.available,
+      outreach,
     },
     research:
       researchResult === null || !researchResult.readable
@@ -157,6 +163,10 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const failure = derived.failure;
   const widenings = research.state === "stopped" ? widenChoices(researchBrief, research.pack.insufficient?.widenings ?? []) : null;
   const can = derived.can;
+  // Once Write emails is pressed, each person's first email is where it is (outreach v2.1).
+  const outreach = revealed?.state === "peopleReady" ? (leadGen?.outreach ?? null) : null;
+  const draftStates = outreach?.requested === true ? outreach.byPerson : null;
+  const writable = facts.stage === "people_ready" ? writableCount(leadGen?.people ?? []) : 0;
   const counts: CampaignCounts = {
     progress: found === null ? null : { found: found.found.n, drafted: 0, approved: 0, sent: 0, replied: 0 },
     outcomes: null,
@@ -188,7 +198,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           search: searchLine(handoff, effectiveOf(leadGen?.result?.after)),
           buyerRoles: buyerRolesOf(handoff),
           // After Reveal, the kept people only: nobody else was revealed.
-          accounts: accountsOf(leadGen?.people ?? [], handoff, revealRecord !== null),
+          accounts: accountsOf(leadGen?.people ?? [], handoff, revealRecord !== null, draftStates ?? undefined),
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
@@ -210,6 +220,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
                   maxCredits: revealRecord.after?.maxCredits ?? 0,
                   notKept: (leadGen?.people ?? []).filter((row) => row.status === "chosen" && row.review !== "kept").length,
                 },
+          drafts: draftStates === null ? null : draftCounts(draftStates),
+          writable,
           sample: sampleRun,
         };
   const peopleNeedsYou: PeopleNeedsYouView | null =
@@ -311,6 +323,25 @@ function findingOf(stage: string, handoff: ReturnType<typeof leadGenHandoffSchem
     since: job.createdAt instanceof Date ? job.createdAt.toISOString() : null,
     credits: { cap: handoff.spend.searchCreditCap, charged: spend.search.charged, held: spend.search.held },
   };
+}
+
+/** Kept people with a usable email: who Write emails would draft for. */
+function writableCount(rows: readonly { status: string; review: string; reveal?: string | null }[]): number {
+  return rows.filter((row) => row.status === "chosen" && row.review === "kept" && (row.reveal === "revealed" || row.reveal === "known")).length;
+}
+
+/** The outreach facts the stage reads, from the rows and the outreach record: never a count of work that has not happened. */
+function outreachFactsOf(rows: readonly { status: string; review: string; reveal?: string | null }[], outreach: { requested: boolean; byPerson: Record<string, string>; jobs: { queued: number; running: number } } | null): OutreachFacts {
+  const drafts = { to_review: 0, needs_you: 0, failed: 0, approved: 0, rejected: 0 };
+  for (const state of Object.values(outreach?.byPerson ?? {})) if (state in drafts) drafts[state as keyof typeof drafts] += 1;
+  return { writable: writableCount(rows), requested: outreach?.requested === true, jobs: outreach?.jobs ?? { queued: 0, running: 0 }, drafts };
+}
+
+/** First emails counted by where they are (outreach v2.1). */
+function draftCounts(byPerson: Record<string, string>): Record<DraftStateView, number> {
+  const counts: Record<DraftStateView, number> = { writing: 0, to_review: 0, needs_you: 0, failed: 0, approved: 0, rejected: 0 };
+  for (const state of Object.values(byPerson)) if (state in counts) counts[state as DraftStateView] += 1;
+  return counts;
 }
 
 export function toSummary(campaign: Campaign): CampaignSummary {

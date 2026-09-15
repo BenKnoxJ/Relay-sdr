@@ -300,6 +300,7 @@ function summary(
       confirmed: null,
       people: null,
       reveal: null,
+      drafts: null,
       spend: NO_SPEND,
       ...facts,
     },

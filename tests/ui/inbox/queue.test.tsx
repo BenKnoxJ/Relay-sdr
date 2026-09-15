@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import InboxPage from "@/app/(app)/inbox/page";
 import { Inbox } from "@/components/inbox/Inbox";
 import { inboxCopy } from "@/lib/copy/inbox";
 import { listQueue, resetQueue, type Queue } from "@/lib/fixtures/inbox";
@@ -29,7 +28,7 @@ function empty(): Queue {
 
 describe("the queue", () => {
   it("is replies, then calls due, then drafts due today, under three headings", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     expect(
       screen.getAllByRole("heading", { level: 2 }).slice(0, 3).map((heading) => heading.textContent),
@@ -51,7 +50,7 @@ describe("the queue", () => {
    * mock put the counts. A count of examples is a number true of nothing.
    */
   it("banners the whole queue as examples, and keeps the banner up as rows are worked", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     const banner = screen.getByTestId("inbox-demo-banner");
     expect(banner.textContent).toBe(inboxCopy.demoBanner);
@@ -63,7 +62,7 @@ describe("the queue", () => {
   });
 
   it("says example in the header note, never a count of what is waiting", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     const note = screen.getByText(inboxCopy.exampleNote);
     const header = note.closest("header");
@@ -74,14 +73,14 @@ describe("the queue", () => {
   });
 
   it("greets nobody by name in the fixture reply, so no rep reads another person's name as theirs", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     expect(document.body.textContent).not.toContain("Hi Ben");
     expect(screen.getByText(/^Hi there,/)).toBeDefined();
   });
 
   it("has no filter, no search and no tabs", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(screen.queryAllByRole("searchbox")).toHaveLength(0);
@@ -89,7 +88,7 @@ describe("the queue", () => {
   });
 
   it("puts the drafts that need the rep first among the drafts, with the warn chip and the reason", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     const drafts = rows().filter((row) => row.getAttribute("data-kind") === "draft");
     const first = drafts[0] as HTMLElement;
@@ -106,7 +105,7 @@ describe("the queue", () => {
   });
 
   it("selects the first row to begin with, and the row that is clicked after that", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     expect(nameOf(selectedRow() as HTMLElement)).toBe("Priya Raman");
 
@@ -116,7 +115,7 @@ describe("the queue", () => {
   });
 
   it("takes a worked row out and selects the one that took its place", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     fireEvent.click(rows()[4] as HTMLElement); // Daniel
     expect(nameOf(selectedRow() as HTMLElement)).toBe("Daniel Okoro");
@@ -129,7 +128,7 @@ describe("the queue", () => {
   });
 
   it("selects the new last row when the last one is worked", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     fireEvent.click(rows()[5] as HTMLElement); // Sofia, last
     fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
@@ -139,7 +138,7 @@ describe("the queue", () => {
   });
 
   it("says what just happened, in a live region that was already there", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     const status = screen.getByRole("status");
     expect(status.textContent).toBe("");
@@ -153,7 +152,7 @@ describe("the queue", () => {
 
   describe("the keyboard", () => {
     it("moves down on J and up on K, and stops at the ends", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       fireEvent.keyDown(document, { key: "j" });
       expect(nameOf(selectedRow() as HTMLElement)).toBe("Tom Ashworth");
@@ -170,7 +169,7 @@ describe("the queue", () => {
     });
 
     it("approves the selected draft on Enter", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       fireEvent.click(rows()[4] as HTMLElement); // Daniel
       fireEvent.keyDown(document, { key: "Enter" });
@@ -180,7 +179,7 @@ describe("the queue", () => {
     });
 
     it("approves on Enter from the focused row too, which is where a click leaves focus", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       const daniel = rows()[4] as HTMLElement;
       fireEvent.click(daniel);
@@ -191,7 +190,7 @@ describe("the queue", () => {
     });
 
     it("selects, never approves, on Enter from a row the rep tabbed to", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       const daniel = rows()[4] as HTMLElement;
       fireEvent.click(daniel);
@@ -215,7 +214,7 @@ describe("the queue", () => {
     });
 
     it("does nothing on Enter when the selected row is a reply or a call", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       fireEvent.keyDown(document, { key: "Enter" }); // Priya, a reply
       expect(rows()).toHaveLength(6);
@@ -226,7 +225,7 @@ describe("the queue", () => {
     });
 
     it("leaves the keys alone while the rep is typing", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       fireEvent.click(rows()[4] as HTMLElement); // Daniel
       fireEvent.click(screen.getByRole("button", { name: inboxCopy.edit }));
@@ -240,7 +239,7 @@ describe("the queue", () => {
     });
 
     it("answers to nothing else", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       for (const key of ["ArrowDown", "ArrowUp", "n", "p", " ", "Tab", "Escape"]) {
         fireEvent.keyDown(document, { key });
@@ -265,7 +264,7 @@ describe("the queue", () => {
     });
 
     it("is what the rep reaches by working every row", () => {
-      render(<InboxPage />);
+      render(<Inbox />);
 
       // Two labels, one outcome, three approves: six rows, six clicks.
       fireEvent.click(screen.getAllByTestId("reply-label")[0] as HTMLElement);
@@ -282,7 +281,7 @@ describe("the queue", () => {
   });
 
   it("lays the list and the card out on the signed inbox grid", () => {
-    render(<InboxPage />);
+    render(<Inbox />);
 
     expect(screen.getByTestId("inbox-grid").className).toContain("grid-cols-inbox");
   });

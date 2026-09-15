@@ -1,8 +1,8 @@
 {
   "kind": "message",
-  "subject": "Reading every claims call, not one in fifty",
-  "body": "Helen, you told the trade press in June that complaint handling was being rebuilt and that quality checking was the first thing you wanted fixed. Most claims teams I speak to are reading about one call in fifty and finding the habit weeks after it started. We read every recorded call instead, so the pattern shows up in the first week rather than the next quarter. Would it help to see a week of your own calls read back? Does Thursday suit?",
-  "ask": "Would it help to see a week of your own calls read back?",
+  "subject": "Complaints and the calls behind them",
+  "body": "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.\n\nWhen quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started. We read every recorded call, so the pattern shows up in the first week rather than the next quarter. Would it be useful to see what a week of your own calls looks like read back? Does Thursday suit?",
+  "ask": "Would it be useful to see what a week of your own calls looks like read back?",
   "opener": {
     "ref": "look-westbury-rebuild",
     "kind": "person_fact"

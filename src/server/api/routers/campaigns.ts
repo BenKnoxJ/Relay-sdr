@@ -13,6 +13,7 @@ import {
   createCampaign,
   editCampaignBrief,
   getCampaignForOwner,
+  requestDrafts,
   rerunPeople,
   retryResearch,
   retryReveal,
@@ -84,6 +85,8 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "CONFLICT", message: campaignsCopy.revealChanged });
     case "reveal_over_balance":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.revealOverBalance });
+    case "nothing_to_draft":
+      throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.writeNothing });
   }
 }
 
@@ -265,6 +268,11 @@ export const campaignsRouter = createTRPCRouter({
    * facts (stage, what needs the rep, counts, spend), read in a fixed number
    * of queries without loading any research pack, person or org-wide record.
    */
+  /** Write emails (outreach v2.1): one first-email draft job per kept person with a usable email. Nothing is sent. */
+  writeEmails: repProcedure
+    .input(z.object({ campaignId, briefVersion, requestId }).strict())
+    .mutation(({ ctx, input }) => refusing(requestDrafts(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input }))),
+
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();
     const rows = await campaignSummariesForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId }, { leadGenAvailable: options.available });

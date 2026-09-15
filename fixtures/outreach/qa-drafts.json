@@ -1,0 +1,89 @@
+{
+  "note": "Scripted first emails for the Email 1 fixture walk-through (RELAY_OUTREACH_FIXTURE_DRAFTS, development and test only). Fictional people and firms. Each list is one attempt's generations in order; <email>#2 is a draft the rep asked for again. $lookup stands for the lookup item the job found. These are written to the signed standard, and a few are deliberately wrong so the gates can be seen working.",
+  "drafts": {
+    "avery.dunmore@ardent-motor.example": [
+      {
+        "subject": "Delay conversations at Ardent",
+        "body": "You told the conference in June that delay conversations had become the biggest complaint theme at Ardent Motor Insurance.\n\nMost teams only find those calls once the complaint arrives, because the calls reviewed are the ones someone happened to hear. Insights360 transcribes and scores every recorded call, so you could search the whole call base for the delay explanation that turns into a dispute. Is that theme something you are still chasing?",
+        "ask": "Is that theme something you are still chasing?",
+        "opener": { "ref": "$lookup", "kind": "person_fact" },
+        "claims": ["i360.product.every-ingested-call-analysed"]
+      }
+    ],
+    "marlo.holloway@ardent-motor.example": [
+      {
+        "subject": "Root cause before week eight",
+        "body": "When a motor complaint lands, most of the eight-week clock goes on reconstructing what was said on the phone.\n\nIf each complaint came with the calls behind it, the root cause could go to the process owner instead of staying with your team. Could we find twenty minutes next week to walk through it?",
+        "ask": "Could we find twenty minutes next week to walk through it?",
+        "opener": { "ref": "role-champions", "kind": "role_pain" },
+        "claims": []
+      },
+      {
+        "subject": "Root cause before week eight",
+        "body": "When a motor complaint lands, most of the eight-week clock goes on reconstructing what was said on the phone.\n\nThe disputes are usually about what the car was worth, why the policy was cancelled or why the claim is slow. If each complaint came with the calls behind it, the root cause could go to the process owner instead of staying with your team. Would that change how the eight weeks get spent?",
+        "ask": "Would that change how the eight weeks get spent?",
+        "opener": { "ref": "role-champions", "kind": "role_pain" },
+        "claims": []
+      }
+    ],
+    "blair.kendrick@bramble-mutual.example": [
+      {
+        "subject": "Bramble's July figures",
+        "body": "At Bramble Claims Mutual, the July complaints publication showed claim delay complaints falling.\n\nThe next question is usually which handler conversations changed, and today that answer comes from the calls someone happened to review. Insights360 transcribes and scores every recorded call, so the team could look for the delay explanation directly rather than wait for the monthly pack. Is that a question your team gets asked?",
+        "ask": "Is that a question your team gets asked?",
+        "opener": { "ref": "$lookup", "kind": "firm_fact" },
+        "claims": ["i360.product.every-ingested-call-analysed"]
+      }
+    ],
+    "nell.oakley@bramble-mutual.example": [
+      {
+        "subject": "What changed after July",
+        "body": "The July complaints publication at Bramble Claims Mutual showed claim delay complaints coming down.\n\nWhen the board asks what changed, the honest answer usually rests on a handful of reviewed calls. A view across every recorded call would give you evidence from the conversations themselves, without a capital case to get there. Would that make the next board conversation easier?",
+        "ask": "Would that make the next board conversation easier?",
+        "opener": { "ref": "$lookup", "kind": "firm_fact" },
+        "claims": []
+      },
+      {
+        "subject": "What changed after July",
+        "body": "When the board asks what changed after a complaints publication, the honest answer usually rests on a handful of reviewed calls.\n\nAt Bramble Claims Mutual, the July figures showed claim delay complaints coming down, and the useful question now is which conversations moved them. Insights360 transcribes and scores every recorded call, so that answer can come from the calls themselves, without a capital case. Would that make the next board conversation easier?",
+        "ask": "Would that make the next board conversation easier?",
+        "opener": { "ref": "$lookup", "kind": "firm_fact" },
+        "claims": ["i360.product.every-ingested-call-analysed"]
+      }
+    ],
+    "orla.bellamy@cobalt-vehicle.example": [
+      {
+        "subject": "Quick question on complaints",
+        "body": "I wanted to reach out because companies like yours are judged on published complaint numbers.\n\nWe help claims teams understand what drives those numbers. Would you be open to a quick call to discuss?",
+        "ask": "Would you be open to a quick call to discuss?",
+        "opener": { "ref": "role-signs", "kind": "role_pain" },
+        "claims": []
+      },
+      {
+        "subject": "Published complaint numbers",
+        "body": "Motor insurers are judged on published complaint numbers, and we have been helping claims teams leverage their call data to move them.\n\nMost boards want a defensible answer on what changed. Would you be open to a quick call to discuss?",
+        "ask": "Would you be open to a quick call to discuss?",
+        "opener": { "ref": "role-signs", "kind": "role_pain" },
+        "claims": []
+      }
+    ],
+    "emlyn.lomax@elmstead-uw.example": [
+      {
+        "subject": "Coaching on the right calls",
+        "body": "Team leaders in most motor claims operations coach from the calls they happened to hear, so the hard total-loss valuation conversation is rarely the one reviewed.\n\nThat is usually where a dispute starts. Insights360 scores every recorded call and lists coaching points on each one, so the team can coach from the calls that matter. Is coaching on the right calls a problem for your team leaders?",
+        "ask": "Is coaching on the right calls a problem for your team leaders?",
+        "opener": { "ref": "role-runs", "kind": "role_pain" },
+        "claims": ["i360.feature.coaching-points-read-only"]
+      }
+    ],
+    "emlyn.lomax@elmstead-uw.example#2": [
+      {
+        "subject": "How delay gets explained",
+        "body": "Most of the frustration in a motor claim is delay, and the handler's explanation of it is the only part the operation controls.\n\nIt is also the part nobody reviews, because the calls checked each month are picked for convenience rather than risk. Insights360 transcribes and scores every recorded call, so you can hear how delay is being explained across the whole team. Would it help to know which explanations turn into complaints?",
+        "ask": "Would it help to know which explanations turn into complaints?",
+        "opener": { "ref": "role-runs", "kind": "role_pain" },
+        "claims": ["i360.product.every-ingested-call-analysed"]
+      }
+    ]
+  }
+}

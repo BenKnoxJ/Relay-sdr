@@ -14,7 +14,8 @@ import type { CampaignSummaryFacts, ResearchActions } from "./types";
  */
 export type HeaderAction =
   | { kind: "confirm" | "retry" | "retryPeople" | "retryReveal" | "reveal" | "outreach"; label: string; disabled?: boolean; note?: string }
-  | { kind: "editBrief"; label: string; href: string };
+  | { kind: "write"; label: string; note?: string }
+  | { kind: "editBrief" | "reviewDrafts"; label: string; href: string };
 
 export type HeaderHandlers = {
   confirm: boolean;
@@ -22,6 +23,7 @@ export type HeaderHandlers = {
   retryPeople: boolean;
   retryReveal: boolean;
   reveal: boolean;
+  write: boolean;
 };
 
 export function headerActionOf(
@@ -49,6 +51,12 @@ export function headerActionOf(
       return can.reveal === true && handlers.reveal
         ? { kind: "reveal", label: c.actionReveal, note: c.revealNote }
         : { kind: "reveal", label: c.actionReveal, disabled: true, note: options.revealBlocked };
+    case "write_emails":
+      return can.write === true && handlers.write
+        ? { kind: "write", label: c.actionWriteEmailsLive, note: c.writeNote }
+        : { kind: "outreach", label: c.actionWriteEmails, disabled: true, note: c.outreachLater };
+    case "review_drafts":
+      return { kind: "reviewDrafts", label: c.actionReviewDrafts, href: "/inbox" };
     case "widen":
     case "choose_industry":
       return null;
@@ -56,6 +64,7 @@ export function headerActionOf(
       // Drawn and not pressable: what comes next is not built here.
       if (facts.stage === "plan_ready") return { kind: "confirm", label: c.actionConfirm, disabled: true, note: c.confirmLater };
       if (facts.stage === "people_ready") return { kind: "outreach", label: c.actionWriteEmails, disabled: true, note: c.outreachLater };
+      if (facts.stage === "ready_to_send") return { kind: "outreach", label: c.actionSendEmails, disabled: true, note: c.sendLater };
       return null;
   }
 }

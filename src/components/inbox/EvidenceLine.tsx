@@ -35,10 +35,13 @@ export function EvidenceLine({
         </svg>
       </span>
       <p className="text-ink">
-        {lead} {text}{" "}
-        <span className="text-muted">
-          {source}, {date}
-        </span>
+        {lead} {text}
+        {source === "" && date === "" ? null : (
+          <>
+            {" "}
+            <span className="text-muted">{[source, date].filter((part) => part !== "").join(", ")}</span>
+          </>
+        )}
       </p>
     </div>
   );

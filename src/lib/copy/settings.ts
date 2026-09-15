@@ -87,6 +87,8 @@ export const voiceCopy = {
 
   /** The promise, under everything. */
   promise: "Used as examples in every draft. Never sent, never shared.",
+  /** When the save did not reach Relay; the change stays on screen. */
+  notSaved: "Not saved. Try again in a moment.",
 } as const;
 
 /**

@@ -21,9 +21,11 @@ const EXPECTED_TABLES = [
   "jobs",
   "oauth_states",
   "orgs",
+  "outreach_drafts",
   "people",
   "product_facts_versions",
   "provider_identities",
+  "rep_voices",
   "side_effects",
   "users",
 ];

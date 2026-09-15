@@ -49,6 +49,19 @@ export type StageInput = {
   revealPlan: { kept: number; toReveal: number; known: number } | null;
   /** Finding people is set up here, so Confirm and Reveal can be pressed. */
   leadGenAvailable: boolean;
+  /**
+   * Outreach (v2.1), once people are ready: how many kept people have a usable
+   * email, whether Write emails was pressed at this version, the draft jobs
+   * still on the queue, and the drafts by state. Null before people are ready.
+   */
+  outreach: OutreachFacts | null;
+};
+
+export type OutreachFacts = {
+  writable: number;
+  requested: boolean;
+  jobs: { queued: number; running: number };
+  drafts: { to_review: number; needs_you: number; failed: number; approved: number; rejected: number };
 };
 
 export type CampaignActions = Required<ResearchActions>;
@@ -77,6 +90,9 @@ const STATE: Record<CampaignStage, CampaignState> = {
   revealing: "revealing",
   reveal_needs_you: "revealing",
   people_ready: "peopleReady",
+  drafting: "drafting",
+  drafts_ready: "drafting",
+  ready_to_send: "drafting",
 };
 
 const running = (job: Job): InFlightWork["status"] => (job?.status === "running" ? "running" : "queued");
@@ -119,6 +135,7 @@ export function deriveStage(input: StageInput): StageResult {
   let choosable = false;
   let revealRetry = false;
   let revealReason: string | null = null;
+  let draftsReason: string | null = null;
 
   const leadGen = stage === "plan_ready" && input.confirmed ? input.leadGen : null;
   if (leadGen !== null) {
@@ -129,6 +146,22 @@ export function deriveStage(input: StageInput): StageResult {
       if (reveal !== null) {
         if (reveal.hasResult) {
           stage = "people_ready";
+          const outreach = input.outreach;
+          if (outreach?.requested === true) {
+            const inFlight = outreach.jobs.queued + outreach.jobs.running;
+            if (inFlight > 0) {
+              stage = "drafting";
+              flight = { kind: "outreach", status: outreach.jobs.running > 0 ? "running" : "queued" };
+            } else if (outreach.drafts.to_review + outreach.drafts.needs_you > 0) {
+              stage = "drafts_ready";
+            } else if (outreach.drafts.approved > 0) {
+              stage = "ready_to_send";
+            } else {
+              // Every first email was rejected or could not be written: nothing to review and nothing to send.
+              stage = "drafts_ready";
+              draftsReason = "drafts_exhausted";
+            }
+          }
         } else if (inFlight(reveal.job)) {
           stage = "revealing";
           flight = { kind: "reveal", status: running(reveal.job) };
@@ -160,7 +193,7 @@ export function deriveStage(input: StageInput): StageResult {
   const plan = input.revealPlan;
   const can: CampaignActions = {
     widen: stage === "research_stopped" && usableWidenings > 0,
-    edit: editAllowed({ researchInFlight: stage === "researching", leadGenInFlight: stage === "finding_people", revealInFlight: stage === "revealing" }),
+    edit: editAllowed({ researchInFlight: stage === "researching", leadGenInFlight: stage === "finding_people", revealInFlight: stage === "revealing" || stage === "drafting" }),
     retry: stage === "research_needs_you" && retry,
     confirm: stage === "plan_ready" && input.leadGenAvailable,
     retryPeople: stage === "people_needs_you" && peopleRetry,
@@ -168,6 +201,7 @@ export function deriveStage(input: StageInput): StageResult {
     review: stage === "reviewing_people",
     reveal: stage === "reviewing_people" && input.leadGenAvailable && plan !== null && plan.kept > 0 && plan.toReveal + plan.known > 0,
     retryReveal: stage === "reveal_needs_you" && revealRetry,
+    write: stage === "people_ready" && input.leadGenAvailable && (input.outreach?.writable ?? 0) > 0,
   };
 
   const attention: CampaignAttention | null =
@@ -179,13 +213,22 @@ export function deriveStage(input: StageInput): StageResult {
           ? { kind: "needs_you", reason: peopleReason ?? "failed", retryable: can.retryPeople }
           : stage === "reveal_needs_you"
             ? { kind: "needs_you", reason: revealReason ?? "reveal_stopped", retryable: can.retryReveal }
-            : null;
+            : draftsReason !== null
+              ? { kind: "needs_you", reason: draftsReason, retryable: false }
+              : null;
 
-  return { stage, state: STATE[stage], inFlight: flight, attention, nextAction: nextActionOf(stage, can), failure, peopleReason, can };
+  return { stage, state: STATE[stage], inFlight: flight, attention, nextAction: nextActionOf(stage, can, draftsReason !== null), failure, peopleReason, can };
 }
 
-function nextActionOf(stage: CampaignStage, can: CampaignActions): CampaignNextAction | null {
+function nextActionOf(stage: CampaignStage, can: CampaignActions, draftsExhausted = false): CampaignNextAction | null {
   switch (stage) {
+    case "people_ready":
+      return can.write ? "write_emails" : null;
+    case "drafts_ready":
+      return draftsExhausted ? (can.edit ? "edit_brief" : null) : "review_drafts";
+    case "drafting":
+    case "ready_to_send":
+      return null;
     case "research_needs_you":
       return can.retry ? "retry_research" : can.edit ? "edit_brief" : null;
     case "research_stopped":
@@ -201,7 +244,6 @@ function nextActionOf(stage: CampaignStage, can: CampaignActions): CampaignNextA
     case "researching":
     case "finding_people":
     case "revealing":
-    case "people_ready":
       return null;
   }
 }

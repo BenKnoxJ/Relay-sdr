@@ -10,7 +10,7 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
  * choice that lives in the main card draws no button.
  */
 const NONE: ResearchActions = { widen: false, edit: true, retry: false };
-const ALL = { confirm: true, retry: true, retryPeople: true, retryReveal: true, reveal: true };
+const ALL = { confirm: true, retry: true, retryPeople: true, retryReveal: true, reveal: true, write: true };
 const at = (stage: CampaignStage, nextAction: CampaignNextAction | null, can: ResearchActions = NONE, handlers = ALL, editHref: string | null = "/campaigns/c/edit") =>
   headerActionOf({ stage, nextAction }, can, handlers, { ...(editHref === null ? {} : { editHref }), revealBlocked: campaignsCopy.revealKeepFirst });
 
@@ -29,6 +29,11 @@ describe("headerActionOf", () => {
     expect(at("plan_ready", null)).toEqual({ kind: "confirm", label: campaignsCopy.actionConfirm, disabled: true, note: campaignsCopy.confirmLater });
     expect(at("reviewing_people", "review_people")).toEqual({ kind: "reveal", label: campaignsCopy.actionReveal, disabled: true, note: campaignsCopy.revealKeepFirst });
     expect(at("people_ready", null)).toEqual({ kind: "outreach", label: campaignsCopy.actionWriteEmails, disabled: true, note: campaignsCopy.outreachLater });
+    expect(at("people_ready", "write_emails", { ...NONE, write: true })).toEqual({ kind: "write", label: campaignsCopy.actionWriteEmailsLive, note: campaignsCopy.writeNote });
+    expect(at("people_ready", "write_emails", { ...NONE, write: true }, { ...ALL, write: false })).toEqual({ kind: "outreach", label: campaignsCopy.actionWriteEmails, disabled: true, note: campaignsCopy.outreachLater });
+    expect(at("drafts_ready", "review_drafts")).toEqual({ kind: "reviewDrafts", label: campaignsCopy.actionReviewDrafts, href: "/inbox" });
+    expect(at("ready_to_send", null)).toEqual({ kind: "outreach", label: campaignsCopy.actionSendEmails, disabled: true, note: campaignsCopy.sendLater });
+    expect(at("drafting", null)).toBeNull();
   });
 
   it("draws nothing where the choice is in the card, where Relay is working, or where the page has no way to send it", () => {

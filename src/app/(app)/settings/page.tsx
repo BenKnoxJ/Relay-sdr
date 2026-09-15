@@ -3,9 +3,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { LinkedInCard } from "@/components/settings/LinkedInCard";
 import { VoiceCard } from "@/components/settings/VoiceCard";
 import { mailboxCopy, settingsCopy } from "@/lib/copy/settings";
+import { getProfile, type RepProfile } from "@/lib/fixtures/repProfile";
 import { serverCaller } from "@/server/api/caller";
 
-import { connectMailbox, disconnectMailbox, saveDailyCap } from "./actions";
+import { connectMailbox, disconnectMailbox, saveDailyCap, saveVoice } from "./actions";
 
 /**
  * Settings (master doc §23.1f).
@@ -47,6 +48,14 @@ export default async function SettingsPage({
 }) {
   const caller = await serverCaller();
   const mailbox = await caller.connections.get();
+  // Your voice is saved (outreach v2.1): the first emails are written from it.
+  // LinkedIn and Calls still read the profile fixture.
+  const voice = await caller.drafts.voice();
+  const profile: RepProfile = {
+    ...getProfile(),
+    voiceSamples: voice.samples.map((sample, index) => ({ id: `voice-${index}`, text: sample.text, addedAt: sample.addedAt })),
+    voiceNote: voice.howIWrite,
+  };
 
   return (
     <>
@@ -61,7 +70,7 @@ export default async function SettingsPage({
           saveCap={saveDailyCap}
         />
         <LinkedInCard />
-        <VoiceCard />
+        <VoiceCard initial={profile} onPersist={saveVoice} />
       </div>
     </>
   );

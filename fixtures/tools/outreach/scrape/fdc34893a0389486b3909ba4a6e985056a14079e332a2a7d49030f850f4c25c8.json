@@ -1,0 +1,10 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://bramble-mutual.example/news/2026-07-complaints-publication"
+  },
+  "response": {
+    "markdown": "# Our complaints publication, July 2026\n\nWe publish our complaints figures twice a year.\n\nBramble Claims Mutual said its July complaints publication showed claim delay complaints falling, and that it now reviews handler conversations about delay every week.\n\nWe will publish again in January.\n"
+  },
+  "recordedAt": "2026-09-15T10:00:00.000Z"
+}

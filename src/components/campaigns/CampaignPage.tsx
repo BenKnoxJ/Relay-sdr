@@ -20,11 +20,12 @@ import { PlanDecision } from "./PlanDecision";
 import { PlanSection } from "./PlanCards";
 import { ProgressCounts } from "./ProgressCounts";
 import { RevealCard } from "./RevealCard";
-import { FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard, RevealingCard } from "./StageNotes";
+import { DraftingCard, FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard, RevealingCard } from "./StageNotes";
 import { StageSummary } from "./StageSummary";
 import { StateRow } from "./StateRow";
 import { SupportRail } from "./SupportRail";
 import { WidenCard } from "./WidenCard";
+import { WriteCard } from "./WriteCard";
 
 /**
  * The campaign page (§23.1c), state-led (product-truth pass).
@@ -57,6 +58,7 @@ export function CampaignPage({
   onReview,
   onReveal,
   onRetryReveal,
+  onWriteEmails,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
@@ -68,6 +70,8 @@ export function CampaignPage({
   onRetryPeople?: (submission: RetrySubmission) => Promise<StartResult>;
   /** Try again on a reveal that stopped before any request left Relay (a server action). */
   onRetryReveal?: (submission: RetrySubmission) => Promise<StartResult>;
+  /** Write emails (outreach v2.1): first emails drafted for review, nothing sent (a server action). */
+  onWriteEmails?: (submission: RetrySubmission) => Promise<StartResult>;
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
   onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
   onReveal?: (submission: RevealSubmission) => Promise<StartResult>;
@@ -108,6 +112,7 @@ export function CampaignPage({
             retryPeople: onRetryPeople !== undefined && campaign.can.retryPeople === true,
             retryReveal: onRetryReveal !== undefined && campaign.can.retryReveal === true,
             reveal: onReveal !== undefined,
+            write: onWriteEmails !== undefined,
           },
           { ...(editHref === undefined ? {} : { editHref }), revealBlocked },
         )
@@ -118,7 +123,28 @@ export function CampaignPage({
           revealBlocked,
           retryReveal: campaign.can.retryReveal === true && onRetryReveal !== undefined,
         });
-  const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady"];
+  const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady", "drafting"];
+  const [writeOpen, setWriteOpen] = useState(false);
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const writeEmails = () => {
+    if (onWriteEmails === undefined || pending) return;
+    setPending(true);
+    setWriteError(null);
+    void onWriteEmails({ ...target, requestId })
+      .then((result) => {
+        if ("id" in result) {
+          router.push(`/campaigns/${result.id}?writing=1`);
+          router.refresh();
+          return;
+        }
+        setWriteError(result.error);
+        setPending(false);
+      })
+      .catch(() => {
+        setWriteError(campaignsCopy.cannotChange);
+        setPending(false);
+      });
+  };
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
 
   // While Relay works, ask the server again every little while: a queued job becomes running, a finished one the next stage.
@@ -237,6 +263,14 @@ export function CampaignPage({
     if (state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true) {
       main.push(<RevealCard key="reveal" plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />);
     }
+    // Write emails: the card says what it does, and one press asks for the drafts (outreach v2.1).
+    if (state === "peopleReady" && writeOpen && campaign.can.write === true) {
+      main.push(<WriteCard key="write" people={campaign.peopleFound.writable ?? 0} costCeilingUsd={10} pending={pending} error={writeError} onConfirm={writeEmails} onCancel={() => setWriteOpen(false)} />);
+    }
+    // Drafting, drafts to review, ready to send: the counts and the way into the Inbox, above the people.
+    if (state === "drafting" && facts !== undefined && facts.drafts !== null) {
+      main.push(<DraftingCard key="drafting" stage={facts.stage} inFlight={facts.inFlight} drafts={facts.drafts} attention={facts.attention} editHref={editHref} />);
+    }
     if (state === "revealing") {
       // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.
       if (revealNeedsYou || campaign.peopleFound.revealResult?.stopped === true) {
@@ -272,22 +306,26 @@ export function CampaignPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <PageHeader title={campaign.name} className="mb-1.5" />
-            <StateRow state={state} stuck={revealNeedsYou || (state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true)} />
+            <StateRow state={state} stage={facts?.stage ?? null} stuck={revealNeedsYou || (state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true)} />
           </div>
           {action === null ? null : (
             <div className="flex flex-col items-end gap-1.5">
-              {action.kind === "editBrief" ? (
-                <PillLink href={action.href} data-testid="header-edit-brief">
+              {action.kind === "editBrief" || action.kind === "reviewDrafts" ? (
+                <PillLink href={action.href} data-testid={action.kind === "editBrief" ? "header-edit-brief" : "header-review-drafts"}>
                   {action.label}
                 </PillLink>
               ) : (
                 <PillButton
                   variant={state === "running" ? "outline" : "primary"}
-                  disabled={action.disabled === true || pending}
-                  aria-disabled={action.disabled === true ? true : undefined}
-                  className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
+                  disabled={("disabled" in action && action.disabled === true) || pending}
+                  aria-disabled={"disabled" in action && action.disabled === true ? true : undefined}
+                  className={"disabled" in action && action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
                   onClick={() => {
-                    if (action.disabled === true) return;
+                    if ("disabled" in action && action.disabled === true) return;
+                    if (action.kind === "write") {
+                      setWriteOpen(true);
+                      return;
+                    }
                     if (action.kind === "retry") {
                       void submit(onRetry);
                       return;
@@ -317,11 +355,11 @@ export function CampaignPage({
                   {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
                 </PillButton>
               )}
-              {action.kind === "editBrief" || action.note === undefined ? null : (
+              {"note" in action && action.note !== undefined ? (
                 <p data-testid="action-note" className="type-small max-w-measure text-right text-muted">
                   {action.note}
                 </p>
-              )}
+              ) : null}
               {actionError === null ? null : (
                 <p role="alert" data-testid="action-error" className="type-small text-warn">
                   {actionError}

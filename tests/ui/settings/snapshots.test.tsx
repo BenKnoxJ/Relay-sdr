@@ -31,6 +31,13 @@ vi.mock("@/server/api/caller", () => ({
         connect: mailboxCopy.connect,
       }),
     },
+    // Your voice is saved (outreach v2.1); the stub hands back the fixture's, as signed.
+    drafts: {
+      voice: async () => {
+        const profile = (await import("@/lib/fixtures/repProfile")).getProfile();
+        return { samples: profile.voiceSamples.map(({ text, addedAt }) => ({ text, addedAt })), howIWrite: profile.voiceNote };
+      },
+    },
   }),
   isRefusal: () => false,
 }));

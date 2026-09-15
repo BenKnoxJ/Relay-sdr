@@ -87,6 +87,20 @@ export type EventKind =
   | "leadgen.revealed"
   /// A reveal that failed before any request left Relay, put back on the queue (product-truth foundation, 2026-09-15).
   | "campaign.reveal_retried"
+  /// A rep pressed Write emails (outreach v2.1): one `outreach_draft` job per
+  /// kept person with a usable email, enqueued in the same transaction.
+  | "outreach.requested"
+  /// A draft job ran its lookup: `after` holds the lookup result, so a retried
+  /// job reads it back rather than searching again (§4 replay).
+  | "outreach.lookup"
+  /// A draft job finished: the draft is written (to review, needs you, or
+  /// could not be written) in the same transaction.
+  | "outreach.drafted"
+  /// The rep rejected a draft with a reason (§9); a redraft, when the reason
+  /// asks for one, is enqueued in the same transaction.
+  | "draft.rejected"
+  /// A rep saved their voice samples and "how I write" note (master §15 v0).
+  | "rep.voice_saved"
   /// A run reached drafts ready: there is something for a rep to approve, and
   /// the run that produced it has ended. §24's approval hand-off is these three
   /// kinds and nothing else — no suspended run, no in-process state, just the

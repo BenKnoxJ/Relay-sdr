@@ -19,7 +19,7 @@ const card = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/settings", redirect: () => undefined }));
 
 vi.mock("@/server/api/caller", () => ({
-  serverCaller: async () => ({ connections: { get: async () => card() } }),
+  serverCaller: async () => ({ connections: { get: async () => card() }, drafts: { voice: async () => ({ samples: [], howIWrite: "" }) } }),
   isRefusal: () => false,
 }));
 

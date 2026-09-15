@@ -49,11 +49,11 @@ describe("the Inbox copy", () => {
   /**
    * The four reject consequences are §23.1b's, in rep words: redraft on
    * another pain, close the person's remaining touches, mark the item bad and
-   * redraft on the archetype, snooze 14 days. Checked for the one fact a
-   * reader would miss, the fortnight.
+   * redraft on the archetype, snooze 14 days. Email 1 v1 (outreach v2.1) has
+   * no sequence to snooze, so "not now" promises no date it cannot keep.
    */
-  it("says the snooze is 14 days", () => {
-    expect(inboxCopy.rejectConsequence.not_now).toContain("14 days");
+  it("promises no snooze date Email 1 cannot keep", () => {
+    expect(inboxCopy.rejectConsequence.not_now).not.toMatch(/\d+ days/);
   });
 
   it("is declared `as const`, so the unions are literal types", () => {

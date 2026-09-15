@@ -24,11 +24,18 @@ import type { OutreachInput, TouchKind } from "./input.schema";
  * returns a list rather than throwing.
  */
 
+/**
+ * v2.1 §4: the personalisation tier the opener rests on. `archetype_pain` is
+ * v2's word and is read as `role_pain`.
+ */
+export const OPENER_KINDS = ["person_fact", "firm_fact", "role_pain", "archetype_pain"] as const;
+export type OpenerKind = (typeof OPENER_KINDS)[number];
+
 export const openerSchema = z
   .object({
-    /** A lookup item id or an archetype pain id. The card renders from whatever it points at. */
+    /** A lookup item id, an archetype pain id, the hook id or the buyer role id. The card renders from whatever it points at. */
     ref: idSchema,
-    kind: z.enum(["person_fact", "archetype_pain"]),
+    kind: z.enum(OPENER_KINDS),
   })
   .strict();
 
@@ -176,7 +183,8 @@ export type MessageDraft = z.infer<typeof messageDraftSchema>;
 
 /** §5's per-touch limits. Lower bound, upper bound, and whether a shrink is required. */
 const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number; shrinks?: boolean; noLink?: boolean }> = {
-  email1: { minWords: 50, maxWords: 150 },
+  // v2.1 §4: 40 to 110 words, aiming for 50 to 90.
+  email1: { minWords: 40, maxWords: 110 },
   email2: { maxWords: 100, shrinks: true },
   breakup: { maxWords: 60, shrinks: true },
   // §5: 300 characters on Premium, else 200. The lower bound is what a draft
@@ -230,20 +238,25 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
     }
   }
 
-  // §5: `opener.ref` must resolve — to a lookup item for `person_fact`, to an
-  // archetype pain for `archetype_pain`. A dangling id renders an evidence line
-  // on the card with nothing behind it.
+  // §5 and v2.1 §4: `opener.ref` must resolve — to a lookup item about the
+  // person for `person_fact`, about the firm for `firm_fact`, and to an
+  // archetype pain, the hook or the buyer role for `role_pain`. A dangling id
+  // renders an evidence line on the card with nothing behind it.
+  const { kind, ref } = draft.opener;
+  const lookupItem = input.lookup.items.find((item) => item.id === ref);
   const resolved =
-    draft.opener.kind === "person_fact"
-      ? input.lookup.items.some((item) => item.id === draft.opener.ref)
-      : input.pack.archetype.pains.some((pain) => pain.id === draft.opener.ref);
+    kind === "person_fact"
+      ? lookupItem?.about === "person"
+      : kind === "firm_fact"
+        ? lookupItem?.about === "firm"
+        : input.pack.archetype.pains.some((pain) => pain.id === ref) || input.pack.hook?.id === ref || input.buyerRole?.id === ref;
   if (!resolved) {
     findings.push({ rule: "opener-ref", text: "The opener points at something that is not in the lookup or the pack." });
   }
   // §4: inference from firm type is never usable. An unusable lookup cannot be
-  // the opener, however well it reads.
-  if (draft.opener.kind === "person_fact" && !input.lookup.usable) {
-    findings.push({ rule: "opener-usable", text: "There is no usable fact about this person, so open on the archetype." });
+  // the opener, however well it reads (v2.1 §3: usable also means relevant and professional).
+  if ((kind === "person_fact" || kind === "firm_fact") && !input.lookup.usable) {
+    findings.push({ rule: "opener-usable", text: "There is no usable fact about this person or their firm, so open on the role problem." });
   }
 
   // §5 and §7: every claim must be a live fact, and a fact's number must appear.

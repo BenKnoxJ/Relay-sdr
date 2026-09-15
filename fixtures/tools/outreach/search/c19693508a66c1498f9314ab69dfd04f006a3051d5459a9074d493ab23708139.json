@@ -1,0 +1,20 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"Bramble Claims Mutual\" complaints conversation",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 5
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Bramble Claims Mutual: our July complaints publication",
+        "url": "https://bramble-mutual.example/news/2026-07-complaints-publication",
+        "snippet": "Bramble Claims Mutual publishes its complaints figures for the first half of 2026.",
+        "publishedAt": "2026-07-03"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-15T10:00:00.000Z"
+}

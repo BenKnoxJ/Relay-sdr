@@ -32,7 +32,7 @@ export type NavArea = "home" | "inbox" | "campaigns" | "content" | "settings";
 
 const AREAS: { area: NavArea; href: string; label: string; demo?: true }[] = [
   { area: "home", href: "/", label: navCopy.home },
-  { area: "inbox", href: "/inbox", label: navCopy.inbox, demo: true },
+  { area: "inbox", href: "/inbox", label: navCopy.inbox },
   { area: "campaigns", href: "/campaigns", label: navCopy.campaigns },
   { area: "content", href: "/content", label: navCopy.content, demo: true },
   { area: "settings", href: "/settings", label: navCopy.settings },

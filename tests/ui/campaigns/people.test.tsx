@@ -98,6 +98,8 @@ type Stage = {
   revealPlan?: RevealCounts | null;
   /** Once Reveal emails is pressed: the reveal job's status, whether it recorded its result, and its spend. */
   reveal?: { status: Job["status"]; done: boolean; maxCredits: number; charged: number; reserved: number };
+  /** Once Write emails is pressed (outreach v2.1): each person's first-email state. */
+  outreach?: LeadGenRecord["outreach"];
 };
 
 const NO_PLAN: RevealCounts = { kept: 0, known: 0, toReveal: 0, free: 0, maxCredits: 0, noEmail: 0, unavailable: 0 };
@@ -125,6 +127,7 @@ function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Cam
                   result: stage.reveal.done ? ({ id: "event-revealed", kind: "leadgen.revealed", after: {} } as unknown as Event) : null,
                   spend: { charged: stage.reveal.charged, reserved: stage.reveal.reserved, exceededDocumentedWorstCase: false },
                 },
+          ...(stage.outreach === undefined ? {} : { outreach: stage.outreach }),
         };
   // The credit ledger, grouped as the summary reads it: the search's charge under this Confirm, and the reveal's once pressed.
   const ledger =
@@ -642,5 +645,66 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
     // The step row says it is stuck too, as the banner does.
     const step = screen.getAllByTestId("state-step").find((item) => item.getAttribute("aria-current") === "step")!;
     expect(step.className).toMatch(/\bbg-warn-bg\b/);
+  });
+});
+
+describe("People ready: Write emails (outreach v2.1)", () => {
+  const keptRows = () => rows(full).map((row) => ({ ...row, review: row.rank <= 4 ? "kept" : "pending" }) as CampaignPerson);
+  /** Ranks 1 and 2 have a usable email; 3 has none. */
+  const readyRows = () =>
+    keptRows().map((row) =>
+      row.rank === 1
+        ? ({ ...row, reveal: "revealed", person: { email: "person1@firm1.example" } } as CampaignPerson)
+        : row.rank === 2
+          ? ({ ...row, reveal: "known", person: { email: "person2@firm2.example" } } as CampaignPerson)
+          : row.rank === 3
+            ? ({ ...row, reveal: "no_email", revealHold: "no_email", person: null } as unknown as CampaignPerson)
+            : row,
+    );
+  const ready = (outreach?: LeadGenRecord["outreach"]) =>
+    campaign({ result: { kind: "leadgen.picked", output: full }, people: readyRows(), reveal: { status: "done", done: true, maxCredits: 2, charged: 1, reserved: 0 }, ...(outreach === undefined ? {} : { outreach }) });
+
+  it("@proof says what Write emails does before it runs, and sends one press with the version on screen", async () => {
+    const onWriteEmails = vi.fn<(submission: { campaignId: string; briefVersion: number; requestId: string }) => Promise<{ id: string }>>(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={ready()} onReview={vi.fn()} onReveal={vi.fn()} onWriteEmails={onWriteEmails} />);
+
+    const write = screen.getByRole("button", { name: campaignsCopy.actionWriteEmailsLive });
+    expect(write.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(write);
+
+    // The card: how many, what it costs at most, and that nothing is sent.
+    expect(screen.getByTestId("write-lead").textContent).toBe(`${campaignsCopy.writeLead} 2 ${campaignsCopy.writePeople}`);
+    expect(screen.getByTestId("write-cost").textContent).toBe(`${campaignsCopy.writeCost} $10 ${campaignsCopy.writeCostTail}`);
+    expect(onWriteEmails).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("write-confirm"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp-people?writing=1"));
+    expect(onWriteEmails).toHaveBeenCalledTimes(1);
+    expect(onWriteEmails.mock.calls[0]![0]).toMatchObject({ campaignId: "camp-people", briefVersion: 1, requestId: expect.any(String) });
+  });
+
+  it("closes the card without writing anything", () => {
+    const onWriteEmails = vi.fn();
+    render(<CampaignPage campaign={ready()} onReview={vi.fn()} onReveal={vi.fn()} onWriteEmails={onWriteEmails} />);
+    fireEvent.click(screen.getByRole("button", { name: campaignsCopy.actionWriteEmailsLive }));
+    fireEvent.click(screen.getByTestId("write-cancel"));
+    expect(screen.queryByTestId("write-card")).toBeNull();
+    expect(onWriteEmails).not.toHaveBeenCalled();
+  });
+
+  it("@proof while drafting: counts the first emails by where they are, marks each person, and points to the Inbox", () => {
+    const [first, second] = readyRows();
+    render(<CampaignPage campaign={ready({ requested: true, byPerson: { [first!.id]: "writing", [second!.id]: "to_review" }, jobs: { queued: 1, running: 0 } })} onReview={vi.fn()} onReveal={vi.fn()} onWriteEmails={vi.fn()} />);
+
+    expect(screen.getByTestId("drafts-counts").textContent).toBe(`${campaignsCopy.summaryWriting} 1 ${campaignsCopy.summaryEmail} · 1 ${campaignsCopy.summaryDraftsToReview}`);
+    // The same words on the stage line under the title: one vocabulary for the page, the list and Home.
+    expect(screen.getByTestId("stage-line").textContent).toBe(`${campaignsCopy.summaryWriting} 1 ${campaignsCopy.summaryEmail} · 1 ${campaignsCopy.summaryDraftsToReview}`);
+    expect(screen.getByTestId("drafts-review").getAttribute("href")).toBe("/inbox");
+    expect(screen.getByTestId("drafts-note").textContent).toBe(campaignsCopy.draftingNote);
+    expect(screen.getByText(campaignsCopy.draftsNothingSent)).toBeDefined();
+    expect(screen.getAllByTestId("draft-chip").map((chip) => chip.textContent).sort()).toEqual([campaignsCopy.draftChip.to_review, campaignsCopy.draftChip.writing].sort());
+    // Pressed once per version: no second Write emails, and no "later" placeholder.
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionWriteEmailsLive })).toBeNull();
+    expect(screen.queryByTestId("outreach-next")).toBeNull();
   });
 });

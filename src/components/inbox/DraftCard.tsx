@@ -62,15 +62,39 @@ export function DraftCard({
         date={item.opener.date}
       />
 
+      {/* Rubric row 3: a real draft on the role problem says there was no usable fact about the person or firm. */}
+      {item.envelope !== undefined && item.opener.kind === "role_pain" ? (
+        <p data-testid="no-person-fact" className="type-small -mt-2 mb-2 text-muted">
+          {inboxCopy.noPersonFact}
+        </p>
+      ) : null}
+
+      {item.campaignName === undefined ? null : (
+        <p data-testid="draft-campaign" className="type-small mb-2 text-muted">
+          {inboxCopy.fromCampaign} {item.campaignName}
+        </p>
+      )}
+
       {item.needsYou === null ? null : (
         <p data-testid="needs-you-reason" className="mb-3 text-13 text-warn">
           {inboxCopy.needsYouLead}
           {inboxCopy.join}
-          {inboxCopy.needsYouReason[item.needsYou]}. {inboxCopy.needsYouCard}
+          {inboxCopy.needsYouReason[item.needsYou]}. {item.written === false ? inboxCopy.notWrittenCard : inboxCopy.needsYouCard}
         </p>
       )}
 
-      {draft.kind === "message" ? (
+      {item.findings === undefined || item.findings.length === 0 ? null : (
+        <div data-testid="draft-findings" className="mb-3 rounded-input bg-warn-bg px-3 py-2">
+          <p className="type-label text-warn">{inboxCopy.findingsLead}</p>
+          <ul className="type-small list-disc pl-4 text-warn">
+            {item.findings.map((finding) => (
+              <li key={finding}>{finding}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {item.written === false ? null : draft.kind === "message" ? (
         <>
           {draft.subject === undefined ? null : (
             <p className="mb-1.5 text-15 font-semibold text-ink">{draft.subject}</p>
@@ -90,11 +114,14 @@ export function DraftCard({
             </>
           ) : (
             <div data-testid="draft-body" className="type-body-large mb-4 max-w-measure">
+              {/* Relay's envelope around the written body (outreach v2.1 §4): the rep sees the email as it would read. */}
+              {item.envelope === undefined ? null : <p data-testid="draft-greeting" className="mb-2">{item.envelope.greeting}</p>}
               {body.split(/\n{2,}/).map((paragraph, index) => (
                 <p key={index} className="mb-2 last:mb-0">
                   {paragraph}
                 </p>
               ))}
+              {item.envelope === undefined || item.envelope.signOff === "" ? null : <p data-testid="draft-signoff" className="mt-2">{item.envelope.signOff}</p>}
             </div>
           )}
         </>
@@ -115,16 +142,20 @@ export function DraftCard({
         <Chip>
           {inboxCopy.fitLabel} {inboxCopy.fit[item.fit]}
         </Chip>
-        <Chip>
-          {inboxCopy.sends} {item.sends.day} {item.sends.time}
-        </Chip>
+        <Chip>{item.sends === null ? inboxCopy.nothingSentYet : `${inboxCopy.sends} ${item.sends.day} ${item.sends.time}`}</Chip>
       </div>
 
+      {item.advice === undefined || item.advice.length === 0 ? null : (
+        <p data-testid="draft-advice" className="type-small mb-3 text-muted">
+          {inboxCopy.adviceLead} {item.advice.join(" ")}
+        </p>
+      )}
+
       <div className="flex items-center gap-2.5">
-        <PillButton onClick={() => onApprove(item.id, edited ? body : undefined)}>
-          {inboxCopy.approve}
-        </PillButton>
-        {draft.kind === "message" ? (
+        {item.written === false ? null : (
+          <PillButton onClick={() => onApprove(item.id, edited ? body : undefined)}>{inboxCopy.approve}</PillButton>
+        )}
+        {draft.kind === "message" && item.written !== false ? (
           <PillButton variant="outline" onClick={() => setEditing((now) => !now)}>
             {editing ? inboxCopy.editDone : inboxCopy.edit}
           </PillButton>

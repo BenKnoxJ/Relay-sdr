@@ -193,7 +193,7 @@ export function OutreachRender({ draft, input }: { draft: MessageDraft; input: O
       note={draftCopy.touchKind[input.touch.kind]}
       opener={opener.item}
       openerProblem={opener.dangling ? draftCopy.openerMissing : undefined}
-      chips={[peopleCopy.status[input.person.status], `${draftCopy.sends} ${dueLabel(input.touch.dueAt)}`]}
+      chips={[`${draftCopy.sends} ${dueLabel(input.touch.dueAt)}`]}
     />
   );
 }

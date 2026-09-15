@@ -38,6 +38,10 @@ const KINDS: Record<string, ActivityEntry["kind"]> = {
   "campaign.reveal_confirmed": "reveal_confirmed",
   "leadgen.revealed": "revealed",
   "campaign.reveal_retried": "reveal_retried",
+  "outreach.requested": "drafts_requested",
+  "outreach.drafted": "drafted",
+  "draft.approved": "draft_approved",
+  "draft.rejected": "draft_rejected",
 };
 
 /** The Event kinds the activity reads. */
@@ -80,6 +84,19 @@ function lineOf(kind: ActivityEntry["kind"], p: Record<string, unknown>): string
       return `${c.activityRevealed} ${num(p.revealed) + num(p.known)} ${c.activityReady}, ${num(p.charged)} ${c.activityCreditsUsed}`;
     case "reveal_retried":
       return c.activityRevealRetried;
+    case "drafts_requested":
+      return `${c.activityDraftsRequested} ${num(p.people)} ${c.activityDraftsToWrite}`;
+    case "drafted": {
+      const who = text(p.person) ?? "";
+      return `${p.state === "needs_you" ? c.activityDraftedNeedsYou : p.state === "failed" ? c.activityDraftedFailed : c.activityDrafted} ${who}`.trim();
+    }
+    case "draft_approved":
+      return `${c.activityDraftApproved} ${text(p.person) ?? ""}${p.edited === true ? ` ${c.activityDraftApprovedEdited}` : ""}`.trim();
+    case "draft_rejected": {
+      const reason = text(p.reason);
+      const words = reason !== null && reason in c.activityDraftReasons ? c.activityDraftReasons[reason as keyof typeof c.activityDraftReasons] : null;
+      return `${c.activityDraftRejected} ${text(p.person) ?? ""}${words === null ? "" : ` (${words})`}`.trim();
+    }
   }
 }
 

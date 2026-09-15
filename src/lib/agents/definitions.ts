@@ -160,12 +160,14 @@ const SPECS = {
   outreach: {
     input: outreachInputSchema,
     output: outreachOutputSchema,
-    // §4, the lookup: two searches, two fetches, replay keys on both.
-    tools: ["search", "fetch"],
-    // §0 is one model call per draft; §7 allows at most two Tier A redrafts
-    // before the draft parks as `needs_you`, so three calls is the ceiling a
-    // single draft job can reach. §4's ninety seconds is the lookup's budget.
-    budget: { maxModelSteps: 3, maxSearches: 2, maxFetches: 2, maxSeconds: 90 },
+    // §4 is a tool step *before* the model, run by code (`src/lib/outreach/lookup.ts`,
+    // at most two searches and two fetches, v2.1 §3), so the model is given no tools.
+    tools: [],
+    // One run is one generation (§0). The draft job runs at most two of them,
+    // the first and one corrective redraft (v2.1 §6). The second step is
+    // headroom for a transport that returns the structured answer on a second
+    // turn; a run that needs more fails at the cap rather than spending on.
+    budget: { maxModelSteps: 2, maxSearches: 0, maxFetches: 0, maxSeconds: 120 },
     hasPrompt: true,
     model: "claude-sonnet-5",
     effort: "high",

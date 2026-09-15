@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DraftCard } from "@/components/inbox/DraftCard";
 import { Inbox } from "@/components/inbox/Inbox";
 import { REJECT_REASONS, inboxCopy } from "@/lib/copy/inbox";
-import { listQueue, openers, resetQueue, type DraftItem } from "@/lib/fixtures/inbox";
+import { listQueue, openers, resetQueue, type DraftItem, type InboxActions, type Queue } from "@/lib/fixtures/inbox";
 
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
 
@@ -201,7 +201,8 @@ describe("schema identity", () => {
 
     if (parsed.kind !== "message") throw new Error("the good fixture is a message");
     expect(screen.getByText(parsed.subject as string)).toBeDefined();
-    expect(screen.getByTestId("draft-body").textContent).toBe(parsed.body);
+    // One paragraph per block, as the email reads (v2.1 §4: paragraphs of at most three sentences).
+    expect(screen.getByTestId("draft-body").textContent).toBe(parsed.body.replace(/\n{2,}/g, ""));
   });
 
   it("refuses a draft with no opener reference, rather than hiding the evidence line", () => {
@@ -254,5 +255,84 @@ describe("schema identity", () => {
     expect(within(point).getByText(hannah.draft.talkingPoint.listenFor)).toBeDefined();
     // Nothing to edit inline on a talking point.
     expect(screen.queryByRole("button", { name: inboxCopy.edit })).toBeNull();
+  });
+});
+
+describe("a real first email (outreach v2.1)", () => {
+  const real = (over: Partial<DraftItem> = {}): DraftItem => ({
+    kind: "draft",
+    id: "draft-1",
+    person: { name: "Nell Price", title: "Head of Claims", company: "Bramble Insurance", email: "nell@bramble.example" },
+    ordinal: 1,
+    total: 1,
+    draft: {
+      kind: "message",
+      subject: "Complaints and the calls behind them",
+      body: "Complaints tend to arrive long after the call that caused them.\n\nMeanwhile the same habit repeats on dozens of other calls. Reading all of them would show which conversations to coach first. Would that be useful for your team?",
+      ask: "Would that be useful for your team?",
+      opener: { ref: "role-signs", kind: "role_pain" },
+      claims: [],
+    },
+    opener: { id: "role-signs", kind: "role_pain", text: "Owns the published numbers and signs off the spend.", source: "The campaign plan", date: "" },
+    emailFound: true,
+    fit: "strong",
+    sends: null,
+    needsYou: null,
+    findings: [],
+    advice: ["Subjects work best at 2 to 6 plain words."],
+    envelope: { greeting: "Hi Nell,", signOff: "Sam" },
+    campaignName: "Claims people",
+    written: true,
+    ...over,
+  });
+
+  it("draws Relay's greeting and sign-off around the body, the campaign, the advice, and says nothing is sent", () => {
+    render(<DraftCard item={real()} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("draft-greeting").textContent).toBe("Hi Nell,");
+    expect(screen.getByTestId("draft-signoff").textContent).toBe("Sam");
+    expect(screen.getByTestId("draft-campaign").textContent).toContain("Claims people");
+    expect(screen.getByTestId("draft-advice").textContent).toContain("Subjects work best at 2 to 6 plain words.");
+    expect(screen.getByText(inboxCopy.nothingSentYet)).toBeDefined();
+    expect(screen.queryByText(new RegExp(`^${inboxCopy.sends} `))).toBeNull();
+    expect(screen.getByRole("button", { name: inboxCopy.approve })).toBeDefined();
+  });
+
+  it("shows what the checks found on a draft that needs the rep", () => {
+    render(<DraftCard item={real({ needsYou: "checks", findings: ["It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead."] })} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("draft-findings").textContent).toContain("It asks for a time");
+  });
+
+  it("offers nothing to approve when no draft could be written", () => {
+    render(<DraftCard item={real({ needsYou: "not_written", written: false })} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("needs-you-reason").textContent).toContain(inboxCopy.notWrittenCard);
+    expect(screen.queryByRole("button", { name: inboxCopy.approve })).toBeNull();
+    expect(screen.queryByRole("button", { name: inboxCopy.edit })).toBeNull();
+  });
+
+  it("@proof approves through the server and says Ready to send, nothing sent", async () => {
+    const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
+    const approve = vi.fn<InboxActions["approve"]>(async () => empty);
+    const reject = vi.fn<InboxActions["reject"]>(async () => empty);
+    render(<Inbox initial={{ ...empty, items: [real()], counts: { replies: 0, calls: 0, drafts: 1 } }} actions={{ approve, reject }} emptyBody="Nothing waiting." />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    await screen.findByText(new RegExp(inboxCopy.approvedReady.replace(/[.;]/g, ".")));
+    expect(approve).toHaveBeenCalledWith("draft-1", undefined);
+    expect(reject).not.toHaveBeenCalled();
+  });
+});
+
+describe("one decision at a time (outreach v2.1)", () => {
+  it("@proof sends one approval for a double press, and shows it worked", async () => {
+    const item: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: { greeting: "Hi Daniel,", signOff: "" }, written: true };
+    const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
+    let finish: (queue: Queue) => void = () => undefined;
+    const approve = vi.fn<InboxActions["approve"]>(() => new Promise<Queue>((resolve) => (finish = resolve)));
+    render(<Inbox initial={{ ...empty, items: [item], counts: { replies: 0, calls: 0, drafts: 1 } }} actions={{ approve, reject: vi.fn<InboxActions["reject"]>(async () => empty) }} />);
+    const button = screen.getByRole("button", { name: inboxCopy.approve });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(approve).toHaveBeenCalledTimes(1);
+    finish(empty);
+    expect(await screen.findByText(inboxCopy.approvedReady)).toBeDefined();
   });
 });

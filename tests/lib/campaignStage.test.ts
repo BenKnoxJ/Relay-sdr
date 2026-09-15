@@ -23,6 +23,7 @@ const planned = (over: Partial<StageInput> = {}): StageInput => ({
   reveal: null,
   revealPlan: null,
   leadGenAvailable: true,
+  outreach: null,
   ...over,
 });
 const confirmed = (leadGen: StageInput["leadGen"], over: Partial<StageInput> = {}): StageInput => planned({ confirmed: true, leadGen, ...over });

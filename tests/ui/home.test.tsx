@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Home } from "@/components/Home";
 import { HomeDayOne } from "@/components/HomeDayOne";
-import type { CampaignSummary } from "@/lib/campaigns/types";
+import type { CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
 
@@ -260,58 +260,79 @@ describe("Home on day one", () => {
 });
 
 /**
- * Fixtures by hand: a `CampaignSummary` is a plain object, and the stage
- * summary is the part Home reads. Everything else is the same for every row.
+ * Fixtures by hand: a `CampaignSummary` is a plain object, and the backend's
+ * summary facts are the part Home reads. Everything else is the same for
+ * every row.
  */
+const NO_SPEND: CampaignSummaryFacts["spend"] = {
+  search: { cap: null, charged: 0, held: 0 },
+  reveal: { max: null, charged: 0, held: 0 },
+  allVersions: { searchCharged: 0, searchHeld: 0, revealCharged: 0, revealHeld: 0 },
+  research: { usd: null, usdThisVersion: null },
+};
+
 function summary(
   id: string,
   name: string,
-  stage: Partial<CampaignSummary["summary"]> & Pick<CampaignSummary["summary"], "bucket">,
-  rest: Partial<Pick<CampaignSummary, "next" | "nextIsAction" | "motionLine">> = {},
+  facts: Partial<CampaignSummaryFacts> & Pick<CampaignSummaryFacts, "stage">,
+  rest: Partial<Pick<CampaignSummary, "next" | "nextIsAction" | "motionLine" | "chip" | "state">> = {},
 ): CampaignSummary {
   return {
     id,
     name,
     motionLine: rest.motionLine ?? "Direct · call handling · 20 people over 3 weeks · email",
-    state: "researching",
-    chip: campaignsCopy.chipResearching,
+    state: rest.state ?? "researching",
+    chip: rest.chip ?? campaignsCopy.chipResearching,
     contacted: null,
     total: 20,
     next: rest.next ?? campaignsCopy.nextResearching,
     nextIsAction: rest.nextIsAction ?? false,
-    summary: { stage: campaignsCopy.chipResearching, line: null, reason: null, waiting: false, ...stage },
-    createdAt: "2026-09-01T00:00:00.000Z",
+    facts: {
+      id,
+      name,
+      briefVersion: 1,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: "2026-09-01T00:00:00.000Z",
+      inFlight: null,
+      attention: null,
+      nextAction: null,
+      research: null,
+      confirmed: null,
+      people: null,
+      reveal: null,
+      spend: NO_SPEND,
+      ...facts,
+    },
   };
 }
 
 const FAILED = summary(
   "camp-failed",
   "UK logistics ops",
-  { bucket: "needsYou", stage: campaignsCopy.chipNeedsYou, line: campaignsCopy.failedTookTooLong, reason: campaignsCopy.failedTookTooLong },
-  { next: campaignsCopy.nextFailed, nextIsAction: true },
+  { stage: "research_needs_you", attention: { kind: "needs_you", reason: "took_too_long", retryable: true }, nextAction: "retry_research" },
+  { next: campaignsCopy.nextFailed, nextIsAction: true, chip: campaignsCopy.chipNeedsYou, state: "failed" },
 );
 const TO_DECIDE = summary(
   "camp-plan",
   "Care homes in the North West",
-  { bucket: "decide", stage: campaignsCopy.chipPlanReady, line: `4 ${campaignsCopy.summaryPlays}` },
-  { next: campaignsCopy.nextPlanReady, nextIsAction: true },
+  { stage: "plan_ready", research: { outcome: "complete", plays: 4, viablePlays: 4 }, nextAction: "confirm" },
+  { next: campaignsCopy.nextPlanReady, nextIsAction: true, chip: campaignsCopy.chipPlanReady, state: "planReady" },
 );
 const READY = summary(
   "camp-ready",
   "Dental groups",
-  { bucket: "ready", stage: campaignsCopy.chipFindingPeople, line: `9 ${campaignsCopy.summaryEmailsReady}` },
-  { next: campaignsCopy.nextPeopleReady, nextIsAction: false },
+  {
+    stage: "people_ready",
+    people: { accounts: 8, multiRoleAccounts: 1, chosen: 12, pending: 0, kept: 9, dropped: 3 },
+    reveal: { revealed: 8, known: 1, noEmail: 0, suppressed: 0, held: 0, failed: 0, emailsReady: 9 },
+  },
+  { next: campaignsCopy.nextPeopleReady, nextIsAction: false, chip: campaignsCopy.chipPeopleReady, state: "peopleReady" },
 );
-const QUEUED = summary("camp-queued", "Insurers opening claims teams", {
-  bucket: "working",
-  line: campaignsCopy.summaryWaiting,
-  waiting: true,
-});
-const READING = summary("camp-reading", "Housing associations", {
-  bucket: "working",
-  line: campaignsCopy.summaryResearching,
-});
-const DONE = summary("camp-done", "Accountancy firms", { bucket: "done", stage: campaignsCopy.chipDone, line: null });
+const QUEUED = summary("camp-queued", "Insurers opening claims teams", { stage: "researching", inFlight: { kind: "research", status: "queued" } });
+const READING = summary("camp-reading", "Housing associations", { stage: "researching", inFlight: { kind: "research", status: "running" } });
+/** A row with no facts is a sample, and Home does not draw it. */
+const SAMPLE: CampaignSummary = { id: "camp-sample", name: "Accountancy firms", motionLine: "Direct", state: "done", chip: campaignsCopy.chipDone, contacted: 30, total: 30, next: "", nextIsAction: false };
+const DONE = SAMPLE;
 
 describe("Home with campaigns", () => {
   it("greets the rep, and lists what needs them with the one thing to do on each", () => {
@@ -338,6 +359,7 @@ describe("Home with campaigns", () => {
     expect(rows[0]?.textContent).not.toContain(campaignsCopy.nextPrefix);
     // A decision with no reason shows its line instead.
     expect(rows[1]?.textContent).toContain(`4 ${campaignsCopy.summaryPlays}`);
+    expect(rows[2]?.textContent).toContain(`9 ${campaignsCopy.summaryEmailsReady}`);
     expect(rows[1]?.textContent).toContain(campaignsCopy.nextPlanReady);
     // Ready sits with the decisions: outreach is the rep's call.
     expect(rows[2]?.textContent).toContain(campaignsCopy.nextPeopleReady);
@@ -385,7 +407,7 @@ describe("Home with campaigns", () => {
     expect(screen.getByText(homeCopy.connectMailbox)).toBeDefined();
     expect(screen.getByTestId("brief-pill").className).toContain("focus-within:ring-2");
 
-    // Done is a record, and the record lives in Campaigns.
+    // A row without the backend's facts is not Home's to draw.
     expect(screen.queryByText("Accountancy firms")).toBeNull();
     // No analytics: the only numbers are the counts beside the headings.
     expect(screen.getAllByText("1", { selector: ".type-mono" })).toHaveLength(2);

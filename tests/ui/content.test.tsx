@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import ContentPage from "@/app/(app)/content/page";
 import { contentCopy } from "@/lib/copy/content";
-import { emptyCopy } from "@/lib/copy/empty";
 
 /**
  * The areas that have nothing behind them yet. Every one of them is in the

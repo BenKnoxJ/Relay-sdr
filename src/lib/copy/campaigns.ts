@@ -47,8 +47,6 @@ export const campaignsCopy = {
   /** A real plan, before Confirm can be pressed. */
   nextPlanReadyLive: "read the plan",
   nextFailed: "research needs you",
-  /** Research finished without ranking a play: nothing can be confirmed until the brief is edited. */
-  nextPlanIncomplete: "research is incomplete",
   nextFindingPeople: "pick your people",
   nextDrafting: "first drafts on the way",
   nextRunningDrafts: "drafts due today",
@@ -73,7 +71,6 @@ export const campaignsCopy = {
   stepResearching: "Researching",
   stepStopped: "Researching · stopped",
   stepNeedsYou: "Researching · needs you",
-  stepIncomplete: "Research incomplete",
   stepPlanReady: "Plan ready",
   stepFindingPeople: "Finding people",
   stepDrafting: "Drafting",
@@ -96,7 +93,6 @@ export const campaignsCopy = {
   researchingWaiting: "Waiting to start. Relay hasn't begun reading yet.",
   researchingRunning: "Reading around the brief now.",
   researchingUsually: "Usually 20 to 45 minutes.",
-  activitySince: "since",
   /** What research produces, as a plain list under the waiting or running line. */
   researchingProducesLabel: "What Relay is producing",
   researchingProduces: [
@@ -164,7 +160,6 @@ export const campaignsCopy = {
   findingQuality: "Relay stops at good matches rather than fill every slot.",
   findingCap: "Search limit",
   findingNothingBought: "Emails are not bought. Nothing is sent.",
-  chipPlanIncomplete: "Research incomplete",
   chipPeopleFound: "Reviewing people",
   nextFindingPeopleLive: "finding people now",
   nextPeopleFound: "review the accounts found",
@@ -239,9 +234,6 @@ export const campaignsCopy = {
   actionSearchWith: "Search with this",
   actionSearching: "Searching",
   answerWaitingPeopleNeedsYou: "You. The reason is at the top of the page.",
-  answerWaitingIncomplete: "You. Research ran out of time before it ranked a play. Edit the brief and Relay looks again.",
-  answerIncomplete: "Research ran out of time before it ranked a campaign play, so there is nothing to confirm yet.",
-  answerCostResearch: "Research cost",
   answerWaitingPeopleFound: "Nothing yet. Revealing emails comes next.",
   answerWaitingFinding: "Nothing. Relay is finding people.",
   /** Where Confirm plan lands the rep. */
@@ -423,18 +415,23 @@ export const campaignsCopy = {
   playsRank: "Play",
   playsSelected: "Selected",
   playsSelect: "Start with this instead",
-  playsDetail: "why now, who and the problem",
+  playsDetail: "why now, who and when it is the wrong call",
+  playsSituation: "Their situation",
   playsSelectRecommended: "Back to the recommended play",
   playsWhyFirst: "Why this first",
   playsWho: "Who",
   playsPain: "The problem",
   playsFirms: "Example firms",
-  playsChooseLater: "Confirming a play other than the recommended one arrives with the next update. Today Confirm starts with the recommended play.",
-  playsNoPlay: "Research ran out of time before it ranked a campaign play. There is nothing to confirm yet.",
   playsIncompleteLabel: "Research incomplete",
-  playsIncompleteWritten: "written",
-  playsIncompleteMissing: "missing",
-  playsIncompleteNext: "Edit the brief and Relay looks again. Nothing was bought or sent.",
+  planPartialShort: "Research ran out of time before it finished.",
+  playsSearchable: "can be searched",
+  playsNotSearchable: "Can't be searched: research gave no search for this kind of buyer, so it can be read but not confirmed.",
+  playsSelectDisabled: "Can't be searched",
+  /** Revealing emails stopped and needs the rep (product-truth foundation). */
+  revealNeedsYouLabel: "Revealing emails needs you",
+  stepRevealNeedsYou: "Revealing emails · needs you",
+  revealNeedsYouRetry: "Try again puts the same reveal back on the queue. Nothing was bought.",
+  revealNeedsYouNoRetry: "Relay won't try this reveal again on its own, so no credit is spent twice. Edit the brief to start again.",
   /** What Confirm does, in three plain lines. */
   confirmDoesLabel: "What Confirm does",
   confirmDoesFreeze: "Starts with this play and the kind of buyer it aims at.",
@@ -457,6 +454,8 @@ export const campaignsCopy = {
   spendCreditsOf: "of",
   spendCreditsWord: "credits",
   spendNoRecord: "no cost recorded",
+  spendHeldShort: "held",
+  spendEarlierVersions: "Every version of this brief:",
 
   /** The stage summary line under the title, one per state. */
   summaryPeople: "people",

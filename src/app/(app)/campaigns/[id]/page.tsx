@@ -4,7 +4,7 @@ import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { getCampaign } from "@/server/campaigns";
 
-import { chooseIndustry, confirmPlan, retryPeople, retryResearch, revealEmails, reviewPeople, widenResearch } from "./actions";
+import { chooseIndustry, confirmPlan, retryPeople, retryResearch, retryRevealEmails, revealEmails, reviewPeople, widenResearch } from "./actions";
 
 /**
  * One campaign (master doc §23.1c, mock 3b and 3c).
@@ -53,6 +53,7 @@ export default async function CampaignDetailPage({
       onChooseIndustry={chooseIndustry}
       onReview={reviewPeople}
       onReveal={revealEmails}
+      onRetryReveal={retryRevealEmails}
     />
   );
 }

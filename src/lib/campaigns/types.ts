@@ -293,6 +293,12 @@ export type FoundPersonView = {
   role: RolePartView | null;
   /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
   why: string;
+  /**
+   * What Relay actually holds on this person, as short phrases: how the title
+   * matched (exactly, or a close title), that an email is available, that
+   * research named the firm. Read off the stored row; nothing is inferred.
+   */
+  evidence: string[];
   review: ReviewView;
   /** Null until Reveal emails has run for them. */
   reveal: RevealStateView | null;
@@ -357,6 +363,10 @@ export type PeopleFoundView = {
   roles: boolean;
   review: { kept: number; dropped: number; pending: number };
   onHold: number;
+  /** Candidates found that Relay kept in reserve as weaker matches: counted honestly, never listed as people. */
+  spare: number;
+  /** The plan's roles nobody was found for. */
+  rolesMissing: BuyerRoleView[];
   spend: { charged: number; reserved: number; cap: number };
   /**
    * Where the list is: the rep reviewing it, Reveal emails running, or the

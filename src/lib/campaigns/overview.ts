@@ -13,7 +13,7 @@ import {
   verificationQuestions,
 } from "./packSelectors";
 import { cleanContradiction, cleanGap, cleanItem, cleanPhrase, readable } from "./readable";
-import type { CampaignOverview, PlayView } from "./types";
+import type { CampaignOverview } from "./types";
 
 /**
  * The campaign Overview: research's own findings, read into the six parts a
@@ -31,45 +31,6 @@ const BIGGEST_UNKNOWN = 3;
 
 /** How many first-call questions lead Check first. */
 const FIRST_QUESTIONS = 3;
-
-/**
- * Every campaign play research wrote (m16), in rank order, each read with the
- * kind of buyer it aims at (m03), that group's first pain (m05) and the firms
- * research named for it (m04). The rank-1 play is the one Relay recommends.
- * Nothing is reworded; a play whose group is not in the pack is left out, as
- * `topCandidate` leaves it out.
- */
-export function playsOf(pack: PackShape): PlayView[] {
-  const top = topCandidate(pack);
-  const groups = completeModule(pack, "m03")?.archetypes ?? [];
-  const firmsByGroup = new Map(seedFirmsByGroup(pack).map((entry) => [entry.archetypeId, entry.firms.map((firm) => firm.name)]));
-  return (completeModule(pack, "m16")?.candidates ?? [])
-    .slice()
-    .sort((a, b) => a.rank - b.rank)
-    .flatMap((candidate) => {
-      const group = groups.find((entry) => entry.id === candidate.archetypeId);
-      if (group === undefined) return [];
-      const pain = completeModule(pack, "m05")?.perArchetype.find((entry) => entry.archetypeId === group.id)?.pains[0];
-      return [
-        {
-          id: candidate.id,
-          rank: candidate.rank,
-          groupId: group.id,
-          groupName: group.name,
-          situation: readable(group.situation),
-          sizeRange: group.sizeRange,
-          roles: group.roles.map((role) => ({ part: role.part, title: role.title })),
-          angle: readable(leadAngle(pack, candidate)),
-          whyNow: readable(candidate.whyNow),
-          wrongIf: readable(candidate.wrongIf),
-          channels: [...candidate.channelFit],
-          pain: pain === undefined ? null : cleanItem(pain),
-          firms: firmsByGroup.get(group.id) ?? [],
-          recommended: candidate.id === top?.id,
-        },
-      ];
-    });
-}
 
 export function overviewOf(pack: PackShape): CampaignOverview {
   const summary = completeModule(pack, "repSummary");
@@ -98,7 +59,6 @@ export function overviewOf(pack: PackShape): CampaignOverview {
         ? null
         : { groupName: topName, angle: readable(leadAngle(pack, top)), whyNow: readable(top.whyNow), wrongIf: readable(top.wrongIf), channels: [...top.channelFit] },
     groups,
-    plays: playsOf(pack),
     pain:
       topName === undefined || pains.length === 0
         ? null

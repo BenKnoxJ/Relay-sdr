@@ -11,6 +11,11 @@ import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, Reve
  * Reviewing people, accounts first (lead gen v2.2 §9a), from the stored
  * candidates and nothing else.
  *
+ * Accounts that still need the rep come first: any pending person, then
+ * accounts with somebody kept, then accounts wholly dropped. Inside each
+ * group they keep Relay's order (their first person's rank), so review order
+ * never changes who was chosen or how they rank.
+ *
  * An account is its people's `companyKey`: the domain, else the provider's
  * company id, else the name. There is no account record. Accounts come in
  * the order Relay chose them (their first person's rank) and people by rank
@@ -113,7 +118,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
   for (const row of [...rows].filter((row) => row.status === "chosen" && (!keptOnly || row.review === "kept")).sort((a, b) => a.rank - b.rank)) {
     byKey.set(row.companyKey, [...(byKey.get(row.companyKey) ?? []), row]);
   }
-  return [...byKey.values()].map((members) => {
+  const accounts = [...byKey.values()].map((members) => {
     const first = previewOf(members[0]!.preview);
     const people: FoundPersonView[] = members.map((row) => {
       const preview = previewOf(row.preview);
@@ -144,6 +149,9 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
       evidence: seed ? campaignsCopy.accountFitSeed : null,
     };
   });
+  // Stable: within a group, Relay's own order stands.
+  const needsReview = (account: AccountView) => (account.people.some((person) => person.review === "pending") ? 0 : account.people.some((person) => person.review === "kept") ? 1 : 2);
+  return accounts.map((account, order) => ({ account, order })).sort((a, b) => needsReview(a.account) - needsReview(b.account) || a.order - b.order).map(({ account }) => account);
 }
 
 /** The chosen people's review, counted. */

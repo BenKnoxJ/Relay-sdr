@@ -182,8 +182,11 @@ describe("campaigns.get and campaigns.list", () => {
 
     const campaign = await caller(rep()).campaigns.get({ id });
     expect(campaign.state).toBe("planReady");
-    expect(campaign.pack?.archetypes.length).toBe(3);
-    expect(campaign.pack?.partial).toBe(false);
+    // A plan is read through its overview and plays; the pack itself is not sent (convergence audit slice 1).
+    expect(campaign.pack).toBeNull();
+    expect(campaign.overview?.groups).toHaveLength(3);
+    expect(campaign.overview?.partial).toEqual([]);
+    expect(campaign.plays).toHaveLength(3);
     expect(campaign.next).toBe(campaignsCopy.nextPlanReadyLive);
   });
 
@@ -193,8 +196,8 @@ describe("campaigns.get and campaigns.list", () => {
 
     const campaign = await caller(rep()).campaigns.get({ id });
     expect(campaign.state).toBe("planReady");
-    expect(campaign.pack?.partial).toBe(true);
-    expect(campaign.pack?.missingModules.length).toBeGreaterThan(0);
+    expect(campaign.pack).toBeNull();
+    expect(campaign.overview?.partial.length).toBeGreaterThan(0);
   });
 
   it("needs the rep, not Plan ready, when a partial pack ranked no play that can be searched", async () => {

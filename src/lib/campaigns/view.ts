@@ -6,6 +6,7 @@ import type { CampaignRecord } from "@/lib/repo/campaigns";
 
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, searchLine } from "./accounts";
+import type { FindingView } from "./types";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
@@ -265,7 +266,9 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     total: brief.howMany,
     facts,
     brief,
-    pack: research.state === "planReady" || research.state === "stopped" ? research.pack : null,
+    // The research pack leaves the server only for a stop, which draws what it found and the ways to widen.
+    // A plan is read through `overview` and `plays`; the whole pack is on the research page.
+    pack: research.state === "stopped" ? research.pack : null,
     overview: research.state === "planReady" ? research.overview : null,
     plan: null,
     progress: counts.progress,
@@ -293,6 +296,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     spentAtThisVersion: spend !== null && spend.charged + spend.reserved > 0,
     plays: pack === null || pack.insufficient !== undefined ? null : playsOf(pack),
     spend: facts.spend,
+    finding: findingOf(derived.stage, handoff, leadGen?.job ?? null, facts.spend),
   };
 }
 
@@ -334,6 +338,19 @@ export function widenChoices(brief: ResearchBrief, options: readonly unknown[]):
     becomes: widened.ok ? becomesLine(option.dimension, before, briefFieldsFrom(widened.brief)) : null,
     usable: widened.ok,
   }));
+}
+
+/** Finding people while it runs, from the frozen handoff and the ledger; null in every other stage. */
+function findingOf(stage: string, handoff: ReturnType<typeof leadGenHandoffSchema.parse> | null, job: { createdAt?: Date } | null, spend: CampaignSummaryFacts["spend"]): FindingView | null {
+  if (stage !== "finding_people" || handoff === null || job === null) return null;
+  return {
+    groupName: handoff.buyerGroup.name,
+    search: searchLine(handoff, null),
+    buyerRoles: buyerRolesOf(handoff),
+    seedFirms: handoff.seedFirms.length,
+    since: job.createdAt instanceof Date ? job.createdAt.toISOString() : null,
+    credits: { cap: handoff.spend.searchCreditCap, charged: spend.search.charged, held: spend.search.held },
+  };
 }
 
 export function toSummary(campaign: Campaign): CampaignSummary {

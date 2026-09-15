@@ -56,7 +56,12 @@ export function Nav({
   const pathname = usePathname();
 
   return (
-    <nav className="mb-card flex items-center gap-card rounded-pill border border-line bg-panel py-2.5 pl-card-rail pr-4 text-14 font-medium shadow-nav">
+    /*
+      One row from `sm` up. On a phone the same items wrap onto a second row
+      inside a rounded card rather than running off the screen; nothing is
+      hidden, reordered or put behind a menu.
+    */
+    <nav className="mb-card flex flex-wrap items-center gap-x-3.5 gap-y-3 rounded-card border border-line bg-panel py-2.5 pl-4 pr-4 text-14 font-medium shadow-nav sm:flex-nowrap sm:gap-card sm:rounded-pill sm:pl-card-rail">
       <span className="mr-2 flex items-center gap-2 text-16 font-bold">
         {/*
           The one sanctioned use of the gradient (signed tokens §1: "the

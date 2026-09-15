@@ -453,6 +453,10 @@ describe("Reveal emails (lead gen v2.1 §6, v2.2 §9a)", () => {
     expect(screen.getByTestId("reveal-spend").textContent).toBe(`${campaignsCopy.revealUsed} 1 ${campaignsCopy.revealUsedOf} 2 ${campaignsCopy.spendCredits}`);
     expect(screen.getByTestId("not-kept").textContent).toBe(`6 ${campaignsCopy.accountPeople} ${campaignsCopy.notKept}`);
     expect(screen.getAllByTestId("person-email").map((email) => email.textContent)).toEqual(["person1@firm1.example", "person2@firm2.example"]);
+    // A narrow screen may break an address at the @ and nowhere else, and one press selects all of it.
+    const email = screen.getAllByTestId("person-email")[0]!;
+    expect(email.innerHTML).toBe("person1<wbr>@firm1.example");
+    expect(email.className).toMatch(/\bselect-all\b/);
     // An opted-out person's address is never shown, even though Relay holds it.
     expect(document.body.textContent).not.toContain("hidden@firm4.example");
     expect(screen.getAllByTestId("reveal-chip").map((chip) => chip.textContent)).toEqual([

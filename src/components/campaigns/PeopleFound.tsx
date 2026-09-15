@@ -68,8 +68,10 @@ function Person({ person, roles, reviewing, busy, press }: { person: FoundPerson
           {person.name} · {person.title}
         </b>
         {person.email === null ? null : (
-          <span data-testid="person-email" className="type-mono block text-13 text-action">
-            {person.email}
+          // A narrow screen breaks a long address at the @ first, never mid-name; one press selects all of it to copy.
+          <span data-testid="person-email" className="type-mono block select-all text-13 text-action">
+            {person.email.split("@")[0]}
+            <wbr />@{person.email.split("@").slice(1).join("@")}
           </span>
         )}
         {person.city === null ? null : <span className="type-small block text-muted">{person.city}</span>}

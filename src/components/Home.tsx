@@ -29,7 +29,7 @@ import { PageHeader } from "./PageHeader";
  */
 
 const ROW =
-  "flex flex-wrap items-center gap-3 border-t border-line py-row-y first:border-t-0 transition-colors duration-micro ease-standard hover:bg-soft focus-visible:outline-none focus-visible:ring-2";
+  "flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line py-row-y first:border-t-0 transition-colors duration-micro ease-standard hover:bg-soft focus-visible:outline-none focus-visible:ring-2";
 
 function Count({ n }: { n: number }) {
   return <span className="type-mono text-13 text-muted">{n}</span>;
@@ -41,7 +41,7 @@ function NeedsYouRow({ campaign }: { campaign: CampaignSummary }) {
     <Link href={`/campaigns/${campaign.id}`} data-testid="home-needs-you-row" className={ROW}>
       <span className="min-w-0 flex-1">
         <span className="type-name block">{campaign.name}</span>
-        <span className="type-small block truncate text-muted">{campaign.summary.reason ?? campaign.summary.line}</span>
+        <span className="type-small block text-muted sm:truncate">{campaign.summary.reason ?? campaign.summary.line}</span>
       </span>
       <span className="type-small text-action">{campaign.next}</span>
     </Link>
@@ -54,7 +54,7 @@ function WorkingRow({ campaign }: { campaign: CampaignSummary }) {
     <Link href={`/campaigns/${campaign.id}`} data-testid="home-working-row" className={ROW}>
       <span className="min-w-0 flex-1">
         <span className="type-name block">{campaign.name}</span>
-        <span className="type-small block truncate text-muted">{campaign.summary.line ?? campaign.motionLine}</span>
+        <span className="type-small block text-muted sm:truncate">{campaign.summary.line ?? campaign.motionLine}</span>
       </span>
       {/* A queued job is waiting, and the chip says so: never "Researching" for a job nothing has picked up. */}
       {campaign.summary.waiting ? (
@@ -89,7 +89,7 @@ export function Home({
       <PageHeader title={`${homeCopy.welcome}, ${firstName}`} note={today} />
 
       {/* One column, centred. 880px is the widest a single list column reads well at; not a signed number. */}
-      <div data-testid="home-blocks" className="mx-auto grid w-full min-w-0 max-w-[880px] gap-grid">
+      <div data-testid="home-blocks" className="mx-auto grid w-full min-w-0 max-w-[880px] grid-cols-[minmax(0,1fr)] gap-grid">
         <Card label={homeCopy.needsYouLabel} aside={<Count n={needsYou.length} />}>
           {needsYou.length === 0 ? (
             <p className="type-small text-muted">{homeCopy.needsYouEmpty}</p>

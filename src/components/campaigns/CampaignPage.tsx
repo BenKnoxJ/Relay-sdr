@@ -11,7 +11,6 @@ import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/ca
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { timeLabel } from "@/lib/shell";
-import { cn } from "@/lib/utils";
 
 import { BriefCard } from "./BriefCard";
 import { PeopleFound } from "./PeopleFound";
@@ -297,7 +296,7 @@ export function CampaignPage({
         </p>
       )}
 
-      <div className={cn("grid items-start gap-grid", "wide:grid-cols-campaign")}>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-campaign">
         <div className="grid min-w-0 content-start gap-grid">{main}</div>
         <SupportRail
           overview={campaign.overview}

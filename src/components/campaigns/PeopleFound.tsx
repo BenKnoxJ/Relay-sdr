@@ -222,7 +222,7 @@ function RevealSummary({ view }: { view: PeopleFoundView }) {
   const without = result.tally.no_email + result.tally.suppressed + result.tally.held;
   return (
     <div className="mt-1.5 grid gap-1">
-      {result.running ? null : (
+      {result.running || result.stopped ? null : (
         <p data-testid="ready-counts" className="type-name">
           {ready} {c.readyEmails}
           {without > 0 ? ` · ${without} ${c.readyWithout}` : ""}

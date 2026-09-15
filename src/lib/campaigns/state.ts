@@ -40,7 +40,16 @@ export type CampaignStep = (typeof CAMPAIGN_STEPS)[number];
  * with a reason for the rep (lead gen v2.1 §11). None adds a step to the
  * line; each marks one.
  */
-export type CampaignState = CampaignStep | "stopped" | "failed" | "paused" | "peopleFound" | "peopleNeedsYou" | "revealing" | "peopleReady";
+export type CampaignState =
+  | CampaignStep
+  | "stopped"
+  | "failed"
+  | "paused"
+  | "planIncomplete"
+  | "peopleFound"
+  | "peopleNeedsYou"
+  | "revealing"
+  | "peopleReady";
 
 /** The chip's one word. Total over the states, so a new one cannot fall through. */
 export function chipFor(state: CampaignState): string {
@@ -50,6 +59,7 @@ export function chipFor(state: CampaignState): string {
     stopped: campaignsCopy.chipStopped,
     failed: campaignsCopy.chipNeedsYou,
     planReady: campaignsCopy.chipPlanReady,
+    planIncomplete: campaignsCopy.chipNeedsYou,
     findingPeople: campaignsCopy.chipFindingPeople,
     peopleFound: campaignsCopy.chipPeopleFound,
     peopleNeedsYou: campaignsCopy.chipNeedsYou,
@@ -65,7 +75,7 @@ export function chipFor(state: CampaignState): string {
 
 /** Where on the seven-step line a state sits. `stopped` and `failed` mark Researching. */
 export function stepIndexFor(state: CampaignState): number {
-  if (state === "stopped" || state === "failed") return CAMPAIGN_STEPS.indexOf("researching");
+  if (state === "stopped" || state === "failed" || state === "planIncomplete") return CAMPAIGN_STEPS.indexOf("researching");
   if (state === "paused") return CAMPAIGN_STEPS.indexOf("running");
   if (state === "peopleFound" || state === "peopleNeedsYou" || state === "revealing" || state === "peopleReady") return CAMPAIGN_STEPS.indexOf("findingPeople");
   return CAMPAIGN_STEPS.indexOf(state);
@@ -148,7 +158,14 @@ export type CampaignCounts = {
   retryable?: boolean;
   /** Why finding people needs the rep, in words (lead gen v2.1 §11). */
   peopleReason?: string;
+  /** Research's own cost in dollars, when its run left a record. */
+  researchUsd?: number | null;
 };
+
+/** Dollars as a rep reads them: "$16.03". */
+export function usd(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
 
 /** The line that says why research did not finish (orchestrator §7, amended A1). */
 export function failureLine(failure: ResearchFailure | null | undefined): string {
@@ -184,8 +201,10 @@ export function nextFor(
       return { next: campaignsCopy.nextStopped, nextIsAction: true };
     case "planReady":
       return live
-        ? { next: campaignsCopy.nextPlanReadyLive, nextIsAction: false }
+        ? { next: campaignsCopy.nextPlanReadyLive, nextIsAction: true }
         : { next: campaignsCopy.nextPlanReady, nextIsAction: true };
+    case "planIncomplete":
+      return { next: campaignsCopy.nextPlanIncomplete, nextIsAction: true };
     case "findingPeople":
       return { next: live ? campaignsCopy.nextFindingPeopleLive : campaignsCopy.nextFindingPeople, nextIsAction: false };
     case "peopleFound":
@@ -256,6 +275,8 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
         ? live
           ? c.answerWaitingPlanLive
           : c.answerWaitingConfirm
+        : state === "planIncomplete"
+          ? c.answerWaitingIncomplete
         : state === "stopped"
           ? c.answerWaitingWiden
           : counts.draftsDueToday > 0 && state !== "paused"
@@ -272,12 +293,14 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
       ? c.answerBatchNone
       : `${c.answerBatchLead} ${counts.nextBatch.day} ${c.answerBatchAt} ${counts.nextBatch.time}.`;
 
-  const cost =
+  const research = counts.researchUsd === undefined || counts.researchUsd === null ? null : `${c.answerCostResearch} ${usd(counts.researchUsd)}.`;
+  const credits =
     counts.credits === null
       ? c.answerCostNoCredits
       : counts.credits.used === 0
         ? c.answerCostNothing
         : `${counts.credits.used} ${c.answerCostUsed} ${counts.credits.left} ${c.answerCostLeft}`;
+  const cost = research === null ? credits : `${research} ${credits}`;
 
   const why =
     state === "paused"
@@ -288,7 +311,9 @@ export function answersFor(state: CampaignState, counts: CampaignCounts): AskAns
           ? failureLine(counts.failure)
           : state === "peopleNeedsYou"
             ? (counts.peopleReason ?? c.haltFailed)
-            : c.answerStoppedNone;
+            : state === "planIncomplete"
+              ? c.answerIncomplete
+              : c.answerStoppedNone;
 
   return [
     { id: "how-going", question: c.askHowGoing, answer: going },

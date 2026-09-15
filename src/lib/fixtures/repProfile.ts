@@ -4,11 +4,11 @@ import { z } from "zod";
  * The rep's own profile behind Settings (master doc §23.1f), until there is a
  * row to read it from.
  *
- * **This module is the seam.** The three cards (LinkedIn, Your voice, Calls)
- * call `getProfile`, `saveProfile`, `addSample` and `removeSample` and know
- * nothing else; every component takes what those return as props or state.
- * When Lane A lands the rows and a router, a tRPC-backed implementation of
- * these four signatures replaces this file and no component changes.
+ * **This module is the seam.** The cards (LinkedIn, Your voice, Calls) call
+ * `getProfile`, `saveProfile`, `addSample` and `removeSample` and know nothing
+ * else; every component takes what those return as props or state. When Lane
+ * A lands the rows and a router, a tRPC-backed implementation of these four
+ * signatures replaces this file and no component changes.
  *
  * The schema it will need, verbatim for the STATUS.md asks: RepProfile per
  * user: linkedin_url, voice_note (text), call_by_default (bool), plus
@@ -18,6 +18,13 @@ import { z } from "zod";
  * is an example, never a message. Nothing is spent: no model reads it here.
  * Nothing is written: the state lives in this module for as long as the page
  * is loaded, and a reload starts again from the fixture.
+ *
+ * The fixture is EMPTY on purpose. It used to carry a profile link, seven
+ * pasted emails and a "how I write" note for one particular rep, and every
+ * rep who opened Settings read them as their own. Until a row exists, the
+ * honest starting point is nothing: an empty link field, no emails, an empty
+ * note. `callByDefault` keeps its default because Start reads nothing from it
+ * yet and the Calls card is not on the page.
  *
  * The state is held as one frozen object and never mutated in place, so every
  * function hands back a fresh `RepProfile` a component can set as state.
@@ -62,110 +69,13 @@ export const repProfileSchema = z.object({
   callByDefault: z.boolean(),
 });
 
-/** A sample, sized to the mock's rows: a subject line, then a body of about the word count the mock shows. */
-function sample(id: string, addedAt: string, subject: string, body: string): VoiceSample {
-  return { id, addedAt, text: `${subject}\n\n${body}` };
-}
-
 // ── The fixture ──────────────────────────────────────────────────────────────
 
-/**
- * Seven emails, as the mock's "7 emails" and its three rows plus "4 more".
- * The first three carry the mock's subject lines; the rest are the kind of
- * email a rep is proud of. Names and companies are invented.
- */
-const SAMPLES: VoiceSample[] = [
-  sample(
-    "voice-depot-phones",
-    "2026-08-14",
-    "Re: Depot phones after the Leeds opening",
-    [
-      "Morning Sarah,",
-      "Thanks for the tour on Tuesday. The bit that stuck with me was the night desk: two people, four lines, and the overflow going to whoever is nearest the phone.",
-      "We looked at this for a firm about your size last year. The short version is that the calls nobody reached were about a fifth of the total, and most of them were bookings.",
-      "Would it be useful if I sent over what they did about it? It is two pages, no slides.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-night-line",
-    "2026-08-20",
-    "Quick one on the night line",
-    [
-      "Hi Tom,",
-      "One question, then I will leave you alone: who takes the calls between six and eight, when the day team has gone and the night team has not started?",
-      "If the answer is nobody in particular, I have something worth ten minutes.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-following-up",
-    "2026-08-26",
-    "Following up from Tuesday",
-    [
-      "Hi Priya,",
-      "You asked on Tuesday how the reporting handles a driver who calls in from the road rather than the depot. I checked, and the answer is that it does not care where the call came from; it cares who answered and how long it took.",
-      "I have put a two-minute recording together showing exactly that. No need to book anything, just watch it when you have a gap.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-sunday-service",
-    "2026-08-28",
-    "Re: Sunday service and the phones",
-    [
-      "Hi Dan,",
-      "Saw the Sunday service went live this month. Congratulations, that is not a small thing to stand up.",
-      "Seven days of phones is a different problem from five. Is the weekend cover the same team, or a rota?",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-not-now",
-    "2026-09-01",
-    "Re: not the right time",
-    [
-      "Hi Claire,",
-      "Understood, and thanks for saying so rather than going quiet. I will come back in the new year and not before.",
-      "If the November peak turns out worse than last year, my number is below.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-second-depot",
-    "2026-09-03",
-    "Your second depot",
-    [
-      "Hi Mark,",
-      "Two depots usually means two phone systems, two sets of numbers and one very tired ops manager. Is that where you are?",
-      "If so, I can show you how Ridgeway put both sites on one desk. Twenty minutes, your choice of day.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-  sample(
-    "voice-after-the-call",
-    "2026-09-05",
-    "After the call this morning",
-    [
-      "Hi Hannah,",
-      "Good to talk. Two things I said I would send: the pricing page, and the name of the person at Kestrel who ran their rollout. Both below.",
-      "You asked whether the reporting works without the headsets. It does.",
-      "Ben",
-    ].join("\n\n"),
-  ),
-];
-
-/** The profile as the fixture starts it: the mock's section 5, Ben's. */
+/** The profile as the fixture starts it: nobody's, and empty. */
 export const FIXTURE_PROFILE: RepProfile = repProfileSchema.parse({
-  linkedinUrl: "https://www.linkedin.com/in/benknoxjohnston",
-  voiceSamples: SAMPLES,
-  voiceNote: [
-    "Short. One question per email.",
-    'I never say "reach out" or "circle back".',
-    "First names from the first line.",
-    "British spelling.",
-    'I sign off "Ben", no title.',
-  ].join("\n"),
+  linkedinUrl: null,
+  voiceSamples: [],
+  voiceNote: "",
   callByDefault: true,
 });
 

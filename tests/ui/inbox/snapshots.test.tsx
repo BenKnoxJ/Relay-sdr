@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { Inbox } from "@/components/inbox/Inbox";
-import { listQueue, resetQueue } from "@/lib/fixtures/inbox";
+import { resetQueue } from "@/lib/fixtures/inbox";
 
 /**
  * One snapshot per signed Inbox state, in both themes: 2a draft selected, 2b
@@ -33,8 +33,7 @@ const STATES = {
     fireEvent.click(screen.getAllByTestId("queue-row")[2] as HTMLElement);
   },
   empty: () => {
-    const { nextDrafts } = listQueue();
-    render(<Inbox initial={{ items: [], counts: { replies: 0, calls: 0, drafts: 0 }, nextDrafts }} />);
+    render(<Inbox initial={{ items: [], counts: { replies: 0, calls: 0, drafts: 0 } }} />);
   },
 };
 

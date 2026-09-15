@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 
 import type { Campaign, CampaignResearchPage, CampaignSummary } from "@/lib/campaigns/types";
+import type { ListCounts } from "@/lib/campaigns/view";
 import { serverCaller } from "@/server/api/caller";
 
 /**
@@ -11,7 +12,7 @@ import { serverCaller } from "@/server/api/caller";
  * component learns where a campaign comes from.
  */
 
-export async function listCampaigns(): Promise<{ campaigns: CampaignSummary[]; counts: { running: number; done: number } }> {
+export async function listCampaigns(): Promise<{ campaigns: CampaignSummary[]; counts: ListCounts }> {
   return (await serverCaller()).campaigns.list();
 }
 

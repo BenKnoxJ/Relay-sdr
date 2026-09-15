@@ -3,10 +3,12 @@ import { z } from "zod";
 import { itemSchema, planCardsSchema, type PlanCards } from "../../../agents/research/output.schema";
 import samplePack from "./research-plan.json";
 
-import { answersFor, chipFor, nextFor, type CampaignState } from "@/lib/campaigns/state";
+import { answersFor, chipFor, nextFor } from "@/lib/campaigns/state";
+import { stageSummaryFor } from "@/lib/campaigns/summary";
 import { EMPTY_SCOPE } from "@/lib/campaigns/start";
 import { widenHeadings } from "@/lib/campaigns/briefLines";
 import type { Campaign, CampaignPack, CampaignSummary, WidenChoice } from "@/lib/campaigns/types";
+import { listCounts as countList, type ListCounts } from "@/lib/campaigns/view";
 
 export type { BriefFields, Campaign, CampaignPack, CampaignSummary } from "@/lib/campaigns/types";
 
@@ -132,7 +134,7 @@ function sampleWidenings(): WidenChoice[] {
   return options.map((option, index) => ({ index, dimension: option.dimension, heading: headings[index] ?? "", text: option.text, becomes: null, usable: true }));
 }
 
-type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask">;
+type Row = Omit<Campaign, "chip" | "next" | "nextIsAction" | "ask" | "summary" | "createdAt">;
 
 function complete(row: Row): Campaign {
   return {
@@ -140,11 +142,9 @@ function complete(row: Row): Campaign {
     chip: chipFor(row.state),
     ...nextFor(row.state, row),
     ask: answersFor(row.state, row),
+    summary: stageSummaryFor({ state: row.state, live: false, activity: null, plays: 0, startWith: null, peopleFound: null, failure: null, peopleReason: null, widenings: 0 }),
+    createdAt: "2026-09-01T00:00:00.000Z",
   };
-}
-
-function isRunning(state: CampaignState): boolean {
-  return state !== "done" && state !== "stopped";
 }
 
 const NO_PROGRESS = { found: 0, drafted: 0, approved: 0, sent: 0, replied: 0 };
@@ -337,13 +337,9 @@ export function listCampaigns(): CampaignSummary[] {
   return ROWS.filter((row) => row.inList).map(complete);
 }
 
-/** How the sample list's header counts itself: "2 running · 1 done". */
-export function listCounts(): { running: number; done: number } {
-  const rows = ROWS.filter((row) => row.inList);
-  return {
-    running: rows.filter((row) => isRunning(row.state)).length,
-    done: rows.filter((row) => row.state === "done").length,
-  };
+/** How the sample list's header counts itself, by bucket. */
+export function listCounts(): ListCounts {
+  return countList(listCampaigns());
 }
 
 /** One sample, or null when the id is not one. */

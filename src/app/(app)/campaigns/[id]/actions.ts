@@ -2,7 +2,7 @@
 
 import { TRPCError } from "@trpc/server";
 
-import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
+import type { ChangeTarget, ChooseIndustrySubmission, ConfirmSubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -88,8 +88,20 @@ export async function editBrief(target: ChangeTarget, submission: StartSubmissio
   );
 }
 
-/** Confirm plan: the first spend gate (lead gen v2.1 §6). */
-export async function confirmPlan(submission: RetrySubmission): Promise<StartResult> {
+/**
+ * Confirm plan: the first spend gate (lead gen v2.1 §6).
+ *
+ * The router's confirm takes no play yet: the server starts with research's
+ * rank-1 play. `playId` is accepted here so the page's play choice has one
+ * place to land when the contract carries it; until then the page keeps
+ * Confirm off for any play but the recommended one, and a submission that
+ * still names another play is refused rather than quietly confirmed as
+ * something else.
+ */
+export async function confirmPlan(submission: ConfirmSubmission & { recommendedPlayId?: string | null }): Promise<StartResult> {
+  if (submission.playId !== undefined && submission.playId !== null && submission.recommendedPlayId !== undefined && submission.playId !== submission.recommendedPlayId) {
+    return { error: campaignsCopy.playsChooseLater };
+  }
   return answered(async () =>
     (await serverCaller()).campaigns.confirm({
       campaignId: submission.campaignId,

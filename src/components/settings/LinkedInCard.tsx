@@ -6,6 +6,7 @@ import { Card } from "@/components/Card";
 import { linkedinCopy, settingsCopy } from "@/lib/copy/settings";
 import { getProfile, saveProfile, type RepProfile } from "@/lib/fixtures/repProfile";
 import { checkLinkedinUrl } from "@/lib/settings/validate";
+import { cn } from "@/lib/utils";
 
 import { FIELD, SaveLine } from "./SaveLine";
 
@@ -21,7 +22,12 @@ import { FIELD, SaveLine } from "./SaveLine";
  * typed so they can fix it rather than retype it.
  *
  * `initial` exists so a test can hand in a profile; left out, the adapter's
- * own is used, which is the page's case.
+ * own is used, which is the page's case — and the fixture is empty, so the
+ * page opens on a blank field and its placeholder, never on someone's link.
+ *
+ * The row wraps: below `sm` the field drops under its label at full width
+ * rather than being squeezed beside it, and a long link never pushes the card
+ * wider than the screen.
  */
 export function LinkedInCard({ initial }: { initial?: RepProfile }) {
   const [url, setUrl] = useState(() => (initial ?? getProfile()).linkedinUrl ?? "");
@@ -45,7 +51,7 @@ export function LinkedInCard({ initial }: { initial?: RepProfile }) {
   return (
     <Card label={settingsCopy.linkedin} aside={<SaveLine line={line} />}>
       <div className="grid gap-2">
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <label htmlFor={id} className="type-small w-[136px] shrink-0 text-muted">
             {linkedinCopy.profileLabel}
           </label>
@@ -59,7 +65,7 @@ export function LinkedInCard({ initial }: { initial?: RepProfile }) {
             placeholder={linkedinCopy.placeholder}
             onChange={(event) => setUrl(event.currentTarget.value)}
             onBlur={onBlur}
-            className={FIELD}
+            className={cn(FIELD, "min-w-0 flex-1 basis-40")}
           />
         </div>
         <p className="type-small text-muted">{linkedinCopy.note}</p>

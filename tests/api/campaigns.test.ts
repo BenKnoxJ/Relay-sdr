@@ -172,7 +172,8 @@ describe("campaigns.get and campaigns.list", () => {
 
     const { campaigns, counts } = await caller(rep()).campaigns.list();
     expect(campaigns.map((c) => c.id)).toEqual([second.id, first.id]);
-    expect(counts).toEqual({ running: 2, done: 0 });
+    // Counted by what each campaign needs, never "running" for everything unfinished.
+    expect(counts).toEqual({ needsYou: 0, working: 2, decide: 0, ready: 0, done: 0 });
     expect(campaigns[0]).toMatchObject({ contacted: null, next: campaignsCopy.nextResearching, nextIsAction: false });
   });
 
@@ -187,14 +188,18 @@ describe("campaigns.get and campaigns.list", () => {
     expect(campaign.next).toBe(campaignsCopy.nextPlanReadyLive);
   });
 
-  it("is Plan ready and says so when research is partial", async () => {
+  it("is research incomplete, and needs the rep, when a partial pack ranked no play", async () => {
     const { id, job } = await started();
     await finish(job, partialPack(), "partial");
 
     const campaign = await caller(rep()).campaigns.get({ id });
-    expect(campaign.state).toBe("planReady");
+    // No ranked play means nothing to confirm: not Plan ready (product-truth pass).
+    expect(campaign.state).toBe("planIncomplete");
+    expect(campaign.can.confirm).toBe(false);
     expect(campaign.pack?.partial).toBe(true);
     expect(campaign.pack?.missingModules.length).toBeGreaterThan(0);
+    expect(campaign.overview?.partial.length).toBeGreaterThan(0);
+    expect((await caller(rep()).campaigns.list()).counts.needsYou).toBe(1);
   });
 
   it("is Stopped on an insufficient result, with the evidence it cites and research's own options", async () => {
@@ -206,7 +211,7 @@ describe("campaigns.get and campaigns.list", () => {
     expect(campaign.state).toBe("stopped");
     expect(campaign.pack?.insufficient?.widenings).toEqual(pack.insufficient!.widenings);
     expect(campaign.pack?.stopEvidence?.map((item) => item.id)).toEqual(pack.insufficient!.evidenceIds);
-    expect((await caller(rep()).campaigns.list()).counts).toEqual({ running: 0, done: 0 });
+    expect((await caller(rep()).campaigns.list()).counts).toEqual({ needsYou: 1, working: 0, decide: 0, ready: 0, done: 0 });
   });
 
   it("needs the rep when research failed, and gives the reason in words", async () => {
@@ -240,7 +245,8 @@ describe("campaigns.research", () => {
   it("reads a partial plan too, naming what was not written and ranking nothing research did not rank", async () => {
     const { id, job } = await started();
     await finish(job, partialPack(), "partial");
-    expect((await caller(rep()).campaigns.get({ id })).state).toBe("planReady");
+    // No ranked play, so the campaign is research incomplete; its research is still readable whole.
+    expect((await caller(rep()).campaigns.get({ id })).state).toBe("planIncomplete");
     const page = await caller(rep()).campaigns.research({ id });
     expect(page.research?.partial).toEqual(partialPack().missingModules);
     expect(page.research?.unwritten.pains).toEqual(["m05", "m06"]);
@@ -324,7 +330,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const campaign = await caller(rep()).campaigns.get({ id });
     const options = stoppedPack().insufficient!.widenings;
 
-    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect(campaign.can).toEqual({ widen: true, edit: true, retry: false, confirm: false, choosePlay: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
     expect(campaign.briefVersion).toBe(1);
     expect(campaign.widenings?.map((choice) => choice.text)).toEqual(options.map((option) => option.text));
     expect(campaign.widenings?.map((choice) => choice.heading)).toEqual([
@@ -361,7 +367,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
   it("edits the brief from Plan ready, and refuses an unchanged brief and research still reading", async () => {
     const { id, job } = await started();
     await finish(job, completePack(), "complete");
-    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect((await caller(rep()).campaigns.get({ id })).can).toEqual({ widen: false, edit: true, retry: false, confirm: false, choosePlay: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
 
     await expect(caller(rep()).campaigns.editBrief({ campaignId: id, fromBriefVersion: 1, requestId: uuid(), brief: startInput().brief })).rejects.toMatchObject({
       code: "BAD_REQUEST",
@@ -385,7 +391,7 @@ describe("campaigns.widen, campaigns.editBrief and campaigns.retry", () => {
     const { id, job } = await started();
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", error: "research: bad_output — x", attempts: 1 } });
     const before = await caller(rep()).campaigns.get({ id });
-    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
+    expect(before.can).toEqual({ widen: false, edit: true, retry: true, confirm: false, choosePlay: false, retryPeople: false, chooseIndustry: false, review: false, reveal: false });
     expect(before.ask.find((a) => a.id === "waiting")?.answer).toBe(campaignsCopy.answerWaitingFailed);
 
     expect(await caller(rep()).campaigns.retry({ campaignId: id, briefVersion: 1, requestId: uuid() })).toEqual({ id });

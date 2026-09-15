@@ -97,7 +97,7 @@ describe("me.get", () => {
     const me = await caller(boss()).me.get();
 
     expect(me.hasCampaign).toBe(false);
-    expect(me.connections).toEqual({ mailbox: false, zoho: false });
+    expect(me.connections).toEqual({ mailbox: false });
   });
 
   it("@proof answers about the caller, never about anyone else", async () => {

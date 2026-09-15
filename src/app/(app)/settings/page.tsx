@@ -1,6 +1,5 @@
 import { MailboxCard } from "@/components/MailboxCard";
 import { PageHeader } from "@/components/PageHeader";
-import { CallsCard } from "@/components/settings/CallsCard";
 import { LinkedInCard } from "@/components/settings/LinkedInCard";
 import { VoiceCard } from "@/components/settings/VoiceCard";
 import { mailboxCopy, settingsCopy } from "@/lib/copy/settings";
@@ -11,10 +10,15 @@ import { connectMailbox, disconnectMailbox, saveDailyCap } from "./actions";
 /**
  * Settings (master doc §23.1f).
  *
- * The four signed cards in one column, no tabs, in the signed order. Mailbox
- * is real as of Task 10b and reads the connection through the router; the
- * other three are real as of Task 9e and read the rep's profile through
- * `src/lib/fixtures/repProfile.ts`, the seam a repository replaces.
+ * Three of the four signed cards in one column, no tabs, in the signed order.
+ * Mailbox is real as of Task 10b and reads the connection through the router;
+ * LinkedIn and Your voice read the rep's profile through
+ * `src/lib/fixtures/repProfile.ts`, the seam a repository replaces, and that
+ * fixture is empty so neither shows anything the rep did not put there.
+ *
+ * The Calls card is not rendered. Start reads nothing from it yet (Calls
+ * start off there, by the rep's own tick), so a toggle here would be a
+ * setting that changed nothing. The component stays for the day it does.
  */
 
 /**
@@ -58,7 +62,6 @@ export default async function SettingsPage({
         />
         <LinkedInCard />
         <VoiceCard />
-        <CallsCard />
       </div>
     </>
   );

@@ -30,15 +30,18 @@ describe("the campaign page, by state", () => {
   it("Researching shows the brief and one line, and no action", () => {
     render(<CampaignPage campaign={campaign("midlands-fleet-operators")} />);
 
-    expect(screen.getByTestId("researching-note").textContent).toBe(campaignsCopy.researchingNote);
+    expect(screen.getByTestId("researching-note").textContent).toBe(`${campaignsCopy.researchingRunning} ${campaignsCopy.researchingUsually}`);
     // The one action is absent, because Researching carries none (§23.1c).
     for (const label of [campaignsCopy.actionConfirm, campaignsCopy.actionPause, campaignsCopy.actionResume, campaignsCopy.actionWiden]) {
       expect(screen.queryByRole("button", { name: label })).toBeNull();
     }
     // No spinner, and no plan: there is nothing to show yet.
     expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
-    // The signed five, and Where: the region research is held to.
+    // The signed five, and Where: the region research is held to, in the rail's Brief tab.
     expect(screen.getAllByTestId("brief-field")).toHaveLength(6);
+    // What research produces is a plain list, never a bar.
+    expect(screen.getByTestId("researching-produces").querySelectorAll("li")).toHaveLength(campaignsCopy.researchingProduces.length);
+    expect(document.querySelector("progress")).toBeNull();
   });
 
   it("Plan ready leads with the plan and offers Confirm plan", () => {
@@ -48,9 +51,9 @@ describe("the campaign page, by state", () => {
     expect(screen.getAllByTestId("plan-card")).toHaveLength(5);
     // The plan section is open, not folded: this state is the Confirm screen.
     expect(screen.queryByTestId("plan-toggle")).toBeNull();
-    // And the plan's own facts are under it, ending in the lawful-basis line.
-    expect(screen.getAllByTestId("plan-fact")).toHaveLength(4);
-    expect(screen.getByText(campaignsCopy.lawfulBasis)).toBeDefined();
+    // Nothing downstream is drawn as a number before it exists.
+    expect(screen.queryAllByTestId("plan-fact")).toHaveLength(0);
+    expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
   });
 
   it("Running leads with progress, collapses the plan, and offers Pause", () => {
@@ -81,6 +84,8 @@ describe("the campaign page, by state", () => {
   it("moves the six answers with the screen, not with the campaign it arrived as", () => {
     render(<CampaignPage campaign={campaign("uk-logistics-ops")} />);
 
+    // Ask Relay lives in the support rail, one tab away.
+    fireEvent.click(screen.getByTestId("rail-tab-ask"));
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askWhyStopped }));
     expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerStoppedNone);
 
@@ -95,7 +100,8 @@ describe("the campaign page, by state", () => {
     render(<CampaignPage campaign={campaign("vets-scotland")} />);
 
     expect(screen.getByRole("button", { name: campaignsCopy.actionWiden })).toBeDefined();
-    expect(screen.getByText(campaignsCopy.stopBanner)).toBeDefined();
+    // Said in the stage summary and on the stop card, once each.
+    expect(screen.getAllByText(campaignsCopy.stopBanner, { exact: false }).length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("widening")).toHaveLength(3);
     // Nothing is spent, so the plan is not offered here at all (§23.1c).
     expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
@@ -150,19 +156,31 @@ describe("a real campaign", () => {
   const currentStep = () =>
     screen.getAllByTestId("state-step").find((step) => step.getAttribute("aria-current") === "step")?.textContent;
 
-  it("while research reads, shows the brief and how long it takes, and nothing downstream", () => {
+  it("while research reads, says so truthfully, shows the brief, and nothing downstream", () => {
     render(<CampaignPage campaign={liveCampaign("researching")} />);
 
-    expect(screen.getByTestId("researching-note").textContent).toBe(campaignsCopy.researchingNote);
-    expect(screen.getByTestId("progress-none").textContent).toBe(campaignsCopy.progressNone);
+    // The fixture's job is running, so the page says reading, not waiting.
+    expect(screen.getByTestId("researching-note").textContent).toBe(`${campaignsCopy.researchingRunning} ${campaignsCopy.researchingUsually}`);
+    expect(screen.getByTestId("stage-activity").textContent).toContain(campaignsCopy.summaryRunning);
     expect(screen.queryAllByTestId("progress-count")).toHaveLength(0);
     // Nothing to change while research reads: no Edit brief, and no Try again.
     expect(screen.queryByTestId("edit-brief")).toBeNull();
     expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
     expect(screen.queryByRole("link", { name: campaignsCopy.peopleLink })).toBeNull();
+    // Nothing spent, and the rail says so.
+    fireEvent.click(screen.getByTestId("rail-tab-spend"));
+    expect(screen.getByTestId("spend-none").textContent).toBe(campaignsCopy.spendNothingYet);
 
+    fireEvent.click(screen.getByTestId("rail-tab-ask"));
     fireEvent.click(screen.getByRole("button", { name: campaignsCopy.askCost }));
     expect(screen.getByTestId("ask-answer").textContent).toBe(campaignsCopy.answerCostNoCredits);
+  });
+
+  it("a queued job is said to be waiting, never reading", () => {
+    const queued = { ...liveCampaign("researching"), activity: { phase: "waiting" as const, since: null }, summary: { ...liveCampaign("researching").summary, waiting: true, line: campaignsCopy.summaryWaiting } };
+    render(<CampaignPage campaign={queued} />);
+    expect(screen.getByTestId("researching-note").textContent).toBe(`${campaignsCopy.researchingWaiting} ${campaignsCopy.researchingUsually}`);
+    expect(screen.getByTestId("stage-activity").textContent).toBe(campaignsCopy.summaryWaiting);
   });
 
   it("on a complete plan, draws Confirm plan but cannot press it, and says why", () => {
@@ -173,37 +191,65 @@ describe("a real campaign", () => {
     fireEvent.click(confirm);
     expect(currentStep()).toBe(campaignsCopy.stepPlanReady);
     expect(screen.getByTestId("action-note").textContent).toBe(campaignsCopy.confirmLater);
-    // A real plan is the Overview (task 18); the plan cards are for the samples only.
-    expect(screen.getByTestId("overview")).toBeDefined();
+    // A real plan is the decision (product-truth pass); the plan cards are for the samples only.
+    expect(screen.getByTestId("plan-decision")).toBeDefined();
     expect(screen.queryAllByTestId("plan-card")).toHaveLength(0);
     // No people, credits or sending window: none of them exists before lead gen.
     expect(screen.queryAllByTestId("plan-fact")).toHaveLength(0);
     expect(screen.queryByTestId("plan-partial")).toBeNull();
+    expect(screen.queryByTestId("incomplete-note")).toBeNull();
   });
 
-  it("starts with the kind of buyer research ranks first, and offers Edit brief from the plan", () => {
+  it("says how many plays research found, recommends the first, and lets the rest be read and picked", () => {
     const live = liveCampaign("complete");
-    expect(live.overview?.startWith).not.toBeNull();
+    const plays = live.overview?.plays ?? [];
+    expect(plays.length).toBeGreaterThan(1);
+    expect(plays[0]?.recommended).toBe(true);
     render(<CampaignPage campaign={live} />);
 
-    expect(screen.getByTestId("overview-start-with").textContent).toContain(live.overview?.startWith?.groupName ?? "missing");
-    expect(screen.getByTestId("overview-edit-brief").getAttribute("href")).toBe(`/campaigns/${live.id}/edit`);
+    expect(screen.getByTestId("plays-found").textContent).toContain(`${campaignsCopy.playsFoundLead} ${plays.length} ${campaignsCopy.playsFoundMany}`);
+    expect(screen.getByTestId("play-recommended").textContent).toContain(live.overview?.startWith?.groupName ?? "missing");
+    const others = screen.getAllByTestId("play-alternative");
+    expect(others).toHaveLength(plays.length - 1);
+    // Confirm starts with the recommended play until another is picked.
+    expect(screen.getByTestId("confirm-starts-with").textContent).toContain(plays[0]?.groupName ?? "missing");
+    fireEvent.click(screen.getAllByTestId("play-select")[0]!);
+    expect(screen.getByTestId("confirm-starts-with").textContent).toContain(plays[1]?.groupName ?? "missing");
+    // Confirming another play waits on the contract that carries one: said, not hidden.
+    expect(screen.getByTestId("confirm-play-later").textContent).toBe(campaignsCopy.playsChooseLater);
+    fireEvent.click(screen.getByTestId("play-select-recommended"));
+    expect(screen.queryByTestId("confirm-play-later")).toBeNull();
+  });
+
+  it("keeps the whole research one tab away, and offers Edit brief", () => {
+    const live = liveCampaign("complete");
+    render(<CampaignPage campaign={live} />);
+
     expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe(`/campaigns/${live.id}/edit`);
+    fireEvent.click(screen.getByTestId("rail-tab-research"));
+    expect(screen.getByTestId("overview-folded")).toBeDefined();
+    fireEvent.click(screen.getByTestId("overview-show"));
+    expect(screen.getByTestId("overview-start-with").textContent).toContain(live.overview?.startWith?.groupName ?? "missing");
   });
 
-  it("on Plan ready, offers Edit brief on the brief card, and keeps finding people out of reach", () => {
-    render(<CampaignPage campaign={liveCampaign("partial")} />);
+  it("a plan with no ranked play is research incomplete, needs the rep, and offers no Confirm", () => {
+    const live = liveCampaign("partial");
+    expect(live.state).toBe("planIncomplete");
+    render(<CampaignPage campaign={live} />);
 
-    expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe("/campaigns/camp-partial/edit");
-    expect(screen.getByRole("button", { name: campaignsCopy.actionConfirm }).hasAttribute("disabled")).toBe(true);
+    expect(currentStep()).toBe(campaignsCopy.stepIncomplete);
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
     expect(screen.queryByRole("button", { name: campaignsCopy.actionTryAgain })).toBeNull();
+    expect(screen.getByTestId("incomplete-note").textContent).toBe(campaignsCopy.playsNoPlay);
+    expect(screen.getByTestId("edit-brief").getAttribute("href")).toBe("/campaigns/camp-partial/edit");
+    expect(screen.getByTestId("incomplete-edit").getAttribute("href")).toBe("/campaigns/camp-partial/edit");
   });
 
-  it("on a partial plan, says which parts are missing, in a rep's words", () => {
+  it("on an incomplete plan, says which parts are missing, in a rep's words", () => {
     render(<CampaignPage campaign={liveCampaign("partial")} />);
 
-    const note = screen.getByTestId("plan-partial").textContent ?? "";
-    expect(note).toContain(campaignsCopy.planPartial);
+    const note = screen.getByTestId("incomplete-parts").textContent ?? "";
+    expect(note).toContain(campaignsCopy.playsIncompleteMissing);
     expect(note).toContain(campaignsCopy.partNames.m04);
     expect(note).not.toMatch(/\bm\d\d\b|repSummary|execSummary/);
   });
@@ -332,15 +378,16 @@ describe("a real campaign", () => {
 });
 
 describe("the way into What Relay learned", () => {
-  it("is on a real campaign's finished plan", () => {
+  it("is on a real campaign's finished plan, in the rail's Research tab", () => {
     render(<CampaignPage campaign={liveCampaign("complete")} />);
-    expect(screen.getByTestId("overview-research-link").getAttribute("href")).toBe("/campaigns/camp-complete/research");
+    fireEvent.click(screen.getByTestId("rail-tab-research"));
+    expect(screen.getByTestId("rail-research-link").getAttribute("href")).toBe("/campaigns/camp-complete/research");
   });
 
   it("is on no sample, and on no real campaign without a plan", () => {
     render(<CampaignPage campaign={campaign("managed-print-partners-midlands")} />);
-    expect(screen.queryByTestId("overview-research-link")).toBeNull();
+    expect(screen.queryByTestId("rail-tab-research")).toBeNull();
     render(<CampaignPage campaign={liveCampaign("stopped")} />);
-    expect(screen.queryByTestId("overview-research-link")).toBeNull();
+    expect(screen.queryByTestId("rail-research-link")).toBeNull();
   });
 });

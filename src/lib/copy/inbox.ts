@@ -7,8 +7,13 @@
  * `tests/lib/copy.test.ts` holds all of it to the rep-words rule (§22.4).
  *
  * Interpolation happens at the call site, never here: the sweep refuses a
- * function, so the pieces of "2 replies · 1 call · 3 drafts" and "Next drafts
- * Thursday 09:00" are separate words and the components assemble them.
+ * function, so the pieces of "Approved. Sends Thu 09:00." are separate words
+ * and the components assemble them.
+ *
+ * Until there are Draft, Reply and Call rows, everything on the page is
+ * `src/lib/fixtures/inbox.ts`, and the page says so: a banner at the top, and
+ * the word "example" where the signed mock had the counts. Nothing here
+ * promises a time the next drafts land, because nothing writes them yet.
  *
  * The three vocabularies below — the four reject reasons, the four reply
  * labels, the four call outcomes — are the SIGNED ones (§23.1b) and are
@@ -43,15 +48,14 @@ export type FitWord = (typeof FIT_WORDS)[number];
 export const inboxCopy = {
   title: "Inbox",
 
-  /** The pieces of the header note: "2 replies · 1 call · 3 drafts". */
-  reply: "reply",
-  replies: "replies",
-  call: "call",
-  calls: "calls",
-  draft: "draft",
-  drafts: "drafts",
-  /** Between the counts. */
-  countJoin: " · ",
+  /**
+   * The banner above the queue while the queue is the fixture. Persistent
+   * and plain: a rep must never mistake these for their own replies.
+   */
+  demoBanner:
+    "Example queue. These replies, calls and drafts are examples. Real drafts arrive here when outreach is written.",
+  /** The header note while the queue is the fixture: the signed mock's counts would be counts of examples. */
+  exampleNote: "example",
   /** The header note when the queue is empty (mock section 2c). */
   nothingWaiting: "nothing waiting",
 
@@ -165,8 +169,11 @@ export const inboxCopy = {
   /** After an outcome: "Logged: spoke." */
   logged: "Logged:",
 
-  /** The empty state (§23.1b): "All clear. Next drafts Thursday 09:00. Replies land here as they arrive." */
+  /**
+   * The empty state (§23.1b): "All clear. Replies land here as they arrive."
+   * The signed line also said when the next drafts land; that comes back
+   * when a schedule exists to read it from, and not as a fixed weekday.
+   */
   emptyHeading: "All clear",
-  nextDrafts: "Next drafts",
   repliesLand: "Replies land here as they arrive.",
 } as const;

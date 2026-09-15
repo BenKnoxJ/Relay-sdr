@@ -64,6 +64,13 @@ export type CampaignOverview = {
   sources: number;
   /** The campaign research ranks first (m16, rank 1), with its own dated reason and when it is the wrong call. */
   startWith: { groupName: string; angle: string; whyNow: string; wrongIf: string; channels: string[] } | null;
+  /**
+   * Every campaign play research wrote (m16), in rank order, each with the
+   * kind of buyer it is for. The first is the one Relay recommends. Read off
+   * the pack as written; choosing one other than the first waits on the
+   * confirm contract that carries a play (see `ResearchActions.choosePlay`).
+   */
+  plays: PlayView[];
   /** The kinds of buyer (m03), ranked as research ranks the campaigns. Targets to aim at, not people found. */
   groups: {
     id: string;
@@ -88,6 +95,59 @@ export type CampaignOverview = {
   contradictions: ResearchContradiction[];
   /** The parts a limit left unwritten, by the pack's own names (shown in a rep's words). */
   partial: string[];
+};
+
+/** One campaign play research wrote (m16), with the kind of buyer it aims at (m03). */
+export type PlayView = {
+  id: string;
+  rank: number;
+  groupId: string;
+  groupName: string;
+  situation: string;
+  sizeRange: string;
+  roles: { part: "signs" | "champions" | "runs"; title: string }[];
+  /** The lead angle, as words. */
+  angle: string;
+  whyNow: string;
+  wrongIf: string;
+  channels: string[];
+  /** The pain research lists first for this group, when it wrote one. */
+  pain: Item | null;
+  /** Example firms research named for this group. */
+  firms: string[];
+  /** True for the play research ranks first. */
+  recommended: boolean;
+};
+
+/**
+ * Where a campaign is, in the words the list, Home and the campaign page all
+ * share: the stage, one line of what exists, and which of Home's buckets it
+ * belongs to. Built once by `src/lib/campaigns/summary.ts` from the same
+ * derived state as everything else, so the three screens cannot disagree.
+ */
+export type StageSummary = {
+  /** The stage, in words: "Reviewing people". The same word as the chip. */
+  stage: string;
+  /** One line of what Relay has so far: "9 people at 9 accounts · 5 to review". Null when there is nothing yet. */
+  line: string | null;
+  /** Which bucket the campaign sits in for the header counts and Home. */
+  bucket: "needsYou" | "working" | "decide" | "ready" | "done";
+  /** Why it needs the rep, in a short phrase, when it does. */
+  reason: string | null;
+  /** True when the campaign's next job is queued and nothing has picked it up yet. */
+  waiting: boolean;
+};
+
+/** A job Relay is running or has queued for this campaign: whether it has started, and when it did. */
+export type ActivityView = { phase: "waiting" | "running"; since: string | null };
+
+/** What this campaign has spent so far, in the units each spend is counted in. */
+export type SpendView = {
+  /** Research's own cost in dollars, from its recorded run; null when the run left no record (a seeded plan). */
+  researchUsd: number | null;
+  search: { charged: number; reserved: number; cap: number } | null;
+  reveal: { charged: number; max: number } | null;
+  sample: boolean;
 };
 
 /**
@@ -249,6 +309,12 @@ export type ResearchActions = {
   review?: boolean;
   /** Reveal emails can be pressed: somebody kept has an email to reveal or reuse (lead gen v2.1 §6). */
   reveal?: boolean;
+  /**
+   * Confirm can carry a play other than the recommended one. False until the
+   * confirm contract takes a play id; the page lets the rep pick one either
+   * way and says what pressing Confirm will start with.
+   */
+  choosePlay?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -263,6 +329,8 @@ export type ConfirmPlanView = {
   sample: boolean;
   /** The lawful-basis words the rep confirms. */
   lawfulBasis: string;
+  /** The play Confirm starts with today: research's rank 1. */
+  recommendedPlayId: string | null;
 };
 
 /** Who a person is to the purchase (lead gen v2.2 §8a). */
@@ -291,6 +359,12 @@ export type FoundPersonView = {
   role: RolePartView | null;
   /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
   why: string;
+  /**
+   * What Relay actually has on this person, as short phrases: how the title
+   * matched (exactly, or a close title), that an email is available, that
+   * research named the firm. Nothing here is inferred.
+   */
+  evidence: string[];
   review: ReviewView;
   /** Null until Reveal emails has run for them. */
   reveal: RevealStateView | null;
@@ -355,6 +429,10 @@ export type PeopleFoundView = {
   roles: boolean;
   review: { kept: number; dropped: number; pending: number };
   onHold: number;
+  /** Candidates found that Relay kept in reserve as weaker matches: never shown as people, counted honestly. */
+  spare: number;
+  /** The plan's roles nobody was found for. */
+  rolesMissing: BuyerRoleView[];
   spend: { charged: number; reserved: number; cap: number };
   /**
    * Where the list is: the rep reviewing it, Reveal emails running, or the
@@ -396,6 +474,10 @@ export type CampaignSummary = {
   next: string;
   /** True when the "next" line is the campaign's own action, so it reads in the accent. */
   nextIsAction: boolean;
+  /** Where it is and what exists, in the words the list, Home and the page share. */
+  summary: StageSummary;
+  /** When the campaign was started, ISO, for a stable order in the list. */
+  createdAt: string;
 };
 
 export type Campaign = CampaignSummary & {
@@ -446,4 +528,8 @@ export type Campaign = CampaignSummary & {
   spentAtThisVersion?: boolean;
   /** On a stop, research's widening options as the rep chooses between them. Null in every other state. */
   widenings: WidenChoice[] | null;
+  /** The job Relay has queued or is running for this campaign, when there is one. Null when nothing is in flight. */
+  activity?: ActivityView | null;
+  /** What this campaign has spent so far. */
+  spend?: SpendView | null;
 };

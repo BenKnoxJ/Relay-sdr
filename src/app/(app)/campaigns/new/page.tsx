@@ -1,6 +1,11 @@
+import { headers } from "next/headers";
+
 import { StartForm } from "@/components/campaigns/StartForm";
+import { activeFactsVersion, type ActiveFactsVersion } from "@/lib/campaigns/factsVersion";
 import { HOW_LONG, HOW_MANY, PRODUCTS, REGIONS, startFromSentence } from "@/lib/campaigns/start";
+import { dateLabel } from "@/lib/shell";
 import { serverCaller } from "@/server/api/caller";
+import { createContextFromHeaders } from "@/server/api/trpc";
 
 import { startCampaign } from "./actions";
 
@@ -16,7 +21,27 @@ import { startCampaign } from "./actions";
  * The sentence arrives in the query string when the rep came from Home's brief
  * box, and is empty when they pressed "New campaign". Pressing Start submits
  * the card to `startCampaign`, which makes the campaign and its research job.
+ *
+ * The facts version beside the product is read from the org's row
+ * (`activeFacts`), so the card names the version that is actually active or
+ * says none is; it is never a literal.
  */
+
+/**
+ * The facts version the org has activated for the product, or null.
+ *
+ * The org is the session's, resolved the way every procedure resolves it
+ * (`ctx.actor()`), and the read is `activeFactsVersion` on the context's own
+ * client. No router exposes the org id to a page, and adding a procedure for
+ * one read-only row would be more machinery than the row; this is the same
+ * context `serverCaller()` builds, one call further in.
+ */
+async function activeFacts(product: string): Promise<ActiveFactsVersion | null> {
+  const ctx = await createContextFromHeaders(await headers());
+  if (ctx.session === null) return null;
+  const { orgId } = await ctx.actor();
+  return activeFactsVersion(ctx.prisma, orgId, product, dateLabel);
+}
 export default async function NewCampaignPage({
   searchParams,
 }: {
@@ -24,6 +49,7 @@ export default async function NewCampaignPage({
 }) {
   const caller = await serverCaller();
   const mailbox = await caller.connections.get();
+  const facts = await activeFacts(PRODUCTS[0]?.name ?? "");
   const params = await searchParams;
 
   // `String(…)` and not a cast: a repeated parameter arrives as an array, and
@@ -46,6 +72,7 @@ export default async function NewCampaignPage({
       regions={REGIONS}
       howMany={HOW_MANY}
       howLong={HOW_LONG}
+      facts={facts}
       mailboxConnected={mailbox.connected}
       onStart={startCampaign}
     />

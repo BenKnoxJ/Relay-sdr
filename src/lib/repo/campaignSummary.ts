@@ -107,7 +107,11 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
 
 const record = (value: unknown): Record<string, unknown> => (value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
-/** A halt reason the lead gen contract names; anything else is a result Relay could not read, as the campaign page reads it. */
+/**
+ * A halt reason the lead gen contract names; anything else is a result Relay
+ * could not read. The projection carries only the reason and the choices, so
+ * this checks the reason alone, where the page parses the whole halt.
+ */
 const haltReason = (value: unknown): Halt["reason"] | null => HALT_REASONS.find((reason) => reason === value) ?? null;
 const numberOr = (value: unknown, fallback: number | null): number | null => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 

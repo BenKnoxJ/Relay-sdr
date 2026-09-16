@@ -744,7 +744,7 @@ model OutreachDraft {
   body             String?
   ask              String?
   opener           Json?
-  claims           String[]
+  claims           String[]           @default([])
   /// The Tier A findings that parked it, in rep words; empty when it passed.
   findings         Json
   /// Tier B advice shown on the card.
@@ -772,6 +772,9 @@ model OutreachDraft {
   decidedBy      User?          @relation("OutreachDraftDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, jobId])
+  /// One draft per person, touch and attempt: a repeated press or a retried job
+  /// cannot write a second first email for the same person.
+  @@unique([orgId, campaignPersonId, touch, attempt], map: "outreach_drafts_one_per_attempt")
   @@index([orgId, ownerUserId, state])
   @@index([orgId, campaignId, briefVersion])
   @@map("outreach_drafts")
@@ -792,5 +795,7 @@ model RepVoice {
   org  Org  @relation(fields: [orgId], references: [id], onDelete: Restrict)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
+  /// Written and read within the org, like every other row.
+  @@unique([orgId, userId])
   @@map("rep_voices")
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BUCKETS, bucketOf, countBuckets, countsLineOf, groupLabelOf, listSpendLineOf } from "@/lib/campaigns/stageLine";
+import { BUCKETS, bucketOf, chipToneOf, countBuckets, countsLineOf, groupLabelOf, listSpendLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSpendView, CampaignStageAttention, CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
@@ -26,6 +26,19 @@ const facts = (over: FactsOver): CampaignSummaryFacts => ({
   ...over,
 }) as CampaignSummaryFacts;
 const row = (over: FactsOver): Pick<CampaignSummary, "facts" | "state"> => ({ facts: facts(over), state: "researching" });
+
+describe("chipToneOf", () => {
+  it.each([
+    ["needsYou", false, "warn"],
+    ["decide", false, "default"],
+    ["ready", false, "ok"],
+    ["working", false, "ok"],
+    ["working", true, "default"],
+    ["done", false, "default"],
+  ] as const)("tones a %s row (waiting: %s) %s", (bucket, waiting, tone) => {
+    expect(chipToneOf(bucket, waiting)).toBe(tone);
+  });
+});
 
 /** One vocabulary for Home and Campaigns (final MVP pass): the group a campaign sits in is one function, and the words are one table. */
 describe("one attention vocabulary", () => {

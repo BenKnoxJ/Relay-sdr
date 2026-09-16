@@ -1,3 +1,4 @@
+import type { ChipTone } from "@/components/Chip";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
 import { failureLine, haltLine, revealStoppedLine } from "./state";
@@ -33,6 +34,21 @@ export function bucketOf(facts: CampaignSummaryFacts): Bucket {
 /** A queued job is waiting its turn: said as waiting, never as running. */
 export function isWaiting(facts: CampaignSummaryFacts): boolean {
   return facts.inFlight?.status === "queued";
+}
+
+/** The chip's tone for a row, the same on Home and the Campaigns list: needs you warns, ready and live work are ok, a waiting job and the rest are plain. */
+export function chipToneOf(bucket: Bucket, waiting: boolean): ChipTone {
+  switch (bucket) {
+    case "needsYou":
+      return "warn";
+    case "ready":
+      return "ok";
+    case "working":
+      return waiting ? "default" : "ok";
+    case "decide":
+    case "done":
+      return "default";
+  }
 }
 
 function plural(n: number, one: string, many: string): string {

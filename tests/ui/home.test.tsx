@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { CampaignRow } from "@/components/campaigns/CampaignRow";
 import { Home } from "@/components/Home";
 import { HomeDayOne } from "@/components/HomeDayOne";
 import type { CampaignStageAttention, CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
@@ -394,6 +395,20 @@ describe("Home with campaigns", () => {
     expect(queued?.textContent).not.toContain(campaignsCopy.chipResearching);
     expect(reading?.textContent).toContain(campaignsCopy.summaryResearching);
     expect(reading?.textContent).toContain(campaignsCopy.chipResearching);
+  });
+
+  it("gives a working campaign's chip the same tone on Home as on the Campaigns list", () => {
+    const chipOf = (row: HTMLElement) => row.querySelector(".rounded-pill")?.className;
+    for (const campaign of [READING, QUEUED]) {
+      const home = render(<Home firstName="Ben" today="Mon 7 Sep" connections={BOTH_CONNECTED} campaigns={[campaign]} startBrief={noop} />);
+      const onHome = chipOf(screen.getByTestId("home-working-row"));
+      home.unmount();
+      const list = render(<CampaignRow campaign={campaign} />);
+      const onList = chipOf(screen.getByTestId("campaign-row"));
+      list.unmount();
+      expect(onHome).toBeDefined();
+      expect(onList).toBe(onHome);
+    }
   });
 
   it("carries the brief box, and leaves done campaigns to the list", () => {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Home } from "@/components/Home";
 import { HomeDayOne } from "@/components/HomeDayOne";
-import type { CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
+import type { CampaignStageAttention, CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
 
@@ -271,10 +271,13 @@ const NO_SPEND: CampaignSummaryFacts["spend"] = {
   research: { usd: null, usdThisVersion: null },
 };
 
+/** A stage and its attention, which may be left out where the stage has none. */
+type CampaignStageAttentionOver = Exclude<CampaignStageAttention, { attention: null }> | { stage: Extract<CampaignStageAttention, { attention: null }>["stage"]; attention?: null };
+
 function summary(
   id: string,
   name: string,
-  facts: Partial<CampaignSummaryFacts> & Pick<CampaignSummaryFacts, "stage">,
+  facts: Partial<Omit<CampaignSummaryFacts, "stage" | "attention">> & CampaignStageAttentionOver,
   rest: Partial<Pick<CampaignSummary, "next" | "nextIsAction" | "motionLine" | "chip" | "state">> = {},
 ): CampaignSummary {
   return {
@@ -302,7 +305,8 @@ function summary(
       reveal: null,
       spend: NO_SPEND,
       ...facts,
-    },
+      // The spread cannot carry the stage/attention pairing through; the parameter type checks it at each call.
+    } as CampaignSummaryFacts,
   };
 }
 

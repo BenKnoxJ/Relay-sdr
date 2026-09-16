@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { BUCKETS, bucketOf, countBuckets, countsLineOf, groupLabelOf, listSpendLineOf } from "@/lib/campaigns/stageLine";
-import type { CampaignSpendView, CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
+import type { CampaignSpendView, CampaignStageAttention, CampaignSummary, CampaignSummaryFacts } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
 const NO_SPEND: CampaignSpendView = { search: { cap: null, charged: 0, held: 0 }, reveal: { max: null, charged: 0, held: 0 }, allVersions: { searchCharged: 0, searchHeld: 0, revealCharged: 0, revealHeld: 0 }, research: { usd: null, usdThisVersion: null } };
-const facts = (over: Partial<CampaignSummaryFacts>): CampaignSummaryFacts => ({
+/** A fixture's overrides: any field, with a stage and attention that belong together. */
+type FactsOver = Partial<Omit<CampaignSummaryFacts, "stage" | "attention">> & Partial<CampaignStageAttention>;
+// The spread cannot carry the stage/attention pairing through to the result; `FactsOver` checks it at each call.
+const facts = (over: FactsOver): CampaignSummaryFacts => ({
   id: "c",
   name: "C",
   briefVersion: 1,
@@ -21,8 +24,8 @@ const facts = (over: Partial<CampaignSummaryFacts>): CampaignSummaryFacts => ({
   reveal: null,
   spend: NO_SPEND,
   ...over,
-});
-const row = (over: Partial<CampaignSummaryFacts>): Pick<CampaignSummary, "facts" | "state"> => ({ facts: facts(over), state: "researching" });
+}) as CampaignSummaryFacts;
+const row = (over: FactsOver): Pick<CampaignSummary, "facts" | "state"> => ({ facts: facts(over), state: "researching" });
 
 /** One vocabulary for Home and Campaigns (final MVP pass): the group a campaign sits in is one function, and the words are one table. */
 describe("one attention vocabulary", () => {

@@ -240,7 +240,7 @@ export function CampaignPage({
     if (state === "revealing") {
       // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.
       if (revealNeedsYou || campaign.peopleFound.revealResult?.stopped === true) {
-        main.push(<RevealNeedsYouCard key="reveal-stopped" line={revealStoppedLine(facts?.attention?.reason)} retryable={campaign.can.retryReveal === true} editHref={editHref} />);
+        main.push(<RevealNeedsYouCard key="reveal-stopped" line={revealStoppedLine(facts?.stage === "reveal_needs_you" ? facts.attention.reason : null)} retryable={campaign.can.retryReveal === true} editHref={editHref} />);
       } else {
         main.push(<RevealingCard key="revealing" inFlight={facts?.inFlight} />);
       }

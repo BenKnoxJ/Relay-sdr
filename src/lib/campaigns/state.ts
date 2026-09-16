@@ -1,6 +1,6 @@
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
-import type { ResearchFailure } from "./types";
+import type { PeopleReason, ResearchFailure, RevealStopReason } from "./types";
 
 /**
  * Where a campaign is, and what that is called on screen (master doc §23.1c,
@@ -209,8 +209,18 @@ export function nextFor(
   }
 }
 
+/**
+ * A reason the contract does not name. Unreachable while the types hold, so a
+ * new reason is a compile error at the switch; a stale client or a drifted
+ * backend still gets the generic line rather than nothing.
+ */
+function unknownReason(reason: never, fallback: string): string {
+  void reason;
+  return fallback;
+}
+
 /** Why finding people needs the rep, in words, from the halt reason and the term it names (lead gen v2.1 §11). */
-export function haltLine(reason: string, term?: string | null): string {
+export function haltLine(reason: PeopleReason, term?: string | null): string {
   const c = campaignsCopy;
   const withTerm = (line: string) => (term === undefined || term === null ? line : `${line} ${term}`);
   switch (reason) {
@@ -230,13 +240,16 @@ export function haltLine(reason: string, term?: string | null): string {
       return c.haltBusy;
     case "took_too_long":
       return c.haltTooLong;
-    default:
+    case "failed":
       return c.haltFailed;
+    default:
+      return unknownReason(reason, c.haltFailed);
   }
 }
 
 /** Why revealing emails stopped, in words, by what Relay knows about its spend (product-truth foundation). */
-export function revealStoppedLine(reason: string | undefined | null): string {
+export function revealStoppedLine(reason: RevealStopReason | undefined | null): string {
+  if (reason === undefined || reason === null) return campaignsCopy.revealStopped;
   switch (reason) {
     case "reveal_failed":
       return campaignsCopy.revealStoppedRetry;
@@ -244,7 +257,9 @@ export function revealStoppedLine(reason: string | undefined | null): string {
       return campaignsCopy.revealStoppedHeld;
     case "reveal_failed_terminal":
       return campaignsCopy.revealStoppedFailed;
-    default:
+    case "reveal_stopped":
       return campaignsCopy.revealStopped;
+    default:
+      return unknownReason(reason, campaignsCopy.revealStopped);
   }
 }

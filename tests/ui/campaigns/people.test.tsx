@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { CampaignPerson, Event, Job } from "@prisma/client";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -349,6 +349,16 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
   });
 
+  it("says nothing about a title match a row does not record", () => {
+    const unmatched = rows(full).map((row) => ({ ...row, roleMatch: null }));
+    render(<CampaignPage campaign={found(unmatched)} onReview={vi.fn()} />);
+    // Accounts start folded; the evidence lines render once the page is open.
+    fireEvent.click(screen.getByTestId("expand-all"));
+    const lines = screen.getAllByTestId("why-fits").map((line) => line.textContent ?? "");
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.some((line) => line.includes(campaignsCopy.evidenceExactTitle) || line.includes(campaignsCopy.evidenceCloseTitle))).toBe(false);
+  });
+
   it("offers Drop account only where an account has more than one person", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
     fireEvent.click(screen.getByTestId("expand-all"));
@@ -472,6 +482,103 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     await waitFor(() => expect(screen.getByTestId("selection-count").textContent).toContain("0"));
     // Reveal is untouched by selection: still the header's own gate.
     expect(screen.getByRole("button", { name: campaignsCopy.actionReveal })).toBeDefined();
+  });
+
+  // Selection is scoped to the rows on screen (PR #37 fix round 1): changing what is shown clears it, and a bulk press never reaches a hidden row.
+  const idsOf = (people: CampaignPerson[], company: string) => people.filter((row) => (row.preview as { company: string }).company === company).map((row) => row.id);
+  const manyAccounts = () =>
+    Array.from({ length: 50 }, (_, index) => {
+      const base = rows(full)[index % 10]!;
+      return { ...base, id: `cp-many-${index}`, rank: index + 1, companyKey: `key-${Math.floor(index / 2)}`, preview: { ...(base.preview as object), company: `Account ${Math.floor(index / 2)}`, name: `Person ${index}` } } as CampaignPerson;
+    });
+  const selectedCount = () => Number(screen.getByTestId("selection-count").textContent?.replace(/\D/g, ""));
+  const lastCall = (onReview: ReturnType<typeof vi.fn>) => (onReview.mock.calls as unknown as [{ scope: string; personIds: string[] }][]).at(-1)![0];
+
+  it.each([
+    ["the view", () => fireEvent.click(screen.getByTestId("review-view-all"))],
+    ["the search", () => fireEvent.change(screen.getByTestId("review-search"), { target: { value: "Account" } })],
+    ["the role filter", () => fireEvent.click(screen.getByTestId("review-role-signs"))],
+    ["the email filter", () => fireEvent.click(screen.getByTestId("review-email"))],
+    ["the page", () => fireEvent.click(screen.getAllByTestId("page-next")[0]!)],
+  ])("@proof clears the selection when %s changes, and a bulk press then sends only rows on screen", async (_what, change) => {
+    const people = manyAccounts();
+    const onReview = vi.fn(async () => ({ id: "camp-people" }));
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people, spend: { charged: 12, reserved: 0 } })} onReview={onReview} />);
+    const hidden = idsOf(people, screen.getAllByTestId("account-name")[0]!.textContent!);
+    fireEvent.click(screen.getAllByTestId("select-account")[0]!);
+    expect(selectedCount()).toBe(hidden.length);
+    change();
+    expect(selectedCount()).toBe(0);
+    expect(screen.queryByTestId("keep-selected")).toBeNull();
+    const accounts = screen.queryAllByTestId("account-name");
+    if (accounts.length === 0) return;
+    const visible = idsOf(people, accounts.at(-1)!.textContent!);
+    fireEvent.click(screen.getAllByTestId("select-account").at(-1)!);
+    fireEvent.click(screen.getByTestId("drop-selected"));
+    await waitFor(() => expect(onReview).toHaveBeenCalledTimes(1));
+    const call = lastCall(onReview);
+    expect(call.scope).toBe("selected");
+    expect([...call.personIds].sort()).toEqual([...visible].sort());
+    expect(call.personIds.some((id) => hidden.includes(id) && !visible.includes(id))).toBe(false);
+  });
+
+  it("@proof never sends a ticked person whose account has left the view", async () => {
+    const people = rows(full);
+    const onReview = vi.fn(async () => ({ id: "camp-people" }));
+    const { rerender } = render(<CampaignPage campaign={found(people)} onReview={onReview} />);
+    const names = screen.getAllByTestId("account-name").map((name) => name.textContent!);
+    const otherName = names.find((name) => name !== "Firm 1")!;
+    const firm = idsOf(people, "Firm 1");
+    const other = idsOf(people, otherName);
+    const boxes = screen.getAllByTestId("select-account");
+    fireEvent.click(boxes[names.indexOf("Firm 1")]!);
+    fireEvent.click(boxes[names.indexOf(otherName)]!);
+    expect(selectedCount()).toBe(firm.length + other.length);
+    // Firm 1 is decided by its own Keep account and leaves To review while its ticks are still held.
+    rerender(<CampaignPage campaign={found(people.map((row) => (firm.includes(row.id) ? ({ ...row, review: "kept" } as CampaignPerson) : row)))} onReview={onReview} />);
+    expect(screen.queryAllByTestId("account-name").some((name) => name.textContent === "Firm 1")).toBe(false);
+    expect(selectedCount()).toBe(other.length);
+    fireEvent.click(screen.getByTestId("keep-selected"));
+    await waitFor(() => expect(onReview).toHaveBeenCalledTimes(1));
+    expect([...lastCall(onReview).personIds].sort()).toEqual([...other].sort());
+  });
+
+  it("draws the views as a pressed-toggle group, not an unfinished tab list", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    const workspace = within(screen.getByTestId("review-workspace"));
+    expect(workspace.queryByRole("tablist")).toBeNull();
+    expect(workspace.queryAllByRole("tab")).toHaveLength(0);
+    const toReview = screen.getByTestId("review-view-toReview");
+    expect(toReview.getAttribute("aria-pressed")).toBe("true");
+    expect(toReview.hasAttribute("aria-selected")).toBe(false);
+    expect(toReview.parentElement?.getAttribute("role")).toBe("group");
+  });
+
+  it("gives every checkbox a 24px label to press, and the small text controls 44px on touch", () => {
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: manyAccounts(), spend: { charged: 12, reserved: 0 } })} onReview={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("expand-all"));
+    for (const id of ["select-page", "select-account", "select-person"]) {
+      const label = screen.getAllByTestId(id)[0]!.closest("label");
+      expect(label, id).not.toBeNull();
+      expect(label!.className, id).toMatch(/\bmin-h-6\b/);
+      expect(label!.className, id).toMatch(/\bmin-w-6\b/);
+    }
+    for (const id of ["account-open", "expand-all", "page-prev", "page-next"]) {
+      expect(screen.getAllByTestId(id)[0]!.className, id).toContain("[@media(pointer:coarse)]:min-h-11");
+    }
+  });
+
+  it("says a view is empty plainly, and points at the search and filters only when one is set", () => {
+    render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("review-view-kept"));
+    expect(screen.getByTestId("review-empty").textContent).toBe(campaignsCopy.reviewEmptyView);
+    fireEvent.click(screen.getByTestId("review-view-toReview"));
+    fireEvent.change(screen.getByTestId("review-search"), { target: { value: "nobody-by-this-name" } });
+    expect(screen.getByTestId("review-empty").textContent).toBe(campaignsCopy.reviewNoMatch);
+    fireEvent.click(screen.getByTestId("review-view-kept"));
+    expect(screen.getByTestId("review-empty").textContent).toBe(campaignsCopy.reviewNoMatch);
+    fireEvent.click(screen.getByTestId("review-clear"));
+    expect(screen.getByTestId("review-empty").textContent).toBe(campaignsCopy.reviewEmptyView);
   });
 
   it("pages by account, twenty to a page, and never splits one", () => {

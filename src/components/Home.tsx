@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { bucketOf, isWaiting, reasonLineOf, stageLineOf } from "@/lib/campaigns/stageLine";
+import { bucketOf, chipToneOf, isWaiting, reasonLineOf, stageLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
@@ -62,7 +62,7 @@ function WorkingRow({ campaign }: { campaign: WithFacts }) {
         <span className="type-small block text-muted sm:truncate">{stageLineOf(campaign.facts) ?? campaign.motionLine}</span>
       </span>
       {/* A queued job is waiting, and the chip says so: never "Researching" for a job nothing has picked up. */}
-      {isWaiting(campaign.facts) ? <Chip>{campaignsCopy.summaryWaiting}</Chip> : <Chip tone="ok">{campaign.chip}</Chip>}
+      <Chip tone={chipToneOf("working", isWaiting(campaign.facts))}>{isWaiting(campaign.facts) ? campaignsCopy.summaryWaiting : campaign.chip}</Chip>
     </Link>
   );
 }

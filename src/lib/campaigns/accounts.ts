@@ -104,7 +104,9 @@ function whyOf(row: StoredPerson, roles: boolean): string {
 function evidenceOf(row: StoredPerson, preview: Preview, seed: boolean, roles: boolean): string[] {
   const c = campaignsCopy;
   const lines: string[] = [];
-  if (roles && row.rolePart !== null) lines.push(row.roleMatch === "phrase" ? c.evidenceCloseTitle : c.evidenceExactTitle);
+  // Only the match the row records: no recorded match says nothing about the title.
+  if (roles && row.rolePart !== null && row.roleMatch === "exact") lines.push(c.evidenceExactTitle);
+  if (roles && row.rolePart !== null && row.roleMatch === "phrase") lines.push(c.evidenceCloseTitle);
   if (seed) lines.push(c.evidenceSeed);
   if (row.source === "reused") lines.push(c.evidenceReused);
   else lines.push(preview.hasEmail ? c.evidenceEmail : c.evidenceNoEmail);

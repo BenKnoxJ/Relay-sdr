@@ -1,3 +1,4 @@
+import type { ChipTone } from "@/components/Chip";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
 import { failureLine, haltLine, revealStoppedLine } from "./state";
@@ -37,25 +38,38 @@ export function isWaiting(facts: CampaignSummaryFacts): boolean {
   return facts.inFlight?.status === "queued";
 }
 
+/** The chip's tone for a row, the same on Home and the Campaigns list: needs you warns, ready and live work are ok, a waiting job and the rest are plain. */
+export function chipToneOf(bucket: Bucket, waiting: boolean): ChipTone {
+  switch (bucket) {
+    case "needsYou":
+      return "warn";
+    case "ready":
+      return "ok";
+    case "working":
+      return waiting ? "default" : "ok";
+    case "decide":
+    case "done":
+      return "default";
+  }
+}
+
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
 /** Why the campaign needs the rep, in words, from the backend's reason. Null when it does not. */
 export function reasonLineOf(facts: CampaignSummaryFacts): string | null {
-  const attention = facts.attention;
-  if (attention === null) return null;
   switch (facts.stage) {
     case "research_needs_you":
-      return failureLine(attention.reason as Parameters<typeof failureLine>[0]);
+      return failureLine(facts.attention.reason);
     case "research_stopped":
       return campaignsCopy.stopBanner;
     case "people_needs_you":
-      return haltLine(attention.reason);
+      return haltLine(facts.attention.reason);
     case "reveal_needs_you":
-      return revealStoppedLine(attention.reason);
+      return revealStoppedLine(facts.attention.reason);
     case "drafts_ready":
-      return attention.reason === "drafts_exhausted" ? campaignsCopy.draftsExhausted : null;
+      return facts.attention === null ? null : campaignsCopy.draftsExhausted;
     default:
       return null;
   }

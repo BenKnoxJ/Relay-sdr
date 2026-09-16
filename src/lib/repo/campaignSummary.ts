@@ -1,5 +1,6 @@
 import type { Campaign, JobStatus, Prisma, PrismaClient } from "@prisma/client";
 
+import { HALT_REASONS, type Halt } from "../../../agents/leadgen/output.schema";
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { widenedBrief } from "@/lib/campaigns/brief";
 import { executablePlayCount, rankedPlays, type PlayFacts } from "@/lib/campaigns/plays";
@@ -108,6 +109,12 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
 
 const record = (value: unknown): Record<string, unknown> => (value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+/**
+ * A halt reason the lead gen contract names; anything else is a result Relay
+ * could not read. The projection carries only the reason and the choices, so
+ * this checks the reason alone, where the page parses the whole halt.
+ */
+const haltReason = (value: unknown): Halt["reason"] | null => HALT_REASONS.find((reason) => reason === value) ?? null;
 const numberOr = (value: unknown, fallback: number | null): number | null => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 
 function playFactsOfProjection(projection: Record<string, unknown>): PlayFacts {
@@ -190,6 +197,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
   return partial.map((row): CampaignSummaryRecord => {
     const { campaign } = row;
     const research = researchFactsOf(row.researchEvent, campaign);
+    const halt = row.leadGenEvent === null ? null : record(row.leadGenEvent.projection);
+    const halted = halt === null ? null : haltReason(halt.reason);
     const leadGenResult: LeadGenResult | null =
       row.leadGenEvent === null
         ? null
@@ -197,8 +206,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           ? row.picked
             ? { kind: "picked" }
             : { kind: "unreadable" }
-          : typeof record(row.leadGenEvent.projection).reason === "string"
-            ? { kind: "halted", reason: record(row.leadGenEvent.projection).reason as string, choices: strings(record(row.leadGenEvent.projection).choices).length }
+          : halted !== null
+            ? { kind: "halted", reason: halted, choices: strings(halt?.choices).length }
             : { kind: "unreadable" };
     const campaignLedger = ledger.filter((group) => group.campaignId === campaign.id);
     const confirmProjection = record(row.confirm?.projection);

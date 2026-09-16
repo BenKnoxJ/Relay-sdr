@@ -1,7 +1,9 @@
+import type { Halt } from "../../../agents/leadgen/output.schema";
+
 import { failureOf } from "./derive";
 import { editAllowed, inFlight, leadGenRetryable, researchRetryable, revealRecovery, type JobFacts, type LedgerCounts } from "./retry";
 import type { CampaignState } from "./state";
-import type { CampaignAttention, CampaignNextAction, CampaignStage, InFlightWork, ResearchActions, ResearchFailure } from "./types";
+import type { CampaignNextAction, CampaignStage, CampaignStageAttention, InFlightWork, DraftsStopReason, PeopleReason, ResearchActions, ResearchFailure, RevealStopReason } from "./types";
 
 /**
  * Where a campaign is, what the rep can do about it, and what the server will
@@ -35,7 +37,7 @@ export type ResearchResultFacts =
   | { readable: true; outcome: "insufficient"; usableWidenings: number }
   | { readable: true; outcome: "complete" | "partial"; executablePlays: number };
 
-export type LeadGenResult = { kind: "picked" } | { kind: "halted"; reason: string; choices: number } | { kind: "unreadable" };
+export type LeadGenResult = { kind: "picked" } | { kind: "halted"; reason: Halt["reason"]; choices: number } | { kind: "unreadable" };
 
 export type StageInput = {
   research: { job: Job; result: ResearchResultFacts | null };
@@ -66,16 +68,16 @@ export type OutreachFacts = {
 
 export type CampaignActions = Required<ResearchActions>;
 
-export type StageResult = {
-  stage: CampaignStage;
+export type StageResult = CampaignStageAttention & {
+  /** The stage and its attention alone, still paired, for a caller that copies them on. */
+  stageAttention: CampaignStageAttention;
   /** The screen vocabulary the campaign page draws (`CampaignState`). A stopped reveal draws as revealing, with its own chip and line. */
   state: CampaignState;
   inFlight: InFlightWork | null;
-  attention: CampaignAttention | null;
   nextAction: CampaignNextAction | null;
   failure: ResearchFailure | null;
   /** Finding people's reason for needing the rep, when it does. */
-  peopleReason: string | null;
+  peopleReason: PeopleReason | null;
   can: CampaignActions;
 };
 
@@ -130,12 +132,12 @@ export function deriveStage(input: StageInput): StageResult {
     stage = "plan_ready";
   }
 
-  let peopleReason: string | null = null;
+  let peopleReason: PeopleReason | null = null;
   let peopleRetry = false;
   let choosable = false;
   let revealRetry = false;
-  let revealReason: string | null = null;
-  let draftsReason: string | null = null;
+  let revealReason: RevealStopReason | null = null;
+  let draftsReason: DraftsStopReason | null = null;
 
   const leadGen = stage === "plan_ready" && input.confirmed ? input.leadGen : null;
   if (leadGen !== null) {
@@ -204,20 +206,30 @@ export function deriveStage(input: StageInput): StageResult {
     write: stage === "people_ready" && input.leadGenAvailable && (input.outreach?.writable ?? 0) > 0,
   };
 
-  const attention: CampaignAttention | null =
-    stage === "research_needs_you"
-      ? { kind: "needs_you", reason: failure ?? "failed", retryable: can.retry }
-      : stage === "research_stopped"
-        ? { kind: "stopped", reason: "insufficient", retryable: false }
-        : stage === "people_needs_you"
-          ? { kind: "needs_you", reason: peopleReason ?? "failed", retryable: can.retryPeople }
-          : stage === "reveal_needs_you"
-            ? { kind: "needs_you", reason: revealReason ?? "reveal_stopped", retryable: can.retryReveal }
-            : draftsReason !== null
-              ? { kind: "needs_you", reason: draftsReason, retryable: false }
-              : null;
+  const stageAttention = attentionOf(stage, { failure, peopleReason, revealReason, draftsReason }, can);
+  return { ...stageAttention, stageAttention, state: STATE[stage], inFlight: flight, nextAction: nextActionOf(stage, can, draftsReason !== null), failure, peopleReason, can };
+}
 
-  return { stage, state: STATE[stage], inFlight: flight, attention, nextAction: nextActionOf(stage, can, draftsReason !== null), failure, peopleReason, can };
+/** The stage with what it needs from the rep, if anything: each stage carries only its own reasons. */
+function attentionOf(
+  stage: CampaignStage,
+  reasons: { failure: ResearchFailure | null; peopleReason: PeopleReason | null; revealReason: RevealStopReason | null; draftsReason: DraftsStopReason | null },
+  can: CampaignActions,
+): CampaignStageAttention {
+  switch (stage) {
+    case "research_needs_you":
+      return { stage, attention: { kind: "needs_you", reason: reasons.failure ?? "failed", retryable: can.retry } };
+    case "research_stopped":
+      return { stage, attention: { kind: "stopped", reason: "insufficient", retryable: false } };
+    case "people_needs_you":
+      return { stage, attention: { kind: "needs_you", reason: reasons.peopleReason ?? "failed", retryable: can.retryPeople } };
+    case "reveal_needs_you":
+      return { stage, attention: { kind: "needs_you", reason: reasons.revealReason ?? "reveal_stopped", retryable: can.retryReveal } };
+    case "drafts_ready":
+      return { stage, attention: reasons.draftsReason === null ? null : { kind: "needs_you", reason: reasons.draftsReason, retryable: false } };
+    default:
+      return { stage, attention: null };
+  }
 }
 
 function nextActionOf(stage: CampaignStage, can: CampaignActions, draftsExhausted = false): CampaignNextAction | null {

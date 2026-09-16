@@ -12,7 +12,7 @@ Blank-sheet successor to the parked Sales360 build. Service layers (Zoho CRM, Mi
 
 ## Status
 
-Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. On top of it: the data model and its first migration, Clerk sign-in with the two roles, the job queue with claim/lease/reap, the worker loop, the Graph mail and Zoho service layers, and the design tokens. On top of that, the agent runtime: the AI SDK loop with every model call and every tool call recorded as a costed step, the four signed definitions in the repository as the shape the runtime loads, and an `echo` stub proving the loop end to end. Still to come — the product screens, and the first real specialist: today there is a sign-in route and a placeholder home page and nothing else. Each Phase 1 task lands as one draft PR on `main`.
+Phase 1 — build. The scaffold is in: Next.js App Router, tRPC + Zod, Prisma on Postgres (Neon in production, Docker locally), Clerk, and a plain Node worker running the Vercel AI SDK loop. On top of it: the data model and its first migration, Clerk sign-in with the two roles, the job queue with claim/lease/reap, the worker loop, the Graph mail and Zoho service layers, and the design tokens. On top of that, the agent runtime: the AI SDK loop with every model call and every tool call recorded as a costed step, the four signed definitions in the repository as the shape the runtime loads, and an `echo` stub proving the loop end to end. The front half of the product is built (Start → research → Confirm → lead gen → review → Reveal), and the milestone plan lives in `~/vault/products/relay/STATUS.md`. Each Phase 1 task lands as one draft PR on `main`.
 
 Runtime direction is settled (master doc §24): the AI SDK agent loop in a plain Node worker, durability in Postgres (`jobs` with claim, lease and reaper; `agent_runs`; `agent_run_steps`), approval as database state. **Not** Vercel Workflow or Queues in Phase 1. The Claude Agent SDK is in the picture for one purpose only, as the **model transport** on the subscription token (§24, amended 2026-09-09): Relay's agents bill to the subscription, the Messages API refuses that token, and the Agent SDK accepts it. The runtime, the queue, approval as database state and the ban on `claude -p` in the worker are unchanged; see "Two transports, one ledger" below.
 
@@ -24,6 +24,13 @@ Runtime direction is settled (master doc §24): the AI SDK agent loop in a plain
 - Every agent run is a first-class record: inputs, steps, tool calls, outputs, cost.
 - Rep words only in the UI, enforced in tests. No machine vocabulary on screen — every string lives in a copy file under `src/lib/copy/`.
 - Design sign-off is Benny-san, screen by screen, against the written design standard.
+
+## Working rules (from 16 Sep 2026)
+
+- At most one unmerged line of work and two open PRs at a time; nothing is stacked more than one deep.
+- No UI-polish PR unless it closes a milestone exit criterion.
+- Specs are signed before the milestone that needs them.
+- Line references in audits are rechecked at each milestone planning pass.
 
 ## Repository Layout
 

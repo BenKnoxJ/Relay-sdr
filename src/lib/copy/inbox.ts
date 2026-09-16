@@ -139,6 +139,9 @@ export const inboxCopy = {
   edit: "Edit",
   editDone: "Done",
   reject: "Reject…",
+  /** The pressed button while its decision is on its way to the server. */
+  approving: "Approving",
+  rejecting: "Rejecting",
   /** The accessible name of the body while it is being edited. */
   bodyField: "The email",
   /** A call draft's talking point, when the draft is for a call rather than an email. */

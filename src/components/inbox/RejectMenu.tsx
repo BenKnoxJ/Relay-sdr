@@ -15,7 +15,7 @@ import { REJECT_REASONS, inboxCopy, type RejectReason } from "@/lib/copy/inbox";
  * span and a span that acts on click is a control nobody can reach by
  * keyboard.
  */
-export function RejectMenu({ onChoose }: { onChoose: (reason: RejectReason) => void }) {
+export function RejectMenu({ onChoose, disabled = false }: { onChoose: (reason: RejectReason) => void; disabled?: boolean }) {
   return (
     <div
       role="group"
@@ -29,8 +29,9 @@ export function RejectMenu({ onChoose }: { onChoose: (reason: RejectReason) => v
           type="button"
           data-testid="reject-reason"
           title={inboxCopy.rejectConsequence[reason]}
+          disabled={disabled}
           onClick={() => onChoose(reason)}
-          className="inline-flex items-center rounded-pill border border-line bg-ground px-2.5 py-0.5 text-12 font-medium text-muted transition-colors duration-micro ease-standard hover:text-ink focus-visible:outline-none focus-visible:ring-2"
+          className="inline-flex items-center rounded-pill border border-line bg-ground px-2.5 py-0.5 text-12 font-medium text-muted transition-colors duration-micro ease-standard hover:text-ink focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
         >
           {inboxCopy.rejectReason[reason]}
         </button>

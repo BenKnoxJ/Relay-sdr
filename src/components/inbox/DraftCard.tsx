@@ -36,10 +36,13 @@ export function DraftCard({
   item,
   onApprove,
   onReject,
+  deciding = null,
 }: {
   item: DraftItem;
   onApprove: (id: string, body?: string) => void;
   onReject: (id: string, reason: RejectReason) => void;
+  /** The decision on its way to the server for this draft: the card holds still and the pressed button says so. */
+  deciding?: "approve" | "reject" | null;
 }) {
   const { draft } = item;
   const [editing, setEditing] = useState(false);
@@ -47,6 +50,7 @@ export function DraftCard({
   const [body, setBody] = useState(draft.kind === "message" ? draft.body : "");
   const edited = draft.kind === "message" && body !== draft.body;
   const bodyId = useId();
+  const busy = deciding !== null;
 
   return (
     <Card>
@@ -83,10 +87,11 @@ export function DraftCard({
         </p>
       )}
 
+      {/* The reason above is the one warning; what the checks found is its detail, so it reads neutral. */}
       {item.findings === undefined || item.findings.length === 0 ? null : (
-        <div data-testid="draft-findings" className="mb-3 rounded-input bg-warn-bg px-3 py-2">
-          <p className="type-label text-warn">{inboxCopy.findingsLead}</p>
-          <ul className="type-small list-disc pl-4 text-warn">
+        <div data-testid="draft-findings" className="mb-3 rounded-input border border-line px-3 py-2">
+          <p className="type-label text-muted">{inboxCopy.findingsLead}</p>
+          <ul className="type-small list-disc pl-4 text-muted">
             {item.findings.map((finding) => (
               <li key={finding}>{finding}</li>
             ))}
@@ -153,24 +158,27 @@ export function DraftCard({
 
       <div className="flex items-center gap-2.5">
         {item.written === false ? null : (
-          <PillButton onClick={() => onApprove(item.id, edited ? body : undefined)}>{inboxCopy.approve}</PillButton>
+          <PillButton disabled={busy} onClick={() => onApprove(item.id, edited ? body : undefined)}>
+            {deciding === "approve" ? inboxCopy.approving : inboxCopy.approve}
+          </PillButton>
         )}
         {draft.kind === "message" && item.written !== false ? (
-          <PillButton variant="outline" onClick={() => setEditing((now) => !now)}>
+          <PillButton variant="outline" disabled={busy} onClick={() => setEditing((now) => !now)}>
             {editing ? inboxCopy.editDone : inboxCopy.edit}
           </PillButton>
         ) : null}
         <PillButton
           variant="text"
           aria-expanded={rejecting}
+          disabled={busy}
           onClick={() => setRejecting((now) => !now)}
           className="ml-auto"
         >
-          {inboxCopy.reject}
+          {deciding === "reject" ? inboxCopy.rejecting : inboxCopy.reject}
         </PillButton>
       </div>
 
-      {rejecting ? <RejectMenu onChoose={(reason) => onReject(item.id, reason)} /> : null}
+      {rejecting ? <RejectMenu disabled={busy} onChoose={(reason) => onReject(item.id, reason)} /> : null}
     </Card>
   );
 }

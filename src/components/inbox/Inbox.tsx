@@ -61,7 +61,14 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
   const [queue, setQueue] = useState<Queue>(() => initial ?? listQueue());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const inFlight = useRef(false);
+  // A decision that did not go through asserts; what just worked is read politely.
+  const [alert, setAlert] = useState<string | null>(null);
+  // The decisions on their way, per draft: that card holds still, and the rep can work the others.
+  const [deciding, setDeciding] = useState<Record<string, Decision>>({});
+  // The same, readable before the next render, so a second press in the same tick is the same press.
+  const pending = useRef(new Set<string>());
+  // Drafts the server has already decided in this visit: an answer that left before a later decision still lists it.
+  const decided = useRef(new Set<string>());
 
   const items = queue.items;
   const selectedIndex = Math.max(
@@ -70,12 +77,38 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
   );
   const selected: QueueItem | undefined = items[selectedIndex];
 
-  /** Take the queue the adapter hands back and select the row that took the worked one's place. */
-  function worked(next: Queue, line: string) {
-    const replacement = next.items[Math.min(selectedIndex, next.items.length - 1)];
+  /**
+   * Take the queue the adapter hands back and select the row that took the worked one's place,
+   * unless the rep has since moved to another row that is still there.
+   */
+  function worked(answer: Queue, line: string, workedId?: string) {
+    if (workedId !== undefined) decided.current.add(workedId);
+    const next = withoutDecided(answer, decided.current);
+    const index = workedId === undefined ? selectedIndex : Math.max(0, items.findIndex((item) => item.id === workedId));
+    const replacement = next.items[Math.min(index, next.items.length - 1)];
     setQueue(next);
-    setSelectedId(replacement?.id ?? null);
+    setSelectedId((current) => (workedId !== undefined && current !== null && current !== workedId && next.items.some((item) => item.id === current) ? current : (replacement?.id ?? null)));
     setStatus(line);
+    setAlert(null);
+  }
+
+  /** Send one decision to the server, once per draft, with the card busy until it answers. */
+  function decide(id: string, decision: Decision, send: () => Answer, line: string) {
+    if (pending.current.has(id)) return;
+    pending.current.add(id);
+    setDeciding((now) => ({ ...now, [id]: decision }));
+    const refused = (message: string) => {
+      setStatus(null);
+      setAlert(message);
+    };
+    void send()
+      .then((next) => ("error" in next ? refused(next.error) : worked(next, line, id)))
+      .catch(() => refused(inboxCopy.cannotDecide))
+      .finally(() => {
+        // eslint-disable-next-line no-restricted-syntax -- an in-memory Set of pending ids, not a row.
+        pending.current.delete(id);
+        setDeciding((now) => Object.fromEntries(Object.entries(now).filter(([key]) => key !== id)));
+      });
   }
 
   function onApprove(id: string, body?: string) {
@@ -89,15 +122,7 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
       worked(approve(id, body), line);
       return;
     }
-    // One decision at a time: a second press while the first is on its way is the same press.
-    if (inFlight.current) return;
-    inFlight.current = true;
-    void actions
-      .approve(id, body)
-      .then((next) => ("error" in next ? setStatus(next.error) : worked(next, line)))
-      .finally(() => {
-        inFlight.current = false;
-      });
+    decide(id, "approve", () => actions.approve(id, body), line);
   }
 
   function onReject(id: string, reason: RejectReason) {
@@ -106,14 +131,7 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
       worked(reject(id, reason), line);
       return;
     }
-    if (inFlight.current) return;
-    inFlight.current = true;
-    void actions
-      .reject(id, reason)
-      .then((next) => ("error" in next ? setStatus(next.error) : worked(next, line)))
-      .finally(() => {
-        inFlight.current = false;
-      });
+    decide(id, "reject", () => actions.reject(id, reason), line);
   }
 
   function onLabel(id: string, replyLabel: ReplyLabel) {
@@ -185,6 +203,9 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
       <p role="status" className={status === null ? "sr-only" : "type-small mb-3 text-muted"}>
         {status}
       </p>
+      <p role="alert" data-testid="inbox-alert" className={alert === null ? "sr-only" : "type-small mb-3 text-warn"}>
+        {alert}
+      </p>
 
       {selected === undefined ? (
         <Card className="p-0">
@@ -202,7 +223,7 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
             the rep to the next row.
           */}
           {selected.kind === "draft" ? (
-            <DraftCard key={selected.id} item={selected} onApprove={onApprove} onReject={onReject} />
+            <DraftCard key={selected.id} item={selected} deciding={deciding[selected.id] ?? null} onApprove={onApprove} onReject={onReject} />
           ) : selected.kind === "reply" ? (
             <ReplyCard key={selected.id} item={selected} onLabel={onLabel} />
           ) : (
@@ -213,6 +234,16 @@ export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; action
     </>
   );
 }
+
+type Decision = "approve" | "reject";
+
+/** The queue without drafts already decided here, and its draft count to match. */
+function withoutDecided(queue: Queue, decided: ReadonlySet<string>): Queue {
+  const items = queue.items.filter((item) => !(item.kind === "draft" && decided.has(item.id)));
+  const dropped = queue.items.length - items.length;
+  return dropped === 0 ? queue : { items, counts: { ...queue.counts, drafts: Math.max(0, queue.counts.drafts - dropped) } };
+}
+type Answer = ReturnType<InboxActions["approve"]>;
 
 /** True when the key was pressed in something a rep types into. */
 function isTyping(target: EventTarget | null): boolean {

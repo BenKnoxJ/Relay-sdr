@@ -29,6 +29,9 @@ const planned = (over: Partial<StageInput> = {}): StageInput => ({
 const confirmed = (leadGen: StageInput["leadGen"], over: Partial<StageInput> = {}): StageInput => planned({ confirmed: true, leadGen, ...over });
 const picked = (reveal: StageInput["reveal"], over: Partial<StageInput> = {}): StageInput => confirmed({ job: job("done"), result: { kind: "picked" } }, { reveal, ...over });
 const ledger = (over: Partial<LedgerCounts>): LedgerCounts => ({ ...NO_LEDGER, ...over });
+type Outreach = NonNullable<StageInput["outreach"]>;
+const drafts = (over: Partial<Outreach["drafts"]>): Outreach => ({ writable: 2, requested: true, jobs: { queued: 0, running: 0 }, drafts: { to_review: 0, needs_you: 0, failed: 0, approved: 0, rejected: 0, ...over } });
+const revealed = (outreach: Outreach): StageInput => picked({ job: job("done"), hasResult: true, ledger: ledger({ reconciled: 2 }) }, { outreach });
 
 type Row = {
   name: string;
@@ -111,6 +114,28 @@ describe("deriveStage", () => {
       // Needing the rep and being in flight never coincide.
       expect(attention !== null && isAttention(stage)).toBe(attention !== null);
     }
+  });
+});
+
+/**
+ * First emails (outreach v2.1): the drafts' attention belongs to drafts_ready
+ * alone. Kept out of ROWS: an exhausted campaign needs the rep on a stage
+ * isAttention does not list, so the invariant above does not hold for it yet.
+ */
+const DRAFT_ROWS: Row[] = [
+  { name: "drafts waiting for review", input: revealed(drafts({ to_review: 2 })), stage: "drafts_ready", state: "drafting", attention: null, next: "review_drafts" },
+  { name: "every draft rejected or failed", input: revealed(drafts({ rejected: 1, failed: 1 })), stage: "drafts_ready", state: "drafting", attention: { kind: "needs_you", reason: "drafts_exhausted", retryable: false }, next: "edit_brief" },
+  { name: "a draft approved", input: revealed(drafts({ approved: 1, rejected: 1 })), stage: "ready_to_send", state: "drafting", attention: null, next: null },
+];
+
+describe("deriveStage for first emails", () => {
+  it.each(DRAFT_ROWS)("$name", (row) => {
+    const result = deriveStage(row.input);
+    expect(result.stage).toBe(row.stage);
+    expect(result.state).toBe(row.state);
+    expect(result.nextAction).toBe(row.next);
+    expect(result.attention).toEqual(row.attention);
+    expect(result.stageAttention).toEqual({ stage: row.stage, attention: row.attention });
   });
 });
 

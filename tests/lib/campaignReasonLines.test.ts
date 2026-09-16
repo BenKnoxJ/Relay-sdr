@@ -76,10 +76,13 @@ describe("reasonLineOf", () => {
     expect(reasonLineOf(research)).toBe(c.failedNoPlay);
     expect(reasonLineOf(stopped)).toBe(c.stopBanner);
     expect(reasonLineOf(people)).toBe(c.haltOverCap);
+    const exhausted: CampaignSummaryFacts = { ...BASE, stage: "drafts_ready", attention: { kind: "needs_you", reason: "drafts_exhausted", retryable: false } };
     expect(reasonLineOf(reveal)).toBe(c.revealStoppedHeld);
+    expect(reasonLineOf(exhausted)).toBe(c.draftsExhausted);
   });
 
   it("has nothing to say for a stage that does not need the rep", () => {
     expect(reasonLineOf({ ...BASE, stage: "finding_people", attention: null })).toBeNull();
+    expect(reasonLineOf({ ...BASE, stage: "drafts_ready", attention: null })).toBeNull();
   });
 });

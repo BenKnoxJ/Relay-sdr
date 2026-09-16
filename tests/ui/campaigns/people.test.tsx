@@ -341,6 +341,14 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
     expect(currentStep()).toBe(campaignsCopy.stepReviewingPeople);
   });
 
+  it("says nothing about a title match a row does not record", () => {
+    const unmatched = rows(full).map((row) => ({ ...row, roleMatch: null }));
+    render(<CampaignPage campaign={found(unmatched)} onReview={vi.fn()} />);
+    const lines = screen.getAllByTestId("why-fits").map((line) => line.textContent ?? "");
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.some((line) => line.includes(campaignsCopy.evidenceExactTitle) || line.includes(campaignsCopy.evidenceCloseTitle))).toBe(false);
+  });
+
   it("offers Drop account only where an account has more than one person", () => {
     render(<CampaignPage campaign={found(rows(full))} onReview={vi.fn()} />);
     for (const account of screen.getAllByTestId("found-account")) {

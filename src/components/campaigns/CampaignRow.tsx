@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Chip } from "@/components/Chip";
-import { bucketOfRow, stageLineOf } from "@/lib/campaigns/stageLine";
+import { bucketOfRow, chipToneOf, isWaiting, stageLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSummary } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
         </span>
       </span>
 
-      <Chip tone={bucket === "needsYou" ? "warn" : bucket === "ready" ? "ok" : "default"}>{campaign.chip}</Chip>
+      <Chip tone={chipToneOf(bucket, facts !== undefined && isWaiting(facts))}>{campaign.chip}</Chip>
 
       <span
         data-testid="campaign-next"

@@ -342,6 +342,30 @@ describe("the campaign summary", () => {
     expect(page.activity?.[0]?.actor.kind).toBe("relay");
   });
 
+  it("reads a search's halt reason the same on the list as on the page, and one outside the contract as failed", async () => {
+    const spend = { searchCreditCap: 40, charged: 0, reserved: 0, pricingAssumptions: "x", exceededDocumentedWorstCase: false };
+    const halted = async (reason: string) => {
+      const { id } = await planned();
+      await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId: crypto.randomUUID() });
+      const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id, kind: LEAD_GEN_JOB } });
+      await prisma.event.create({
+        data: { orgId: job.orgId, kind: "leadgen.halted", actorKind: "system", campaignId: id, after: { jobId: job.id, briefVersion: 1, output: { phase: "needs_you", reason, spend } } },
+      });
+      await prisma.job.update({ where: { id: job.id }, data: { status: "done" } });
+      const page = await caller(rep()).campaigns.get({ id });
+      const row = (await caller(rep()).campaigns.list()).campaigns.find((c) => c.id === id)!;
+      return { page: page.facts, row: row.facts };
+    };
+
+    const known = await halted("over_cap");
+    expect(known.row).toMatchObject({ stage: "people_needs_you", attention: { reason: "over_cap" } });
+    expect(known.row).toEqual(known.page);
+
+    const unknown = await halted("a_new_reason");
+    expect(unknown.row).toMatchObject({ stage: "people_needs_you", attention: { reason: "failed" } });
+    expect(unknown.row).toEqual(unknown.page);
+  });
+
   it("@proof lists only the rep's own campaigns, in a fixed number of queries however many there are, with nothing org-wide read", async () => {
     await planned(stranger());
     const { id: first } = await planned();

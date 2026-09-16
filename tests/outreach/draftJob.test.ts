@@ -16,7 +16,7 @@ import type { LeadGenSetup } from "@/lib/leadgen/setup";
 import { DOCUMENTED_UNVERIFIED_PRICING } from "@/lib/leadgen/spend";
 import { confirmCampaign, confirmReveal, createCampaign, getCampaignForOwner, reviewPeople } from "@/lib/repo/campaigns";
 import { LEAD_GEN_JOB, REVEAL_JOB } from "@/lib/repo/leadgen";
-import { OUTREACH_DRAFT_JOB, OUTREACH_LOOKUP, recordDraft } from "@/lib/repo/outreach";
+import { OUTREACH_DRAFT_JOB, OUTREACH_LOOKUP, recordDraft, saveVoice } from "@/lib/repo/outreach";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
@@ -426,5 +426,13 @@ describe("the rep's voice", () => {
     const [job] = await draftJobs(campaign);
     const { model } = await runDraft(job!);
     expect(model.inputs[0]!.voice).toEqual({ email: ["Morning Sarah,\n\nShort and plain.\n\nSam"], linkedin: [], howIWrite: "Short. No hype." });
+  });
+
+  it("@proof never writes a voice under another org", async () => {
+    const owner = await ensureUser(prisma, rep());
+    const other = await ensureUser(prisma, stranger());
+    await saveVoice(prisma, { orgId: owner.orgId, userId: owner.userId, voice: { samples: [], howIWrite: "Mine." } });
+    await expect(saveVoice(prisma, { orgId: other.orgId, userId: owner.userId, voice: { samples: [], howIWrite: "Theirs." } })).rejects.toThrow();
+    expect(await prisma.repVoice.findMany({ select: { orgId: true, userId: true, howIWrite: true } })).toEqual([{ orgId: owner.orgId, userId: owner.userId, howIWrite: "Mine." }]);
   });
 });

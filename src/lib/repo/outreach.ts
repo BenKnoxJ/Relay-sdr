@@ -267,7 +267,7 @@ async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; us
     SELECT id FROM outreach_drafts WHERE id = ${where.draftId} AND org_id = ${where.orgId} AND owner_user_id = ${where.userId} FOR UPDATE
   `;
   if (rows.length === 0) throw new DraftRefused("not_found");
-  const draft = await tx.outreachDraft.findUniqueOrThrow({ where: { id: where.draftId } });
+  const draft = await tx.outreachDraft.findFirstOrThrow({ where: { id: where.draftId, orgId: where.orgId, ownerUserId: where.userId } });
   if (draft.state === "approved" || draft.state === "rejected") throw new DraftRefused("decided");
   if (draft.state === "failed" || draft.body === null) throw new DraftRefused("not_written");
   return draft;
@@ -375,7 +375,8 @@ export async function saveVoice(db: PrismaClient, input: { orgId: string; userId
     after: { samples: samples.length, noteLines: howIWrite === "" ? 0 : howIWrite.split("\n").length },
     apply: (tx) =>
       tx.repVoice.upsert({
-        where: { userId: input.userId },
+        // Keyed on the org too, as the read is: a voice is never written under another org.
+        where: { orgId_userId: { orgId: input.orgId, userId: input.userId } },
         create: { orgId: input.orgId, userId: input.userId, samples, howIWrite },
         update: { samples, howIWrite },
       }),

@@ -349,6 +349,8 @@ describe("Reviewing people, accounts first (v2.2 §9a)", () => {
   it("says nothing about a title match a row does not record", () => {
     const unmatched = rows(full).map((row) => ({ ...row, roleMatch: null }));
     render(<CampaignPage campaign={found(unmatched)} onReview={vi.fn()} />);
+    // Accounts start folded; the evidence lines render once the page is open.
+    fireEvent.click(screen.getByTestId("expand-all"));
     const lines = screen.getAllByTestId("why-fits").map((line) => line.textContent ?? "");
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.some((line) => line.includes(campaignsCopy.evidenceExactTitle) || line.includes(campaignsCopy.evidenceCloseTitle))).toBe(false);

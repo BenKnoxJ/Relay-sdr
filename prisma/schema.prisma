@@ -75,6 +75,8 @@ model Org {
   campaignPeople      CampaignPerson[]
   contactSuppressions ContactSuppression[]
   creditLedger        CreditLedgerEntry[]
+  outreachDrafts      OutreachDraft[]
+  repVoices           RepVoice[]
 
   @@map("orgs")
 }
@@ -100,6 +102,9 @@ model User {
   jobs              Job[]
   campaigns         Campaign[]
   reviewedPeople    CampaignPerson[]   @relation("CampaignPersonReviewer")
+  outreachDrafts    OutreachDraft[]    @relation("OutreachDraftOwner")
+  decidedDrafts     OutreachDraft[]    @relation("OutreachDraftDecider")
+  repVoice          RepVoice?
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -249,6 +254,7 @@ model Campaign {
   jobs      Job[]
   people    CampaignPerson[]
   credits   CreditLedgerEntry[]
+  drafts    OutreachDraft[]
 
   @@unique([orgId, startRequestId])
   @@index([orgId, ownerUserId, createdAt])
@@ -304,6 +310,7 @@ model Job {
   sideEffects SideEffect[]
   people      CampaignPerson[]
   credits     CreditLedgerEntry[]
+  drafts      OutreachDraft[]
 
   /// Scoped to the org, not global. An idempotency key is derived from what
   /// the job is about ("send touch 1 to this person"), so two tenants can
@@ -635,11 +642,12 @@ model CampaignPerson {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
-  org        Org      @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
-  job        Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
-  person     Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
-  reviewedBy User?    @relation("CampaignPersonReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  org        Org             @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  job        Job             @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  person     Person?         @relation(fields: [personId], references: [id], onDelete: Restrict)
+  drafts     OutreachDraft[]
+  reviewedBy User?           @relation("CampaignPersonReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, campaignId, briefVersion, provider, providerId])
   @@index([orgId, campaignId, briefVersion, rank])
@@ -697,4 +705,97 @@ model CreditLedgerEntry {
   @@index([orgId, confirmEventId])
   @@index([orgId, createdAt])
   @@map("credit_ledger")
+}
+
+// ── Outreach (outreach v2 §3–§10, as amended by v2.1) ────────────────────────
+
+/// Where a first email is (outreach v2.1): written and waiting for the rep,
+/// parked because it failed the gates twice or could not be written, or
+/// decided by the rep. Approved is Ready to send; nothing is sent in H1's
+/// first slice.
+enum OutreachDraftState {
+  to_review
+  needs_you
+  failed
+  approved
+  rejected
+
+  @@map("outreach_draft_state")
+}
+
+/// One draft of one touch for one kept, revealed person (outreach v2 §5).
+/// The body is what sits between the greeting and the sign-off (v2.1 §4).
+/// The lookup it rests on, the findings that parked it and the advice shown
+/// beside it are kept with it, so the card can be argued with.
+model OutreachDraft {
+  id               String             @id @default(cuid())
+  orgId            String             @map("org_id")
+  campaignId       String             @map("campaign_id")
+  briefVersion     Int                @map("brief_version")
+  campaignPersonId String             @map("campaign_person_id")
+  ownerUserId      String             @map("owner_user_id")
+  /// The `outreach_draft` job that wrote it: one draft per job.
+  jobId            String             @map("job_id")
+  touch            String
+  /// 1 for the first draft; a rep's "wrong angle" or "wrong fact" asks for 2, and so on.
+  attempt          Int                @default(1)
+  state            OutreachDraftState
+  subject          String?
+  body             String?
+  ask              String?
+  opener           Json?
+  claims           String[]           @default([])
+  /// The Tier A findings that parked it, in rep words; empty when it passed.
+  findings         Json
+  /// Tier B advice shown on the card.
+  advice           Json
+  lookup           Json
+  /// How many model generations it took: one, or two with the corrective redraft (v2.1 §6).
+  generations      Int
+  /// Model cost across its generations, in USD.
+  costUsd          Decimal            @default(0) @map("cost_usd") @db.Decimal(12, 6)
+  /// The rep's edited body, when they changed it before approving.
+  editedBody       String?            @map("edited_body")
+  /// How the edit changed it (§10): trim, reword, rewrite or factual.
+  editClass        String?            @map("edit_class")
+  rejectReason     String?            @map("reject_reason")
+  decidedByUserId  String?            @map("decided_by_user_id")
+  decidedAt        DateTime?          @map("decided_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  org            Org            @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign       Campaign       @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  campaignPerson CampaignPerson @relation(fields: [campaignPersonId], references: [id], onDelete: Restrict)
+  job            Job            @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  owner          User           @relation("OutreachDraftOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  decidedBy      User?          @relation("OutreachDraftDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([orgId, jobId])
+  /// One draft per person, touch and attempt: a repeated press or a retried job
+  /// cannot write a second first email for the same person.
+  @@unique([orgId, campaignPersonId, touch, attempt], map: "outreach_drafts_one_per_attempt")
+  @@index([orgId, ownerUserId, state])
+  @@index([orgId, campaignId, briefVersion])
+  @@map("outreach_drafts")
+}
+
+/// The rep's voice, v0 (master §15): up to eight pasted emails they are proud
+/// of and a "how I write" note, given to the writer as examples, never as content.
+model RepVoice {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  userId    String   @unique @map("user_id")
+  /// The pasted emails, oldest first.
+  samples   Json
+  howIWrite String   @default("") @map("how_i_write")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  /// Written and read within the org, like every other row.
+  @@unique([orgId, userId])
+  @@map("rep_voices")
 }

@@ -52,6 +52,11 @@ function Person({ person, roles, reviewing, busy, press }: { person: FoundPerson
             </span>
           )}
           {person.reused && person.reveal === null ? <span className="type-mono text-11 text-muted">{c.peopleReusedChip}</span> : null}
+          {person.draft !== undefined && person.draft !== null ? (
+            <span data-testid="draft-chip" className={cn("type-mono text-11", person.draft === "needs_you" || person.draft === "failed" ? "text-warn" : person.draft === "approved" ? "text-action" : "text-muted")}>
+              {c.draftChip[person.draft]}
+            </span>
+          ) : null}
         </span>
         {person.email === null ? null : (
           // A narrow screen breaks a long address at the @ first, never mid-name; one press selects all of it to copy.
@@ -191,7 +196,7 @@ function RevealSummary({ view }: { view: PeopleFoundView }) {
           {result.notKept} {result.notKept === 1 ? c.accountPerson : c.accountPeople} {c.notKept}
         </p>
       ) : null}
-      {!result.running && ready > 0 ? (
+      {view.drafts !== undefined && view.drafts !== null ? null : !result.running && ready > 0 ? (
         <p data-testid="outreach-next" className="type-small max-w-measure text-muted">
           <span className="font-semibold text-ink">{c.outreachNextLabel}.</span> {c.outreachNextLine}
         </p>

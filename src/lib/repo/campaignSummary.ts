@@ -4,10 +4,11 @@ import { HALT_REASONS, type Halt } from "../../../agents/leadgen/output.schema";
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { widenedBrief } from "@/lib/campaigns/brief";
 import { executablePlayCount, rankedPlays, type PlayFacts } from "@/lib/campaigns/plays";
-import type { LeadGenResult, ResearchResultFacts } from "@/lib/campaigns/stage";
+import type { LeadGenResult, OutreachFacts, ResearchResultFacts } from "@/lib/campaigns/stage";
 import { revealLedgerOf, spendOf, type LedgerGroup, type PeopleGroup, type ResearchCost, type SummaryInput } from "@/lib/campaigns/summary";
 
 import { LEAD_GEN_JOB, REVEAL_JOB } from "./leadgen";
+import { OUTREACH_DRAFT_JOB } from "./outreach";
 
 /**
  * The campaign list's reads (product-truth foundation, 2026-09-15): every
@@ -96,11 +97,12 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
              WHEN 'leadgen.picked' THEN jsonb_build_object('phase', e.after->'output'->'phase')
              WHEN 'leadgen.halted' THEN jsonb_build_object('reason', e.after->'output'->'reason', 'choices', e.after->'output'->'choices')
              WHEN 'campaign.reveal_confirmed' THEN jsonb_build_object('leadGenJobId', e.after->'leadGenJobId', 'maxCredits', e.after->'maxCredits')
+             WHEN 'outreach.requested' THEN jsonb_build_object('requested', true)
            END AS projection
       FROM events e
      WHERE e.org_id = ${orgId}
        AND e.campaign_id = ANY(${[...campaignIds]}::text[])
-       AND e.kind IN ('research.completed', 'campaign.confirmed', 'leadgen.picked', 'leadgen.halted', 'campaign.reveal_confirmed', 'leadgen.revealed')
+       AND e.kind IN ('research.completed', 'campaign.confirmed', 'leadgen.picked', 'leadgen.halted', 'campaign.reveal_confirmed', 'leadgen.revealed', 'outreach.requested')
      ORDER BY e.at ASC, e.id ASC
   `;
 }
@@ -143,7 +145,7 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
 
   const [jobs, ledger, costs, events] = await Promise.all([
     db.job.findMany({
-      where: { orgId: owner.orgId, campaignId: { in: ids }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB] } },
+      where: { orgId: owner.orgId, campaignId: { in: ids }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB, OUTREACH_DRAFT_JOB] } },
       select: { id: true, campaignId: true, briefVersion: true, kind: true, status: true, error: true, createdAt: true },
     }),
     ledgerGroupsFor(db, owner.orgId, ids),
@@ -167,7 +169,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
         : null;
     const revealJob = revealConfirm?.jobId === null || revealConfirm === null ? null : (jobs.find((job) => job.id === revealConfirm.jobId && job.kind === REVEAL_JOB) ?? null);
     const revealResult = firstFor(["leadgen.revealed"], revealJob?.id);
-    return { campaign, researchJob, leadGenJob, researchEvent, confirm, leadGenEvent, picked, revealConfirm, revealJob, revealResult };
+    const outreachRequested = revealResult !== null && events.some((event) => event.kind === "outreach.requested" && event.campaignId === campaign.id && event.briefVersion === campaign.briefVersion);
+    return { campaign, researchJob, leadGenJob, researchEvent, confirm, leadGenEvent, picked, revealConfirm, revealJob, revealResult, outreachRequested };
   });
 
   const pickedJobs = partial.flatMap((row) => (row.picked && row.leadGenJob !== null ? [row.leadGenJob.id] : []));
@@ -179,6 +182,24 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           where: { orgId: owner.orgId, jobId: { in: pickedJobs } },
           _count: { _all: true },
         });
+
+  // Once Write emails was pressed: each campaign's latest draft per person, by state, and the draft jobs that
+  // failed (7th and 8th queries, only for those campaigns).
+  const draftedCampaigns = partial.filter((row) => row.outreachRequested).map((row) => row.campaign.id);
+  const [draftRows, failedDraftJobs] =
+    draftedCampaigns.length === 0
+      ? [[], []]
+      : await Promise.all([
+          db.outreachDraft.findMany({
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns } },
+            select: { campaignId: true, briefVersion: true, campaignPersonId: true, state: true, attempt: true, jobId: true },
+            orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
+          }),
+          db.job.findMany({
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, kind: OUTREACH_DRAFT_JOB, status: "failed" },
+            select: { id: true, campaignId: true, briefVersion: true, input: true },
+          }),
+        ]);
 
   return partial.map((row): CampaignSummaryRecord => {
     const { campaign } = row;
@@ -216,6 +237,7 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           reveal: row.revealConfirm === null ? null : { job: row.revealJob, hasResult: row.revealResult !== null, ledger: revealLedgerOf(campaignLedger, row.revealConfirm.id) },
           revealPlan: null,
           leadGenAvailable: options.leadGenAvailable,
+          outreach: row.revealResult === null ? null : outreachFactsOfList(campaign, groups, jobs, draftRows, failedDraftJobs, row.outreachRequested),
         },
         research: research.summary,
         confirmed:
@@ -231,6 +253,33 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
       },
     };
   });
+}
+
+/** Outreach at this version, from the grouped people, the draft jobs on the queue and each person's latest draft. */
+function outreachFactsOfList(
+  campaign: Campaign,
+  groups: readonly PeopleGroup[],
+  jobs: readonly JobRow[],
+  drafts: readonly { campaignId: string; briefVersion: number; campaignPersonId: string; state: string; jobId: string }[],
+  failedJobs: readonly { id: string; campaignId: string | null; briefVersion: number | null; input: unknown }[],
+  requested: boolean,
+): OutreachFacts {
+  const writable = groups.filter((group) => group.status === "chosen" && group.review === "kept" && (group.reveal === "revealed" || group.reveal === "known")).reduce((total, group) => total + group.count, 0);
+  const inFlight = jobs.filter((job) => job.campaignId === campaign.id && job.briefVersion === campaign.briefVersion && job.kind === OUTREACH_DRAFT_JOB && (job.status === "queued" || job.status === "running"));
+  const byPerson: Record<string, string> = {};
+  const current = drafts.filter((draft) => draft.campaignId === campaign.id && draft.briefVersion === campaign.briefVersion);
+  for (const draft of current) byPerson[draft.campaignPersonId] = draft.state;
+  // As the campaign page reads it: a draft job that failed without recording a draft failed for that person.
+  const drafted = new Set(current.map((draft) => draft.jobId));
+  for (const job of failedJobs) {
+    if (job.campaignId !== campaign.id || job.briefVersion !== campaign.briefVersion || drafted.has(job.id)) continue;
+    const id = record(job.input).campaignPersonId;
+    if (typeof id === "string") byPerson[id] = "failed";
+  }
+  const counts = { to_review: 0, needs_you: 0, failed: 0, approved: 0, rejected: 0 };
+  for (const state of Object.values(byPerson)) if (state in counts) counts[state as keyof typeof counts] += 1;
+  // A person whose next draft is on the queue is being written, whatever their last draft says.
+  return { writable, requested, jobs: { queued: inFlight.filter((job) => job.status === "queued").length, running: inFlight.filter((job) => job.status === "running").length }, drafts: counts };
 }
 
 /** Research's result as a summary reads it, from the Event's reduced projection. */

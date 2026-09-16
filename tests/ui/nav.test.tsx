@@ -21,7 +21,8 @@ const AREAS = [
 ];
 
 /** What a rep sees until the example surfaces are switched on: the same order, two fewer. */
-const LIVE_AREAS = [navCopy.home, navCopy.campaigns, navCopy.settings];
+const LIVE_AREAS = [navCopy.home,
+  navCopy.inbox, navCopy.campaigns, navCopy.settings];
 
 const labels = () =>
   screen.getAllByRole("link").map((link) => within(link).getByTestId("nav-label").textContent);
@@ -39,7 +40,7 @@ describe("Nav", () => {
    * carries three areas unless the environment says otherwise. The routes
    * still answer by URL; only the links are gone.
    */
-  it("shows three areas, in the same order, when they are off, which is the default", () => {
+  it("shows the live areas, Inbox included, when the example surfaces are off, which is the default", () => {
     const { unmount } = render(<Nav role="rep" initials="BK" hasCampaign={false} />);
     expect(labels()).toEqual(LIVE_AREAS);
     unmount();

@@ -133,7 +133,7 @@ function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" |
  * emails is pressed (`keptOnly`), only the kept people are listed, in
  * Relay's order: nobody else was, or will be, revealed.
  */
-export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false): AccountView[] {
+export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false, drafts?: Record<string, string>): AccountView[] {
   const roles = handoff.version === 2;
 
   const byKey = new Map<string, StoredPerson[]>();
@@ -162,6 +162,7 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         evidence: evidenceOf(row, preview, seed, roles),
         review: reviewOf(row.review),
         ...revealOf(row),
+        ...(drafts === undefined ? {} : { draft: (drafts[row.id] as FoundPersonView["draft"]) ?? null }),
       };
     });
     return {

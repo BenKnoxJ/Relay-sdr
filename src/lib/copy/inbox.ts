@@ -38,7 +38,7 @@ export type CallOutcome = (typeof CALL_OUTCOMES)[number];
  * from the checks (§23.1b, "Needs you"). The keys are the page's; the words
  * beside them are what the row says.
  */
-export const NEEDS_YOU_REASONS = ["voice", "fact"] as const;
+export const NEEDS_YOU_REASONS = ["voice", "fact", "checks", "not_written"] as const;
 export type NeedsYouReason = (typeof NEEDS_YOU_REASONS)[number];
 
 /** How well a person fits, as a word and never a number (§21 rule 2). */
@@ -56,6 +56,8 @@ export const inboxCopy = {
     "Example queue. These replies, calls and drafts are examples. Real drafts arrive here when outreach is written.",
   /** The header note while the queue is the fixture: the signed mock's counts would be counts of examples. */
   exampleNote: "example",
+  countDraftOne: "draft to review",
+  countDraftMany: "drafts to review",
   /** The header note when the queue is empty (mock section 2c). */
   nothingWaiting: "nothing waiting",
 
@@ -70,6 +72,7 @@ export const inboxCopy = {
   /** The one word of state on the right of a row. */
   stateLabel: "label",
   stateToday: "today",
+  stateToReview: "to review",
   /** The warn chip on a draft that needs the rep. */
   needsYou: "needs you",
 
@@ -78,9 +81,32 @@ export const inboxCopy = {
   needsYouReason: {
     voice: "voice check failed twice",
     fact: "a fact did not check out",
+    /** Outreach v2.1 §6: two generations, and the checks still found something. */
+    checks: "Relay's checks still found something after a second try",
+    not_written: "Relay couldn't write this one",
   },
   /** Above the body on a draft that needs the rep. */
   needsYouCard: "Read this one before it goes.",
+  /** Above what the checks found, on a draft that needs the rep. */
+  findingsLead: "What the checks found:",
+  /** The Tier B advice line on a draft. */
+  adviceLead: "Worth a look:",
+  /** A draft that could not be written has nothing to approve. */
+  notWrittenCard: "There is no draft to approve. Relay tried twice and kept nothing it could stand behind.",
+  /** The chip on a draft when nothing is sent yet (outreach v2.1 §1). */
+  nothingSentYet: "Nothing is sent yet",
+  /** After Approve, while sending is not built. */
+  approvedReady: "Approved. Ready to send; nothing is sent yet.",
+  /** A draft someone already approved or rejected, from another tab or an earlier press. */
+  alreadyDecided: "This draft was already decided. Reload the Inbox to see where it is.",
+  /** A draft that could not be changed, and the reason is not the rep's to act on. */
+  cannotDecide: "That did not go through. Reload the Inbox and try again.",
+  /** The empty Inbox on real data, while replies and calls are not built. */
+  emptyLive: "No drafts waiting. First emails land here when you press Write emails on a campaign.",
+  /** The line under a draft's evidence when the opener is the role problem. */
+  noPersonFact: "Nothing usable came up about them or their firm, so this opens on the problem their role owns.",
+  /** A draft card's small campaign line. */
+  fromCampaign: "From",
 
   /** The row context for a draft: "Email 1 of 3 · Kestrel Couriers". */
   email: "Email",
@@ -113,6 +139,9 @@ export const inboxCopy = {
   edit: "Edit",
   editDone: "Done",
   reject: "Reject…",
+  /** The pressed button while its decision is on its way to the server. */
+  approving: "Approving",
+  rejecting: "Rejecting",
   /** The accessible name of the body while it is being edited. */
   bodyField: "The email",
   /** A call draft's talking point, when the draft is for a call rather than an email. */
@@ -130,10 +159,10 @@ export const inboxCopy = {
   },
   /** What each reason does, said before it is chosen and again once it is. */
   rejectConsequence: {
-    wrong_angle: "Relay redrafts on another pain.",
-    wrong_person: "Closes this person's remaining emails and calls.",
-    wrong_fact: "Marks the fact bad and redrafts on what firms like theirs share.",
-    not_now: "Snoozes them for 14 days.",
+    wrong_angle: "Relay redrafts on another problem.",
+    wrong_person: "Closes this person's emails.",
+    wrong_fact: "Relay redrafts on the role problem instead.",
+    not_now: "Leaves this person for now.",
   },
 
   /** After Approve: "Approved. Sends Thu 09:00." */

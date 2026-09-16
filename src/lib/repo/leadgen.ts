@@ -548,6 +548,8 @@ export type LeadGenRecord = {
   reveal?: RevealRecord | null;
   /** Before it is pressed: what it would do for the kept people. */
   revealPlan?: RevealCounts | null;
+  /** Once Write emails is pressed (outreach v2.1): each person's latest first-email draft state, or `writing`. */
+  outreach?: OutreachRecord | null;
 };
 
 export const NO_LEAD_GEN: LeadGenRecord = { confirm: null, job: null, result: null, people: [], spend: null, reveal: null, revealPlan: null };
@@ -593,5 +595,36 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
       spend: await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: revealConfirm.id, kind: "reveal" }),
     },
     revealPlan: null,
+    outreach: revealResult === null ? null : await outreachFor(db, scope),
   };
+}
+
+/** Write emails at this version: whether it was pressed, each person's latest draft state (or `writing`), and the counts the stage reads. */
+export type OutreachRecord = { requested: boolean; byPerson: Record<string, string>; jobs: { queued: number; running: number } };
+
+/** Write emails, at this version: whether it was pressed, and each person's latest draft state (or `writing`). */
+async function outreachFor(db: Db, scope: Scope): Promise<OutreachRecord> {
+  const requested = await db.event.findFirst({ where: { orgId: scope.orgId, campaignId: scope.campaignId, kind: "outreach.requested", after: { path: ["briefVersion"], equals: scope.briefVersion } } });
+  if (requested === null) return { requested: false, byPerson: {}, jobs: { queued: 0, running: 0 } };
+  const byPerson: Record<string, string> = {};
+  // Each person's latest attempt, then anyone whose next draft is still being written.
+  const drafts = await db.outreachDraft.findMany({ where: scope, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true, jobId: true } });
+  for (const draft of drafts) byPerson[draft.campaignPersonId] = draft.state;
+  const drafted = new Set(drafts.map((draft) => draft.jobId));
+  const jobs = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running", "failed"] } }, select: { id: true, input: true, status: true } });
+  const personOf = (job: { input: unknown }) => (job.input as { campaignPersonId?: unknown } | null)?.campaignPersonId;
+  // A job that failed without recording a draft still failed for that person: never "not asked".
+  for (const job of jobs) {
+    const id = personOf(job);
+    if (job.status === "failed" && typeof id === "string" && !drafted.has(job.id)) byPerson[id] = "failed";
+  }
+  const counts = { queued: 0, running: 0 };
+  for (const job of jobs) {
+    if (job.status === "failed") continue;
+    const id = personOf(job);
+    if (typeof id === "string") byPerson[id] = "writing";
+    if (job.status === "running") counts.running += 1;
+    else counts.queued += 1;
+  }
+  return { requested: true, byPerson, jobs: counts };
 }

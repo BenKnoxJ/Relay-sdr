@@ -54,7 +54,8 @@ export type Person = {
  */
 export type Opener = {
   id: string;
-  kind: "person_fact" | "archetype_pain";
+  /** v2.1 §4: person fact, firm fact, or the role problem (`archetype_pain` is v2's word for it). */
+  kind: "person_fact" | "firm_fact" | "role_pain" | "archetype_pain";
   text: string;
   /** "Careers page", "Their site", "Trade press". */
   source: string;
@@ -75,10 +76,20 @@ export type DraftItem = {
   opener: Opener;
   emailFound: boolean;
   fit: FitWord;
-  /** When Approve would send it: "Thu", "09:00". */
-  sends: { day: string; time: string };
+  /** When Approve would send it: "Thu", "09:00". Null while sending is not built (outreach v2.1 §1). */
+  sends: { day: string; time: string } | null;
   /** Why the draft came back to the rep, or null when it did not. */
   needsYou: NeedsYouReason | null;
+  /** What the checks found, when it needs the rep. */
+  findings?: string[];
+  /** Advice beside the draft; never blocks. */
+  advice?: string[];
+  /** The greeting and sign-off Relay puts around the body (v2.1 §4). */
+  envelope?: { greeting: string; signOff: string };
+  /** The campaign it belongs to. */
+  campaignName?: string;
+  /** False for a draft that could not be written: there is nothing to approve. */
+  written?: boolean;
 };
 
 export type ReplyItem = {
@@ -413,6 +424,15 @@ export function approve(id: string, body?: string): Queue {
 }
 
 /** Reject a draft for one of the four signed reasons. The consequence is the copy file's to say. */
+/**
+ * The server's own approve and reject (outreach v2.1): each hands back the
+ * queue as the server now holds it, or a line to show.
+ */
+export type InboxActions = {
+  approve: (id: string, body?: string) => Promise<Queue | { error: string }>;
+  reject: (id: string, reason: RejectReason) => Promise<Queue | { error: string }>;
+};
+
 export function reject(id: string, reason: RejectReason): Queue {
   void reason;
   return leave(id);

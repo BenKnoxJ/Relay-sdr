@@ -114,7 +114,7 @@ export function spendOf(
 
 export function summaryFactsOf(input: SummaryInput): { facts: CampaignSummaryFacts; derived: StageResult } {
   const derived = deriveStage(input.stage);
-  const picked = input.people !== null && (derived.stage === "reviewing_people" || derived.stage === "revealing" || derived.stage === "reveal_needs_you" || derived.stage === "people_ready");
+  const picked = input.people !== null && !["researching", "research_needs_you", "research_stopped", "plan_ready", "finding_people", "people_needs_you"].includes(derived.stage);
   return {
     derived,
     facts: {
@@ -129,7 +129,18 @@ export function summaryFactsOf(input: SummaryInput): { facts: CampaignSummaryFac
       research: input.research,
       confirmed: input.confirmed,
       people: picked && input.people !== null ? peopleCountsOf(input.people) : null,
-      reveal: derived.stage === "people_ready" && input.people !== null ? revealCountsOf(input.people) : null,
+      reveal: (derived.stage === "people_ready" || derived.stage === "drafting" || derived.stage === "drafts_ready" || derived.stage === "ready_to_send") && input.people !== null ? revealCountsOf(input.people) : null,
+      drafts:
+        input.stage.outreach?.requested === true
+          ? {
+              writing: input.stage.outreach.jobs.queued + input.stage.outreach.jobs.running,
+              toReview: input.stage.outreach.drafts.to_review,
+              needsYou: input.stage.outreach.drafts.needs_you,
+              approved: input.stage.outreach.drafts.approved,
+              rejected: input.stage.outreach.drafts.rejected,
+              failed: input.stage.outreach.drafts.failed,
+            }
+          : null,
       spend: input.spend,
     },
   };

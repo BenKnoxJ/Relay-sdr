@@ -304,6 +304,7 @@ function summary(
       confirmed: null,
       people: null,
       reveal: null,
+      drafts: null,
       spend: NO_SPEND,
       ...facts,
       // The spread cannot carry the stage/attention pairing through; the parameter type checks it at each call.

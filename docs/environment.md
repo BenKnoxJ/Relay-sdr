@@ -105,6 +105,12 @@ FIRECRAWL_API_KEY=""
 # brief's subdirectory). RELAY_TOOL_RECORD="1" makes a live run write them.
 RELAY_TOOL_FIXTURES=""
 RELAY_TOOL_RECORD=""
+# Email 1 (outreach v2.1): where the lookup's recorded search and scrape
+# responses live for mock mode (default fixtures/tools/outreach).
+RELAY_OUTREACH_FIXTURES=""
+# A scripted writer for walking the review workflow with no model: a JSON file
+# of drafts per person (fixtures/outreach/qa-drafts.json). Development and test only.
+RELAY_OUTREACH_FIXTURE_DRAFTS=""
 ```
 
 ## Notes
@@ -151,6 +157,8 @@ RELAY_TOOL_RECORD=""
   production would be worse than a sign-in bypass: every agent in the org would
   answer from a fixture and every run would look healthy. `next build` makes no
   model call, so unlike `DEV_USER_EMAIL` there is nothing to carve out.
+- **`RELAY_OUTREACH_FIXTURE_DRAFTS` is refused outside development and test**,
+  for the same reason: every first email would come from a file.
 - **`DEV_USER_EMAIL` must be a work address, not a free mailbox provider.** The
   org a sign-in lands in is derived from the email domain, so `@gmail.com`,
   `@outlook.com` and the rest are refused for the bypass exactly as they are

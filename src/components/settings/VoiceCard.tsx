@@ -12,6 +12,7 @@ import {
   getProfile,
   removeSample,
   saveProfile,
+  type PersistVoice,
   type RepProfile,
   type VoiceSample,
 } from "@/lib/fixtures/repProfile";
@@ -49,7 +50,7 @@ const SHOWN_FOLDED = 3;
  *
  * One primary control per card (§21): Add, only while its box is open.
  */
-export function VoiceCard({ initial }: { initial?: RepProfile }) {
+export function VoiceCard({ initial, onPersist }: { initial?: RepProfile; onPersist?: PersistVoice }) {
   const [profile, setProfile] = useState<RepProfile>(() => initial ?? getProfile());
   const [line, setLine] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -65,7 +66,25 @@ export function VoiceCard({ initial }: { initial?: RepProfile }) {
   const shown = expanded ? samples : samples.slice(0, SHOWN_FOLDED);
   const full = count >= MAX_SAMPLES;
 
+  /**
+   * With `onPersist` the card holds the profile itself and saves it whole
+   * (Settings, live); without it, the fixture adapter is the store.
+   */
+  function persist(next: RepProfile, okLine: string) {
+    setProfile(next);
+    setLine(okLine);
+    void onPersist?.({ samples: next.voiceSamples.map(({ text, addedAt }) => ({ text, addedAt })), howIWrite: next.voiceNote })
+      .then((refused) => {
+        if (refused !== null) setLine(refused);
+      })
+      .catch(() => setLine(voiceCopy.notSaved));
+  }
+
   function onRemove(sampleId: string) {
+    if (onPersist !== undefined) {
+      persist({ ...profile, voiceSamples: profile.voiceSamples.filter((item) => item.id !== sampleId) }, voiceCopy.removed);
+      return;
+    }
     setProfile(removeSample(sampleId));
     setLine(voiceCopy.removed);
   }
@@ -76,10 +95,15 @@ export function VoiceCard({ initial }: { initial?: RepProfile }) {
       setLine(checked.message);
       return;
     }
-    setProfile(addSample(checked.value));
+    if (onPersist !== undefined) {
+      const item: VoiceSample = { id: `voice-${Date.now().toString(36)}-${count}`, text: checked.value, addedAt: new Date().toISOString().slice(0, 10) };
+      persist({ ...profile, voiceSamples: [...profile.voiceSamples, item] }, voiceCopy.addedLine);
+    } else {
+      setProfile(addSample(checked.value));
+      setLine(voiceCopy.addedLine);
+    }
     setDraft("");
     setAdding(false);
-    setLine(voiceCopy.addedLine);
   }
 
   function onCancel() {
@@ -95,8 +119,12 @@ export function VoiceCard({ initial }: { initial?: RepProfile }) {
       setLine(checked.message);
       return;
     }
-    setProfile(saveProfile({ voiceNote: checked.value }));
     lastSavedNote.current = raw;
+    if (onPersist !== undefined) {
+      persist({ ...profile, voiceNote: checked.value }, settingsCopy.saved);
+      return;
+    }
+    setProfile(saveProfile({ voiceNote: checked.value }));
     setLine(settingsCopy.saved);
   }
 

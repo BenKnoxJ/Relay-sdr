@@ -4,6 +4,7 @@ import { echo } from "@/worker/handlers/echo";
 import { leadGen } from "@/worker/handlers/leadGen";
 import { research } from "@/worker/handlers/research";
 import { reveal } from "@/worker/handlers/reveal";
+import { outreachDraft } from "@/worker/handlers/outreachDraft";
 import { noop } from "@/worker/handlers/noop";
 import { sleep } from "@/worker/handlers/sleep";
 import { stubDraft } from "@/worker/handlers/stubDraft";
@@ -57,6 +58,7 @@ export const handlers: Record<string, Handler> = {
   research,
   lead_gen: leadGen,
   reveal,
+  outreach_draft: outreachDraft,
   stub_draft: stubDraft,
   stub_send: stubSend,
 };

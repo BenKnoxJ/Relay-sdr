@@ -21,9 +21,11 @@ const EXPECTED_TABLES = [
   "jobs",
   "oauth_states",
   "orgs",
+  "outreach_drafts",
   "people",
   "product_facts_versions",
   "provider_identities",
+  "rep_voices",
   "side_effects",
   "users",
 ];
@@ -168,5 +170,25 @@ describe("campaigns", () => {
       "start_request_id",
       "updated_at",
     ]);
+  });
+});
+
+/**
+ * The drafting migrations (outreach v2.1). What `schema.prisma` declares and
+ * what the database holds must agree, so a later `prisma migrate dev` has
+ * nothing to "fix" by dropping a guarantee.
+ */
+describe("outreach drafts", () => {
+  it("keeps one draft per person, touch and attempt, and one voice per rep within the org", async () => {
+    expect((await listUniqueIndexes("outreach_drafts")).map((unique) => unique.columns)).toContainEqual(["org_id", "campaign_person_id", "touch", "attempt"]);
+    expect((await listUniqueIndexes("rep_voices")).map((unique) => unique.columns)).toContainEqual(["org_id", "user_id"]);
+  });
+
+  it("never stores a NULL claims list: Prisma cannot read one back", async () => {
+    const [column] = await prisma.$queryRaw<Array<{ is_nullable: string; column_default: string | null }>>`
+      SELECT is_nullable, column_default FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'outreach_drafts' AND column_name = 'claims'`;
+    expect(column).toMatchObject({ is_nullable: "NO" });
+    expect(column?.column_default).toMatch(/ARRAY\[\]/);
   });
 });

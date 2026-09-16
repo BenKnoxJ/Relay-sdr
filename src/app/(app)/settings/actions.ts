@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { mailboxCopy } from "@/lib/copy/settings";
+import { mailboxCopy, voiceCopy } from "@/lib/copy/settings";
 import { ORG_DEFAULT_DAILY_CAP } from "@/lib/repo/connections";
 import { isGone, isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -61,6 +61,22 @@ export async function disconnectMailbox(): Promise<void> {
     destination = refusalPath(error);
   }
   redirect(destination);
+}
+
+/**
+ * Your voice (outreach v2.1): the pasted emails and the "how I write" note,
+ * saved whole. Returns null when saved, or the line the card shows instead.
+ */
+export async function saveVoice(voice: { samples: { text: string; addedAt: string }[]; howIWrite: string }): Promise<string | null> {
+  try {
+    const caller = await serverCaller();
+    await caller.drafts.saveVoice(voice);
+    return null;
+  } catch (error) {
+    if (isRefusal(error)) return error.message;
+    if (error instanceof TRPCError && error.code === "BAD_REQUEST") return voiceCopy.notSaved;
+    throw error;
+  }
 }
 
 /**

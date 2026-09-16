@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -17,6 +17,7 @@ import {
   listQueue,
   logCall,
   reject,
+  type InboxActions,
   type Queue,
   type QueueItem,
 } from "@/lib/fixtures/inbox";
@@ -52,18 +53,22 @@ import { ReplyCard } from "./ReplyCard";
  * announced rather than appearing silently; a `role="status"` mounted at the
  * same moment as its text is often not read at all.
  *
- * `initial` exists so a test and the page can hand in a queue; left out, the
- * adapter's own queue is used, which is the page's case.
- *
- * Until there are rows, the queue IS the fixture, and the page says so twice:
- * a warn-toned banner above everything that never goes away, and the word
- * "example" where the signed mock put the counts. Counting examples would be
- * a number on the screen that is true of nothing.
+ * `initial` and `actions` are the page's: the rep's real drafts and the
+ * server's approve and reject (outreach v2.1). Left out, the fixture adapter
+ * is used, which is what the component tests and the samples draw.
  */
-export function Inbox({ initial }: { initial?: Queue }) {
+export function Inbox({ initial, actions, emptyBody }: { initial?: Queue; actions?: InboxActions; emptyBody?: string }) {
   const [queue, setQueue] = useState<Queue>(() => initial ?? listQueue());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  // A decision that did not go through asserts; what just worked is read politely.
+  const [alert, setAlert] = useState<string | null>(null);
+  // The decisions on their way, per draft: that card holds still, and the rep can work the others.
+  const [deciding, setDeciding] = useState<Record<string, Decision>>({});
+  // The same, readable before the next render, so a second press in the same tick is the same press.
+  const pending = useRef(new Set<string>());
+  // Drafts the server has already decided in this visit: an answer that left before a later decision still lists it.
+  const decided = useRef(new Set<string>());
 
   const items = queue.items;
   const selectedIndex = Math.max(
@@ -72,25 +77,61 @@ export function Inbox({ initial }: { initial?: Queue }) {
   );
   const selected: QueueItem | undefined = items[selectedIndex];
 
-  /** Take the queue the adapter hands back and select the row that took the worked one's place. */
-  function worked(next: Queue, line: string) {
-    const replacement = next.items[Math.min(selectedIndex, next.items.length - 1)];
+  /**
+   * Take the queue the adapter hands back and select the row that took the worked one's place,
+   * unless the rep has since moved to another row that is still there.
+   */
+  function worked(answer: Queue, line: string, workedId?: string) {
+    if (workedId !== undefined) decided.current.add(workedId);
+    const next = withoutDecided(answer, decided.current);
+    const index = workedId === undefined ? selectedIndex : Math.max(0, items.findIndex((item) => item.id === workedId));
+    const replacement = next.items[Math.min(index, next.items.length - 1)];
     setQueue(next);
-    setSelectedId(replacement?.id ?? null);
+    setSelectedId((current) => (workedId !== undefined && current !== null && current !== workedId && next.items.some((item) => item.id === current) ? current : (replacement?.id ?? null)));
     setStatus(line);
+    setAlert(null);
+  }
+
+  /** Send one decision to the server, once per draft, with the card busy until it answers. */
+  function decide(id: string, decision: Decision, send: () => Answer, line: string) {
+    if (pending.current.has(id)) return;
+    pending.current.add(id);
+    setDeciding((now) => ({ ...now, [id]: decision }));
+    const refused = (message: string) => {
+      setStatus(null);
+      setAlert(message);
+    };
+    void send()
+      .then((next) => ("error" in next ? refused(next.error) : worked(next, line, id)))
+      .catch(() => refused(inboxCopy.cannotDecide))
+      .finally(() => {
+        // eslint-disable-next-line no-restricted-syntax -- an in-memory Set of pending ids, not a row.
+        pending.current.delete(id);
+        setDeciding((now) => Object.fromEntries(Object.entries(now).filter(([key]) => key !== id)));
+      });
   }
 
   function onApprove(id: string, body?: string) {
     const item = items.find((candidate) => candidate.id === id);
-    const when = item?.kind === "draft" ? ` ${inboxCopy.sends} ${item.sends.day} ${item.sends.time}.` : "";
-    worked(approve(id, body), `${inboxCopy.approved}${when}`);
+    if (item?.kind === "draft" && item.written === false) return;
+    const line =
+      item?.kind === "draft" && item.sends === null
+        ? inboxCopy.approvedReady
+        : `${inboxCopy.approved}${item?.kind === "draft" && item.sends !== null ? ` ${inboxCopy.sends} ${item.sends.day} ${item.sends.time}.` : ""}`;
+    if (actions === undefined) {
+      worked(approve(id, body), line);
+      return;
+    }
+    decide(id, "approve", () => actions.approve(id, body), line);
   }
 
   function onReject(id: string, reason: RejectReason) {
-    worked(
-      reject(id, reason),
-      `${inboxCopy.rejectReason[reason]}. ${inboxCopy.rejectConsequence[reason]}`,
-    );
+    const line = `${inboxCopy.rejectReason[reason]}. ${inboxCopy.rejectConsequence[reason]}`;
+    if (actions === undefined) {
+      worked(reject(id, reason), line);
+      return;
+    }
+    decide(id, "reject", () => actions.reject(id, reason), line);
   }
 
   function onLabel(id: string, replyLabel: ReplyLabel) {
@@ -149,28 +190,29 @@ export function Inbox({ initial }: { initial?: Queue }) {
     <>
       <PageHeader
         title={inboxCopy.title}
-        note={items.length === 0 ? inboxCopy.nothingWaiting : inboxCopy.exampleNote}
+        note={items.length === 0 ? inboxCopy.nothingWaiting : actions === undefined ? inboxCopy.exampleNote : `${items.length} ${items.length === 1 ? inboxCopy.countDraftOne : inboxCopy.countDraftMany}`}
       />
 
-      {/*
-        The one thing on the page that is not the signed mock. It stays until
-        the queue reads real rows, whatever the rep does below it.
-      */}
-      <p
-        role="note"
-        data-testid="inbox-demo-banner"
-        className="type-body mb-grid rounded-input border border-warn bg-warn-bg px-4 py-3 text-warn"
-      >
-        {inboxCopy.demoBanner}
-      </p>
+      {/* The fixture queue says so, whatever the rep does below it; the rep's real drafts carry no banner. */}
+      {actions === undefined ? (
+        <p role="note" data-testid="inbox-demo-banner" className="type-body mb-grid rounded-input border border-warn bg-warn-bg px-4 py-3 text-warn">
+          {inboxCopy.demoBanner}
+        </p>
+      ) : null}
 
       <p role="status" className={status === null ? "sr-only" : "type-small mb-3 text-muted"}>
         {status}
       </p>
+      <p role="alert" data-testid="inbox-alert" className={alert === null ? "sr-only" : "type-small mb-3 text-warn"}>
+        {alert}
+      </p>
 
       {selected === undefined ? (
         <Card className="p-0">
-          <EmptyState heading={inboxCopy.emptyHeading} body={inboxCopy.repliesLand} />
+          <EmptyState
+            heading={inboxCopy.emptyHeading}
+            body={emptyBody ?? inboxCopy.repliesLand}
+          />
         </Card>
       ) : (
         <div data-testid="inbox-grid" className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-inbox">
@@ -181,7 +223,7 @@ export function Inbox({ initial }: { initial?: Queue }) {
             the rep to the next row.
           */}
           {selected.kind === "draft" ? (
-            <DraftCard key={selected.id} item={selected} onApprove={onApprove} onReject={onReject} />
+            <DraftCard key={selected.id} item={selected} deciding={deciding[selected.id] ?? null} onApprove={onApprove} onReject={onReject} />
           ) : selected.kind === "reply" ? (
             <ReplyCard key={selected.id} item={selected} onLabel={onLabel} />
           ) : (
@@ -192,6 +234,16 @@ export function Inbox({ initial }: { initial?: Queue }) {
     </>
   );
 }
+
+type Decision = "approve" | "reject";
+
+/** The queue without drafts already decided here, and its draft count to match. */
+function withoutDecided(queue: Queue, decided: ReadonlySet<string>): Queue {
+  const items = queue.items.filter((item) => !(item.kind === "draft" && decided.has(item.id)));
+  const dropped = queue.items.length - items.length;
+  return dropped === 0 ? queue : { items, counts: { ...queue.counts, drafts: Math.max(0, queue.counts.drafts - dropped) } };
+}
+type Answer = ReturnType<InboxActions["approve"]>;
 
 /** True when the key was pressed in something a rep types into. */
 function isTyping(target: EventTarget | null): boolean {

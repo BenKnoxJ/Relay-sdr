@@ -91,3 +91,85 @@ Sending, the Zoho upsert (send job), reply drafting (1b), learned voice (H2), ph
 
 ## 15. Resolved from v1's open questions
 1. Samples split by register and capped per prompt (email ≤ 8, LinkedIn ≤ 4). 2. The swap-test oracle is tests only. 3. Email 1 may carry zero product claims when the pain and ask carry it.
+
+# Relay agent definition — Outreach (v2.1, signed)
+**v2.1 · SIGNED by the product owner 2026-09-15 · amends `outreach.v2.signed.md`; where the two differ, v2.1 wins**
+Inputs: the Email 1 quality audit (`ops/design/2026-09-15-relay-outreach-v2-quality-audit.md`), accepted by the product owner on 2026-09-15 with three corrections written into the text below: the redraft limit, cohort repetition, and whole-body provenance.
+
+## 1. Scope
+The first implementation writes `email1` only. The other touches stay as signed in v2 and are not built. Nothing is sent in this slice: an approved draft is Ready to send.
+
+## 2. Inputs (extends §3)
+- `person`: Relay's revealed Person: name, first name, title, company, domain, work email.
+- `buyerRole {id, part: runs|champions|signs, title, needs}` from the person's campaign row; absent for a Related role.
+- `account {company, domain?, seedEvidence?}`.
+- `pack` adds, for the confirmed archetype: m09's top angles, its do/don't lines and verbatim phrases, and m15 proof items marked `allowed` only.
+- `recentDrafts` replaces `recentOpeners`: the campaign's last twenty drafts' opening sentences, asks and subjects, each marked when it is at the same account.
+- `redraft {findings, previous}`, on the one corrective redraft only.
+- The greeting and the sign-off are the envelope. The model writes neither.
+
+## 3. Lookup (amends §4)
+- The 2 searches and 2 fetches are a maximum, not a quota.
+- Person evidence first. If nothing genuinely useful, account evidence. If nothing again, no further call: the role problem is used.
+- The lookup stops as soon as a usable, relevant item exists.
+- `usable` also requires relevance to this person's role or to a pack pain, and that the item is about their professional role or their firm, never their personal life.
+- A person item is Tier 1 and a firm item is Tier 2.
+
+## 4. Output and shape (amends §5)
+- `opener.kind` is `person_fact | firm_fact | role_pain`. `archetype_pain` is read as `role_pain`. A `role_pain` ref resolves to an archetype pain, the hook, or the buyer role.
+- `body` is the message between the greeting and the sign-off. Sender identity and the opt-out are added at send.
+- Email 1:
+  - the body is 40 to 110 words, aiming for 50 to 90;
+  - 3 to 5 sentences;
+  - paragraphs of at most 3 sentences.
+- Subject: 2 to 6 words, at most 45 characters, advisory. This replaces "20 to 50 characters".
+
+## 5. Writing rules (amends §6)
+- **Rule 1:** state the reason for writing in the first sentence, from the opener's item or the role problem, in plain words. No preamble.
+- **Rule 3 adds:**
+  - no social proof, customer names, prices or ROI unless a live allowed proof item or a live fact supports it;
+  - no claims about the sender's experience, conversations or other customers.
+- **Rule 4:** one question, last, and it is the `ask`. It is an interest or relevance question, never a specific time, a meeting length or a calendar link. No links in Email 1.
+- **Rule 8 extends** to the campaign's recent drafts: their opening frames, asks and distinctive sentences.
+- **Rule 9:** write to this role's needs.
+  - Runs it: the working problem.
+  - Champions it: the evidence they lack.
+  - Signs it off: the outcome and the risk, shortest.
+  - Never mention a colleague.
+- **Humaniser principles are part of the prompt:** subtractive; never add a fact, claim, number or anecdote; no set-up sentences, rhetorical contrast, lists of three, fake empathy or marketing adjectives.
+
+## 6. Gates (amends §7)
+- **Generations:** an initial generation, then at most one corrective redraft with the findings, then Needs you. At most two model generations per draft.
+- **Tier A adds:**
+  - a time or meeting ask, a meeting length or a calendar link;
+  - any link in Email 1;
+  - an exclamation mark;
+  - the two-sentence antithesis ("isn't X, it's Y"; "not X. It's Y.");
+  - the short tell list, including sender-experience and false-familiarity phrases;
+  - **provenance:** every externally factual named entity and every number the model introduces resolves to the lookup, the pack or live facts. The structured values the input already carries (the person, their company, the product, the rep, buyer-role terms) are valid. This is not a capitalised-word detector;
+  - **cohort template repetition:**
+    - an opening frame near-identical to two or more of the campaign's drafts, or to any draft at the same account;
+    - an ask identical, after normalising, to one already used twice, or once at the same account;
+    - a distinctive sentence near-identical to one in two or more of the campaign's drafts, or one at the same account.
+- **Generic n-gram or body similarity across the cohort is advisory (Tier B),** unless it is one of the duplicated frames above.
+- **The lexicon** is a short, high-precision tell list versioned in the repo with the message standard. It replaces the hashed wiki snapshot.
+- **Tier B** drops "fewer than two concrete nouns", and adds reading level and lists of three.
+- **The humaniser** is its principles in the prompt plus these deterministic gates. There is no separate model humaniser pass.
+
+## 7. Measures (extends §10)
+- Delivered, bounce and reply.
+- Positive reply (warm), and a conversation or meeting booked (rep-marked).
+- Negative reply, stop and unsubscribe.
+- No open tracking.
+
+## 8. Rubric (amends §12)
+- **Row 4:** Email 1 is 40 to 110 words.
+- **Row 9:** a Tier A rejection redrafts once, with findings; a second failure goes to Needs you with the labels.
+- **Role differentiation:** at one account, the drafts for the three roles differ in problem and ask; a blind reviewer names the role in at least 2 of 3.
+- **Cohort:** 20 drafts in one campaign. No opening frame or distinctive sentence appears in 3 or more; no ask is used more than twice.
+- **No invention:** a seeded irrelevant or personal lookup item gives a `role_pain` opener; a seeded invented entity or number is rejected.
+- **Sendability:** the product owner scores 20 drafts against the seven-question test. At least 16 are sendable as they are or with light edits, and 0 contain invented statements.
+
+## 9. Master edits implied
+- §7.3: "50 to 150 words" becomes "Email 1: 40 to 110 words".
+- §15: "one humaniser skill" becomes "the humaniser gate (code) and its principles in the prompt".

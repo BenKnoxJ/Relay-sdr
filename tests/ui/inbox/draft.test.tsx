@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DraftCard } from "@/components/inbox/DraftCard";
 import { Inbox } from "@/components/inbox/Inbox";
 import { REJECT_REASONS, inboxCopy } from "@/lib/copy/inbox";
-import { listQueue, openers, resetQueue, type DraftItem } from "@/lib/fixtures/inbox";
+import { listQueue, openers, resetQueue, type DraftItem, type InboxActions, type Queue } from "@/lib/fixtures/inbox";
 
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
 
@@ -201,7 +201,8 @@ describe("schema identity", () => {
 
     if (parsed.kind !== "message") throw new Error("the good fixture is a message");
     expect(screen.getByText(parsed.subject as string)).toBeDefined();
-    expect(screen.getByTestId("draft-body").textContent).toBe(parsed.body);
+    // One paragraph per block, as the email reads (v2.1 §4: paragraphs of at most three sentences).
+    expect(screen.getByTestId("draft-body").textContent).toBe(parsed.body.replace(/\n{2,}/g, ""));
   });
 
   it("refuses a draft with no opener reference, rather than hiding the evidence line", () => {
@@ -254,5 +255,185 @@ describe("schema identity", () => {
     expect(within(point).getByText(hannah.draft.talkingPoint.listenFor)).toBeDefined();
     // Nothing to edit inline on a talking point.
     expect(screen.queryByRole("button", { name: inboxCopy.edit })).toBeNull();
+  });
+});
+
+describe("a real first email (outreach v2.1)", () => {
+  const real = (over: Partial<DraftItem> = {}): DraftItem => ({
+    kind: "draft",
+    id: "draft-1",
+    person: { name: "Nell Price", title: "Head of Claims", company: "Bramble Insurance", email: "nell@bramble.example" },
+    ordinal: 1,
+    total: 1,
+    draft: {
+      kind: "message",
+      subject: "Complaints and the calls behind them",
+      body: "Complaints tend to arrive long after the call that caused them.\n\nMeanwhile the same habit repeats on dozens of other calls. Reading all of them would show which conversations to coach first. Would that be useful for your team?",
+      ask: "Would that be useful for your team?",
+      opener: { ref: "role-signs", kind: "role_pain" },
+      claims: [],
+    },
+    opener: { id: "role-signs", kind: "role_pain", text: "Owns the published numbers and signs off the spend.", source: "The campaign plan", date: "" },
+    emailFound: true,
+    fit: "strong",
+    sends: null,
+    needsYou: null,
+    findings: [],
+    advice: ["Subjects work best at 2 to 6 plain words."],
+    envelope: { greeting: "Hi Nell,", signOff: "Sam" },
+    campaignName: "Claims people",
+    written: true,
+    ...over,
+  });
+
+  it("draws Relay's greeting and sign-off around the body, the campaign, the advice, and says nothing is sent", () => {
+    render(<DraftCard item={real()} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("draft-greeting").textContent).toBe("Hi Nell,");
+    expect(screen.getByTestId("draft-signoff").textContent).toBe("Sam");
+    expect(screen.getByTestId("draft-campaign").textContent).toContain("Claims people");
+    expect(screen.getByTestId("draft-advice").textContent).toContain("Subjects work best at 2 to 6 plain words.");
+    expect(screen.getByText(inboxCopy.nothingSentYet)).toBeDefined();
+    expect(screen.queryByText(new RegExp(`^${inboxCopy.sends} `))).toBeNull();
+    expect(screen.getByRole("button", { name: inboxCopy.approve })).toBeDefined();
+  });
+
+  it("shows what the checks found on a draft that needs the rep", () => {
+    render(<DraftCard item={real({ needsYou: "checks", findings: ["It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead."] })} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("draft-findings").textContent).toContain("It asks for a time");
+  });
+
+  it("offers nothing to approve when no draft could be written", () => {
+    render(<DraftCard item={real({ needsYou: "not_written", written: false })} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("needs-you-reason").textContent).toContain(inboxCopy.notWrittenCard);
+    expect(screen.queryByRole("button", { name: inboxCopy.approve })).toBeNull();
+    expect(screen.queryByRole("button", { name: inboxCopy.edit })).toBeNull();
+  });
+
+  it("@proof approves through the server and says Ready to send, nothing sent", async () => {
+    const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
+    const approve = vi.fn<InboxActions["approve"]>(async () => empty);
+    const reject = vi.fn<InboxActions["reject"]>(async () => empty);
+    render(<Inbox initial={{ ...empty, items: [real()], counts: { replies: 0, calls: 0, drafts: 1 } }} actions={{ approve, reject }} emptyBody="Nothing waiting." />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    await screen.findByText(new RegExp(inboxCopy.approvedReady.replace(/[.;]/g, ".")));
+    expect(approve).toHaveBeenCalledWith("draft-1", undefined);
+    expect(reject).not.toHaveBeenCalled();
+  });
+});
+
+describe("one decision at a time (outreach v2.1)", () => {
+  it("@proof sends one approval for a double press, and shows it worked", async () => {
+    const item: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: { greeting: "Hi Daniel,", signOff: "" }, written: true };
+    const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
+    let finish: (queue: Queue) => void = () => undefined;
+    const approve = vi.fn<InboxActions["approve"]>(() => new Promise<Queue>((resolve) => (finish = resolve)));
+    render(<Inbox initial={{ ...empty, items: [item], counts: { replies: 0, calls: 0, drafts: 1 } }} actions={{ approve, reject: vi.fn<InboxActions["reject"]>(async () => empty) }} />);
+    const button = screen.getByRole("button", { name: inboxCopy.approve });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(approve).toHaveBeenCalledTimes(1);
+    finish(empty);
+    expect(await screen.findByText(inboxCopy.approvedReady)).toBeDefined();
+  });
+});
+
+describe("a decision on its way (fix round 1)", () => {
+  const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
+  const two = (): Queue => {
+    const base: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: { greeting: "Hi Daniel,", signOff: "" }, written: true };
+    return { items: [base, { ...base, id: "draft-b", person: { ...base.person, name: "Bea Moss" } }], counts: { replies: 0, calls: 0, drafts: 2 } };
+  };
+  const pending = () => {
+    const finishers: Array<(queue: Queue) => void> = [];
+    return { finishers, action: () => new Promise<Queue>((resolve) => finishers.push(resolve)) };
+  };
+
+  it("disables the card and relabels the pressed button while an approval is on its way", async () => {
+    const approve = pending();
+    render(<Inbox initial={two()} actions={{ approve: vi.fn(approve.action), reject: vi.fn(async () => empty) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    const approving = screen.getByRole("button", { name: inboxCopy.approving });
+    expect(approving).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: inboxCopy.edit })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: inboxCopy.reject })).toHaveProperty("disabled", true);
+    approve.finishers[0]!(empty);
+    expect(await screen.findByText(inboxCopy.approvedReady)).toBeDefined();
+  });
+
+  it("disables the reasons and relabels Reject while a rejection is on its way", async () => {
+    const reject = pending();
+    render(<Inbox initial={two()} actions={{ approve: vi.fn(async () => empty), reject: vi.fn(reject.action) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.reject }));
+    const [first] = screen.getAllByTestId("reject-reason");
+    fireEvent.click(first!);
+    expect(screen.getByRole("button", { name: inboxCopy.rejecting })).toHaveProperty("disabled", true);
+    for (const reason of screen.getAllByTestId("reject-reason")) expect(reason).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: inboxCopy.approve })).toHaveProperty("disabled", true);
+    reject.finishers[0]!(empty);
+    await screen.findByText(new RegExp(inboxCopy.rejectConsequence[REJECT_REASONS[0]!]));
+  });
+
+  it("lets the rep decide another draft while the first is still on its way", async () => {
+    const approve = pending();
+    const approveFn = vi.fn<InboxActions["approve"]>(approve.action);
+    render(<Inbox initial={two()} actions={{ approve: approveFn, reject: vi.fn(async () => empty) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    fireEvent.click(screen.getByText("Bea Moss").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    expect(approveFn.mock.calls.map(([id]) => id)).toEqual([two().items[0]!.id, "draft-b"]);
+  });
+
+  it("never brings back a decided draft from an answer that arrives late", async () => {
+    const queue = two();
+    const [a, b] = queue.items as [DraftItem, DraftItem];
+    const answers = new Map<string, (queue: Queue) => void>();
+    const approve = vi.fn<InboxActions["approve"]>((id) => new Promise<Queue>((resolve) => answers.set(id, resolve)));
+    render(<Inbox initial={queue} actions={{ approve, reject: vi.fn(async () => empty) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    fireEvent.click(screen.getByText("Bea Moss").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    // B's answer lands first and still lists A; then A's, built before B was decided, still lists B.
+    answers.get(b.id)!({ items: [a], counts: { replies: 0, calls: 0, drafts: 1 } });
+    await screen.findByText(inboxCopy.approvedReady);
+    answers.get(a.id)!({ items: [b], counts: { replies: 0, calls: 0, drafts: 1 } });
+    expect(await screen.findByText(inboxCopy.nothingWaiting)).toBeDefined();
+    expect(screen.queryAllByTestId("queue-row")).toHaveLength(0);
+  });
+
+  it("says so in an alert when the server throws, and the rep can press again", async () => {
+    const approve = vi.fn<InboxActions["approve"]>(async () => Promise.reject(new Error("500")));
+    render(<Inbox initial={two()} actions={{ approve, reject: vi.fn(async () => empty) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    expect((await screen.findByRole("alert")).textContent).toBe(inboxCopy.cannotDecide);
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("button", { name: inboxCopy.approve })).toHaveProperty("disabled", false);
+  });
+
+  it("says so in an alert when a rejection throws", async () => {
+    const reject = vi.fn<InboxActions["reject"]>(async () => Promise.reject(new Error("offline")));
+    render(<Inbox initial={two()} actions={{ approve: vi.fn(async () => empty), reject }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.reject }));
+    fireEvent.click(screen.getAllByTestId("reject-reason")[0]!);
+    expect((await screen.findByRole("alert")).textContent).toBe(inboxCopy.cannotDecide);
+  });
+
+  it("puts a refused decision in the alert, not the polite status line", async () => {
+    const approve = vi.fn<InboxActions["approve"]>(async () => ({ error: inboxCopy.alreadyDecided }));
+    render(<Inbox initial={two()} actions={{ approve, reject: vi.fn(async () => empty) }} />);
+    fireEvent.click(screen.getByRole("button", { name: inboxCopy.approve }));
+    expect((await screen.findByRole("alert")).textContent).toBe(inboxCopy.alreadyDecided);
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+});
+
+describe("a draft that needs the rep reads alert, then detail (fix round 1)", () => {
+  it("keeps the reason as the one warning and shows the findings as a neutral panel", () => {
+    const item: DraftItem = { ...draft("Daniel Okoro"), needsYou: "checks", findings: ["It asks for a time."], written: true };
+    const { container } = render(<DraftCard item={item} onApprove={noop} onReject={noop} />);
+    const findings = screen.getByTestId("draft-findings");
+    expect(findings.textContent).toContain("It asks for a time.");
+    expect(findings.outerHTML).not.toMatch(/warn/);
+    expect(container.querySelectorAll("[class*='warn']")).toHaveLength(1);
+    expect(screen.getByTestId("needs-you-reason").className).toMatch(/text-warn/);
   });
 });

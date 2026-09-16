@@ -40,6 +40,7 @@ import {
   revealPlanFor,
   type LeadGenRecord,
 } from "./leadgen";
+import { OUTREACH_DRAFT_JOB, OUTREACH_REQUESTED, draftJobKey, draftablePeople } from "./outreach";
 import { isUniqueViolation } from "./sideEffects";
 
 /**
@@ -247,7 +248,8 @@ type ChangeKind =
   | typeof CAMPAIGN_CONFIRMED
   | typeof LEADGEN_RERUN
   | typeof CAMPAIGN_REVEAL_CONFIRMED
-  | typeof CAMPAIGN_REVEAL_RETRIED;
+  | typeof CAMPAIGN_REVEAL_RETRIED
+  | typeof OUTREACH_REQUESTED;
 
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
 export type ChangeRefusal =
@@ -284,7 +286,9 @@ export type ChangeRefusal =
   /** The kept people or the reveal's figures changed since the page the rep approved was drawn. */
   | "estimate_changed"
   /** The reveal's credit maximum is more than the credits available. */
-  | "reveal_over_balance";
+  | "reveal_over_balance"
+  /** Write emails with nobody kept who has a usable email. */
+  | "nothing_to_draft";
 
 export class CampaignChangeRefused extends Error {
   constructor(
@@ -1046,6 +1050,58 @@ export async function retryReveal(db: PrismaClient, input: RevealRetryInput): Pr
         maxAttempts: reopened.maxAttempts,
         ledger,
       },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Write emails: the first outreach step (outreach v2.1 §1).
+
+/**
+ * Write emails: one `outreach_draft` job per kept person with a usable email,
+ * in one transaction with the `outreach.requested` Event. Nothing is sent; a
+ * draft waits for the rep. Offered once per version, after Reveal emails has
+ * finished; a repeated press is the press that landed.
+ */
+export async function requestDrafts(db: PrismaClient, input: ChangeInput & { briefVersion: number }): Promise<ChangeResult> {
+  return change(db, input, OUTREACH_REQUESTED, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(tx, input, OUTREACH_REQUESTED, (after) => after.briefVersion === input.briefVersion);
+    checkVersion(campaign, input.briefVersion);
+
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const job = await latestLeadGenJob(tx, scope);
+    const revealConfirm = job === null ? null : await findRevealConfirm(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
+    const approved = revealConfirm === null ? null : revealConfirmedSchema.safeParse(revealConfirm.after);
+    const revealed = approved?.success === true ? await findRevealResult(tx, { orgId: campaign.orgId, jobId: approved.data.jobId }) : null;
+    if (job === null || revealed === null) throw new CampaignChangeRefused("wrong_state");
+    // Once per version: the drafts it asked for are the ones the rep reviews.
+    const earlier = await tx.event.findFirst({ where: { orgId: campaign.orgId, campaignId: campaign.id, kind: OUTREACH_REQUESTED, after: { path: ["briefVersion"], equals: campaign.briefVersion } } });
+    if (earlier !== null) throw new CampaignChangeRefused("wrong_state");
+
+    const people = await draftablePeople(tx, { ...scope, jobId: job.id });
+    if (people.length === 0) throw new CampaignChangeRefused("nothing_to_draft");
+    const jobs = [];
+    for (const person of people) {
+      const { job: draftJob, deduped } = await enqueue(tx, {
+        orgId: campaign.orgId,
+        ownerUserId: campaign.ownerUserId,
+        kind: OUTREACH_DRAFT_JOB,
+        idempotencyKey: draftJobKey(campaign.id, campaign.briefVersion, person.id, 1),
+        input: { requestId: input.requestId, campaignPersonId: person.id, attempt: 1 },
+        campaignId: campaign.id,
+        briefVersion: campaign.briefVersion,
+      });
+      // Unreachable under the lock, after the once-per-version check: a job under this key is somebody else's.
+      if (deduped) throw new Error("write emails: a first draft's key already had a job");
+      jobs.push(draftJob);
+    }
+    return {
+      campaign,
+      job: jobs[0]!,
+      before: { briefVersion: campaign.briefVersion },
+      after: { requestId: input.requestId, briefVersion: campaign.briefVersion, leadGenJobId: job.id, people: people.map((person) => person.id), jobIds: jobs.map((draftJob) => draftJob.id) },
     };
   });
 }

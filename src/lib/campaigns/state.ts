@@ -194,7 +194,7 @@ export function nextFor(
     case "peopleReady":
       return { next: campaignsCopy.nextPeopleReady, nextIsAction: false };
     case "drafting":
-      return { next: campaignsCopy.nextDrafting, nextIsAction: false };
+      return live ? { next: campaignsCopy.nextDraftingLive, nextIsAction: true } : { next: campaignsCopy.nextDrafting, nextIsAction: false };
     case "paused":
       return { next: campaignsCopy.nextPaused, nextIsAction: true };
     case "running":

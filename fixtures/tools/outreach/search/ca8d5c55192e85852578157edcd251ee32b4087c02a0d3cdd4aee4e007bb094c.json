@@ -1,0 +1,20 @@
+{
+  "tool": "search",
+  "args": {
+    "query": "\"Avery Dunmore\" \"Ardent Motor Insurance\"",
+    "region": "GB",
+    "recencyMonths": 12,
+    "maxResults": 5
+  },
+  "response": {
+    "hits": [
+      {
+        "title": "Ardent Motor Insurance's Avery Dunmore on claim delays",
+        "url": "https://motor-claims-review.example/2026/06/ardent-delay-conversations",
+        "snippet": "Avery Dunmore, head of claims at Ardent Motor Insurance, on why delay conversations became the team's biggest complaint theme.",
+        "publishedAt": "2026-06-18"
+      }
+    ]
+  },
+  "recordedAt": "2026-09-15T10:00:00.000Z"
+}

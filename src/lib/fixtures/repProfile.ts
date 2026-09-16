@@ -49,6 +49,9 @@ export type RepProfile = {
   callByDefault: boolean;
 };
 
+/** What a saved voice is (outreach v2.1): the samples and the note, whole. Null when saved, else the line to show. */
+export type PersistVoice = (voice: { samples: { text: string; addedAt: string }[]; howIWrite: string }) => Promise<string | null>;
+
 /** The cap on pasted emails (§23.1f: "the 5 to 10 pasted emails"). */
 export const MAX_SAMPLES = 10;
 

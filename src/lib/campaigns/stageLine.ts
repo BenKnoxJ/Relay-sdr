@@ -23,8 +23,10 @@ export function bucketOf(facts: CampaignSummaryFacts): Bucket {
   switch (facts.stage) {
     case "plan_ready":
     case "reviewing_people":
+    case "drafts_ready":
       return "decide";
     case "people_ready":
+    case "ready_to_send":
       return "ready";
     default:
       return "working";
@@ -66,9 +68,25 @@ export function reasonLineOf(facts: CampaignSummaryFacts): string | null {
       return haltLine(facts.attention.reason);
     case "reveal_needs_you":
       return revealStoppedLine(facts.attention.reason);
+    case "drafts_ready":
+      return facts.attention === null ? null : campaignsCopy.draftsExhausted;
     default:
       return null;
   }
+}
+
+/** The first emails by where they are: only the counts that are not zero, in the order the rep cares about them. */
+export function draftsLineOf(drafts: NonNullable<CampaignSummaryFacts["drafts"]>): string | null {
+  const c = campaignsCopy;
+  const parts = [
+    ...(drafts.writing > 0 ? [`${c.summaryWriting} ${plural(drafts.writing, c.summaryEmail, c.summaryEmails)}`] : []),
+    ...(drafts.toReview > 0 ? [`${drafts.toReview} ${c.summaryDraftsToReview}`] : []),
+    ...(drafts.needsYou > 0 ? [`${drafts.needsYou} ${c.summaryDraftsNeedYou}`] : []),
+    ...(drafts.approved > 0 ? [`${drafts.approved} ${c.summaryDraftsApproved}`] : []),
+    ...(drafts.rejected > 0 ? [`${drafts.rejected} ${c.summaryDraftsRejected}`] : []),
+    ...(drafts.failed > 0 ? [`${drafts.failed} ${c.summaryDraftsNotWritten}`] : []),
+  ];
+  return parts.length === 0 ? null : parts.join(c.noteJoin);
 }
 
 /** The one line of what Relay has for this campaign, from the facts. Null when there is nothing to say yet. */
@@ -106,6 +124,11 @@ export function stageLineOf(facts: CampaignSummaryFacts): string | null {
       const notKept = facts.people === null ? 0 : facts.people.chosen - facts.people.kept;
       return [`${r.emailsReady} ${c.summaryEmailsReady}`, `${without} ${c.summaryNoEmail}`, ...(notKept > 0 ? [`${notKept} ${c.summaryNotKept}`] : [])].join(c.noteJoin);
     }
+    case "drafting":
+    case "drafts_ready":
+    case "ready_to_send":
+      // A queued job reads as waiting only while nothing has been drafted yet; once drafts exist, the counts say more.
+      return facts.drafts === null ? null : waiting && facts.stage === "drafting" && draftsLineOf({ ...facts.drafts, writing: 0 }) === null ? c.summaryWaiting : draftsLineOf(facts.drafts);
     default:
       return null;
   }

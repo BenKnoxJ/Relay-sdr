@@ -1,0 +1,10 @@
+{
+  "tool": "scrape",
+  "args": {
+    "url": "https://motor-claims-review.example/2026/06/ardent-delay-conversations"
+  },
+  "response": {
+    "markdown": "# Claims leaders panel: delay is the story\n\nThe panel opened with total-loss valuations and moved quickly to delay.\n\nAvery Dunmore, head of claims at Ardent Motor Insurance, told the conference that delay conversations had become the biggest complaint theme for the team this year.\n\nOther speakers described similar pressure on settlement times.\n"
+  },
+  "recordedAt": "2026-09-15T10:00:00.000Z"
+}

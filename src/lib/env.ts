@@ -295,6 +295,18 @@ const schema = z
      * and replayed offline. Anything else, including unset, is off.
      */
     RELAY_TOOL_RECORD: optional(z.string()),
+    /**
+     * Where outreach's lookup reads recorded search and fetch answers in mock
+     * mode. Default `fixtures/tools/outreach`.
+     */
+    RELAY_OUTREACH_FIXTURES: optional(z.string()),
+    /**
+     * A file of scripted first emails by work email, for walking the draft
+     * review workflow with no model. Local and test only, guarded exactly as
+     * `RELAY_AGENT_STUB_MODEL` is: a scripted writer in production would make
+     * every draft a fixture.
+     */
+    RELAY_OUTREACH_FIXTURE_DRAFTS: optional(z.string()),
   })
   .superRefine((value, ctx) => {
     // `DEV_USER_EMAIL` signs every request in as one rep with no credential.
@@ -330,6 +342,15 @@ const schema = z
     // The stub model rides the same allowlist, and the build is not carved out
     // for it: `next build` never makes a model call, so a build that needs a
     // scripted model is a build doing something it should not.
+    if (!bypassEnvironment && value.RELAY_OUTREACH_FIXTURE_DRAFTS !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RELAY_OUTREACH_FIXTURE_DRAFTS"],
+        message:
+          "RELAY_OUTREACH_FIXTURE_DRAFTS is a local-only scripted writer: it is accepted only when NODE_ENV is " +
+          `explicitly "development" or "test", and this environment resolved to "${value.NODE_ENV}"`,
+      });
+    }
     if (!bypassEnvironment && value.RELAY_AGENT_STUB_MODEL !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

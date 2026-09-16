@@ -1,10 +1,12 @@
 import { Card } from "@/components/Card";
 import { TextLink } from "@/components/TextButton";
 import { failureLine } from "@/lib/campaigns/state";
-import type { CampaignSpendView, CampaignSummaryFacts, FindingView, InFlightWork, ResearchFailure } from "@/lib/campaigns/types";
+import { draftsLineOf } from "@/lib/campaigns/stageLine";
+import type { CampaignAttention, CampaignSpendView, CampaignStage, CampaignSummaryFacts, FindingView, InFlightWork, ResearchFailure } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { researchCopy } from "@/lib/copy/research";
 import { timeLabel } from "@/lib/shell";
+import { cn } from "@/lib/utils";
 
 /**
  * The campaign page's main area in the states where Relay is working or
@@ -102,6 +104,45 @@ export function FindingCard({ inFlight, finding, groupName, spend }: { inFlight:
           <p data-testid="finding-started" className="type-mono text-13 text-muted">
             {c.findingStartedLead} {started}
           </p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * First emails (outreach v2.1): being drafted, drafted and waiting in the
+ * Inbox, or approved and ready to send. The counts are the backend's; the
+ * drafts themselves are read and decided in the Inbox, never here. Nothing
+ * is sent.
+ */
+export function DraftingCard({ stage, inFlight, drafts, attention, editHref }: { stage: CampaignStage; inFlight: InFlightWork | null; drafts: NonNullable<CampaignSummaryFacts["drafts"]>; attention: CampaignAttention | null; editHref?: string }) {
+  const c = campaignsCopy;
+  const line = draftsLineOf(drafts);
+  const exhausted = attention?.reason === "drafts_exhausted";
+  // Queued reads as waiting only while nothing has been drafted yet.
+  const queued = waiting(inFlight) && draftsLineOf({ ...drafts, writing: 0 }) === null;
+  return (
+    <Card label={c.draftsLabel}>
+      <p data-testid="drafts-note" className={cn("type-body max-w-measure", exhausted ? "text-warn" : "")}>
+        {exhausted ? c.draftsExhausted : stage === "drafting" ? (queued ? `${c.summaryWaiting}. ${c.findingQueuedNote}` : c.draftingNote) : stage === "ready_to_send" ? c.readyToSendNote : c.draftsReadyNote}
+      </p>
+      {line === null ? null : (
+        <p data-testid="drafts-counts" className="type-small mt-1.5">
+          {line}
+        </p>
+      )}
+      <p className="type-small mt-1.5 text-muted">{c.draftsNothingSent}</p>
+      <div className="mt-3 flex flex-wrap gap-4">
+        {stage === "drafting" && drafts.toReview + drafts.needsYou === 0 ? null : (
+          <TextLink href="/inbox" data-testid="drafts-review">
+            {c.draftsReviewLink}
+          </TextLink>
+        )}
+        {exhausted && editHref !== undefined ? (
+          <TextLink href={editHref} data-testid="drafts-edit">
+            {c.editBrief}
+          </TextLink>
         ) : null}
       </div>
     </Card>

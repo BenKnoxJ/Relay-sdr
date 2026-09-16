@@ -78,6 +78,11 @@ describe("the signed definitions", () => {
     expect(v23).toMatch(/v2\.3 · SIGNED by the product owner 2026-09-15/);
     expect(createHash("sha256").update(v23).digest("hex")).toBe("7bdb728287e4cefa1f9f02ee73fa2697d364f79659f47eb7c3aa92ac900a667c");
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A3: choosing the play/);
+    // Outreach v2.1 is carried after the v2 it amends, whole: a change to the signed text changes this on purpose.
+    const outreach = loadDefinition("outreach").definition;
+    const v21 = outreach.slice(outreach.indexOf("# Relay agent definition — Outreach (v2.1, signed)"));
+    expect(v21).toMatch(/v2\.1 · SIGNED by the product owner 2026-09-15/);
+    expect(createHash("sha256").update(v21).digest("hex")).toBe("1a98aae0646eeb4e5dc6265c2db4d2c2c50da468e0b2eb72180a6def8e584835");
   });
 
   it("memoises, and re-reads after a reset", () => {

@@ -30,6 +30,7 @@ const LINES: readonly string[] = [
   campaignsCopy.revealChanged,
   campaignsCopy.revealOverBalance,
   campaignsCopy.revealNotAvailable,
+  campaignsCopy.writeNothing,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {
@@ -144,6 +145,17 @@ export async function revealEmails(submission: RevealSubmission): Promise<StartR
       briefVersion: submission.briefVersion,
       requestId: submission.requestId,
       expected: submission.expected,
+    }),
+  );
+}
+
+/** Write emails (outreach v2.1): first emails drafted for the rep to review. Nothing is sent. */
+export async function writeEmails(submission: RetrySubmission): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.writeEmails({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      requestId: submission.requestId,
     }),
   );
 }

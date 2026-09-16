@@ -253,6 +253,8 @@ export type ResearchActions = {
   reveal?: boolean;
   /** Try again on a reveal that failed before any request left Relay. */
   retryReveal?: boolean;
+  /** Write emails can be pressed: people are ready with a usable email and it has not been pressed at this version (outreach v2.1). */
+  write?: boolean;
 };
 
 /** What pressing Confirm plan does, shown before it is pressed (lead gen v2.1 §6, §12). */
@@ -310,7 +312,12 @@ export type FoundPersonView = {
   email: string | null;
   /** Why there is no usable email, in words; null when there is one or nothing was revealed. */
   revealWhy: string | null;
+  /** Once Write emails is pressed: their first email's state, or null. */
+  draft?: DraftStateView | null;
 };
+
+/** Where a person's first email is (outreach v2.1). */
+export type DraftStateView = "writing" | "to_review" | "needs_you" | "failed" | "approved" | "rejected";
 
 /** What Reveal emails would do for the kept people, before it is pressed (the figures the rep approves). */
 export type RevealPlanView = {
@@ -381,6 +388,10 @@ export type PeopleFoundView = {
   revealPlan: RevealPlanView | null;
   /** Revealing or ready: what it came to. */
   revealResult: RevealResultView | null;
+  /** Once Write emails is pressed: the first emails, counted by state. Null before. */
+  drafts?: Record<DraftStateView, number> | null;
+  /** People ready: how many kept people have an email to write to. */
+  writable?: number;
   sample: boolean;
 };
 
@@ -417,7 +428,11 @@ export type ActivityEntry = {
     | "people_reviewed"
     | "reveal_confirmed"
     | "revealed"
-    | "reveal_retried";
+    | "reveal_retried"
+    | "drafts_requested"
+    | "drafted"
+    | "draft_approved"
+    | "draft_rejected";
   /** Who did it: the rep reading, Relay itself, or someone else by first name. */
   actor: { kind: "you" | "relay" | "person"; name: string | null };
   line: string;
@@ -457,10 +472,14 @@ export type CampaignStage =
   | "reviewing_people"
   | "revealing"
   | "reveal_needs_you"
-  | "people_ready";
+  | "people_ready"
+  /** Write emails pressed (outreach v2.1): first emails being drafted, drafted and waiting on the rep, or all decided with some ready to send. */
+  | "drafting"
+  | "drafts_ready"
+  | "ready_to_send";
 
 /** Work Relay is doing for the campaign right now, and whether it is still waiting its turn or running. */
-export type InFlightWork = { kind: "research" | "lead_gen" | "reveal"; status: "queued" | "running" };
+export type InFlightWork = { kind: "research" | "lead_gen" | "reveal" | "outreach"; status: "queued" | "running" };
 
 /** Why finding people needs the rep: the search's halt reason (lead gen v2.1 §11), or `failed` when there is no halt to read. */
 export type PeopleReason = Halt["reason"] | "failed";
@@ -468,20 +487,25 @@ export type PeopleReason = Halt["reason"] | "failed";
 /** Why a reveal stopped: the reveal's recovery (`src/lib/campaigns/retry.ts`), as a machine word. */
 export type RevealStopReason = `reveal_${RevealRecovery["reason"]}`;
 
+/** Why first emails need the rep: none is left to review or send (outreach v2.1). */
+export type DraftsStopReason = "drafts_exhausted";
+
 type Attention<Kind extends string, Reason extends string> = { kind: Kind; reason: Reason; retryable: boolean };
 
 /**
  * The rep is needed, keyed on the stage that needs them, so each stage can
  * only carry its own reasons. `reason` is a machine word, never shown as it
  * is: research's failure, a stop (`insufficient`), finding people's halt
- * reason or `failed`, or a reveal that stopped. Every other stage has none.
+ * reason or `failed`, a reveal that stopped, or first emails with none left
+ * (`drafts_exhausted`, the only drafts-ready attention). Every other stage has none.
  */
 export type CampaignStageAttention =
   | { stage: "research_needs_you"; attention: Attention<"needs_you", ResearchFailure> }
   | { stage: "research_stopped"; attention: Attention<"stopped", "insufficient"> }
   | { stage: "people_needs_you"; attention: Attention<"needs_you", PeopleReason> }
   | { stage: "reveal_needs_you"; attention: Attention<"needs_you", RevealStopReason> }
-  | { stage: Exclude<CampaignStage, "research_needs_you" | "research_stopped" | "people_needs_you" | "reveal_needs_you">; attention: null };
+  | { stage: "drafts_ready"; attention: Attention<"needs_you", DraftsStopReason> | null }
+  | { stage: Exclude<CampaignStage, "research_needs_you" | "research_stopped" | "people_needs_you" | "reveal_needs_you" | "drafts_ready">; attention: null };
 
 export type CampaignAttention = NonNullable<CampaignStageAttention["attention"]>;
 
@@ -494,7 +518,9 @@ export type CampaignNextAction =
   | "retry_people"
   | "choose_industry"
   | "review_people"
-  | "retry_reveal";
+  | "retry_reveal"
+  | "write_emails"
+  | "review_drafts";
 
 /**
  * One of research's campaign plays (m16), as the rep compares them. Research's
@@ -559,6 +585,8 @@ export type CampaignSummaryFacts = CampaignStageAttention & {
   people: { accounts: number; multiRoleAccounts: number; chosen: number; pending: number; kept: number; dropped: number } | null;
   /** What Reveal emails came to, once it has run. */
   reveal: { revealed: number; known: number; noEmail: number; suppressed: number; held: number; failed: number; emailsReady: number } | null;
+  /** Once Write emails is pressed: the first emails by where they are. Null before. */
+  drafts: { writing: number; toReview: number; needsYou: number; approved: number; rejected: number; failed: number } | null;
   spend: CampaignSpendView;
 };
 

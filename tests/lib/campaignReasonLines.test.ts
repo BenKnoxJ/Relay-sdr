@@ -65,7 +65,7 @@ describe("revealStoppedLine", () => {
 });
 
 const NO_SPEND: CampaignSpendView = { search: { cap: null, charged: 0, held: 0 }, reveal: { max: null, charged: 0, held: 0 }, allVersions: { searchCharged: 0, searchHeld: 0, revealCharged: 0, revealHeld: 0 }, research: { usd: null, usdThisVersion: null } };
-const BASE = { id: "c", name: "C", briefVersion: 1, createdAt: "2026-09-16T00:00:00Z", updatedAt: "2026-09-16T00:00:00Z", inFlight: null, nextAction: null, research: null, confirmed: null, people: null, reveal: null, spend: NO_SPEND } as const;
+const BASE = { id: "c", name: "C", briefVersion: 1, createdAt: "2026-09-16T00:00:00Z", updatedAt: "2026-09-16T00:00:00Z", inFlight: null, nextAction: null, research: null, confirmed: null, people: null, reveal: null, drafts: null, spend: NO_SPEND } as const;
 
 describe("reasonLineOf", () => {
   it("reads each stage's reason with that stage's line", () => {
@@ -76,10 +76,13 @@ describe("reasonLineOf", () => {
     expect(reasonLineOf(research)).toBe(c.failedNoPlay);
     expect(reasonLineOf(stopped)).toBe(c.stopBanner);
     expect(reasonLineOf(people)).toBe(c.haltOverCap);
+    const exhausted: CampaignSummaryFacts = { ...BASE, stage: "drafts_ready", attention: { kind: "needs_you", reason: "drafts_exhausted", retryable: false } };
     expect(reasonLineOf(reveal)).toBe(c.revealStoppedHeld);
+    expect(reasonLineOf(exhausted)).toBe(c.draftsExhausted);
   });
 
   it("has nothing to say for a stage that does not need the rep", () => {
     expect(reasonLineOf({ ...BASE, stage: "finding_people", attention: null })).toBeNull();
+    expect(reasonLineOf({ ...BASE, stage: "drafts_ready", attention: null })).toBeNull();
   });
 });

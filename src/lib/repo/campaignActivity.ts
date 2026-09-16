@@ -39,9 +39,14 @@ export async function campaignActivityFor(db: Db, scope: { orgId: string; userId
              )
              WHEN 'campaign.reveal_confirmed' THEN jsonb_build_object('toReveal', e.after->'counts'->'toReveal', 'known', e.after->'counts'->'known', 'maxCredits', e.after->'maxCredits')
              WHEN 'leadgen.revealed' THEN jsonb_build_object('revealed', e.after->'tally'->'revealed', 'known', e.after->'tally'->'known', 'charged', e.after->'spend'->'charged')
+             WHEN 'outreach.requested' THEN jsonb_build_object('people', CASE WHEN jsonb_typeof(e.after->'people') = 'array' THEN jsonb_array_length(e.after->'people') ELSE 0 END)
+             WHEN 'outreach.drafted' THEN jsonb_build_object('state', e.after->'state', 'person', cp.preview->'name')
+             WHEN 'draft.approved' THEN jsonb_build_object('edited', e.after->'edited', 'person', cp.preview->'name')
+             WHEN 'draft.rejected' THEN jsonb_build_object('reason', e.after->'reason', 'person', cp.preview->'name')
            END AS projection
       FROM events e
       LEFT JOIN users u ON u.id = e.actor_user_id AND u.org_id = e.org_id
+      LEFT JOIN campaign_people cp ON cp.id = e.after->>'campaignPersonId' AND cp.org_id = e.org_id
      WHERE e.org_id = ${scope.orgId}
        AND e.campaign_id = ${scope.campaignId}
        AND e.kind = ANY(${[...ACTIVITY_KINDS]}::text[])

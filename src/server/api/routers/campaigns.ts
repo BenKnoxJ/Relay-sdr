@@ -272,7 +272,9 @@ export const campaignsRouter = createTRPCRouter({
   get: repProcedure.input(z.object({ id: campaignId }).strict()).query(async ({ ctx, input }) => {
     const record = await getCampaignForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, id: input.id });
     if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
-    return toCampaign(record, leadGenOptions());
+    // The page's Activity tab reads the same feed as `activity`, in one round trip with the campaign.
+    const rows = await campaignActivityFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id });
+    return { ...toCampaign(record, leadGenOptions()), activity: activityOf(rows ?? [], ctx.userId) };
   }),
 
   /**

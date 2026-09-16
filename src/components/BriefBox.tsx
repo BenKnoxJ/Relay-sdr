@@ -83,9 +83,15 @@ export function BriefBox({
         click leaves the ring up until focus moves, and for a text box that is
         the truth — it is where typing goes.
       */}
+      {/*
+        Below `sm` the pill wraps and Start drops under the box, so the pill
+        is never wider than a phone: the box and the button side by side were
+        436px on a 390px viewport. `min-w-0` on the box lets it shrink past a
+        textarea's own intrinsic width.
+      */}
       <div
         data-testid="brief-pill"
-        className="flex items-center gap-2.5 rounded-pill border-control border-line bg-ground py-1.5 pl-card-rail pr-1.5 text-left focus-within:ring-2"
+        className="flex flex-wrap items-center gap-2.5 rounded-pill border-control border-line bg-ground py-1.5 pl-card-rail pr-1.5 text-left focus-within:ring-2 sm:flex-nowrap"
       >
         <label className="sr-only" htmlFor={id}>
           {label}
@@ -99,9 +105,9 @@ export function BriefBox({
           autoComplete="off"
           placeholder={placeholder}
           onKeyDown={onKeyDown}
-          className="type-body min-w-0 flex-1 resize-none bg-transparent py-1 text-ink outline-none placeholder:text-muted"
+          className="type-body w-full min-w-0 flex-1 basis-full resize-none bg-transparent py-1 text-ink outline-none placeholder:text-muted sm:basis-auto"
         />
-        <PillButton type="submit" disabled={pending}>
+        <PillButton type="submit" disabled={pending} className="ml-auto">
           {submitLabel}
         </PillButton>
       </div>

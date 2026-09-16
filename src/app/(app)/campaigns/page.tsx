@@ -4,21 +4,27 @@ import { Card } from "@/components/Card";
 import { CampaignRow } from "@/components/campaigns/CampaignRow";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
+import { BUCKETS, bucketOfRow, countBuckets, countsLineOf, groupLabelOf, listSpendLineOf, sortForList } from "@/lib/campaigns/stageLine";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { emptyCopy } from "@/lib/copy/empty";
 import { listCampaigns } from "@/server/campaigns";
 
 /**
- * The Campaigns list (master doc §23.1c, mock 3a).
+ * The Campaigns list (master doc §23.1c, mock 3a; product-truth pass).
  *
- * One row per campaign, newest first, and nothing else: no search, no folders,
- * no archive, and Done campaigns stay in the list. The day-one empty state
- * built in 9b is still here and still the truth when there are no campaigns.
+ * One row per campaign, and nothing else: no search, no folders, no archive,
+ * and Done campaigns stay in the list. The groups are the same five words
+ * Home reads campaigns in (`bucketOf`): what needs the rep, what is theirs
+ * to decide, what is ready, what Relay is doing, what is done; newest first
+ * within each. Empty groups are not drawn. Under the header's counts, what
+ * every campaign has cost so far, each kind in its own unit. The day-one
+ * empty state built in 9b is still here and still the truth when there are
+ * no campaigns.
  *
  * The rows are the rep's own campaigns, read through `src/server/campaigns.ts`.
  */
 export default async function CampaignsPage() {
-  const { campaigns, counts } = await listCampaigns();
+  const { campaigns } = await listCampaigns();
 
   if (campaigns.length === 0) {
     return (
@@ -43,6 +49,13 @@ export default async function CampaignsPage() {
     );
   }
 
+  const sorted = sortForList(campaigns);
+  const groups = BUCKETS.map((bucket) => ({
+    label: groupLabelOf(bucket),
+    campaigns: sorted.filter((campaign) => bucketOfRow(campaign) === bucket),
+  })).filter((group) => group.campaigns.length > 0);
+  const spend = listSpendLineOf(campaigns);
+
   return (
     <>
       {/*
@@ -50,14 +63,24 @@ export default async function CampaignsPage() {
         top right, which is where the signed mock draws it (3a). The empty
         branch above keeps its own way in, which is Home's brief box.
       */}
-      <PageHeader
-        title={campaignsCopy.title}
-        note={`${counts.running} ${campaignsCopy.noteRunning}${campaignsCopy.noteJoin}${counts.done} ${campaignsCopy.noteDone}`}
-      />
+      <PageHeader title={campaignsCopy.title} note={countsLineOf(countBuckets(campaigns))} className={spend === null ? undefined : "mb-2"} />
+      {spend === null ? null : (
+        <p data-testid="campaigns-spend" className="type-mono mb-grid text-12 text-muted">
+          {spend}
+        </p>
+      )}
 
       <Card className="p-0">
-        {campaigns.map((campaign) => (
-          <CampaignRow key={campaign.id} campaign={campaign} />
+        {groups.map((group) => (
+          <section key={group.label} aria-label={group.label} className="border-t border-line first:border-t-0">
+            {/* A quiet label, not a heading of its own: the page has one h1 and the rows under it are the content. */}
+            <p data-testid="campaign-group" className="type-label px-row-x pb-1 pt-row-y text-muted">
+              {group.label}
+            </p>
+            {group.campaigns.map((campaign) => (
+              <CampaignRow key={campaign.id} campaign={campaign} />
+            ))}
+          </section>
         ))}
       </Card>
     </>

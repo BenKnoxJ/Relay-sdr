@@ -30,7 +30,7 @@ const LABELS: Record<CampaignStep, string> = {
   done: campaignsCopy.stepDone,
 };
 
-export function StateRow({ state, stuck = false }: { state: CampaignState; stuck?: boolean }) {
+export function StateRow({ state, stuck = false }: { state: CampaignState; /** A reveal that stopped and needs the rep (`facts.stage === "reveal_needs_you"`). */ stuck?: boolean }) {
   const current = stepIndexFor(state);
   // `stuck`: a state that is otherwise fine but stopped before it finished (a reveal that did not complete).
   const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou" || stuck;
@@ -49,7 +49,9 @@ export function StateRow({ state, stuck = false }: { state: CampaignState; stuck
                 : step === "findingPeople" && state === "peopleFound"
                   ? campaignsCopy.stepReviewingPeople
                   : step === "findingPeople" && state === "revealing"
-                    ? campaignsCopy.stepRevealing
+                    ? stuck
+                      ? campaignsCopy.stepRevealNeedsYou
+                      : campaignsCopy.stepRevealing
                     : step === "findingPeople" && state === "peopleReady"
                       ? campaignsCopy.stepPeopleReady
                       : LABELS[step];

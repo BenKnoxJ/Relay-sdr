@@ -1,6 +1,8 @@
 /**
- * Home on day one (master doc §23.1a, "Day one (no campaign)"), and the words
- * of the brief box the signed mock draws in section 1b.
+ * Home (master doc §23.1, §23.1a): day one's brief box, as the signed mock
+ * draws it in section 1b, and the three blocks Home becomes once the rep has
+ * a campaign: what needs them, what Relay is doing, and the box to start
+ * another.
  *
  * Interpolation happens at the call site, never here: the copy sweep in
  * `tests/lib/copy.test.ts` refuses a function, because a template's strings
@@ -22,13 +24,19 @@ export const homeCopy = {
   briefFooter: "Nothing is bought or sent until you confirm a plan.",
 
   /**
-   * One line each, above the box, and only while unconnected (§23.1a).
-   *
-   * The two are not the same sentence because the two connections are not the
-   * rep's in the same way: the mailbox is theirs and lives in Settings
-   * (§23.1f), while Zoho is the org's and lives in Admin, so the rep is told
-   * who to ask rather than sent to a page they cannot act on.
+   * One line, above the box, and only while unconnected (§23.1a). The mailbox
+   * is the rep's own and lives in Settings (§23.1f). Zoho is the org's and the
+   * admin's, and Home says nothing about it: a prompt the rep cannot act on
+   * is a nag, not a step.
    */
   connectMailbox: "Connect your mailbox in Settings",
-  connectZoho: "Ask your admin to connect Zoho",
+
+  /** The blocks once there is a campaign (product-truth pass): the Campaigns list's own group words. */
+  needsYouLabel: "Needs you",
+  needsYouEmpty: "Nothing needs you right now.",
+  decideLabel: "To decide",
+  readyLabel: "Ready",
+  workingLabel: "Relay is working",
+  workingEmpty: "Nothing is running.",
+  startLabel: "Start a campaign",
 } as const;

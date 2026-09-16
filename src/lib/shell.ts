@@ -110,3 +110,14 @@ export function dateLabel(now: Date): string {
   // weekday, day, month whatever the runtime's ICU data thinks.
   return `${part("weekday")} ${part("day")} ${part("month").slice(0, 3)}`;
 }
+
+/**
+ * A clock time in the same zone as `dateLabel`, for "running since 09:12".
+ * Takes the ISO string the campaign view carries, so a client component can
+ * call it without knowing how the server serialised the date.
+ */
+export function timeLabel(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(at);
+}

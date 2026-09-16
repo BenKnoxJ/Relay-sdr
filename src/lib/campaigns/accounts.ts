@@ -26,7 +26,7 @@ import type { AccountView, BuyerRoleView, FoundPersonView, PeopleFoundView, Reve
  */
 
 export type StoredPerson = Pick<CampaignPerson, "id" | "rank" | "status" | "source" | "whyPicked" | "companyKey" | "preview" | "rolePart" | "roleTitle" | "review"> &
-  Partial<Pick<CampaignPerson, "reveal" | "revealHold">> & { person?: { email: string } | null };
+  Partial<Pick<CampaignPerson, "reveal" | "revealHold" | "roleMatch">> & { person?: { email: string } | null };
 
 /** What the search actually used, from the result Event: labels and ranges, never provider ids. */
 export type Effective = { industries: string[]; sizeBand: { min: number; max: number } | null } | null;
@@ -94,6 +94,25 @@ function whyOf(row: StoredPerson, roles: boolean): string {
   return row.rolePart === null ? campaignsCopy.whyRelated : campaignsCopy.whyRole[row.rolePart];
 }
 
+/**
+ * What Relay actually holds on a person, as short phrases (product-truth
+ * pass): how the title matched the plan's role, whether the provider lists an
+ * email, that research named the firm, that Relay already knows them. Read
+ * off the stored row; nothing is inferred, and a row that says nothing gets
+ * an empty list rather than a filler line.
+ */
+function evidenceOf(row: StoredPerson, preview: Preview, seed: boolean, roles: boolean): string[] {
+  const c = campaignsCopy;
+  const lines: string[] = [];
+  // Only the match the row records: no recorded match says nothing about the title.
+  if (roles && row.rolePart !== null && row.roleMatch === "exact") lines.push(c.evidenceExactTitle);
+  if (roles && row.rolePart !== null && row.roleMatch === "phrase") lines.push(c.evidenceCloseTitle);
+  if (seed) lines.push(c.evidenceSeed);
+  if (row.source === "reused") lines.push(c.evidenceReused);
+  else lines.push(preview.hasEmail ? c.evidenceEmail : c.evidenceNoEmail);
+  return lines;
+}
+
 /** A kept person's reveal, as the rep reads it: the email only when it is usable, else why not. */
 function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" | "revealWhy"> {
   const reveal = row.reveal ?? null;
@@ -108,8 +127,11 @@ function revealOf(row: StoredPerson): Pick<FoundPersonView, "reveal" | "email" |
 }
 
 /**
- * The accounts, accounts first. Once Reveal emails is pressed (`keptOnly`),
- * only the kept people are listed: nobody else was, or will be, revealed.
+ * The accounts, accounts first. While the rep is reviewing, the accounts
+ * with someone still to decide come first (in Relay's order), then the
+ * decided ones, so the page opens on the work (final MVP pass). Once Reveal
+ * emails is pressed (`keptOnly`), only the kept people are listed, in
+ * Relay's order: nobody else was, or will be, revealed.
  */
 export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandoff, keptOnly = false): AccountView[] {
   const roles = handoff.version === 2;
@@ -120,6 +142,10 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
   }
   const accounts = [...byKey.values()].map((members) => {
     const first = previewOf(members[0]!.preview);
+    const seed = isSeedFirm(
+      { providerId: members[0]!.id, name: first.name, title: first.title, company: first.company, ...(first.domain === null ? {} : { domain: first.domain }), hasEmail: false, emailRevealCredits: null },
+      handoff.seedFirms,
+    );
     const people: FoundPersonView[] = members.map((row) => {
       const preview = previewOf(row.preview);
       return {
@@ -132,14 +158,11 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
         reused: row.source === "reused",
         role: row.rolePart,
         why: whyOf(row, roles),
+        evidence: evidenceOf(row, preview, seed, roles),
         review: reviewOf(row.review),
         ...revealOf(row),
       };
     });
-    const seed = isSeedFirm(
-      { providerId: members[0]!.id, name: first.name, title: first.title, company: first.company, ...(first.domain === null ? {} : { domain: first.domain }), hasEmail: false, emailRevealCredits: null },
-      handoff.seedFirms,
-    );
     return {
       personId: members[0]!.id,
       company: first.company,
@@ -152,6 +175,17 @@ export function accountsOf(rows: readonly StoredPerson[], handoff: LeadGenHandof
   // Stable: within a group, Relay's own order stands.
   const needsReview = (account: AccountView) => (account.people.some((person) => person.review === "pending") ? 0 : account.people.some((person) => person.review === "kept") ? 1 : 2);
   return accounts.map((account, order) => ({ account, order })).sort((a, b) => needsReview(a.account) - needsReview(b.account) || a.order - b.order).map(({ account }) => account);
+}
+
+/** Candidates Relay found and kept in reserve as weaker matches (`spare`): counted, never listed as people. */
+export function spareCount(rows: readonly StoredPerson[]): number {
+  return rows.filter((row) => row.status === "spare").length;
+}
+
+/** The plan's roles nobody chosen was matched to. */
+export function rolesMissingFrom(roles: BuyerRoleView[], rows: readonly StoredPerson[]): BuyerRoleView[] {
+  const found = new Set(rows.filter((row) => row.status === "chosen").map((row) => row.rolePart));
+  return roles.filter((role) => !found.has(role.part));
 }
 
 /** The chosen people's review, counted. */

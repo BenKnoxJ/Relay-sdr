@@ -54,6 +54,11 @@ import { ReplyCard } from "./ReplyCard";
  *
  * `initial` exists so a test and the page can hand in a queue; left out, the
  * adapter's own queue is used, which is the page's case.
+ *
+ * Until there are rows, the queue IS the fixture, and the page says so twice:
+ * a warn-toned banner above everything that never goes away, and the word
+ * "example" where the signed mock put the counts. Counting examples would be
+ * a number on the screen that is true of nothing.
  */
 export function Inbox({ initial }: { initial?: Queue }) {
   const [queue, setQueue] = useState<Queue>(() => initial ?? listQueue());
@@ -140,18 +145,24 @@ export function Inbox({ initial }: { initial?: Queue }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   });
 
-  const counts = [
-    count(queue.counts.replies, inboxCopy.reply, inboxCopy.replies),
-    count(queue.counts.calls, inboxCopy.call, inboxCopy.calls),
-    count(queue.counts.drafts, inboxCopy.draft, inboxCopy.drafts),
-  ].filter((line) => line !== null);
-
   return (
     <>
       <PageHeader
         title={inboxCopy.title}
-        note={counts.length === 0 ? inboxCopy.nothingWaiting : counts.join(inboxCopy.countJoin)}
+        note={items.length === 0 ? inboxCopy.nothingWaiting : inboxCopy.exampleNote}
       />
+
+      {/*
+        The one thing on the page that is not the signed mock. It stays until
+        the queue reads real rows, whatever the rep does below it.
+      */}
+      <p
+        role="note"
+        data-testid="inbox-demo-banner"
+        className="type-body mb-grid rounded-input border border-warn bg-warn-bg px-4 py-3 text-warn"
+      >
+        {inboxCopy.demoBanner}
+      </p>
 
       <p role="status" className={status === null ? "sr-only" : "type-small mb-3 text-muted"}>
         {status}
@@ -159,13 +170,10 @@ export function Inbox({ initial }: { initial?: Queue }) {
 
       {selected === undefined ? (
         <Card className="p-0">
-          <EmptyState
-            heading={inboxCopy.emptyHeading}
-            body={`${inboxCopy.nextDrafts} ${queue.nextDrafts.day} ${queue.nextDrafts.time}. ${inboxCopy.repliesLand}`}
-          />
+          <EmptyState heading={inboxCopy.emptyHeading} body={inboxCopy.repliesLand} />
         </Card>
       ) : (
-        <div data-testid="inbox-grid" className="grid items-start gap-grid wide:grid-cols-inbox">
+        <div data-testid="inbox-grid" className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-inbox">
           <QueueList items={items} selectedId={selected.id} onSelect={setSelectedId} />
           {/*
             Keyed by id, so a card's own state (an edit in progress, the reject
@@ -183,12 +191,6 @@ export function Inbox({ initial }: { initial?: Queue }) {
       )}
     </>
   );
-}
-
-/** "2 replies", "1 call", or null when there are none of a kind (mock 2c drops the empty kind). */
-function count(n: number, one: string, many: string): string | null {
-  if (n === 0) return null;
-  return `${n} ${n === 1 ? one : many}`;
 }
 
 /** True when the key was pressed in something a rep types into. */

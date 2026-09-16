@@ -233,7 +233,7 @@ describe("the actions the page offers are the ones the server accepts", () => {
     expect(stopped.facts).toMatchObject({ stage: "reveal_needs_you", attention: { kind: "needs_you", reason: "reveal_failed", retryable: true }, nextAction: "retry_reveal" });
     expect(stopped).toMatchObject({ state: "revealing", chip: campaignsCopy.chipNeedsYou, next: campaignsCopy.nextRevealNeedsYou, nextIsAction: true });
     expect(stopped.can.retryReveal).toBe(true);
-    expect(stopped.ask.find((a) => a.id === "why-stopped")?.answer).toBe(campaignsCopy.revealStoppedRetry);
+    expect(stopped.activity?.some((entry) => entry.kind === "reveal_confirmed")).toBe(true);
 
     const requestId = crypto.randomUUID();
     expect(await caller(rep()).campaigns.retryReveal({ campaignId: id, briefVersion: 1, requestId })).toEqual({ id });
@@ -260,7 +260,7 @@ describe("the actions the page offers are the ones the server accepts", () => {
     expect(campaign.facts).toMatchObject({ stage: "reveal_needs_you", attention: { reason: "reveal_spend_unresolved", retryable: false }, nextAction: "edit_brief" });
     expect(campaign.can).toMatchObject({ retryReveal: false, edit: true });
     expect(campaign.facts?.spend.reveal).toEqual({ max: 2, charged: 0, held: 2 });
-    expect(campaign.ask.find((a) => a.id === "why-stopped")?.answer).toBe(campaignsCopy.revealStoppedHeld);
+    expect(campaign.facts?.attention?.reason).toBe("reveal_spend_unresolved");
     expect(await failureOf(caller(rep()).campaigns.retryReveal({ campaignId: id, briefVersion: 1, requestId: crypto.randomUUID() }))).toBe(`CONFLICT: ${campaignsCopy.changedSince}`);
     expect((await prisma.job.findUniqueOrThrow({ where: { id: revealJob.id } })).status).toBe("failed");
   });
@@ -333,11 +333,37 @@ describe("the campaign summary", () => {
     expect(facts.spend.reveal).toEqual({ max: plan.maxCredits, charged: 2, held: 0 });
     expect(facts.spend.allVersions.revealCharged).toBe(2);
     expect(facts.spend.research).toEqual({ usd: 1.25, usdThisVersion: 1.25 });
-    // The cost answer counts reveal credits too, never in the same total as search, and never dollars.
-    const cost = page.ask.find((a) => a.id === "cost")!.answer;
-    expect(cost).toContain(`${facts.spend.allVersions.searchCharged} ${campaignsCopy.answerCostSearch}`);
-    expect(cost).toContain(`2 ${campaignsCopy.answerCostReveal}`);
-    expect(cost).not.toContain("$");
+    // The activity records the reveal as what came back, newest first, with who confirmed it.
+    const kinds = page.activity?.map((entry) => entry.kind) ?? [];
+    expect(kinds[0]).toBe("revealed");
+    expect(kinds).toContain("reveal_confirmed");
+    expect(kinds).toContain("confirmed");
+    expect(kinds).toContain("created");
+    expect(page.activity?.[0]?.actor.kind).toBe("relay");
+  });
+
+  it("reads a search's halt reason the same on the list as on the page, and one outside the contract as failed", async () => {
+    const spend = { searchCreditCap: 40, charged: 0, reserved: 0, pricingAssumptions: "x", exceededDocumentedWorstCase: false };
+    const halted = async (reason: string) => {
+      const { id } = await planned();
+      await caller(rep()).campaigns.confirm({ campaignId: id, fromBriefVersion: 1, requestId: crypto.randomUUID() });
+      const job = await prisma.job.findFirstOrThrow({ where: { campaignId: id, kind: LEAD_GEN_JOB } });
+      await prisma.event.create({
+        data: { orgId: job.orgId, kind: "leadgen.halted", actorKind: "system", campaignId: id, after: { jobId: job.id, briefVersion: 1, output: { phase: "needs_you", reason, spend } } },
+      });
+      await prisma.job.update({ where: { id: job.id }, data: { status: "done" } });
+      const page = await caller(rep()).campaigns.get({ id });
+      const row = (await caller(rep()).campaigns.list()).campaigns.find((c) => c.id === id)!;
+      return { page: page.facts, row: row.facts };
+    };
+
+    const known = await halted("over_cap");
+    expect(known.row).toMatchObject({ stage: "people_needs_you", attention: { reason: "over_cap" } });
+    expect(known.row).toEqual(known.page);
+
+    const unknown = await halted("a_new_reason");
+    expect(unknown.row).toMatchObject({ stage: "people_needs_you", attention: { reason: "failed" } });
+    expect(unknown.row).toEqual(unknown.page);
   });
 
   it("@proof lists only the rep's own campaigns, in a fixed number of queries however many there are, with nothing org-wide read", async () => {

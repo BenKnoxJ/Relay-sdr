@@ -1,46 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { PillButton } from "@/components/PillButton";
+import { PillLink } from "@/components/PillLink";
+import { headerActionOf, type HeaderAction } from "@/lib/campaigns/headerAction";
 import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, WidenSubmission } from "@/lib/campaigns/start";
-import { actionFor, answersFor, failureLine, type CampaignState } from "@/lib/campaigns/state";
+import { actionFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 
-import { AskRelay } from "./AskRelay";
 import { BriefCard } from "./BriefCard";
-import { Overview } from "./Overview";
-import { PlanSection } from "./PlanCards";
-import { ProgressCounts } from "./ProgressCounts";
-import { StateRow } from "./StateRow";
-import { WidenCard } from "./WidenCard";
-import { ConfirmCard } from "./ConfirmCard";
 import { PeopleFound } from "./PeopleFound";
 import { PeopleNeedsYou } from "./PeopleNeedsYou";
+import { PlanDecision } from "./PlanDecision";
+import { PlanSection } from "./PlanCards";
+import { ProgressCounts } from "./ProgressCounts";
 import { RevealCard } from "./RevealCard";
+import { FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard, RevealingCard } from "./StageNotes";
+import { StageSummary } from "./StageSummary";
+import { StateRow } from "./StateRow";
+import { SupportRail } from "./SupportRail";
+import { WidenCard } from "./WidenCard";
 
 /**
- * The campaign page (§23.1c, mock 3b and 3c).
+ * The campaign page (§23.1c), state-led (product-truth pass).
  *
- * Top to bottom, and the order is the signed one: header with the steps and
- * ONE action matching the state; the brief; Ask Relay; the plan and the
- * research behind it; progress; people. Two states reorder that, and the signed
- * section says so in as many words: Plan ready leads with the plan, and Running
- * leads with progress and folds the plan away.
+ * Three things are constant: the header (name, the steps, ONE action, which
+ * is the backend's `facts.nextAction` in words), the stage summary under it
+ * (the same words as the list row and Home), and the support rail (Research,
+ * Spend, Brief, Activity as quiet tabs). While Relay works the page asks the
+ * server again every so often, so a queued job becomes a running one and a
+ * finished one becomes the next stage without a reload.
+ * The main area is the rep's job in this state and nothing else: what
+ * research is producing while it reads; the plays to decide between when a
+ * plan is ready; the accounts to keep or drop; the emails once revealed. A
+ * stage that has passed does not stay stacked on the page; what it left is
+ * in the rail.
  *
- * A real campaign (`live`) is drawn from the database and offers what is
- * built (orchestrator A1, items 4 to 6): a stop's options can be chosen, Edit
- * brief opens Start on the brief, and Try again puts failed research back on
- * the queue. Confirm plan is shown and cannot be pressed until finding people
- * exists. Each change goes to the server and the page comes back drawn from
- * what the server then holds; nothing here moves a real campaign's state on
- * its own. The sample campaigns the component tests use keep the signed
- * actions, which change this component's state and nothing else.
+ * A real campaign (`live`) offers only what is built; the sample campaigns
+ * the component tests use keep the signed actions, which change this
+ * component's state and nothing else.
  */
 
 export function CampaignPage({
@@ -53,23 +56,20 @@ export function CampaignPage({
   onChooseIndustry,
   onReview,
   onReveal,
+  onRetryReveal,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
   banner?: string | null;
-  /** Asks for a stop's chosen option (a server action). */
   onWiden?: (submission: WidenSubmission) => Promise<StartResult>;
-  /** Puts failed research back on the queue (a server action). */
   onRetry?: (submission: RetrySubmission) => Promise<StartResult>;
-  /** Confirm plan: the first spend gate (a server action; lead gen v2.1 §6). */
-  onConfirm?: (submission: RetrySubmission) => Promise<StartResult>;
-  /** Try again on finding people (a server action). */
+  /** Confirm plan: the first spend gate (lead gen v2.1 §6), naming the play the rep chose (v2.3). */
+  onConfirm?: (submission: RetrySubmission & { candidateId?: string }) => Promise<StartResult>;
   onRetryPeople?: (submission: RetrySubmission) => Promise<StartResult>;
-  /** Search with a chosen industry (a server action). */
+  /** Try again on a reveal that stopped before any request left Relay (a server action). */
+  onRetryReveal?: (submission: RetrySubmission) => Promise<StartResult>;
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
-  /** Keep or drop people found, one or a whole account (a server action; lead gen v2.2 §9a). */
   onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
-  /** Reveal emails for the kept people, with the figures shown (a server action; lead gen v2.1 §6). */
   onReveal?: (submission: RevealSubmission) => Promise<StartResult>;
 }) {
   const router = useRouter();
@@ -77,42 +77,78 @@ export function CampaignPage({
   const [toast, setToast] = useState<string | null>(banner);
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  // Minted once per page: a second press of the same action sends the same
-  // id, and the server answers it as the press that already landed.
   const [requestId] = useState(() => crypto.randomUUID());
   const live = campaign.live;
   const target = { campaignId: campaign.id, briefVersion: campaign.briefVersion };
   const editHref = live && campaign.can.edit ? `/campaigns/${campaign.id}/edit` : undefined;
+  const researchHref = live && campaign.overview !== null ? `/campaigns/${campaign.id}/research` : undefined;
 
-  // Reveal emails opens its figures first; nothing is bought until the confirm inside them is pressed.
+  // The backend's stage is the truth the page composes itself around; `state` is the screen vocabulary it maps to.
+  const facts = campaign.facts;
+  const stage = facts?.stage ?? null;
+  const revealNeedsYou = stage === "reveal_needs_you";
+  // The play Confirm names: research's recommended one until the rep picks another that can be searched (lead gen v2.3).
+  const plays = campaign.plays ?? [];
+  const recommendedId = plays.find((play) => play.recommended)?.id ?? null;
+  const [candidateId, setCandidateId] = useState<string | null>(recommendedId);
+
   const [revealOpen, setRevealOpen] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
   const revealPlan = campaign.peopleFound?.revealPlan ?? null;
-  const action = actionFor(state, live, campaign.can.retry, {
-    confirm: campaign.can.confirm === true && onConfirm !== undefined,
-    retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
-    reveal: campaign.can.reveal === true && onReveal !== undefined,
-    revealBlocked: revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst,
-  });
+  const revealBlocked = revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst;
+  // The header's one control: the backend's next action for a stored campaign; a sample keeps its signed screen actions.
+  const action: HeaderAction | ReturnType<typeof actionFor> =
+    facts !== undefined
+      ? headerActionOf(
+          facts,
+          campaign.can,
+          {
+            confirm: onConfirm !== undefined,
+            retry: onRetry !== undefined && campaign.can.retry,
+            retryPeople: onRetryPeople !== undefined && campaign.can.retryPeople === true,
+            retryReveal: onRetryReveal !== undefined && campaign.can.retryReveal === true,
+            reveal: onReveal !== undefined,
+          },
+          { ...(editHref === undefined ? {} : { editHref }), revealBlocked },
+        )
+      : actionFor(state, live, campaign.can.retry, {
+          confirm: campaign.can.confirm === true && onConfirm !== undefined,
+          retryPeople: campaign.can.retryPeople === true && onRetryPeople !== undefined,
+          reveal: campaign.can.reveal === true && onReveal !== undefined,
+          revealBlocked,
+          retryReveal: campaign.can.retryReveal === true && onRetryReveal !== undefined,
+        });
   const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady"];
-  /*
-    Recomputed from the state the SCREEN is in, not from the state the campaign
-    arrived in. Pause moves the page and the six answers together, and an Ask
-    Relay that still said "nothing is paused" the moment after the rep paused it
-    would be the one thing on this page a rep could catch lying.
-  */
-  const answers = answersFor(state, { ...campaign, retryable: campaign.can.retry });
-  /** Answers by id, never by position: `answersFor` is free to reorder them. */
-  const answerTo = (...ids: string[]) =>
-    ids
-      .map((id) => answers.find((answer) => answer.id === id)?.answer)
-      .filter((line) => line !== undefined)
-      .join(" ");
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
 
-  /** A change landed: come back to the campaign as the server now has it. */
+  // While Relay works, ask the server again every little while: a queued job becomes running, a finished one the next stage.
+  const working = facts?.inFlight !== null && facts?.inFlight !== undefined;
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(() => router.refresh(), 15_000);
+    return () => clearInterval(timer);
+  }, [working, router]);
+
+  // The sticky header's height, for what sits under it (the rail) to stick below rather than behind it.
+  const header = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = header.current;
+    const root = page.current;
+    if (element === null || root === null || typeof ResizeObserver === "undefined") return;
+    const set = () => root.style.setProperty("--relay-header-h", `${element.offsetHeight}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const lookingAgain = (id: string) => {
     router.push(`/campaigns/${id}?again=1`);
+    router.refresh();
+  };
+  const confirmed = (id: string) => {
+    router.push(`/campaigns/${id}?confirmed=1`);
     router.refresh();
   };
 
@@ -125,12 +161,6 @@ export function CampaignPage({
           return null;
         }
       : undefined;
-
-  /** Confirm lands on the campaign with its own line; the rest are Relay looking again. */
-  const confirmed = (id: string) => {
-    router.push(`/campaigns/${id}?confirmed=1`);
-    router.refresh();
-  };
 
   const submit = async (send: ((submission: RetrySubmission) => Promise<StartResult>) | undefined, landed: (id: string) => void = lookingAgain) => {
     if (send === undefined || pending) return;
@@ -149,134 +179,8 @@ export function CampaignPage({
     setPending(false);
   };
 
-  const progress = (
-    <Card label={campaignsCopy.progressLabel}>
-      {campaign.progress === null ? (
-        // Nobody has been found yet: words, not five zeros that read like work done.
-        <p data-testid="progress-none" className="type-small text-muted">
-          {campaignsCopy.progressNone}
-        </p>
-      ) : (
-        <ProgressCounts
-          progress={campaign.progress}
-          // A real campaign has no drafting, sending or replies yet: only Found is drawn.
-          downstream={!live}
-          /*
-            The line under the counts is the same two answers Ask Relay gives to
-            "what is waiting on me" and "when does the next batch go" — written
-            once, in the copy file, and read here rather than restated.
-          */
-          note={state === "running" ? answerTo("waiting", "next-batch") : undefined}
-        />
-      )}
-    </Card>
-  );
+  const confirmWithPlay = () => submit((submission) => onConfirm!({ ...submission, ...(candidateId === null ? {} : { candidateId }) }), confirmed);
 
-  const plan =
-    // A real campaign's finished plan is the Overview (task 18); the plan cards stay for the samples.
-    campaign.overview !== null && (state === "planReady" || state === "findingPeople" || state === "peopleNeedsYou" || peopleStates.includes(state)) ? (
-      <>
-        <Overview
-          overview={campaign.overview}
-          editHref={editHref}
-          researchHref={live ? `/campaigns/${campaign.id}/research` : undefined}
-          confirmed={state !== "planReady"}
-          // Once there are accounts to review, the research folds away; it is one press from open.
-          collapsed={peopleStates.includes(state)}
-        />
-        {state === "planReady" && campaign.confirmPlan ? (
-          <div className="mt-grid">
-            <ConfirmCard plan={campaign.confirmPlan} />
-          </div>
-        ) : null}
-      </>
-    ) : campaign.pack === null ||
-    state === "stopped" ||
-    state === "researching" ||
-    state === "brief" ||
-    state === "failed" ? null : (
-      <PlanSection
-        pack={campaign.pack}
-        collapsed={leadsWithProgress}
-        // Only while the plan is the thing being decided on: once it is
-        // confirmed it is read only (§23.1c).
-        editHref={state === "planReady" ? editHref : undefined}
-      >
-        {campaign.plan === null ? null : (
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3">
-            {(
-              [
-                [
-                  campaignsCopy.planPeople,
-                  `${campaign.plan.people} ${campaignsCopy.peopleFrom} ${campaign.plan.companies} ${campaignsCopy.peopleCompanies}${campaignsCopy.noteJoin}${campaignsCopy.peoplePerCompany}`,
-                ],
-                [
-                  campaignsCopy.planCredits,
-                  `${campaign.plan.creditsNeeded} ${campaignsCopy.creditsReveals} ${campaign.plan.creditsNeeded} ${campaignsCopy.creditsLeft} ${campaign.plan.creditsLeft} ${campaignsCopy.creditsLeftTail}`,
-                ],
-                [
-                  campaignsCopy.planSending,
-                  `${campaign.plan.perDay} ${campaignsCopy.sendingADay} ${campaign.plan.windowStart} ${campaignsCopy.sendingTo} ${campaign.plan.windowEnd}${campaignsCopy.noteJoin}${campaignsCopy.sendingFrom} ${campaign.plan.mailbox}`,
-                ],
-                [campaignsCopy.planLawful, campaignsCopy.lawfulBasis],
-              ] as [string, string][]
-            ).map(([label, value]) => (
-              <div key={label} data-testid="plan-fact" className="contents">
-                <dt className="type-small text-muted">{label}</dt>
-                <dd className="type-small">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </PlanSection>
-    );
-
-  const people = (
-    <Card label={campaignsCopy.peopleLabel}>
-      {campaign.people === null ? (
-        <p className="type-small text-muted">
-          {state === "findingPeople" || state === "peopleNeedsYou" || peopleStates.includes(state) ? campaignsCopy.peopleAfterConfirm : campaignsCopy.peopleBeforeConfirm}
-        </p>
-      ) : (
-        <>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-            <dt className="type-small text-muted">{campaignsCopy.peopleChosen}</dt>
-            <dd className="type-mono text-13">
-              {campaign.people.chosen} {campaignsCopy.peopleFrom} {campaign.people.companies}{" "}
-              {campaignsCopy.peopleCompanies}
-            </dd>
-            <dt className="type-small text-muted">{campaignsCopy.peopleOnHold}</dt>
-            <dd className="type-mono text-13">{campaign.people.onHold}</dd>
-          </dl>
-          {/* Your people (§23.1e) is lead gen's screen and is not built: no link to it from a real campaign. */}
-          {live ? null : (
-            <Link
-              href={`/campaigns/${campaign.id}/people`}
-              className="type-small mt-2.5 inline-block text-action focus-visible:outline-none focus-visible:ring-2"
-            >
-              {campaignsCopy.peopleLink}
-            </Link>
-          )}
-        </>
-      )}
-    </Card>
-  );
-
-  const brief = (
-    <BriefCard brief={campaign.brief} summary={leadsWithProgress ? campaign.motionLine : undefined} editHref={editHref} />
-  );
-
-  const ask = <AskRelay questions={answers} />;
-
-  /*
-    The order is the state's, not the file's (§23.1c, "By state").
-
-    Plan ready leads with the plan, because the plan section IS the Confirm
-    screen and the rep is here to read it. Running leads with progress and
-    folds the plan, because the decision is made and the question is how it is
-    going. Researching, the stop and a failure have no plan to lead with at all.
-  */
-  /** Keep or drop: the server holds the decision, and the page is redrawn from it. */
   const review =
     live && campaign.can.review === true && onReview !== undefined
       ? async (personId: string, scope: ReviewSubmission["scope"], decision: ReviewSubmission["decision"]): Promise<string | null> => {
@@ -287,22 +191,12 @@ export function CampaignPage({
         }
       : undefined;
 
-  const peopleFound =
-    peopleStates.includes(state) && campaign.peopleFound ? (
-      <PeopleFound view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} onReview={review} />
-    ) : null;
-
-  /** Reveal emails, confirmed: the server checks the figures again and lands the rep on the campaign, revealing. */
   const confirmReveal = async () => {
     if (onReveal === undefined || revealPlan === null || pending) return;
     setPending(true);
     setRevealError(null);
     try {
-      const result = await onReveal({
-        ...target,
-        requestId,
-        expected: { toReveal: revealPlan.toReveal, known: revealPlan.known, maxCredits: revealPlan.maxCredits },
-      });
+      const result = await onReveal({ ...target, requestId, expected: { toReveal: revealPlan.toReveal, known: revealPlan.known, maxCredits: revealPlan.maxCredits } });
       if ("id" in result) {
         router.push(`/campaigns/${result.id}?revealing=1`);
         router.refresh();
@@ -325,74 +219,124 @@ export function CampaignPage({
         }
       : undefined;
 
-  const column =
-    state === "planReady"
-      ? [plan, brief, ask]
-      : peopleStates.includes(state)
-        ? [peopleFound, brief, ask, plan]
-      : leadsWithProgress
-        ? [progress, plan, ask]
-        : [brief, ask, plan];
-
-  const rail =
-    state === "planReady"
-      ? [progress, people]
-      : leadsWithProgress
-        ? [people, brief]
-        : [progress, people];
+  /* The main area: the rep's job in this state, chosen by the backend's stage where there is one. */
+  const main: React.ReactNode[] = [];
+  if (state === "researching" || state === "brief") {
+    main.push(<ResearchingCard key="researching" inFlight={facts?.inFlight} />);
+  } else if (state === "failed") {
+    main.push(<ResearchNeedsYouCard key="failed" failure={campaign.failure} facts={facts} canRetry={campaign.can.retry} editHref={editHref} researchHref={live && campaign.failure === "no_play" ? `/campaigns/${campaign.id}/research` : undefined} />);
+  } else if (state === "stopped" && campaign.pack?.insufficient !== undefined) {
+    main.push(<WidenCard key="widen" reason={campaign.pack.insufficient.reason} found={campaign.pack.stopEvidence ?? []} choices={campaign.widenings ?? []} onWiden={widen} />);
+  } else if (state === "planReady" && campaign.overview !== null && live) {
+    main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={campaign.confirmPlan ?? null} selectedId={candidateId} onSelect={setCandidateId} />);
+  } else if (state === "findingPeople") {
+    main.push(<FindingCard key="finding" inFlight={facts?.inFlight} finding={campaign.finding ?? null} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} spend={facts?.spend.search ?? campaign.spend?.search ?? null} />);
+  } else if (state === "peopleNeedsYou" && campaign.peopleNeedsYou) {
+    main.push(<PeopleNeedsYou key="needs-you" view={campaign.peopleNeedsYou} canRetry={campaign.can.retryPeople === true} spent={campaign.spentAtThisVersion === true} editHref={editHref} onChoose={choose} />);
+  } else if (peopleStates.includes(state) && campaign.peopleFound) {
+    if (state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true) {
+      main.push(<RevealCard key="reveal" plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />);
+    }
+    if (state === "revealing") {
+      // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.
+      if (revealNeedsYou || campaign.peopleFound.revealResult?.stopped === true) {
+        main.push(<RevealNeedsYouCard key="reveal-stopped" line={revealStoppedLine(facts?.stage === "reveal_needs_you" ? facts.attention.reason : null)} retryable={campaign.can.retryReveal === true} editHref={editHref} />);
+      } else {
+        main.push(<RevealingCard key="revealing" inFlight={facts?.inFlight} />);
+      }
+    }
+    main.push(<PeopleFound key="people" view={campaign.peopleFound} editHref={editHref} spent={campaign.spentAtThisVersion === true} onReview={review} />);
+  }
+  // The sample campaigns (component tests) keep the signed later states: progress leads and the plan cards fold.
+  if (!live && (leadsWithProgress || state === "planReady" || state === "findingPeople") && campaign.pack !== null) {
+    if (leadsWithProgress && campaign.progress !== null) {
+      main.push(
+        <Card key="progress" label={campaignsCopy.progressLabel}>
+          <ProgressCounts progress={campaign.progress} />
+        </Card>,
+      );
+    }
+    main.push(<PlanSection key="plan-cards" pack={campaign.pack} collapsed={leadsWithProgress} />);
+  }
+  if (!live && (state === "researching" || state === "stopped" || state === "failed") && main.length === 0) {
+    main.push(<BriefCard key="brief" brief={campaign.brief} />);
+  }
 
   return (
-    <>
-      <div className="mb-grid flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <PageHeader title={campaign.name} className="mb-2" />
-          <StateRow state={state} stuck={state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true} />
-        </div>
-        {action === null ? null : (
-          <div className="flex flex-col items-end gap-1.5">
-            <PillButton
-              variant={state === "running" ? "outline" : "primary"}
-              disabled={action.disabled === true || pending}
-              aria-disabled={action.disabled === true ? true : undefined}
-              // An action that is not built yet (Reveal emails) must not look pressable: quiet
-              // outline, muted text, no hover, and the note under it says why.
-              className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
-              onClick={() => {
-                if (action.disabled === true) return;
-                if (action.kind === "retry") {
-                  void submit(onRetry);
-                  return;
-                }
-                if (live && action.kind === "confirm") {
-                  void submit(onConfirm, confirmed);
-                  return;
-                }
-                if (action.kind === "reveal") {
-                  setRevealOpen(true);
-                  return;
-                }
-                if (action.kind === "retryPeople") {
-                  void submit(onRetryPeople);
-                  return;
-                }
-                setState(action.next);
-                setToast(campaignsCopy.toastConfirmed);
-              }}
-            >
-              {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
-            </PillButton>
-            {action.note === undefined ? null : (
-              <p data-testid="action-note" className="type-small text-muted">
-                {action.note}
-              </p>
-            )}
-            {actionError === null ? null : (
-              <p role="alert" data-testid="action-error" className="type-small text-warn">
-                {actionError}
-              </p>
-            )}
+    <div ref={page}>
+      <div
+        ref={header}
+        data-testid="campaign-header"
+        className="-mx-6 mb-grid border-b border-line bg-panel px-6 pb-3 pt-1 wide:sticky wide:top-0 wide:z-10"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <PageHeader title={campaign.name} className="mb-1.5" />
+            <StateRow state={state} stuck={revealNeedsYou || (state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true)} />
           </div>
-        )}
+          {action === null ? null : (
+            <div className="flex flex-col items-end gap-1.5">
+              {action.kind === "editBrief" ? (
+                <PillLink href={action.href} data-testid="header-edit-brief">
+                  {action.label}
+                </PillLink>
+              ) : (
+                <PillButton
+                  variant={state === "running" ? "outline" : "primary"}
+                  disabled={action.disabled === true || pending}
+                  aria-disabled={action.disabled === true ? true : undefined}
+                  className={action.disabled === true ? "cursor-not-allowed border-line bg-transparent text-muted hover:opacity-100 active:opacity-100 disabled:opacity-100" : undefined}
+                  onClick={() => {
+                    if (action.disabled === true) return;
+                    if (action.kind === "retry") {
+                      void submit(onRetry);
+                      return;
+                    }
+                    if (live && action.kind === "confirm") {
+                      void confirmWithPlay();
+                      return;
+                    }
+                    if (action.kind === "reveal") {
+                      setRevealOpen(true);
+                      return;
+                    }
+                    if (action.kind === "retryPeople") {
+                      void submit(onRetryPeople);
+                      return;
+                    }
+                    if (action.kind === "retryReveal") {
+                      void submit(onRetryReveal);
+                      return;
+                    }
+                    if ("next" in action) {
+                      setState(action.next);
+                      setToast(campaignsCopy.toastConfirmed);
+                    }
+                  }}
+                >
+                  {pending ? (action.kind === "confirm" ? campaignsCopy.actionConfirming : campaignsCopy.actionTrying) : action.label}
+                </PillButton>
+              )}
+              {action.kind === "editBrief" || action.note === undefined ? null : (
+                <p data-testid="action-note" className="type-small max-w-measure text-right text-muted">
+                  {action.note}
+                </p>
+              )}
+              {actionError === null ? null : (
+                <p role="alert" data-testid="action-error" className="type-small text-warn">
+                  {actionError}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="mt-2">
+          <StageSummary
+            facts={facts}
+            quietWhenAttention
+            detail={state === "planReady" && recommendedId !== null ? `${campaignsCopy.summaryStartWith} ${plays.find((play) => play.id === (candidateId ?? recommendedId))?.group.name ?? ""}` : null}
+          />
+        </div>
       </div>
 
       {toast === null ? null : (
@@ -401,74 +345,21 @@ export function CampaignPage({
         </p>
       )}
 
-      {state === "researching" ? (
-        <p data-testid="researching-note" className="type-body mb-grid text-muted">
-          {campaignsCopy.researchingNote}
-        </p>
-      ) : null}
-
-      {state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true ? (
-        <div className="mb-grid">
-          <RevealCard plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />
-        </div>
-      ) : null}
-
-      {state === "revealing" ? (
-        <p
-          data-testid={campaign.peopleFound?.revealResult?.stopped === true ? "reveal-stopped" : "revealing-note"}
-          className={campaign.peopleFound?.revealResult?.stopped === true ? "type-small mb-grid rounded-input bg-warn-bg px-3 py-2.5 text-warn" : "type-body mb-grid text-muted"}
-        >
-          {campaign.peopleFound?.revealResult?.stopped === true ? campaignsCopy.revealStopped : campaignsCopy.revealingNote}
-        </p>
-      ) : null}
-
-      {state === "findingPeople" && live ? (
-        <p data-testid="finding-note" className="type-body mb-grid text-muted">
-          {campaignsCopy.findingNote}
-        </p>
-      ) : null}
-
-      {state === "peopleNeedsYou" && campaign.peopleNeedsYou ? (
-        <div className="mb-grid">
-          <PeopleNeedsYou
-            view={campaign.peopleNeedsYou}
-            canRetry={campaign.can.retryPeople === true}
-            spent={campaign.spentAtThisVersion === true}
-            onChoose={choose}
-          />
-        </div>
-      ) : null}
-
-      {state === "failed" ? (
-        <p data-testid="failed-note" className="type-small mb-grid rounded-input bg-warn-bg px-3 py-2.5 text-warn">
-          {failureLine(campaign.failure)} {campaignsCopy.failedNothingSpent}{" "}
-          {campaign.can.retry ? campaignsCopy.failedNextRetry : campaignsCopy.failedNextEdit}
-        </p>
-      ) : null}
-
-      {state === "stopped" && campaign.pack?.insufficient !== undefined ? (
-        <div className="mb-grid">
-          <WidenCard
-            reason={campaign.pack.insufficient.reason}
-            found={campaign.pack.stopEvidence ?? []}
-            choices={campaign.widenings ?? []}
-            onWiden={widen}
-          />
-        </div>
-      ) : null}
-
-      <div className="grid gap-grid wide:grid-cols-campaign">
-        <div className="grid content-start gap-grid">
-          {column.map((section, index) =>
-            section === null ? null : <div key={index}>{section}</div>,
-          )}
-        </div>
-        <div className="grid content-start gap-grid">
-          {rail.map((section, index) =>
-            section === null ? null : <div key={index}>{section}</div>,
-          )}
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-campaign">
+        <div className="grid min-w-0 content-start gap-grid">{main}</div>
+        <SupportRail
+          overview={campaign.overview}
+          researchHref={researchHref}
+          spend={campaign.spend ?? null}
+          sample={campaign.confirmPlan?.sample === true || campaign.peopleFound?.sample === true}
+          brief={campaign.brief}
+          editHref={editHref}
+          {...(campaign.activity === undefined ? {} : { activity: campaign.activity })}
+          confirmed={state !== "planReady"}
+          // The rail opens on what the rep is likeliest to want beside the work: the plan once there are people, the brief before.
+          initial={peopleStates.includes(state) ? "research" : "brief"}
+        />
       </div>
-    </>
+    </div>
   );
 }

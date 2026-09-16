@@ -1,5 +1,7 @@
+import type { Halt } from "../../../agents/leadgen/output.schema";
 import type { Confidence, Item, Phrase, PlanCards } from "../../../agents/research/output.schema";
 
+import type { RevealRecovery } from "./retry";
 import type { CampaignState } from "./state";
 import type { ResearchContradiction, ResearchGap, SeedFirm, Voice } from "./packSelectors";
 
@@ -293,6 +295,12 @@ export type FoundPersonView = {
   role: RolePartView | null;
   /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */
   why: string;
+  /**
+   * What Relay actually holds on this person, as short phrases: how the title
+   * matched (exactly, or a close title), that an email is available, that
+   * research named the firm. Read off the stored row; nothing is inferred.
+   */
+  evidence: string[];
   review: ReviewView;
   /** Null until Reveal emails has run for them. */
   reveal: RevealStateView | null;
@@ -357,6 +365,10 @@ export type PeopleFoundView = {
   roles: boolean;
   review: { kept: number; dropped: number; pending: number };
   onHold: number;
+  /** Candidates found that Relay kept in reserve as weaker matches: counted honestly, never listed as people. */
+  spare: number;
+  /** The plan's roles nobody was found for. */
+  rolesMissing: BuyerRoleView[];
   spend: { charged: number; reserved: number; cap: number };
   /**
    * Where the list is: the rep reviewing it, Reveal emails running, or the
@@ -448,14 +460,28 @@ export type CampaignStage =
 /** Work Relay is doing for the campaign right now, and whether it is still waiting its turn or running. */
 export type InFlightWork = { kind: "research" | "lead_gen" | "reveal"; status: "queued" | "running" };
 
+/** Why finding people needs the rep: the search's halt reason (lead gen v2.1 §11), or `failed` when there is no halt to read. */
+export type PeopleReason = Halt["reason"] | "failed";
+
+/** Why a reveal stopped: the reveal's recovery (`src/lib/campaigns/retry.ts`), as a machine word. */
+export type RevealStopReason = `reveal_${RevealRecovery["reason"]}`;
+
+type Attention<Kind extends string, Reason extends string> = { kind: Kind; reason: Reason; retryable: boolean };
+
 /**
- * The rep is needed. `reason` is a machine word, never shown as it is:
- * research's failure (`took_too_long`, `bad_output`, `failed`, `not_started`,
- * `no_play`), a stop (`insufficient`), finding people's halt reason or
- * `failed`, or a reveal that stopped (`reveal_spend_unresolved`,
- * `reveal_failed`, `reveal_failed_terminal`, `reveal_stopped`).
+ * The rep is needed, keyed on the stage that needs them, so each stage can
+ * only carry its own reasons. `reason` is a machine word, never shown as it
+ * is: research's failure, a stop (`insufficient`), finding people's halt
+ * reason or `failed`, or a reveal that stopped. Every other stage has none.
  */
-export type CampaignAttention = { kind: "needs_you" | "stopped"; reason: string; retryable: boolean };
+export type CampaignStageAttention =
+  | { stage: "research_needs_you"; attention: Attention<"needs_you", ResearchFailure> }
+  | { stage: "research_stopped"; attention: Attention<"stopped", "insufficient"> }
+  | { stage: "people_needs_you"; attention: Attention<"needs_you", PeopleReason> }
+  | { stage: "reveal_needs_you"; attention: Attention<"needs_you", RevealStopReason> }
+  | { stage: Exclude<CampaignStage, "research_needs_you" | "research_stopped" | "people_needs_you" | "reveal_needs_you">; attention: null };
+
+export type CampaignAttention = NonNullable<CampaignStageAttention["attention"]>;
 
 /** The one thing the rep can do next that the server will accept, or null while Relay works or nothing is built yet. */
 export type CampaignNextAction =
@@ -515,15 +541,13 @@ export type CampaignSpendView = {
  * its research pack, its people or anything org-wide, and derived by the same
  * rules as the campaign page.
  */
-export type CampaignSummaryFacts = {
+export type CampaignSummaryFacts = CampaignStageAttention & {
   id: string;
   name: string;
   briefVersion: number;
   createdAt: string;
   updatedAt: string;
-  stage: CampaignStage;
   inFlight: InFlightWork | null;
-  attention: CampaignAttention | null;
   nextAction: CampaignNextAction | null;
   /** Null until research has a readable result at this version. */
   research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number } | null;
@@ -535,8 +559,6 @@ export type CampaignSummaryFacts = {
   reveal: { revealed: number; known: number; noEmail: number; suppressed: number; held: number; failed: number; emailsReady: number } | null;
   spend: CampaignSpendView;
 };
-
-export type AskAnswer = { id: string; question: string; answer: string };
 
 export type CampaignSummary = {
   id: string;
@@ -581,7 +603,6 @@ export type Campaign = CampaignSummary & {
   nextBatch: { day: string; time: string } | null;
   /** Null until a credit has been spent. */
   credits: { used: number; left: number } | null;
-  ask: AskAnswer[];
   /**
    * True for a campaign read from the database. False for the sample campaigns
    * the component tests draw the later, signed states with (Running, Done):
@@ -611,4 +632,6 @@ export type Campaign = CampaignSummary & {
   spend?: CampaignSpendView;
   /** While people are being found: the frozen search, its roles and seed firms, and the credits so far. */
   finding?: FindingView | null;
+  /** What has happened to this campaign, newest first. Absent on samples. */
+  activity?: ActivityEntry[];
 };

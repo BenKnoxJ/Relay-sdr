@@ -183,8 +183,8 @@ export function CampaignPage({
 
   const review =
     live && campaign.can.review === true && onReview !== undefined
-      ? async (personId: string, scope: ReviewSubmission["scope"], decision: ReviewSubmission["decision"]): Promise<string | null> => {
-          const result = await onReview({ ...target, personId, scope, decision });
+      ? async (personId: string, scope: ReviewSubmission["scope"], decision: ReviewSubmission["decision"], personIds?: string[]): Promise<string | null> => {
+          const result = await onReview({ ...target, personId, scope, decision, ...(personIds === undefined ? {} : { personIds }) });
           if ("error" in result) return result.error;
           router.refresh();
           return null;

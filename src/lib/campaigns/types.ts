@@ -291,6 +291,8 @@ export type FoundPersonView = {
   city: string | null;
   /** Relay already holds a usable email for them: nothing to buy. */
   reused: boolean;
+  /** The provider lists an email for them, or Relay already holds one: what Reveal could give. */
+  hasEmail: boolean;
   /** The confirmed group's role they play; null is a Related role, or a search that had no roles. */
   role: RolePartView | null;
   /** One short line on why they are here: the role they matched (v2.2 note 3). The role's needs are shown once, per role. */

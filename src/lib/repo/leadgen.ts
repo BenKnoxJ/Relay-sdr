@@ -608,12 +608,20 @@ async function outreachFor(db: Db, scope: Scope): Promise<OutreachRecord> {
   if (requested === null) return { requested: false, byPerson: {}, jobs: { queued: 0, running: 0 } };
   const byPerson: Record<string, string> = {};
   // Each person's latest attempt, then anyone whose next draft is still being written.
-  const drafts = await db.outreachDraft.findMany({ where: scope, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true } });
+  const drafts = await db.outreachDraft.findMany({ where: scope, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true, jobId: true } });
   for (const draft of drafts) byPerson[draft.campaignPersonId] = draft.state;
-  const jobs = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running"] } }, select: { input: true, status: true } });
+  const drafted = new Set(drafts.map((draft) => draft.jobId));
+  const jobs = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running", "failed"] } }, select: { id: true, input: true, status: true } });
+  const personOf = (job: { input: unknown }) => (job.input as { campaignPersonId?: unknown } | null)?.campaignPersonId;
+  // A job that failed without recording a draft still failed for that person: never "not asked".
+  for (const job of jobs) {
+    const id = personOf(job);
+    if (job.status === "failed" && typeof id === "string" && !drafted.has(job.id)) byPerson[id] = "failed";
+  }
   const counts = { queued: 0, running: 0 };
   for (const job of jobs) {
-    const id = (job.input as { campaignPersonId?: unknown } | null)?.campaignPersonId;
+    if (job.status === "failed") continue;
+    const id = personOf(job);
     if (typeof id === "string") byPerson[id] = "writing";
     if (job.status === "running") counts.running += 1;
     else counts.queued += 1;

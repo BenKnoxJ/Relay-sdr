@@ -183,16 +183,23 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           _count: { _all: true },
         });
 
-  // Once Write emails was pressed: each campaign's latest draft per person, by state (7th query, only for those campaigns).
+  // Once Write emails was pressed: each campaign's latest draft per person, by state, and the draft jobs that
+  // failed (7th and 8th queries, only for those campaigns).
   const draftedCampaigns = partial.filter((row) => row.outreachRequested).map((row) => row.campaign.id);
-  const draftRows =
+  const [draftRows, failedDraftJobs] =
     draftedCampaigns.length === 0
-      ? []
-      : await db.outreachDraft.findMany({
-          where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns } },
-          select: { campaignId: true, briefVersion: true, campaignPersonId: true, state: true, attempt: true },
-          orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
-        });
+      ? [[], []]
+      : await Promise.all([
+          db.outreachDraft.findMany({
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns } },
+            select: { campaignId: true, briefVersion: true, campaignPersonId: true, state: true, attempt: true, jobId: true },
+            orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
+          }),
+          db.job.findMany({
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, kind: OUTREACH_DRAFT_JOB, status: "failed" },
+            select: { id: true, campaignId: true, briefVersion: true, input: true },
+          }),
+        ]);
 
   return partial.map((row): CampaignSummaryRecord => {
     const { campaign } = row;
@@ -230,7 +237,7 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           reveal: row.revealConfirm === null ? null : { job: row.revealJob, hasResult: row.revealResult !== null, ledger: revealLedgerOf(campaignLedger, row.revealConfirm.id) },
           revealPlan: null,
           leadGenAvailable: options.leadGenAvailable,
-          outreach: row.revealResult === null ? null : outreachFactsOfList(campaign, groups, jobs, draftRows, row.outreachRequested),
+          outreach: row.revealResult === null ? null : outreachFactsOfList(campaign, groups, jobs, draftRows, failedDraftJobs, row.outreachRequested),
         },
         research: research.summary,
         confirmed:
@@ -253,13 +260,22 @@ function outreachFactsOfList(
   campaign: Campaign,
   groups: readonly PeopleGroup[],
   jobs: readonly JobRow[],
-  drafts: readonly { campaignId: string; briefVersion: number; campaignPersonId: string; state: string }[],
+  drafts: readonly { campaignId: string; briefVersion: number; campaignPersonId: string; state: string; jobId: string }[],
+  failedJobs: readonly { id: string; campaignId: string | null; briefVersion: number | null; input: unknown }[],
   requested: boolean,
 ): OutreachFacts {
   const writable = groups.filter((group) => group.status === "chosen" && group.review === "kept" && (group.reveal === "revealed" || group.reveal === "known")).reduce((total, group) => total + group.count, 0);
   const inFlight = jobs.filter((job) => job.campaignId === campaign.id && job.briefVersion === campaign.briefVersion && job.kind === OUTREACH_DRAFT_JOB && (job.status === "queued" || job.status === "running"));
   const byPerson: Record<string, string> = {};
-  for (const draft of drafts) if (draft.campaignId === campaign.id && draft.briefVersion === campaign.briefVersion) byPerson[draft.campaignPersonId] = draft.state;
+  const current = drafts.filter((draft) => draft.campaignId === campaign.id && draft.briefVersion === campaign.briefVersion);
+  for (const draft of current) byPerson[draft.campaignPersonId] = draft.state;
+  // As the campaign page reads it: a draft job that failed without recording a draft failed for that person.
+  const drafted = new Set(current.map((draft) => draft.jobId));
+  for (const job of failedJobs) {
+    if (job.campaignId !== campaign.id || job.briefVersion !== campaign.briefVersion || drafted.has(job.id)) continue;
+    const id = record(job.input).campaignPersonId;
+    if (typeof id === "string") byPerson[id] = "failed";
+  }
   const counts = { to_review: 0, needs_you: 0, failed: 0, approved: 0, rejected: 0 };
   for (const state of Object.values(byPerson)) if (state in counts) counts[state as keyof typeof counts] += 1;
   // A person whose next draft is on the queue is being written, whatever their last draft says.

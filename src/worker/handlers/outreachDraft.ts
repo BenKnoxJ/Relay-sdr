@@ -163,6 +163,13 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const facts = liveFacts(deps.facts ?? loadFacts(FACTS_PRODUCT, FACTS_VERSION).facts);
     const noLookup = { items: [], usable: false, searches: 0, fetches: 0 };
 
+    // An error that is not a failed agent run goes back to the queue while attempts remain. When no
+    // retry is coming (the error is terminal, or this is the last attempt) the person gets a visible
+    // "could not be written" draft instead of silently dropping out of the campaign. A lost lease is
+    // never a failed draft.
+    const unexpected = (error: unknown): boolean => !signal.aborted && (error instanceof TerminalError || job.attempts >= job.maxAttempts);
+    const unexpectedFinding: Finding = { rule: "error", text: "Something went wrong while writing this draft." };
+
     // §11: the campaign's drafting ceiling. Past it, nothing more is written.
     if ((await campaignDraftCost(db, { orgId: job.orgId, campaignId: job.campaignId })) >= CAMPAIGN_DRAFT_COST_CAP_USD) {
       const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [{ rule: "cost-cap", text: "This campaign has reached its drafting limit." }], advice: [], lookup: noLookup, generations: 0, costUsd: 0 });
@@ -177,17 +184,24 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     // The lookup, once per job (§4): a retried job reads the recorded result back.
     let lookup = await findLookup(db, { orgId: job.orgId, jobId: job.id });
     if (lookup === null) {
-      const found = await lookupEvidence(
-        {
-          personName: preview.name,
-          company: preview.company,
-          ...(preview.domain === undefined ? {} : { domain: preview.domain }),
-          region: handoff.targeting.countries[0] ?? "GB",
-          relevance: relevanceTerms(slice, buyerRole),
-          triggers: handoff.targeting.triggers,
-        },
-        { search: deps.search, fetch: deps.fetch, now: () => now },
-      );
+      let found: Awaited<ReturnType<typeof lookupEvidence>>;
+      try {
+        found = await lookupEvidence(
+          {
+            personName: preview.name,
+            company: preview.company,
+            ...(preview.domain === undefined ? {} : { domain: preview.domain }),
+            region: handoff.targeting.countries[0] ?? "GB",
+            relevance: relevanceTerms(slice, buyerRole),
+            triggers: handoff.targeting.triggers,
+          },
+          { search: deps.search, fetch: deps.fetch, now: () => now },
+        );
+      } catch (error) {
+        if (!unexpected(error)) throw error;
+        const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [unexpectedFinding], advice: [], lookup: noLookup, generations: 0, costUsd: 0 });
+        return { draftId: draft.id };
+      }
       const { trail, ...result } = found;
       lookup = result;
       await recordLookup(db, { orgId: job.orgId, campaignId: job.campaignId, jobId: job.id, lookup: result, trail: trail as LookupTrail });
@@ -222,6 +236,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     if (modelId === null) throw new TerminalError("outreach: the definition names no model");
 
     const generations: Generation[] = [];
+    let failure: Finding | null = null;
     for (let index = 0; index < MAX_GENERATIONS; index += 1) {
       const previous = generations.at(-1);
       const redraft =
@@ -245,7 +260,11 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         generations.push({ output: result.object, tierA: gates.tierA, tierB: gates.tierB, costUsd: Number(result.run.costTotal) });
         if (gates.tierA.length === 0) break;
       } catch (error) {
-        if (!(error instanceof AgentRunFailedError)) throw error;
+        if (!(error instanceof AgentRunFailedError)) {
+          if (!unexpected(error)) throw error;
+          failure = unexpectedFinding;
+          break;
+        }
         // A lost lease is not a failed draft: let the queue retry the job.
         if (error.reason === "aborted") throw error;
         const run = error.runId === "" ? null : await db.agentRun.findFirst({ where: { id: error.runId, orgId: job.orgId }, select: { costTotal: true } });
@@ -254,6 +273,10 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     }
 
     const costUsd = generations.reduce((total, generation) => total + generation.costUsd, 0);
+    if (failure !== null) {
+      const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [failure], advice: [], lookup, generations: generations.length, costUsd });
+      return { draftId: draft.id };
+    }
     const last = generations.at(-1)!;
     const written = [...generations].reverse().find((generation) => generation.output !== null && generation.output.kind === "message");
     const passed = last.output !== null && last.tierA.length === 0;

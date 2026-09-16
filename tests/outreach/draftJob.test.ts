@@ -22,6 +22,7 @@ import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
 import { outreachDraftHandler } from "@/worker/handlers/outreachDraft";
 import { revealHandler } from "@/worker/handlers/reveal";
+import { TerminalError } from "@/worker/errors";
 import { appRouter } from "@/server/api/root";
 import type { TRPCContext } from "@/server/api/trpc";
 import type { Session } from "@/server/auth/session";
@@ -233,6 +234,21 @@ async function runDraft(job: Job, script: Answer[] = ["good"]) {
   return { result, model, lookup };
 }
 
+/** A job whose model or search throws something that is not a failed agent run, on the given attempt of three. */
+function runBroken(job: Job, attempt: number, where: "model" | "search" | "terminal") {
+  const lookup = nothingFound();
+  const search: SearchService = where === "search" ? { ...lookup.search, search: async () => Promise.reject(new Error("search is down")) } : lookup.search;
+  const makeModel = () => {
+    if (where === "terminal") throw new TerminalError("outreach: no scripted draft for this person");
+    throw new Error("socket hang up");
+  };
+  return outreachDraftHandler({ makeModel: makeModel as never, search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z") })({
+    db: prisma,
+    job: { ...job, attempts: attempt, maxAttempts: 3 },
+    signal: new AbortController().signal,
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 describe("Write emails", () => {
@@ -327,6 +343,55 @@ describe("the draft job", () => {
     await runDraft(job!, ["garbage", "garbage"]);
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
     expect(draft).toMatchObject({ state: "failed", body: null, generations: 2 });
+  });
+
+  it("hands an unexpected error back to the queue while attempts remain, and the person still shows as writing", async () => {
+    const { actor, campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await expect(runBroken(job!, 1, "model")).rejects.toThrow(/socket hang up/);
+    expect(await prisma.outreachDraft.count({ where: { jobId: job!.id } })).toBe(0);
+    expect((await view(actor, campaign)).peopleFound?.drafts).toMatchObject({ writing: 1, failed: 0 });
+  });
+
+  it("records a visible failed draft when an unexpected error lands on the job's last attempt", async () => {
+    const { actor, campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const result = await runBroken(job!, 3, "model");
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
+    expect(result).toEqual({ draftId: draft.id });
+    expect(draft).toMatchObject({ state: "failed", body: null, claims: [] });
+    expect((draft.findings as { rule: string }[]).map((finding) => finding.rule)).toEqual(["error"]);
+    await prisma.job.update({ where: { id: job!.id }, data: { status: "done" } });
+    expect((await view(actor, campaign)).peopleFound?.drafts).toMatchObject({ writing: 0, failed: 1 });
+  });
+
+  it("records a failed draft at once for an error no retry can fix", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await runBroken(job!, 1, "terminal");
+    expect(await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } })).toMatchObject({ state: "failed", generations: 0 });
+  });
+
+  it("records a failed draft when the lookup itself fails on the last attempt", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await expect(runBroken(job!, 1, "search")).rejects.toThrow(/search is down/);
+    await runBroken(job!, 3, "search");
+    expect(await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } })).toMatchObject({ state: "failed", generations: 0 });
+  });
+
+  it("shows a person whose job failed with no draft as failed, not as never asked", async () => {
+    const { actor, campaign } = await revealed(rep(), 2);
+    await writeEmails(rep(), campaign);
+    const [first] = await draftJobs(campaign);
+    // The queue spent the attempts and nothing was recorded (the database was down for the last one, say).
+    await prisma.job.update({ where: { id: first!.id }, data: { status: "failed" } });
+    const drafts = (await view(actor, campaign)).peopleFound?.drafts;
+    expect(drafts).toMatchObject({ writing: 1, failed: 1 });
   });
 
   it("@proof is idempotent: a retried job writes nothing new and searches for nothing", async () => {

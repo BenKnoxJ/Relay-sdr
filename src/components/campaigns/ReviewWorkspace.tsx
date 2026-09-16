@@ -21,6 +21,10 @@ import { cn } from "@/lib/utils";
  * account stay on the row. Reveal emails stays the header's separate spend
  * gate; nothing here buys anything.
  *
+ * A selection belongs to the rows on screen: changing the view, a filter, the
+ * search or the page clears it, and Keep selected and Drop selected send only
+ * the ticked people whose accounts are still shown.
+ *
  * The accounts arrive whole from the campaign read model (a campaign holds
  * at most a few hundred people); views, filters, search and pages are
  * worked out here, so a press changes one thing on the screen and the server
@@ -33,6 +37,9 @@ type View = "toReview" | "kept" | "dropped" | "all";
 type EmailFilter = "any" | "with" | "without";
 
 export const PAGE_SIZE = 20;
+
+/** A small text control grows to a 44px target where the pointer is a finger. */
+const TOUCH = "[@media(pointer:coarse)]:min-h-11";
 
 const PARTS: readonly RolePartView[] = ["runs", "champions", "signs"];
 
@@ -76,13 +83,20 @@ function matches(account: AccountView, needle: string): boolean {
     .every((word) => hay.includes(word));
 }
 
+/** The label round a checkbox: a 24px area to press, the box itself still small. */
+function Tick({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <label className={cn("inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center", className)}>{children}</label>;
+}
+
 function Person({ person, roles, selected, busy, onSelect, press }: { person: FoundPersonView; roles: boolean; selected: boolean; busy: boolean; onSelect: (on: boolean) => void; press?: (decision: "kept" | "dropped") => void }) {
   const c = campaignsCopy;
   const role = roles ? (person.role === null ? c.relatedRole : c.roleParts[person.role]) : null;
   const dropped = person.review === "dropped";
   return (
     <li data-testid="found-person" data-review={person.review} className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1.5 pl-1", dropped ? "text-muted" : "")}>
-      <input type="checkbox" aria-label={`${c.reviewSelectPerson}: ${person.name}`} data-testid="select-person" checked={selected} disabled={busy} onChange={(event) => onSelect(event.target.checked)} className="mt-1 h-3.5 w-3.5 accent-action" />
+      <Tick className="-my-0.5">
+        <input type="checkbox" aria-label={`${c.reviewSelectPerson}: ${person.name}`} data-testid="select-person" checked={selected} disabled={busy} onChange={(event) => onSelect(event.target.checked)} className="h-3.5 w-3.5 accent-action" />
+      </Tick>
       <span className="min-w-0">
         <span className="flex flex-wrap items-baseline gap-x-2">
           <b className="type-name text-14">{person.name}</b>
@@ -149,18 +163,20 @@ function AccountRow({
   return (
     <li data-testid="found-account" data-state={state.tone} data-open={open ? "true" : undefined} className="border-t border-line first:border-t-0">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2.5 gap-y-1 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-        <input
-          type="checkbox"
-          aria-label={`${c.reviewSelectAccount}: ${account.company}`}
-          data-testid="select-account"
-          checked={allSelected}
-          ref={(element) => {
-            if (element !== null) element.indeterminate = selectedCount > 0 && !allSelected;
-          }}
-          disabled={busy}
-          onChange={(event) => onSelect(ids, event.target.checked)}
-          className="mt-1.5 h-3.5 w-3.5 accent-action"
-        />
+        <Tick>
+          <input
+            type="checkbox"
+            aria-label={`${c.reviewSelectAccount}: ${account.company}`}
+            data-testid="select-account"
+            checked={allSelected}
+            ref={(element) => {
+              if (element !== null) element.indeterminate = selectedCount > 0 && !allSelected;
+            }}
+            disabled={busy}
+            onChange={(event) => onSelect(ids, event.target.checked)}
+            className="h-3.5 w-3.5 accent-action"
+          />
+        </Tick>
         <button type="button" data-testid="account-toggle" aria-expanded={open} aria-controls={panel} onClick={onToggle} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2">
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span data-testid="account-name" className="type-name text-15">
@@ -191,7 +207,7 @@ function AccountRow({
               </ToggleChip>
             </>
           ) : null}
-          <TextButton data-testid="account-open" aria-expanded={open} aria-controls={panel} onClick={onToggle} className="min-h-7">
+          <TextButton data-testid="account-open" aria-expanded={open} aria-controls={panel} onClick={onToggle} className={cn("min-h-7", TOUCH)}>
             {open ? c.reviewCloseAccount : c.reviewOpenAccount}
           </TextButton>
         </span>
@@ -254,9 +270,18 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
   const allOpen = onPage.length > 0 && onPage.every((account) => open.has(account.personId));
   const filtered = search !== "" || role !== null || email !== "any";
 
+  /** What is shown changes: back to the first page, and nothing stays ticked out of sight. */
+  const reshown = () => {
+    setPage(0);
+    setSelection(new Set());
+  };
   const setView = (next: View) => {
     setCurrent(next);
-    setPage(0);
+    reshown();
+  };
+  const turnPage = (next: number) => {
+    setPage(next);
+    setSelection(new Set());
   };
   const select = (ids: string[], on: boolean) =>
     setSelection((now) => {
@@ -273,8 +298,9 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
       return next;
     });
   const decideSelected = async (decision: "kept" | "dropped") => {
-    if (press === undefined || selection.size === 0) return;
-    const ids = [...selection];
+    // Only the ticked people still on screen: a decision can take a ticked account out of the view.
+    const ids = selectedOnPage;
+    if (press === undefined || ids.length === 0) return;
     const failed = await press(ids[0]!, "selected", decision, ids);
     if (failed === null) setSelection(new Set());
   };
@@ -306,9 +332,9 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <div role="tablist" aria-label={c.reviewViewsLabel} className="flex flex-wrap gap-1">
+          <div role="group" aria-label={c.reviewViewsLabel} className="flex flex-wrap gap-1">
             {views.map((entry) => (
-              <ToggleChip key={entry.id} role="tab" aria-selected={current === entry.id} data-testid={`review-view-${entry.id}`} pressed={current === entry.id} onClick={() => setView(entry.id)}>
+              <ToggleChip key={entry.id} data-testid={`review-view-${entry.id}`} pressed={current === entry.id} onClick={() => setView(entry.id)}>
                 {entry.label} <span className="type-mono ml-1 text-11 font-normal opacity-80">{entry.n}</span>
               </ToggleChip>
             ))}
@@ -324,7 +350,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
             placeholder={c.reviewSearchPlaceholder}
             onChange={(event) => {
               setSearch(event.target.value);
-              setPage(0);
+              reshown();
             }}
             className="type-small min-h-7 min-w-[180px] flex-1 rounded-pill border border-line bg-ground px-3 focus-visible:outline-none focus-visible:ring-2 sm:max-w-[280px]"
           />
@@ -337,7 +363,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
                   pressed={role === part}
                   onClick={() => {
                     setRole(role === part ? null : part);
-                    setPage(0);
+                    reshown();
                   }}
                 >
                   {c.roleParts[part]}
@@ -350,7 +376,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
             pressed={email !== "any"}
             onClick={() => {
               setEmail(email === "any" ? "with" : email === "with" ? "without" : "any");
-              setPage(0);
+              reshown();
             }}
           >
             {email === "without" ? c.reviewFilterNoEmail : c.reviewFilterEmail}
@@ -362,7 +388,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
                 setSearch("");
                 setRole(null);
                 setEmail("any");
-                setPage(0);
+                reshown();
               }}
             >
               {c.reviewFiltersClear}
@@ -370,7 +396,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <label className="type-small flex items-center gap-2 text-muted">
+          <label className="type-small flex min-h-6 min-w-6 cursor-pointer items-center gap-2 text-muted">
             <input
               type="checkbox"
               data-testid="select-page"
@@ -384,10 +410,10 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
               className="h-3.5 w-3.5 accent-action"
             />
             <span data-testid="selection-count">
-              {selection.size} {c.reviewSelected}
+              {selectedOnPage.length} {c.reviewSelected}
             </span>
           </label>
-          {selection.size > 0 && press !== undefined ? (
+          {selectedOnPage.length > 0 && press !== undefined ? (
             <>
               <ToggleChip data-testid="keep-selected" pressed={false} disabled={busy} onClick={() => void decideSelected("kept")} className="text-action">
                 {c.reviewKeepSelected}
@@ -401,17 +427,17 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
             </>
           ) : null}
           <span className="ml-auto flex flex-wrap items-center gap-x-3">
-            <TextButton data-testid="expand-all" onClick={() => setOpen(allOpen ? new Set() : new Set(onPage.map((account) => account.personId)))}>
+            <TextButton data-testid="expand-all" className={TOUCH} onClick={() => setOpen(allOpen ? new Set() : new Set(onPage.map((account) => account.personId)))}>
               {allOpen ? c.reviewCollapseAll : c.reviewExpandAll}
             </TextButton>
-            <Pager page={at} pages={pages} shown={shown.length} onPage={setPage} />
+            <Pager page={at} pages={pages} shown={shown.length} onPage={turnPage} />
           </span>
         </div>
       </div>
 
       {onPage.length === 0 ? (
         <p data-testid="review-empty" className="type-small mt-3 text-muted">
-          {c.reviewNoMatch}
+          {filtered ? c.reviewNoMatch : c.reviewEmptyView}
         </p>
       ) : (
         <ol data-testid="review-accounts" className="grid">
@@ -432,7 +458,7 @@ export function ReviewWorkspace({ view, estimate, busy, press }: { view: PeopleF
       )}
       {pages > 1 ? (
         <div className="mt-2 flex justify-end border-t border-line pt-2">
-          <Pager page={at} pages={pages} shown={shown.length} onPage={setPage} />
+          <Pager page={at} pages={pages} shown={shown.length} onPage={turnPage} />
         </div>
       ) : null}
     </div>
@@ -449,10 +475,10 @@ function Pager({ page, pages, shown, onPage }: { page: number; pages: number; sh
       <span className="type-mono text-11 text-muted">
         {c.reviewShowing} {from}–{to} {c.reviewPageOf} {shown} {c.reviewAccountsWord}
       </span>
-      <TextButton data-testid="page-prev" disabled={page === 0} onClick={() => onPage(page - 1)}>
+      <TextButton data-testid="page-prev" className={TOUCH} disabled={page === 0} onClick={() => onPage(page - 1)}>
         {c.reviewPagePrev}
       </TextButton>
-      <TextButton data-testid="page-next" disabled={page >= pages - 1} onClick={() => onPage(page + 1)}>
+      <TextButton data-testid="page-next" className={TOUCH} disabled={page >= pages - 1} onClick={() => onPage(page + 1)}>
         {c.reviewPageNext}
       </TextButton>
     </nav>

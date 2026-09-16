@@ -472,6 +472,7 @@ export const campaignsCopy = {
   reviewFilterAnyEmail: "Any email",
   reviewFiltersClear: "Clear",
   reviewNoMatch: "No accounts match. Clear the search or filters, or change the view.",
+  reviewEmptyView: "No accounts in this view.",
   reviewSelectAllPage: "Select every account on this page",
   reviewSelectAccount: "Select this account",
   reviewSelectPerson: "Select this person",

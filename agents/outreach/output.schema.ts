@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { assertPlainDashes, assertPlainWords } from "@/lib/copy/plainWords";
+import { assertPlainDashes, assertPlainProse } from "@/lib/copy/plainWords";
 
 import { factIdSchema, idSchema } from "../_shared/item.schema";
 import type { OutreachInput, TouchKind } from "./input.schema";
@@ -39,9 +39,17 @@ export const openerSchema = z
   })
   .strict();
 
+/**
+ * The raw list is checked here, before `normaliseClaims` moves out the opener's
+ * ref and any lookup or plan id the model listed, so it leaves room for those.
+ * How many facts a touch may cite is `checkTouchLimits`, after normalising
+ * (D-1 for a first email, `MAX_TOUCH_CLAIMS` for the rest).
+ */
+const MAX_RAW_CLAIMS = 6;
+
 const common = {
   opener: openerSchema,
-  claims: z.array(factIdSchema).max(3),
+  claims: z.array(factIdSchema).max(MAX_RAW_CLAIMS),
 };
 
 export const messageDraftSchema = z
@@ -76,43 +84,62 @@ export const callDraftSchema = z
   })
   .strict();
 
-export const outreachOutputSchema = z
-  .discriminatedUnion("kind", [messageDraftSchema, callDraftSchema])
-  .superRefine((draft, ctx) => {
-    // Checked on the union rather than on `messageDraftSchema`: zod 3's
-    // `discriminatedUnion` takes plain objects, and a refined member is not one.
-    if (draft.kind === "message") checkMessageShape(draft, ctx);
-    // §6 rule 5 (no em dashes) and §12 rubric row 12 (plain words), on the
-    // prose and only the prose. See `authoredProse`.
-    for (const [field, text] of authoredProse(draft)) {
-      // §6 rule 5: no em dashes. `assertPlainDashes` is the repository's own rule
-      // and catches the spaced en dash too.
-      try {
-        assertPlainDashes(text);
-      } catch (error) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: field.split("."),
-          message: error instanceof Error ? error.message : "banned dash",
-        });
-      }
-      // §12 rubric row 12: plain words on the body, the reasons and the talking points.
-      try {
-        assertPlainWords(text);
-      } catch (error) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: field.split("."),
-          message: error instanceof Error ? error.message : "the draft uses words a rep would not",
-        });
-      }
+/**
+ * The rules a draft satisfies on its own, whichever shape it is. On the union
+ * rather than on `messageDraftSchema`: zod 3's `discriminatedUnion` takes plain
+ * objects, and a refined member is not one.
+ */
+function refineDraft(draft: z.infer<typeof messageDraftSchema> | z.infer<typeof callDraftSchema>, ctx: z.RefinementCtx): void {
+  if (draft.kind === "message") checkMessageShape(draft, ctx);
+  // §6 rule 5 (no em dashes) and §12 rubric row 12 (plain words), on the
+  // prose and only the prose. See `authoredProse`.
+  for (const [field, text] of authoredProse(draft)) {
+    // §6 rule 5: no em dashes. `assertPlainDashes` is the repository's own rule
+    // and catches the spaced en dash too.
+    try {
+      assertPlainDashes(text);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: field.split("."),
+        message: error instanceof Error ? error.message : "banned dash",
+      });
     }
-  });
+    // §12 rubric row 12: plain words on the body, the reasons and the talking
+    // points, against the prose list. `MACHINE_WORDS` is the list for Relay's
+    // own copy, and in an email "pipeline" and "touch" are English and Atlas
+    // and Vector are firms a rep writes to.
+    try {
+      assertPlainProse(text);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: field.split("."),
+        message: error instanceof Error ? error.message : "the draft uses words a rep would not",
+      });
+    }
+  }
+}
+
+export const outreachOutputSchema = z.discriminatedUnion("kind", [messageDraftSchema, callDraftSchema]).superRefine(refineDraft);
+
+/** A message draft and nothing else, with the same rules as the union. */
+export const messageOutputSchema = messageDraftSchema.superRefine(refineDraft);
+
+/**
+ * The shape a touch is written in. A structured-output call is given exactly
+ * one target: offered the folded message-or-call union, a first email could
+ * come back as a call (the 15 Sep cohort's shape failures). The call touch
+ * keeps the union, which is what its drafts are validated against today.
+ */
+export function outputSchemaFor(kind: TouchKind): z.ZodType<OutreachOutput> {
+  return kind === "call" ? outreachOutputSchema : messageOutputSchema;
+}
 
 /**
  * The strings on a draft that a rep actually reads, by name.
  *
- * Named rather than walked, and that is the whole point. `assertPlainWords`
+ * Named rather than walked, and that is the whole point. `assertPlainProse`
  * reaches every string on a value it is handed, and a draft's strings are not
  * all prose: `claims` is a list of fact ids and `opener.ref` is a lookup id.
  * Ids are separated by dashes and dots, both of which are word boundaries, so a
@@ -272,11 +299,32 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       findings.push({ rule: "claim-number", text: `The claim ${claim} carries a number that is not in the message.` });
     }
   }
-  if (input.touch.kind === "email1" && draft.claims.length > 1) {
-    findings.push({ rule: "one-claim", text: "A first email carries at most one product claim." });
+  // D-1 (17 Sep 2026): a first email makes at most one product sentence,
+  // citing at most two fact ids. A product sentence is one that names the product.
+  if (input.touch.kind === "email1" && (draft.claims.length > MAX_EMAIL1_CLAIMS || productSentences(draft, input.facts.product) > 1)) {
+    findings.push({ rule: "one-claim", text: "A first email carries at most one sentence about the product, citing at most two facts." });
+  }
+  if (input.touch.kind !== "email1" && draft.claims.length > MAX_TOUCH_CLAIMS) {
+    findings.push({ rule: "claim-count", text: `This cites ${draft.claims.length} facts; a touch cites at most ${MAX_TOUCH_CLAIMS}.` });
   }
 
   return findings;
+}
+
+/** D-1: the fact ids one product sentence in a first email may cite. */
+const MAX_EMAIL1_CLAIMS = 2;
+
+/**
+ * The fact ids any other touch may cite, after normalising: the ceiling the raw
+ * schema cap gave them before it was raised for `normaliseClaims`. Outreach
+ * v2.2 sets the per-touch limits; until then this holds the old line.
+ */
+const MAX_TOUCH_CLAIMS = 3;
+
+function productSentences(draft: OutreachOutput, product: string): number {
+  if (draft.kind !== "message" || product.trim() === "") return 0;
+  const name = new RegExp(`(^|[^a-z0-9])${product.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`);
+  return (draft.body.match(/[^.?!]+[.?!]*/g) ?? []).filter((sentence) => name.test(sentence.toLowerCase())).length;
 }
 
 function words(text: string): number {

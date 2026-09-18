@@ -1,0 +1,743 @@
+{
+  "source": "relay_outreach_cohort_dev",
+  "facts": {
+    "product": "insights360",
+    "version": 2
+  },
+  "pack": {
+    "briefVersion": 1,
+    "archetype": {
+      "id": "motor-claims-uphold-visible",
+      "name": "The specialist motor claims operation with a published uphold rate",
+      "situation": "A UK specialist or non-standard motor insurer, or the motor claims arm of a small group, running its own claims and customer-service telephony. Motor is the most complained-about insurance line in the country and the disputes cluster on claim values, policy cancellations and claim delays. Because complaint volumes and uphold rates are published at firm level twice a year by the FCA and quarterly by product by the ombudsman, this operation's quality is externally visible and periodically benchmarked in the trade press. The team knows which agents are strong from anecdote, not evidence, and finds out about a bad conversation when it arrives as a complaint.",
+      "pains": [
+        {
+          "id": "pn-a1-published-but-blind",
+          "text": "The FCA sets out positive indicators of complaints handling — firms receiving a low volume of complaints compared to the amount of business undertaken, firms closing a high proportion of complaints within 8 weeks, and firms having a low percentage of complaints upheld by the Ombudsman service — and publishes each firm's figures in sortable tables that can be sorted in descending or ascending order. The operation is judged externally on those published numbers while the conversations behind them sit outside the published data entirely.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.fca.org.uk/data/complaints-data/firm-level"
+            ],
+            "primary": true,
+            "domains": [
+              "www.fca.org.uk"
+            ]
+          },
+          "confidence": "strong"
+        },
+        {
+          "id": "pn-a1-same-three-arguments",
+          "text": "The disputes are monotonously similar — what the vehicle was worth, why the policy was cancelled, and why the claim is taking so long — which means a handful of conversation patterns generate most of the complaint volume. The team cannot find those patterns in the call base, so it fixes them one complaint at a time instead of once. Car and motorcycle insurance complaints to the ombudsman rose to 4,100 in April–June 2026 from 2,800 a year earlier on exactly these three issues.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.financial-ombudsman.org.uk/businesses/resolving-complaint/our-insight/quarterly-complaints-data-q1-2026-27"
+            ],
+            "primary": true,
+            "domains": [
+              "www.financial-ombudsman.org.uk"
+            ]
+          },
+          "confidence": "strong"
+        },
+        {
+          "id": "pn-a1-delay-is-the-story",
+          "text": "Delay dominates the dissatisfaction, and the claims operation absorbs it on the phone without being able to fix the underlying cycle time. Of consumers reporting a poor claims experience, 39% said an unnecessary delay to the process was the main issue and 29% cited delays in settling the claim; a quarter said they had switched insurer because of a poor claims process and 30% planned to at renewal. The handler's explanation of the delay is the only part the operation controls, and it is exactly the part nobody reviews.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.insurancetimes.co.uk/news/claims-delays-behind-most-insurance-complaints-research-shows/1459426.article"
+            ],
+            "primary": false,
+            "domains": [
+              "www.insurancetimes.co.uk"
+            ]
+          },
+          "confidence": "weak"
+        },
+        {
+          "id": "pn-a1-coaching-on-anecdote",
+          "text": "Team leaders coach from the calls they happened to hear. With a monthly review target per handler, the reviewed calls are chosen for convenience rather than risk, so a handler can be coached on a routine call while the difficult total-loss valuation conversation is never heard. The mechanism is selection bias in the sample, not reviewer skill.",
+          "quote": "In most contact centers, QA analysts review a handful of calls per agent each month. The calls are usually selected at random.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.linkedin.com/posts/chordia_contactcenters-qualityassurance-activity-7442209043978354688-ixbq"
+            ],
+            "primary": false,
+            "domains": [
+              "www.linkedin.com"
+            ]
+          },
+          "confidence": "weak"
+        },
+        {
+          "id": "pn-a1-improvement-unprovable",
+          "text": "When the operation does intervene — new wording for valuation conversations, a change to the cancellation script — it cannot measure whether the intervention worked, because the only measurement instrument is the same small sample. The FCA found this exact failure across the 40 firms it reviewed: firms did not always measure the impact of the interventions they made, so they sometimes pursued actions that were not as effective as they needed to be.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement"
+            ],
+            "primary": true,
+            "domains": [
+              "www.fca.org.uk"
+            ]
+          },
+          "confidence": "strong"
+        }
+      ],
+      "language": [
+        {
+          "id": "ph-a1-strategic-asset",
+          "text": "A chief claims officer describes his job as turning claims from an end-of-process function into a strategic asset, and argues the claims team is fundamental to how the product is designed, marketed and priced — the internal argument a claims director makes when asking for spend.",
+          "quote": "We're not just here to manage the claim. Obviously, that's really important, but we are fundamental to how you design and market your product.",
+          "speaker": "Matt Cox",
+          "role": "Chief claims officer, Allianz UK",
+          "publishedAt": "2026-04-28",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.clearspeed.com/news/insurance-post-the-big-interview-matt-cox-allianz-uk"
+            ],
+            "primary": false,
+            "domains": [
+              "www.clearspeed.com"
+            ]
+          },
+          "confidence": "weak",
+          "say": "claims as a strategic asset, not an end-of-process function",
+          "notThis": "Do not say 'transform your claims function'. The phrase the market actually uses is 'strategic asset', and it is used by the person defending the budget, not by the person running the scorecard.",
+          "notBuyer": false
+        },
+        {
+          "id": "ph-a1-many-factors-delay",
+          "text": "An insurer chief executive's framing of claim delay is complexity and moving parts — third party loss adjusters, repair networks — rather than handler failure. This is the defensive register a motor claims operation reaches for when challenged on cycle time, and messaging that attacks it head-on will be rejected.",
+          "quote": "There are many factors that can drive claims taking longer.",
+          "speaker": "Jon Walker",
+          "role": "Chief executive, AXA Commercial",
+          "publishedAt": "2023-10-27",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.insurancetimes.co.uk/analysis/in-focus-insurer-complaints-are-rising-so-what-is-being-done-to-improve-claims-service/1445969.article"
+            ],
+            "primary": false,
+            "domains": [
+              "www.insurancetimes.co.uk"
+            ]
+          },
+          "confidence": "weak",
+          "say": "there are many factors that can drive claims taking longer",
+          "notThis": "Do not tell this buyer their claims are slow. They will answer with complexity and third parties, and the conversation is over.",
+          "notBuyer": false
+        },
+        {
+          "id": "ph-a1-upheld-language",
+          "text": "The regulator's own vocabulary for firm-level complaint performance is the number of complaints opened, the percentage closed within 3 days, the percentage closed after 3 days but within 8 weeks, and the percentage of complaints upheld. These are the exact terms this operation is measured on in public, so they are the terms a first line should use rather than any vendor synonym.",
+          "accessedAt": "2026-09-13",
+          "evidence": {
+            "urls": [
+              "https://www.fca.org.uk/data/complaints-data/firm-level"
+            ],
+            "primary": true,
+            "domains": [
+              "www.fca.org.uk"
+            ]
+          },
+          "confidence": "speculative",
+          "inferredFrom": "provenance: fewer than two of its distinctive words on the page (exact, measured, opened)",
+          "say": "your percentage of complaints upheld, and the proportion you close within 8 weeks",
+          "notBuyer": true
+        }
+      ]
+    },
+    "hook": {
+      "id": "hook-motor-claims-uphold-visible",
+      "text": "Motor complaints are published against your name twice a year; the conversations that caused them are not. Score every call the pipeline ingests against your own rules and search the whole base by theme, without a seat minimum.",
+      "whyNow": {
+        "id": "m01-trg-which-super-complaint",
+        "text": "On 23 September 2025 Which? used its statutory powers to submit a super-complaint to the FCA about the home and travel insurance markets, naming poor handling of claims, inappropriate sales processes and a lack of enforcement of existing rules as the three problem areas.",
+        "publishedAt": "2025-09-23",
+        "accessedAt": "2026-09-13",
+        "evidence": {
+          "urls": [
+            "https://www.insurancetimes.co.uk/news/super-complaint-being-issued-to-fca-over-home-and-travel-insurance-concerns/1456431.article",
+            "https://www.moneysavingexpert.com/news/2025/09/which-super-complaint-home-travel-insurance",
+            "https://www.hfw.com/insights/fca-faces-call-to-action-in-a-super-complaint-over-consumer-harm-in-home-and-travel-insurance"
+          ],
+          "primary": false,
+          "domains": [
+            "www.insurancetimes.co.uk",
+            "www.moneysavingexpert.com",
+            "www.hfw.com"
+          ]
+        },
+        "confidence": "strong"
+      },
+      "answeredBy": []
+    },
+    "angles": [
+      {
+        "id": "ang-a1-1",
+        "rank": 1,
+        "text": "Your complaint numbers and uphold rate are published against your name twice a year. What was actually said on the calls behind them usually isn't recorded anywhere searchable — every call your pipeline ingests can be.",
+        "confidence": "strong",
+        "channelFit": [
+          "email",
+          "linkedin"
+        ]
+      },
+      {
+        "id": "ang-a1-2",
+        "rank": 2,
+        "text": "Motor disputes are almost always the same three arguments — valuation, cancellation, delay. If those conversations aren't searchable across your whole call base, you're fixing them one complaint at a time.",
+        "confidence": "strong",
+        "channelFit": [
+          "email",
+          "linkedin"
+        ]
+      },
+      {
+        "id": "ang-a1-3",
+        "rank": 3,
+        "text": "Coaching from the handful of calls a team leader happens to hear misses the total-loss valuation conversation that actually mattered. Score every ingested call against your own rules instead.",
+        "confidence": "moderate",
+        "channelFit": [
+          "email"
+        ]
+      },
+      {
+        "id": "ang-a1-4",
+        "rank": 4,
+        "text": "When you change a script or a rule, can you show it moved the number — or just hope it did? Compare periods on the calls you've actually scored.",
+        "confidence": "moderate",
+        "channelFit": [
+          "email",
+          "linkedin"
+        ]
+      },
+      {
+        "id": "ang-a1-5",
+        "rank": 5,
+        "text": "No seat minimum, no annual lock-in, £4.99–£9.99 per seat a month — a claims-ops budget line, not a business case.",
+        "confidence": "strong",
+        "channelFit": [
+          "email"
+        ]
+      }
+    ],
+    "doDont": [
+      {
+        "use": "Lead with the coverage gap between what's published about the firm and what the firm can see internally.",
+        "avoid": "Don't imply their current sampling is non-compliant.",
+        "why": "The FCA has said sampling is a proportionate check for smaller firms; asserting otherwise will be contradicted immediately."
+      },
+      {
+        "use": "Cite the specific dispute types — valuation, cancellation, delay.",
+        "avoid": "Don't say complaints are 'surging' across the market.",
+        "why": "Ombudsman data shows the sector's overall caseload is falling even where motor rose in the latest quarter."
+      }
+    ],
+    "verbatim": [
+      {
+        "id": "v-a1-1",
+        "text": "In most contact centers, QA analysts review a handful of calls per agent each month. The calls are usually selected at random.",
+        "accessedAt": "2026-09-13",
+        "evidence": {
+          "urls": [
+            "https://www.linkedin.com/posts/chordia_contactcenters-qualityassurance-activity-7442209043978354688-ixbq"
+          ],
+          "primary": false,
+          "domains": [
+            "www.linkedin.com"
+          ]
+        },
+        "confidence": "weak"
+      },
+      {
+        "id": "v-a1-2",
+        "text": "Larger sample sizes place unnecessary strain on QA teams without significantly improving the quality of insights.",
+        "quote": "Larger sample sizes place unnecessary strain on QA teams without significantly improving the quality of insights.",
+        "speaker": "Garry Gormley",
+        "role": "Founder, FAB Solutions",
+        "accessedAt": "2026-09-13",
+        "evidence": {
+          "urls": [
+            "https://www.callcentrehelper.com/video-sample-size-quality-scoring-243445.htm"
+          ],
+          "primary": false,
+          "domains": [
+            "www.callcentrehelper.com"
+          ]
+        },
+        "confidence": "weak"
+      },
+      {
+        "id": "v-a1-3",
+        "text": "The FCA found that firms did not always measure the impact of the interventions they made in response to root-cause analysis, meaning some firms pursued actions that were not as effective as they needed to be.",
+        "accessedAt": "2026-09-13",
+        "evidence": {
+          "urls": [
+            "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement"
+          ],
+          "primary": true,
+          "domains": [
+            "www.fca.org.uk"
+          ]
+        },
+        "confidence": "strong"
+      }
+    ],
+    "proof": [
+      {
+        "factId": "i360.feature.auto-qa-scoring-against-tenant-rules",
+        "text": "Every analysed call is scored against your own QA rules, each with a weight and pass threshold, producing a score, a grade and a per-rule pass/fail list."
+      },
+      {
+        "factId": "i360.product.every-ingested-call-analysed",
+        "text": "Every call the pipeline ingests is transcribed and scored — not a sampled subset.",
+        "note": "Say 'every call we ingest', not 'every call you make', and never imply literal 100% completeness; the pipeline can lose calls silently on a failure path."
+      },
+      {
+        "factId": "i360.price.no-seat-minimum-no-annual-lock-in",
+        "text": "There is no minimum number of seats and no annual commitment — plans are month to month."
+      },
+      {
+        "factId": "i360.price.per-seat-plans",
+        "text": "Three plans priced per seat per month with a pooled monthly allowance of analysed call hours: Starter £4.99 (40 hours), Professional £7.99 (70 hours), Enterprise £9.99 (100 hours)."
+      },
+      {
+        "factId": "i360.price.setup-and-config-review-fees",
+        "text": "There is a one-off £1,280 setup fee for tenant provisioning and telephony wiring, and a one-off £640 configuration review around month one.",
+        "note": "State this openly whenever price is discussed; never say 'get started in seconds' or 'free to start'."
+      },
+      {
+        "factId": "i360.feature.risk-flagging-configurable-types",
+        "text": "Risk types are configurable by the customer; flagged calls appear on a Risks page and are counted on the dashboard.",
+        "note": "This is configurable risk typing, not a purpose-built vulnerability-detection module — never claim compliance certification."
+      }
+    ]
+  },
+  "people": [
+    {
+      "name": "Avery Dunmore",
+      "state": "failed",
+      "findings": [
+        "shape"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u70008kwxshq7iit0t",
+          "name": "Avery Dunmore",
+          "firstName": "Avery",
+          "title": "Head of Claims",
+          "company": "Ardent Motor Insurance",
+          "domain": "ardent-motor.example",
+          "email": "avery.dunmore@ardent-motor.example",
+          "city": "Manchester"
+        },
+        "buyerRole": {
+          "id": "role-runs",
+          "part": "runs",
+          "title": "Head of Claims / Claims Operations Manager",
+          "needs": "To know, before the complaint lands, which handlers are having the conversations that turn into disputes — and to be able to search the call base for a theme rather than wait for the monthly complaints pack."
+        },
+        "account": {
+          "company": "Ardent Motor Insurance",
+          "domain": "ardent-motor.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:35:03.444Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [
+            {
+              "id": "look-6eea2e4db932",
+              "text": "Avery Dunmore, head of claims at Ardent Motor Insurance, told the conference that delay conversations had become the biggest complaint theme for the team this year.",
+              "about": "person",
+              "quote": "Avery Dunmore, head of claims at Ardent Motor Insurance, told the conference that delay conversations had become the biggest complaint theme for the team this year.",
+              "evidence": {
+                "urls": [
+                  "https://motor-claims-review.example/2026/06/ardent-delay-conversations"
+                ],
+                "domains": [
+                  "motor-claims-review.example"
+                ],
+                "primary": false
+              },
+              "accessedAt": "2026-09-15",
+              "confidence": "weak",
+              "publishedAt": "2026-06-18"
+            }
+          ],
+          "usable": true,
+          "fetches": 1,
+          "searches": 1
+        },
+        "recentDrafts": []
+      },
+      "draft": null
+    },
+    {
+      "name": "Blair Kendrick",
+      "state": "needs_you",
+      "findings": [
+        "claim-id",
+        "one-claim"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u70009kwxsfi9wf9s4",
+          "name": "Blair Kendrick",
+          "firstName": "Blair",
+          "title": "Head of Claims",
+          "company": "Bramble Claims Mutual",
+          "domain": "bramble-mutual.example",
+          "email": "blair.kendrick@bramble-mutual.example",
+          "city": "Bristol"
+        },
+        "buyerRole": {
+          "id": "role-runs",
+          "part": "runs",
+          "title": "Head of Claims / Claims Operations Manager",
+          "needs": "To know, before the complaint lands, which handlers are having the conversations that turn into disputes — and to be able to search the call base for a theme rather than wait for the monthly complaints pack."
+        },
+        "account": {
+          "company": "Bramble Claims Mutual",
+          "domain": "bramble-mutual.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:36:23.401Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [
+            {
+              "id": "look-83e6d8082ec4",
+              "text": "Bramble Claims Mutual said its July complaints publication showed claim delay complaints falling, and that it now reviews handler conversations about delay every week.",
+              "about": "firm",
+              "quote": "Bramble Claims Mutual said its July complaints publication showed claim delay complaints falling, and that it now reviews handler conversations about delay every week.",
+              "evidence": {
+                "urls": [
+                  "https://bramble-mutual.example/news/2026-07-complaints-publication"
+                ],
+                "domains": [
+                  "bramble-mutual.example"
+                ],
+                "primary": true
+              },
+              "accessedAt": "2026-09-15",
+              "confidence": "strong",
+              "publishedAt": "2026-07-03"
+            }
+          ],
+          "usable": true,
+          "fetches": 1,
+          "searches": 2
+        },
+        "recentDrafts": []
+      },
+      "draft": {
+        "kind": "message",
+        "subject": "beyond the weekly sample",
+        "body": "Your July complaints publication mentioned delay complaints falling, and that handler conversations about delay are now reviewed every week.\n\nA weekly review usually means picking a handful of calls, so the pattern behind a dispute can sit in a conversation nobody happened to pull that week.\n\nInsights360 lets you search across every call by theme, rather than relying on which ones got chosen for review.\n\nIs coverage across the whole call base something you're looking at, or is the weekly review doing what you need?",
+        "ask": "Is coverage across the whole call base something you're looking at, or is the weekly review doing what you need?",
+        "opener": {
+          "ref": "look-83e6d8082ec4",
+          "kind": "firm_fact"
+        },
+        "claims": [
+          "look-83e6d8082ec4",
+          "i360.feature.calls-explorer-search-and-filters",
+          "i360.product.every-ingested-call-analysed"
+        ]
+      }
+    },
+    {
+      "name": "Emlyn Lomax",
+      "state": "needs_you",
+      "findings": [
+        "unsourced-name"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u8000gkwxspfbqw5l5",
+          "name": "Emlyn Lomax",
+          "firstName": "Emlyn",
+          "title": "Head of Claims Operations",
+          "company": "Elmstead Underwriting",
+          "domain": "elmstead-uw.example",
+          "email": "emlyn.lomax@elmstead-uw.example",
+          "city": "Norwich"
+        },
+        "buyerRole": {
+          "id": "role-runs",
+          "part": "runs",
+          "title": "Head of Claims / Claims Operations Manager",
+          "needs": "To know, before the complaint lands, which handlers are having the conversations that turn into disputes — and to be able to search the call base for a theme rather than wait for the monthly complaints pack."
+        },
+        "account": {
+          "company": "Elmstead Underwriting",
+          "domain": "elmstead-uw.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:38:07.928Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [],
+          "usable": false,
+          "fetches": 0,
+          "searches": 2
+        },
+        "recentDrafts": []
+      },
+      "draft": {
+        "kind": "message",
+        "subject": "search calls by theme",
+        "body": "Valuation, cancellation and delay make up most of the disputes that reach your desk, and by the time one lands, the conversation that caused it happened weeks before.\n\nFinding that pattern across the whole call base usually means waiting for the next complaints pack rather than searching for it directly. Insights360 lets you search calls by theme and category, not just wait for one to surface as a complaint. Is that a real gap, or does the current process already cover it?",
+        "ask": "Is that a real gap, or does the current process already cover it?",
+        "opener": {
+          "ref": "pn-a1-same-three-arguments",
+          "kind": "role_pain"
+        },
+        "claims": [
+          "i360.feature.calls-explorer-search-and-filters"
+        ]
+      }
+    },
+    {
+      "name": "Marlo Holloway",
+      "state": "needs_you",
+      "findings": [
+        "claim-id",
+        "one-claim"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u8000ikwxssbi56b0s",
+          "name": "Marlo Holloway",
+          "firstName": "Marlo",
+          "title": "Complaints Manager",
+          "company": "Ardent Motor Insurance",
+          "domain": "ardent-motor.example",
+          "email": "marlo.holloway@ardent-motor.example",
+          "city": "Manchester"
+        },
+        "buyerRole": {
+          "id": "role-champions",
+          "part": "champions",
+          "title": "Customer Relations / Complaints Manager",
+          "needs": "Root-cause evidence at the call level so the eight-week clock is spent resolving rather than reconstructing, and so themes can be handed to the process owner rather than lodged with the complaints team."
+        },
+        "account": {
+          "company": "Ardent Motor Insurance",
+          "domain": "ardent-motor.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:39:42.857Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [],
+          "usable": false,
+          "fetches": 0,
+          "searches": 2
+        },
+        "recentDrafts": []
+      },
+      "draft": {
+        "kind": "message",
+        "subject": "proving what worked",
+        "body": "When you change something to fix a complaint theme, such as the wording for a valuation call or how a cancellation gets explained, there's rarely a way afterwards to show it actually worked. The dashboard compares a chosen period against the one before it, across every call scored rather than a sample, so the effect is visible rather than assumed. Is showing that kind of impact something you're short of, or is that already sorted?",
+        "ask": "Is showing that kind of impact something you're short of, or is that already sorted?",
+        "opener": {
+          "ref": "pn-a1-improvement-unprovable",
+          "kind": "role_pain"
+        },
+        "claims": [
+          "pn-a1-improvement-unprovable",
+          "i360.feature.dashboard-kpis-with-period-comparison"
+        ]
+      }
+    },
+    {
+      "name": "Nell Oakley",
+      "state": "needs_you",
+      "findings": [
+        "claim-id",
+        "claim-id",
+        "one-claim",
+        "paragraphs",
+        "unsourced-name"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u8000jkwxsdrj2dris",
+          "name": "Nell Oakley",
+          "firstName": "Nell",
+          "title": "Chief Operating Officer",
+          "company": "Bramble Claims Mutual",
+          "domain": "bramble-mutual.example",
+          "email": "nell.oakley@bramble-mutual.example",
+          "city": "Bristol"
+        },
+        "buyerRole": {
+          "id": "role-signs",
+          "part": "signs",
+          "title": "Claims Director or Chief Operating Officer",
+          "needs": "A defensible answer for the board on what changed after the last complaints publication, at a cost that does not need a capital case."
+        },
+        "account": {
+          "company": "Bramble Claims Mutual",
+          "domain": "bramble-mutual.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:42:27.096Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [
+            {
+              "id": "look-83e6d8082ec4",
+              "text": "Bramble Claims Mutual said its July complaints publication showed claim delay complaints falling, and that it now reviews handler conversations about delay every week.",
+              "about": "firm",
+              "quote": "Bramble Claims Mutual said its July complaints publication showed claim delay complaints falling, and that it now reviews handler conversations about delay every week.",
+              "evidence": {
+                "urls": [
+                  "https://bramble-mutual.example/news/2026-07-complaints-publication"
+                ],
+                "domains": [
+                  "bramble-mutual.example"
+                ],
+                "primary": true
+              },
+              "accessedAt": "2026-09-15",
+              "confidence": "strong",
+              "publishedAt": "2026-07-03"
+            }
+          ],
+          "usable": true,
+          "fetches": 1,
+          "searches": 2
+        },
+        "recentDrafts": []
+      },
+      "draft": {
+        "kind": "message",
+        "subject": "the other two arguments",
+        "body": "You now review handler conversations about delay every week, and July's complaints publication showed that number falling. Valuation and cancellation, the other two arguments drivers usually raise, don't get that same weekly look, so if the board asks what changed there next, the answer rests on a handful of calls. Every call we ingest gets scored the same way, not a sample, so you'd have that same view across all three. Is that gap on your radar, or does the weekly check cover what the board needs?",
+        "ask": "Is that gap on your radar, or does the weekly check cover what the board needs?",
+        "opener": {
+          "ref": "look-83e6d8082ec4",
+          "kind": "firm_fact"
+        },
+        "claims": [
+          "look-83e6d8082ec4",
+          "pn-a1-same-three-arguments",
+          "i360.product.every-ingested-call-analysed"
+        ]
+      }
+    },
+    {
+      "name": "Orla Bellamy",
+      "state": "needs_you",
+      "findings": [
+        "claim-id",
+        "one-claim"
+      ],
+      "input": {
+        "person": {
+          "id": "cmu1xl9u8000kkwxsmkwqx60k",
+          "name": "Orla Bellamy",
+          "firstName": "Orla",
+          "title": "Chief Operating Officer",
+          "company": "Cobalt Vehicle Cover",
+          "domain": "cobalt-vehicle.example",
+          "email": "orla.bellamy@cobalt-vehicle.example",
+          "city": "London"
+        },
+        "buyerRole": {
+          "id": "role-signs",
+          "part": "signs",
+          "title": "Claims Director or Chief Operating Officer",
+          "needs": "A defensible answer for the board on what changed after the last complaints publication, at a cost that does not need a capital case."
+        },
+        "account": {
+          "company": "Cobalt Vehicle Cover",
+          "domain": "cobalt-vehicle.example"
+        },
+        "touch": {
+          "kind": "email1",
+          "ordinal": 1,
+          "dueAt": "2026-09-15T15:43:57.568Z"
+        },
+        "thread": [],
+        "voice": {
+          "email": [],
+          "linkedin": [],
+          "howIWrite": ""
+        },
+        "lookup": {
+          "items": [],
+          "usable": false,
+          "fetches": 0,
+          "searches": 2
+        },
+        "recentDrafts": []
+      },
+      "draft": {
+        "kind": "message",
+        "subject": "no capital case needed",
+        "body": "After each complaints publication, the board wants a clear answer on what actually changed before the next one.\n\nThat answer usually gets built into a capital case for new systems, which slows it down further.\n\nInsights360 runs month to month, with no seat minimum, so you can test whether it moves the numbers before committing to anything bigger.\n\nIs that the gap you're working through at board level, or is it already covered?",
+        "ask": "Is that the gap you're working through at board level, or is it already covered?",
+        "opener": {
+          "ref": "role-signs",
+          "kind": "role_pain"
+        },
+        "claims": [
+          "role-signs",
+          "i360.price.no-seat-minimum-no-annual-lock-in"
+        ]
+      }
+    }
+  ]
+}

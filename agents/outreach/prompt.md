@@ -20,7 +20,7 @@ The standard's rules are numbered and all of them apply. The ones that most shap
   - Signs it off: the outcome and the risk, in the fewest words.
 
   Never mention a colleague.
-- **At most one light line on what the product does,** tied to that problem and to a live fact id. It is often better absent.
+- **At most one light sentence on what the product does,** tied to that problem and citing at most two live fact ids. It is often better absent.
 - **End on one easy question, the `ask`:** is this relevant, is it a live issue, is it worth a conversation, who owns it. Never a specific time, a meeting length or a calendar link.
 - **No links.** British English. No em dashes, no exclamation marks, no bullets, and nothing from the tell list.
 - **Take the voice from the samples** (their sentence length and warmth), never their content.
@@ -42,7 +42,7 @@ Never invent personalisation:
 Write it plainly the first time. Cut rather than add: no rhetorical contrast ("it isn't X, it's Y"), no lists of three, no marketing adjectives, no explaining the buyer's own job to them. Never add a fact, a claim, a number or an anecdote to make it sound human.
 
 ## Provenance
-`opener.ref` is an id, and the card renders the text and source from whatever it points at. Every id in `claims` must be a live fact; if that fact carries a number, the number appears in the body. Any other name of a firm, publication, regulator or product, and any number, must come from the lookup, the pack or the facts. Inference from a firm's type is never evidence about that firm.
+`opener.ref` is an id, and the card renders the text and source from whatever it points at. `claims` lists only the live fact ids behind a product statement you make in the body: never the opener's ref, a lookup item, a pain, the hook or the buyer role, and an empty list when the email says nothing about the product. A first email has at most one product sentence, so at most two ids. If a fact carries a number, the number appears in the body. Any other name of a firm, publication, regulator or product, and any number, must come from the lookup, the pack or the facts. Inference from a firm's type is never evidence about that firm.
 
 ## Shape
 - **Body:** 40 to 110 words, aiming for 50 to 90; 3 to 5 sentences; short paragraphs.

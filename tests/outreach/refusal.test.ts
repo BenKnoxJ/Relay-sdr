@@ -29,4 +29,27 @@ describe("refusalOf", () => {
     );
     expect(refusalOf(error).fixes).toEqual(["No em dashes, and no en dash with a space beside it."]);
   });
+
+  it("names the words in a call-shaped answer's talking point", () => {
+    const error = Object.assign(new Error("schema"), {
+      text: JSON.stringify({
+        kind: "call",
+        talkingPoint: { openingLine: "Calling about the LLM that reads your calls.", oneQuestion: "Who owns the pipeline?", listenFor: "ownership" },
+        opener: { ref: "pain-sampling", kind: "role_pain" },
+        claims: [],
+      }),
+      issues: [{ path: ["talkingPoint", "openingLine"], message: "machine word in a rep-facing string at $: Calling about" }],
+    });
+    const { fixes, previous } = refusalOf(error);
+    expect(fixes).toEqual([`Relay refuses these words in a talking point, even in their everyday sense: "llm". Say each another way.`]);
+    expect(previous).toBeUndefined();
+  });
+
+  it("keeps the machine-word issue when the answer cannot be read", () => {
+    const error = Object.assign(new Error("schema"), {
+      text: "{not json",
+      issues: [{ path: ["body"], message: "machine word in a rep-facing string at $: Our orchestrator" }],
+    });
+    expect(refusalOf(error).fixes).toEqual(["body: machine word in a rep-facing string at $: Our orchestrator"]);
+  });
 });

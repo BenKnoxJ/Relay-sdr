@@ -127,6 +127,8 @@ type Refusal = { fixes: string[]; previous?: { subject?: string; body: string; a
 
 const refusedAnswerSchema = z.object({ subject: z.string().max(200).optional(), body: z.string().max(5000), ask: z.string().max(300) });
 
+const refusedCallSchema = z.object({ talkingPoint: z.object({ openingLine: z.string(), oneQuestion: z.string(), listenFor: z.string() }).partial() });
+
 /** Why the run refused an answer, as instructions for the one redraft. */
 export function refusalOf(error: unknown): Refusal {
   const fixes: string[] = [];
@@ -139,18 +141,24 @@ export function refusalOf(error: unknown): Refusal {
     answer = null;
   }
   const parsed = refusedAnswerSchema.safeParse(answer);
+  const call = parsed.success ? null : refusedCallSchema.safeParse(answer);
+  let prose: string[] = [];
   if (parsed.success) {
     previous = { ...(parsed.data.subject === undefined ? {} : { subject: parsed.data.subject }), body: parsed.data.body, ask: parsed.data.ask };
-    // The rep-words rule, read off the whole answer with the list the schema
-    // checks it against: the issue text is cut short and names no word.
-    const all = new RegExp(PROSE_MACHINE_WORDS.source, "gi");
-    const used = [...new Set([parsed.data.subject ?? "", parsed.data.body, parsed.data.ask].flatMap((field) => [...field.matchAll(all)].map((match) => match[0].toLowerCase())))];
-    if (used.length > 0) {
-      fixes.push(`Relay refuses these words in an email, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
-    }
+    prose = [parsed.data.subject ?? "", parsed.data.body, parsed.data.ask];
+  } else if (call?.success === true) {
+    prose = Object.values(call.data.talkingPoint).filter((field) => field !== undefined);
+  }
+  // The rep-words rule, read off the whole answer with the list the schema
+  // checks it against: the issue text is cut short and names no word.
+  const all = new RegExp(PROSE_MACHINE_WORDS.source, "gi");
+  const used = [...new Set(prose.flatMap((field) => [...field.matchAll(all)].map((match) => match[0].toLowerCase())))];
+  if (used.length > 0) {
+    fixes.push(`Relay refuses these words in ${parsed.success ? "an email" : "a talking point"}, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
   }
   for (const issue of validationIssues(error)) {
-    if (/machine word in a rep-facing string/.test(issue)) continue;
+    // Named above when the answer could be read; otherwise the issue is all there is.
+    if (used.length > 0 && /machine word in a rep-facing string/.test(issue)) continue;
     fixes.push(/banned dash/.test(issue) ? "No em dashes, and no en dash with a space beside it." : issue.slice(0, 300));
   }
   if (fixes.length === 0) fixes.push("Answer with one email in the message shape: subject, body, ask, opener and claims.");

@@ -46,8 +46,9 @@ function paragraphs(text: string): string[] {
     .filter((p) => p.length > 0);
 }
 
+/** Lower-case words, a possessive read as its noun: "July's" is July. */
 function words(text: string): string[] {
-  return text.toLowerCase().match(/[a-z0-9£$%']+/g) ?? [];
+  return (text.toLowerCase().replace(/’/g, "'").match(/[a-z0-9£$%']+/g) ?? []).map((word) => word.replace(/'s$/, ""));
 }
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -233,22 +234,30 @@ function sentenceStartNames(body: string, lowerCorpus: string): string[] {
   return found;
 }
 
-function provenanceFindings(draft: MessageDraft, input: OutreachInput, context: GateContext): Finding[] {
+function provenanceFindings(draft: MessageDraft, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
   const found: Finding[] = [];
+  const advice: Finding[] = [];
   const allowed = allowedWords(input, context);
   const evidence = evidenceText(input);
   const body = draft.body;
   // Words written in lower case anywhere the draft could have learnt them: its own body and the evidence as written.
   const lowerCorpus = [body, evidenceRaw(input)].join("\n").match(/\b[a-z][a-z0-9'’-]*\b/g)?.join(" ") ?? "";
 
-  const unsourcedNames = [...namedEntities(body), ...sentenceStartNames(body, lowerCorpus)].filter((entity) => {
+  const unsourced = (entity: string) => {
     const tokens = words(entity).filter((token) => !ORDINARY.has(token) && !CALENDAR.has(token) && !allowed.has(token));
     if (tokens.length === 0) return false;
     // Resolved when the remaining words appear together in the evidence.
     return !hasPhrase(evidence, tokens.join(" ")) && !tokens.every((token) => hasPhrase(evidence, token));
-  });
+  };
+  const unsourcedNames = namedEntities(body).filter(unsourced);
   if (unsourcedNames.length > 0) {
     found.push({ rule: "unsourced-name", text: `It names ${unsourcedNames.map((n) => `"${n}"`).join(", ")}, which is not in the lookup, the plan or the facts.` });
+  }
+  // A capitalised word that only opens a sentence is usually just a sentence ("Finding that pattern…"),
+  // so it is advice for the rep to check rather than a hold. A name inside a sentence still holds.
+  const startNames = sentenceStartNames(body, lowerCorpus).filter(unsourced);
+  if (startNames.length > 0) {
+    advice.push({ rule: "sentence-start-name", text: `A sentence opens with ${startNames.map((n) => `"${n}"`).join(", ")}; if that is a name, it is not in the lookup, the plan or the facts.` });
   }
 
   const allowedDigits = words([...allowed].join(" "));
@@ -257,7 +266,7 @@ function provenanceFindings(draft: MessageDraft, input: OutreachInput, context: 
   if (unsourcedNumbers.length > 0) {
     found.push({ rule: "unsourced-number", text: `The number ${unsourcedNumbers.join(", ")} traces to nothing in the lookup, the plan or the facts.` });
   }
-  return found;
+  return { tierA: found, tierB: advice };
 }
 
 // ---------------------------------------------------------------------------
@@ -371,11 +380,36 @@ function adviceFindings(draft: MessageDraft): Finding[] {
 export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
   if (draft.kind !== "message") return { tierA: [{ rule: "kind", text: "A first email is a message, not a call." }], tierB: [] };
   const cohort = cohortFindings(draft, input, context.cohort);
+  const provenance = provenanceFindings(draft, input, context);
   const tierA = [
     ...checkTouchLimits(draft, input),
     ...shapeFindings(draft, input, input.standard.bannedLexicon),
-    ...provenanceFindings(draft, input, context),
+    ...provenance.tierA,
     ...cohort.tierA,
   ];
-  return { tierA, tierB: [...adviceFindings(draft), ...cohort.tierB] };
+  return { tierA, tierB: [...adviceFindings(draft), ...provenance.tierB, ...cohort.tierB] };
+}
+
+/**
+ * `claims` is for the product statements in the body. The model sometimes
+ * lists its opener there too (the 15 Sep cohort: four of five holds), which is
+ * a harmless label and not a claim. Before the gates, any id that is not a
+ * product fact and is the opener's ref, a lookup item or a plan item is moved
+ * out. An id that resolves to nothing stays, and `claim-id` still holds it.
+ */
+export function normaliseClaims<T extends OutreachOutput>(draft: T, input: OutreachInput): T {
+  const facts = new Set(input.facts.facts.map((fact) => fact.id));
+  const pack = input.pack;
+  const notClaims = new Set([
+    draft.opener.ref,
+    ...input.lookup.items.map((item) => item.id),
+    ...pack.archetype.pains.map((pain) => pain.id),
+    ...pack.archetype.language.map((phrase) => phrase.id),
+    ...(pack.hook === undefined ? [] : [pack.hook.id]),
+    ...pack.angles.map((angle) => angle.id),
+    ...pack.verbatim.map((item) => item.id),
+    ...(input.buyerRole === undefined ? [] : [input.buyerRole.id]),
+  ]);
+  const claims = draft.claims.filter((claim) => facts.has(claim) || !notClaims.has(claim));
+  return claims.length === draft.claims.length ? draft : { ...draft, claims };
 }

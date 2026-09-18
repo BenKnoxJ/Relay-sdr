@@ -5,19 +5,20 @@ import type { LanguageModel } from "ai";
 import { z } from "zod";
 
 import type { OutreachInput } from "../../../agents/outreach/input.schema";
-import type { OutreachOutput } from "../../../agents/outreach/output.schema";
+import { outputSchemaFor, type OutreachOutput } from "../../../agents/outreach/output.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { loadDefinition } from "@/lib/agents/definitions";
 import type { RunModel } from "@/lib/agents/model";
 import type { PricedModel } from "@/lib/agents/pricing";
 import { makeModel } from "@/lib/agents/provider";
-import { AgentRunFailedError, runAgent } from "@/lib/agents/run";
+import { AgentRunFailedError, rejectedAnswerText, runAgent, validationIssues } from "@/lib/agents/run";
 import { stubModel } from "@/lib/agents/stubModel";
 import { storedPack } from "@/lib/campaigns/derive";
+import { PROSE_MACHINE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
 import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms } from "@/lib/outreach/adapter";
-import { gateEmail1, type Finding } from "@/lib/outreach/gates";
+import { gateEmail1, normaliseClaims, type Finding } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { loadStandard } from "@/lib/outreach/standard";
 import { latestResearchJob } from "@/lib/repo/campaigns";
@@ -47,7 +48,9 @@ import type { Handler } from "@/worker/handlers/index";
  *   2. the lookup runs once, code before the model, person then account, and
  *      stops at the first usable, relevant item (v2.1 §3); its result is an
  *      Event, so a retried job reads it back and searches for nothing;
- *   3. one model generation; the gates; at most one corrective redraft with
+ *   3. one model generation, offered the touch's own shape only (a first
+ *      email is a message, never the message-or-call union); the opener's and
+ *      the plan's ids moved out of `claims`; the gates; at most one corrective redraft with
  *      the findings; then the draft is written as to review, or as Needs you
  *      with the labels, or as not written when neither generation came back in
  *      shape (v2.1 §6);
@@ -112,7 +115,47 @@ export function defaultOutreachDeps(): OutreachHandlerDeps {
   };
 }
 
-type Generation = { output: OutreachOutput | null; tierA: Finding[]; tierB: Finding[]; costUsd: number };
+/**
+ * `refused` is what the writer is told about an answer the run refused: the
+ * rules it broke and the answer itself, so the redraft fixes that and keeps the
+ * rest. Model-facing only; the card shows the plain shape finding, because the
+ * words named here are the ones a rep never sees.
+ */
+type Generation = { output: OutreachOutput | null; tierA: Finding[]; tierB: Finding[]; costUsd: number; refused?: Refusal };
+
+type Refusal = { fixes: string[]; previous?: { subject?: string; body: string; ask: string } };
+
+const refusedAnswerSchema = z.object({ subject: z.string().max(200).optional(), body: z.string().max(5000), ask: z.string().max(300) });
+
+/** Why the run refused an answer, as instructions for the one redraft. */
+export function refusalOf(error: unknown): Refusal {
+  const fixes: string[] = [];
+  let previous: Refusal["previous"];
+  const text = rejectedAnswerText(error);
+  let answer: unknown = null;
+  try {
+    answer = text === null ? null : JSON.parse(text);
+  } catch {
+    answer = null;
+  }
+  const parsed = refusedAnswerSchema.safeParse(answer);
+  if (parsed.success) {
+    previous = { ...(parsed.data.subject === undefined ? {} : { subject: parsed.data.subject }), body: parsed.data.body, ask: parsed.data.ask };
+    // The rep-words rule, read off the whole answer with the list the schema
+    // checks it against: the issue text is cut short and names no word.
+    const all = new RegExp(PROSE_MACHINE_WORDS.source, "gi");
+    const used = [...new Set([parsed.data.subject ?? "", parsed.data.body, parsed.data.ask].flatMap((field) => [...field.matchAll(all)].map((match) => match[0].toLowerCase())))];
+    if (used.length > 0) {
+      fixes.push(`Relay refuses these words in an email, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
+    }
+  }
+  for (const issue of validationIssues(error)) {
+    if (/machine word in a rep-facing string/.test(issue)) continue;
+    fixes.push(/banned dash/.test(issue) ? "No em dashes, and no en dash with a space beside it." : issue.slice(0, 300));
+  }
+  if (fixes.length === 0) fixes.push("Answer with one email in the message shape: subject, body, ask, opener and claims.");
+  return { fixes: fixes.slice(0, 10), ...(previous === undefined ? {} : { previous }) };
+}
 
 /** The opener as the card shows it: the item's words, where they came from, and when. */
 export function resolveOpener(
@@ -231,8 +274,8 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
             previous: { body: input.avoid.previousBody || "(none)", ask: "(none)" },
           };
 
-    const definition = loadDefinition("outreach");
-    const modelId = definition.model;
+    const signed = loadDefinition("outreach");
+    const modelId = signed.model;
     if (modelId === null) throw new TerminalError("outreach: the definition names no model");
 
     const generations: Generation[] = [];
@@ -243,21 +286,23 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         previous === undefined
           ? repRedraft
           : {
-              findings: previous.tierA.map((finding) => finding.text).slice(0, 20),
+              findings: [...previous.tierA.map((finding) => finding.text), ...(previous.refused?.fixes ?? [])].slice(0, 20),
               previous:
                 previous.output !== null && previous.output.kind === "message"
                   ? { ...(previous.output.subject === undefined ? {} : { subject: previous.output.subject }), body: previous.output.body, ask: previous.output.ask }
-                  : { body: "(the last answer did not come back in the right shape)", ask: "(none)" },
+                  : (previous.refused?.previous ?? { body: "(the last answer did not come back in the right shape)", ask: "(none)" }),
             };
       const generationInput = buildOutreachInput({ ...base, ...(redraft === undefined ? {} : { redraft }) });
+      const definition = { ...signed, output: outputSchemaFor(generationInput.touch.kind) };
       try {
         const result = await runAgent({
           definition,
           input: generationInput,
           ctx: { db, orgId: job.orgId, jobId: job.id, model: deps.makeModel(modelId, generationInput, { attempt: input.attempt, generation: index }), modelId, signal, scrub: safeError },
         });
-        const gates = gateEmail1(result.object, generationInput, { productNames: [facts.product], repName, cohort });
-        generations.push({ output: result.object, tierA: gates.tierA, tierB: gates.tierB, costUsd: Number(result.run.costTotal) });
+        const output = normaliseClaims(result.object, generationInput);
+        const gates = gateEmail1(output, generationInput, { productNames: [facts.product], repName, cohort });
+        generations.push({ output, tierA: gates.tierA, tierB: gates.tierB, costUsd: Number(result.run.costTotal) });
         if (gates.tierA.length === 0) break;
       } catch (error) {
         if (!(error instanceof AgentRunFailedError)) {
@@ -268,7 +313,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         // A lost lease is not a failed draft: let the queue retry the job.
         if (error.reason === "aborted") throw error;
         const run = error.runId === "" ? null : await db.agentRun.findFirst({ where: { id: error.runId, orgId: job.orgId }, select: { costTotal: true } });
-        generations.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], costUsd: Number(run?.costTotal ?? 0) });
+        generations.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], costUsd: Number(run?.costTotal ?? 0), refused: refusalOf(error) });
       }
     }
 

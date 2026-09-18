@@ -42,7 +42,8 @@ export const openerSchema = z
 /**
  * The raw list is checked here, before `normaliseClaims` moves out the opener's
  * ref and any lookup or plan id the model listed, so it leaves room for those.
- * How many facts a touch may cite is `checkTouchLimits`, after normalising (D-1).
+ * How many facts a touch may cite is `checkTouchLimits`, after normalising
+ * (D-1 for a first email, `MAX_TOUCH_CLAIMS` for the rest).
  */
 const MAX_RAW_CLAIMS = 6;
 
@@ -303,12 +304,22 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
   if (input.touch.kind === "email1" && (draft.claims.length > MAX_EMAIL1_CLAIMS || productSentences(draft, input.facts.product) > 1)) {
     findings.push({ rule: "one-claim", text: "A first email carries at most one sentence about the product, citing at most two facts." });
   }
+  if (input.touch.kind !== "email1" && draft.claims.length > MAX_TOUCH_CLAIMS) {
+    findings.push({ rule: "claim-count", text: `This cites ${draft.claims.length} facts; a touch cites at most ${MAX_TOUCH_CLAIMS}.` });
+  }
 
   return findings;
 }
 
 /** D-1: the fact ids one product sentence in a first email may cite. */
 const MAX_EMAIL1_CLAIMS = 2;
+
+/**
+ * The fact ids any other touch may cite, after normalising: the ceiling the raw
+ * schema cap gave them before it was raised for `normaliseClaims`. Outreach
+ * v2.2 sets the per-touch limits; until then this holds the old line.
+ */
+const MAX_TOUCH_CLAIMS = 3;
 
 function productSentences(draft: OutreachOutput, product: string): number {
   if (draft.kind !== "message" || product.trim() === "") return 0;

@@ -142,6 +142,40 @@ describe("claims before the gates (R2)", () => {
   it("still bounds the raw list", () => {
     expect(outputSchemaFor("email1").safeParse(raw(Array.from({ length: 7 }, (_, n) => `i360.fact-${n}`))).success).toBe(false);
   });
+
+  // Critic, PR #39 re-review: the raw cap of 6 is shared by every touch kind,
+  // and D-1 is email1's alone, so the other touches keep the three facts the
+  // old raw cap gave them, counted after normalising.
+  const four = [...facts, "i360.period-compare", "i360.flag-risk"];
+  const asTouch = (kind: "email2" | "call", ids: string[]) => {
+    const input = withFacts(ids);
+    return { ...input, touch: { ...input.touch, kind, ordinal: 2 } };
+  };
+  const call = (claims: string[]) => ({
+    kind: "call",
+    talkingPoint: { openingLine: "Calling about complaints at Westbury.", oneQuestion: "Is that yours?", listenFor: "ownership", numberSource: "zoho" },
+    opener: goodOutput.opener,
+    claims,
+  });
+
+  for (const kind of ["email2", "call"] as const) {
+    const shaped = (claims: string[]) => (kind === "call" ? call(claims) : raw(claims));
+
+    it(`holds four facts on ${kind} once normalised, and lets three through`, () => {
+      const held = outputSchemaFor(kind).safeParse(shaped([goodOutput.opener.ref, ...four]));
+      expect(held.success).toBe(true);
+      const heldDraft = normaliseClaims(held.data!, asTouch(kind, four));
+      expect(heldDraft.claims).toEqual(four);
+      expect(rules(checkTouchLimits(heldDraft, asTouch(kind, four)))).toContain("claim-count");
+
+      const three = four.slice(0, 3);
+      const passed = outputSchemaFor(kind).safeParse(shaped([goodOutput.opener.ref, ...three]));
+      expect(passed.success).toBe(true);
+      const passedDraft = normaliseClaims(passed.data!, asTouch(kind, three));
+      expect(passedDraft.claims).toEqual(three);
+      expect(rules(checkTouchLimits(passedDraft, asTouch(kind, three)))).not.toContain("claim-count");
+    });
+  }
 });
 
 describe("one product sentence in a first email (D-1)", () => {

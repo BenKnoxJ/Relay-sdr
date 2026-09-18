@@ -107,6 +107,41 @@ describe("claims before the gates (R2)", () => {
     const draft = good();
     expect(normaliseClaims(draft, base())).toBe(draft);
   });
+
+  // Critic, PR #39: the shape is checked before `normaliseClaims` runs, so its
+  // cap must leave room for the ids that normalising moves out.
+  const facts = ["i360.read-every-call", "i360.search-by-theme"];
+  const withFacts = (ids: string[]) => {
+    const input = base();
+    const extra = ids.filter((id) => !input.facts.facts.some((fact) => fact.id === id)).map((id) => ({ ...input.facts.facts[0]!, id, text: "Reads every call." }));
+    return { ...input, facts: { ...input.facts, facts: [...input.facts.facts, ...extra] } };
+  };
+  const lead = "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.";
+  const raw = (claims: string[]) => ({ ...goodOutput, body: `${lead} Insights360 reads every call and lets you search them by theme. ${goodOutput.ask}`, claims });
+
+  it("takes a raw list with the opener, a lookup id and pains beside two facts, and passes it once normalised", () => {
+    const input = withFacts(facts);
+    const claims = [goodOutput.opener.ref, "look-westbury-rebuild", "pain-sampling", "pain-complaints", ...facts];
+    const parsed = outputSchemaFor("email1").safeParse(raw(claims));
+    expect(parsed.success).toBe(true);
+    const draft = normaliseClaims(parsed.data!, input);
+    expect(draft.claims).toEqual(facts);
+    expect(checkTouchLimits(draft, input)).toEqual([]);
+  });
+
+  it("still holds three real product facts under D-1 once normalised", () => {
+    const three = [...facts, "i360.period-compare"];
+    const input = withFacts(three);
+    const parsed = outputSchemaFor("email1").safeParse(raw([goodOutput.opener.ref, ...three]));
+    expect(parsed.success).toBe(true);
+    const draft = normaliseClaims(parsed.data!, input);
+    expect(draft.claims).toEqual(three);
+    expect(rules(checkTouchLimits(draft, input))).toContain("one-claim");
+  });
+
+  it("still bounds the raw list", () => {
+    expect(outputSchemaFor("email1").safeParse(raw(Array.from({ length: 7 }, (_, n) => `i360.fact-${n}`))).success).toBe(false);
+  });
 });
 
 describe("one product sentence in a first email (D-1)", () => {

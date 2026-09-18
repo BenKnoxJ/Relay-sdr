@@ -39,9 +39,16 @@ export const openerSchema = z
   })
   .strict();
 
+/**
+ * The raw list is checked here, before `normaliseClaims` moves out the opener's
+ * ref and any lookup or plan id the model listed, so it leaves room for those.
+ * How many facts a touch may cite is `checkTouchLimits`, after normalising (D-1).
+ */
+const MAX_RAW_CLAIMS = 6;
+
 const common = {
   opener: openerSchema,
-  claims: z.array(factIdSchema).max(3),
+  claims: z.array(factIdSchema).max(MAX_RAW_CLAIMS),
 };
 
 export const messageDraftSchema = z

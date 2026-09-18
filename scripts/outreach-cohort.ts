@@ -95,8 +95,10 @@ async function copyDatabase(base: string, source: string): Promise<{ name: strin
     execFileSync("npx", ["prisma", "migrate", "deploy"], { stdio: ["ignore", "ignore", "inherit"], env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url } });
   } catch (error) {
     // `main`'s cleanup only covers a copy it was handed, so a copy that could not be migrated goes here.
-    await dropDatabase(base, name);
-    console.error(`cohort: migrations failed on ${name}; dropped it`);
+    console.error(`cohort: migrations failed on ${name}; dropping it`);
+    await dropDatabase(base, name).catch((dropError: unknown) => {
+      console.error(`cohort: could not drop ${name}: ${dropError instanceof Error ? dropError.message : String(dropError)}`);
+    });
     throw error;
   }
   return { name, url };

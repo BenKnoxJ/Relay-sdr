@@ -181,15 +181,25 @@ const GOOD: { body: string; ask: string }[] = [
   },
 ];
 
-type Answer = "good" | "time-ask" | "garbage";
+type Answer = "good" | "time-ask" | "garbage" | "opener-claim" | "call" | "machine-word";
 
 function answerFor(input: OutreachInput, kind: Answer): string {
   if (kind === "garbage") return "Here is the email you asked for.";
+  const ref = input.buyerRole?.id ?? input.pack.archetype.pains[0]!.id;
+  if (kind === "call") {
+    return JSON.stringify({ kind: "call", talkingPoint: { openingLine: "Calling about the calls behind complaints.", oneQuestion: "Is that yours?", listenFor: "who owns it", numberSource: "zoho" }, opener: { ref, kind: "role_pain" }, claims: [] });
+  }
   const firm = Number(input.person.company.match(/\d+/)?.[0] ?? 0);
   const good = GOOD[firm % GOOD.length]!;
-  const draft = kind === "good" ? good : { body: good.body.replace(good.ask, "Could we find twenty minutes next week?"), ask: "Could we find twenty minutes next week?" };
-  const ref = input.buyerRole?.id ?? input.pack.archetype.pains[0]!.id;
-  return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", ...draft, opener: { ref, kind: "role_pain" }, claims: [] });
+  if (kind === "machine-word") {
+    // Relay's own nouns, which the prose list refuses, beside plain English ("pipeline", "job") it does not.
+    const ask = "Is the current review doing the job?";
+    return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", body: good.body.replace(good.ask, `Our orchestrator reads every call in the pipeline, with no prompt to tune. ${ask}`), ask, opener: { ref, kind: "role_pain" }, claims: [] });
+  }
+  const draft = kind !== "time-ask" ? good : { body: good.body.replace(good.ask, "Could we find twenty minutes next week?"), ask: "Could we find twenty minutes next week?" };
+  // The 15 Sep slip: the opener's ref listed as if it were a product claim.
+  const claims = kind === "opener-claim" ? [ref] : [];
+  return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", ...draft, opener: { ref, kind: "role_pain" }, claims });
 }
 
 function writer(script: Answer[]) {
@@ -309,6 +319,59 @@ describe("the draft job", () => {
     expect(model.inputs[0]!.touch.kind).toBe("email1");
     expect(await prisma.agentRun.count({ where: { jobId: job!.id } })).toBe(1);
     expect(await prisma.event.count({ where: { kind: "outreach.drafted" } })).toBe(1);
+  });
+
+  it("moves the opener's ref out of the claims before the gates, and stores the draft without it", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await runDraft(job!, ["opener-claim"]);
+
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
+    expect(draft).toMatchObject({ state: "to_review", generations: 1, claims: [] });
+    expect(draft.findings).toEqual([]);
+  });
+
+  it("offers a first email the message shape only: a call-shaped answer is refused by the run, not gated", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const { model } = await runDraft(job!, ["call", "good"]);
+
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
+    expect(draft).toMatchObject({ state: "to_review", generations: 2 });
+    expect(model.inputs[1]!.redraft?.previous.body).toMatch(/did not come back in the right shape/);
+    const runs = await prisma.agentRun.findMany({ where: { jobId: job!.id }, orderBy: { createdAt: "asc" }, select: { status: true, error: true } });
+    expect(runs.map((run) => run.status)).toEqual(["failed", "done"]);
+    expect(runs[0]!.error).toMatch(/schema|validate/);
+  });
+
+  it("tells the redraft why an answer was refused, and keeps the refused words off the rep's card", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const { model } = await runDraft(job!, ["machine-word", "good"]);
+
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
+    expect(draft).toMatchObject({ state: "to_review", generations: 2 });
+    const redraft = model.inputs[1]!.redraft!;
+    expect(redraft.findings.join(" ")).toMatch(/"orchestrator", "prompt"/);
+    // Only the words the prose list refuses are named; the plain English stays.
+    expect(redraft.findings.join(" ")).not.toMatch(/"pipeline"|"job"/);
+    // The refused answer is what the writer fixes, not a placeholder.
+    expect(redraft.previous.body).toContain("Our orchestrator reads every call");
+    expect(redraft.previous.ask).toBe("Is the current review doing the job?");
+  });
+
+  it("parks a draft refused twice for its words as not written, with the plain shape finding only", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await runDraft(job!, ["machine-word", "machine-word"]);
+
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id } });
+    expect(draft).toMatchObject({ state: "failed", generations: 2, body: null });
+    expect(draft.findings).toEqual([{ rule: "shape", text: "The draft did not come back in the right shape." }]);
   });
 
   it("@proof redrafts once with the findings when the first draft fails a gate", async () => {

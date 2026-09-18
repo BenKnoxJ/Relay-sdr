@@ -1,0 +1,136 @@
+import { describe, expect, it } from "vitest";
+
+import { outreachInputSchema, type OutreachInput } from "../../agents/outreach/input.schema";
+import { checkTouchLimits, messageOutputSchema, outputSchemaFor, outreachOutputSchema, type OutreachOutput } from "../../agents/outreach/output.schema";
+import recorded from "../../fixtures/outreach/cohort-2026-09-15.json";
+import goodInput from "../../agents/outreach/fixtures/input.good.json";
+import goodOutput from "../../agents/outreach/fixtures/output.good.json";
+import { objectShapedOutput } from "@/lib/agents/run";
+import { loadFacts } from "@/lib/facts/load";
+import { liveFacts } from "@/lib/outreach/adapter";
+import { gateEmail1, normaliseClaims, type GateContext } from "@/lib/outreach/gates";
+import { loadStandard } from "@/lib/outreach/standard";
+
+/**
+ * The six first emails the real model wrote on 15 Sep 2026
+ * (`fixtures/outreach/cohort-2026-09-15.json`, exported from the cohort
+ * database by `scripts/outreach-cohort.ts --export-fixture`), gated again.
+ * None passed then. The holds that were the checks' fault are gone; the one
+ * that was the draft's fault (Nell's four-sentence paragraph) stays.
+ */
+
+type Recorded = (typeof recorded.people)[number];
+
+const facts = liveFacts(loadFacts("insights360", 2).facts);
+const context: GateContext = { productNames: [facts.product], repName: "", cohort: [] };
+
+function inputOf(person: Recorded): OutreachInput {
+  return outreachInputSchema.parse({ ...person.input, pack: recorded.pack, facts, standard: loadStandard() });
+}
+
+function person(name: string): { input: OutreachInput; draft: OutreachOutput } {
+  const found = recorded.people.find((entry) => entry.name === name);
+  if (found === undefined || found.draft === null) throw new Error(`no recorded draft for ${name}`);
+  return { input: inputOf(found), draft: outreachOutputSchema.parse(found.draft) };
+}
+
+function gate(name: string) {
+  const { input, draft } = person(name);
+  return gateEmail1(normaliseClaims(draft, input), input, context);
+}
+
+const rules = (findings: { rule: string }[]) => findings.map((finding) => finding.rule);
+
+describe("the recorded cohort (15 Sep 2026)", () => {
+  it("is the cohort the report describes: five held, one not written", () => {
+    expect(recorded.people.map((entry) => [entry.name, entry.state])).toEqual([
+      ["Avery Dunmore", "failed"],
+      ["Blair Kendrick", "needs_you"],
+      ["Emlyn Lomax", "needs_you"],
+      ["Marlo Holloway", "needs_you"],
+      ["Nell Oakley", "needs_you"],
+      ["Orla Bellamy", "needs_you"],
+    ]);
+  });
+
+  it.each(["Marlo Holloway", "Orla Bellamy"])("%s: the opener's ref listed as a claim no longer holds the draft", (name) => {
+    const result = gate(name);
+    expect(result.tierA).toEqual([]);
+  });
+
+  it("Blair Kendrick: one product sentence citing two facts passes (D-1)", () => {
+    expect(gate("Blair Kendrick").tierA).toEqual([]);
+  });
+
+  it("Emlyn Lomax: a sentence opening on \"Finding\" is advice, not a hold", () => {
+    const result = gate("Emlyn Lomax");
+    expect(result.tierA).toEqual([]);
+    expect(result.tierB.find((finding) => finding.rule === "sentence-start-name")?.text).toContain('"Finding"');
+  });
+
+  it("Nell Oakley: \"July's\" is a month, and the four-sentence paragraph still holds", () => {
+    const result = gate("Nell Oakley");
+    expect(rules(result.tierA)).toEqual(["paragraphs"]);
+  });
+
+  it("Avery Dunmore: a first email is offered the message shape only", async () => {
+    const schema = outputSchemaFor("email1");
+    const json = await Promise.resolve(objectShapedOutput(schema).jsonSchema);
+    const properties = json.properties as Record<string, { const?: string; enum?: string[] }>;
+    expect(json.type).toBe("object");
+    expect(json.anyOf).toBeUndefined();
+    expect(properties.talkingPoint).toBeUndefined();
+    expect(properties.kind?.const).toBe("message");
+    expect(properties.kind?.enum).toBeUndefined();
+    expect([...(json.required as string[])].sort()).toEqual(["ask", "body", "claims", "kind", "opener"]);
+
+    const call = { kind: "call", talkingPoint: { openingLine: "Calling about complaints.", oneQuestion: "Is that yours?", listenFor: "ownership", numberSource: "zoho" }, opener: { ref: "role-runs", kind: "role_pain" }, claims: [] };
+    expect(schema.safeParse(call).success).toBe(false);
+    expect(outputSchemaFor("call").safeParse(call).success).toBe(true);
+  });
+});
+
+describe("claims before the gates (R2)", () => {
+  const base = () => outreachInputSchema.parse(goodInput);
+  const good = () => outreachOutputSchema.parse(goodOutput);
+
+  it("moves out the opener's ref and any lookup or plan id, and keeps facts and unknown ids", () => {
+    const input = base();
+    const pain = input.pack.archetype.pains[0]!.id;
+    const draft = { ...good(), claims: [good().opener.ref, pain, "i360.read-every-call", "i360.live-assist"] };
+    expect(normaliseClaims(draft, input).claims).toEqual(["i360.read-every-call", "i360.live-assist"]);
+    // An id that resolves to nothing is still a finding.
+    expect(rules(checkTouchLimits(normaliseClaims(draft, input), input))).toContain("claim-id");
+  });
+
+  it("leaves a draft with nothing to move untouched", () => {
+    const draft = good();
+    expect(normaliseClaims(draft, base())).toBe(draft);
+  });
+});
+
+describe("one product sentence in a first email (D-1)", () => {
+  const input = () => outreachInputSchema.parse(goodInput);
+  const withFacts = (ids: string[]) => {
+    const base = input();
+    const extra = ids.filter((id) => !base.facts.facts.some((fact) => fact.id === id)).map((id) => ({ ...base.facts.facts[0]!, id, text: "Reads every call." }));
+    return { ...base, facts: { ...base.facts, facts: [...base.facts.facts, ...extra] } };
+  };
+  const draftWith = (body: string, claims: string[]): OutreachOutput => ({ ...messageOutputSchema.parse(goodOutput), body, claims });
+  const ask = messageOutputSchema.parse(goodOutput).ask;
+  const lead = "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.";
+
+  it("allows one product sentence citing two facts", () => {
+    const facts = ["i360.read-every-call", "i360.search-by-theme"];
+    const body = `${lead} Insights360 reads every call and lets you search them by theme. ${ask}`;
+    expect(rules(checkTouchLimits(draftWith(body, facts), withFacts(facts)))).not.toContain("one-claim");
+  });
+
+  it("holds three fact ids, or two sentences about the product", () => {
+    const three = ["i360.read-every-call", "i360.search-by-theme", "i360.period-compare"];
+    const body = `${lead} Insights360 reads every call and lets you search them by theme. ${ask}`;
+    expect(rules(checkTouchLimits(draftWith(body, three), withFacts(three)))).toContain("one-claim");
+    const two = `${lead} Insights360 reads every call. Insights360 also lets you search by theme. ${ask}`;
+    expect(rules(checkTouchLimits(draftWith(two, ["i360.read-every-call"]), withFacts(["i360.read-every-call"])))).toContain("one-claim");
+  });
+});

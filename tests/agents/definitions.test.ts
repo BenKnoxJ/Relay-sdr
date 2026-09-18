@@ -327,7 +327,7 @@ describe("outreach: the gates that need the touch", () => {
     expect(outreachOutputSchema.safeParse(draft).success).toBe(true);
 
     // The same word in the body is the thing the rule is actually about.
-    const leaked = { ...draft, body: `Our pipeline read every call. ${draft.body}` };
+    const leaked = { ...draft, body: `Our orchestrator read every call. ${draft.body}` };
     const result = outreachOutputSchema.safeParse(leaked);
     expect(result.success).toBe(false);
     if (result.success) return;
@@ -335,6 +335,22 @@ describe("outreach: the gates that need the touch", () => {
     expect(issue).toBeDefined();
     // And it names the field a rep would have to fix, not `$`.
     expect(issue?.path).toEqual(["body"]);
+  });
+
+  it("checks the body against the prose list, so ordinary English and firm names pass", () => {
+    const draft = JSON.parse(JSON.stringify(fixture("outreach", "output.good.json"))) as { body: string };
+    // `MACHINE_WORDS` refuses every one of these; in an email they are a firm's
+    // name or plain English, and refusing them cost the 18 Sep audit's redrafts.
+    for (const line of ["Atlas reviews its calls by hand.", "Vector Capital samples a few calls a week.", "Complaints sit in the pipeline for weeks.", "Happy to touch base on it."]) {
+      const result = outreachOutputSchema.safeParse({ ...draft, body: `${line} ${draft.body}` });
+      expect(result.success, line).toBe(true);
+    }
+    for (const word of ["prompt", "LLM"]) {
+      const result = outreachOutputSchema.safeParse({ ...draft, body: `We tuned the ${word} on every call. ${draft.body}` });
+      expect(result.success, word).toBe(false);
+      if (result.success) continue;
+      expect(result.error.issues.some((issue) => /machine word/.test(issue.message)), word).toBe(true);
+    }
   });
 
   it("keeps the em-dash rule on the prose, where the prose is", () => {

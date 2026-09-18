@@ -93,8 +93,11 @@ describe("provenance: zero invention (v2.1 §6, as corrected)", () => {
   const tail = "We read every recorded call, so the pattern shows up in the first week rather than the next quarter.";
 
   it("rejects a seeded invented firm and a seeded invented number", () => {
-    const named = gateEmail1(body(`${lead} Aviva found the same thing when it moved its claims desk. ${tail}`), input(), context());
+    const named = gateEmail1(body(`${lead} The same thing happened at Aviva when it moved its claims desk. ${tail}`), input(), context());
     expect(named.tierA.find((finding) => finding.rule === "unsourced-name")?.text).toContain('"Aviva"');
+    // A possessive is still the name.
+    const owned = gateEmail1(body(`${lead} The same thing happened to Aviva's claims desk last year. ${tail}`), input(), context());
+    expect(owned.tierA.find((finding) => finding.rule === "unsourced-name")?.text).toContain("Aviva");
     const counted = gateEmail1(body(`${lead} Complaints like these rose 38% across the market last year. ${tail}`), input(), context());
     expect(counted.tierA.find((finding) => finding.rule === "unsourced-number")?.text).toContain("38%");
   });
@@ -121,6 +124,17 @@ describe("provenance: zero invention (v2.1 §6, as corrected)", () => {
     // An ordinary word opening a sentence passes; a firm opening one does not.
     const opens = gateEmail1(body(`${lead} Complaints rarely say which call caused them. Honestly, that is the hard part. ${tail}`), input(), context());
     expect(rules(opens)).not.toContain("unsourced-name");
+    // A capitalised word that only opens a sentence is advice for the rep to check, never a hold.
+    const firm = gateEmail1(body(`${lead} Aviva found the same thing when it moved its claims desk. ${tail}`), input(), context());
+    expect(rules(firm)).not.toContain("unsourced-name");
+    expect(firm.tierB.find((finding) => finding.rule === "sentence-start-name")?.text).toContain('"Aviva"');
+  });
+
+  it("reads a possessive month as the month, with either apostrophe", () => {
+    for (const month of ["June's", "June’s"]) {
+      const result = gateEmail1(body(`Complaint handling at Westbury Mutual is being rebuilt, and ${month} trade press piece said so. ${tail.replace("We read", "Insights360 reads")} It shows up early.`), input(), context());
+      expect(rules(result), month).not.toContain("unsourced-name");
+    }
   });
 
   it("refuses a person or firm opener when the lookup is not usable", () => {

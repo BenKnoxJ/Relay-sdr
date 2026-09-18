@@ -91,7 +91,14 @@ async function copyDatabase(base: string, source: string): Promise<{ name: strin
     await admin.$disconnect();
   }
   const url = withDatabase(base, name);
-  execFileSync("npx", ["prisma", "migrate", "deploy"], { stdio: ["ignore", "ignore", "inherit"], env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url } });
+  try {
+    execFileSync("npx", ["prisma", "migrate", "deploy"], { stdio: ["ignore", "ignore", "inherit"], env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url } });
+  } catch (error) {
+    // `main`'s cleanup only covers a copy it was handed, so a copy that could not be migrated goes here.
+    await dropDatabase(base, name);
+    console.error(`cohort: migrations failed on ${name}; dropped it`);
+    throw error;
+  }
   return { name, url };
 }
 
@@ -137,15 +144,16 @@ async function main(): Promise<void> {
   Object.assign(process.env, { INTEGRATIONS: "mock", NODE_ENV: "development" });
   for (const key of ["RELAY_OUTREACH_FIXTURE_DRAFTS", "RELAY_OUTREACH_FIXTURES", "RELAY_AGENT_STUB_MODEL", "RELAY_TOOL_RECORD", "RELAY_TOOL_FIXTURES"]) delete process.env[key];
 
-  const { prisma } = await import("@/lib/db");
+  let prisma: Db | undefined;
   try {
+    ({ prisma } = await import("@/lib/db"));
     if (args.exportFixture !== undefined) {
       await exportFixture(prisma, args.exportFixture, args.source);
       return;
     }
     await runCohort(prisma, args, copy.name);
   } finally {
-    await prisma.$disconnect();
+    await prisma?.$disconnect();
     if (args.keep) console.log(`cohort: kept ${copy.name}`);
     else await dropDatabase(base, copy.name);
   }
@@ -175,6 +183,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
   const stamp = copyName;
   const draftIds: string[] = [];
   const skipped: string[] = [];
+  const errors: CohortError[] = [];
   let spent = 0;
   let dearest = 0;
   for (const campaignPersonId of people) {
@@ -183,32 +192,47 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
       skipped.push(campaignPersonId);
       continue;
     }
-    const { job } = await enqueue(db, {
-      orgId: template.orgId,
-      ...(template.ownerUserId === null ? {} : { ownerUserId: template.ownerUserId }),
-      kind: "outreach_draft",
-      idempotencyKey: `cohort:${stamp}:${campaignPersonId}`,
-      input: { requestId: `cohort-${stamp}`, campaignPersonId, attempt: 1 },
-      campaignId,
-      briefVersion: template.briefVersion!,
-    });
+    let jobId: string | undefined;
     const started = Date.now();
-    const result = (await handler({ db, job, signal: new AbortController().signal })) as { draftId: string };
-    const draft = await db.outreachDraft.findUniqueOrThrow({ where: { id: result.draftId } });
-    const cost = Number(draft.costUsd);
-    spent += cost;
-    dearest = Math.max(dearest, cost);
-    draftIds.push(draft.id);
-    console.log(`cohort: ${draft.state} · ${draft.generations} generation(s) · $${cost.toFixed(3)} · ${Math.round((Date.now() - started) / 1000)}s`);
+    try {
+      const { job } = await enqueue(db, {
+        orgId: template.orgId,
+        ...(template.ownerUserId === null ? {} : { ownerUserId: template.ownerUserId }),
+        kind: "outreach_draft",
+        idempotencyKey: `cohort:${stamp}:${campaignPersonId}`,
+        input: { requestId: `cohort-${stamp}`, campaignPersonId, attempt: 1 },
+        campaignId,
+        briefVersion: template.briefVersion!,
+      });
+      jobId = job.id;
+      const result = (await handler({ db, job, signal: new AbortController().signal })) as { draftId: string };
+      const draft = await db.outreachDraft.findUniqueOrThrow({ where: { id: result.draftId } });
+      const cost = Number(draft.costUsd);
+      spent += cost;
+      dearest = Math.max(dearest, cost);
+      draftIds.push(draft.id);
+      console.log(`cohort: ${draft.state} · ${draft.generations} generation(s) · $${cost.toFixed(3)} · ${Math.round((Date.now() - started) / 1000)}s`);
+    } catch (error) {
+      // One bad job costs that person's row, not the run: what it spent still counts against the cap.
+      const runs = jobId === undefined ? [] : await db.agentRun.findMany({ where: { jobId }, select: { costTotal: true } });
+      const cost = runs.reduce((sum, run) => sum + Number(run.costTotal), 0);
+      spent += cost;
+      dearest = Math.max(dearest, cost);
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ campaignPersonId, message, cost });
+      console.error(`cohort: error · $${cost.toFixed(3)} · ${message}`);
+    }
   }
 
-  const report = await renderReport(db, draftIds, skipped, args, spent);
+  const report = await renderReport(db, draftIds, skipped, errors, args, spent);
   mkdirSync(args.out, { recursive: true });
   writeFileSync(path.join(args.out, "cohort.md"), report);
   console.log(`cohort: wrote ${path.join(args.out, "cohort.md")} · spent $${spent.toFixed(3)}`);
 }
 
-async function renderReport(db: Db, draftIds: string[], skipped: string[], args: Args, spent: number): Promise<string> {
+type CohortError = { campaignPersonId: string; message: string; cost: number };
+
+async function renderReport(db: Db, draftIds: string[], skipped: string[], errors: CohortError[], args: Args, spent: number): Promise<string> {
   const { previewFields } = await import("@/lib/outreach/adapter");
   const { loadDefinition } = await import("@/lib/agents/definitions");
   const drafts = await db.outreachDraft.findMany({ where: { id: { in: draftIds } }, include: { campaignPerson: true } });
@@ -256,6 +280,15 @@ async function renderReport(db: Db, draftIds: string[], skipped: string[], args:
       ].join("\n"),
     );
   }
+  const errored = await db.campaignPerson.findMany({ where: { id: { in: errors.map((error) => error.campaignPersonId) } } });
+  for (const error of errors) {
+    const row = errored.find((candidate) => candidate.id === error.campaignPersonId);
+    const preview = row === undefined ? null : previewFields(row.preview);
+    const role = ROLE_WORD[row?.rolePart ?? ""] ?? "related";
+    const name = preview?.name ?? error.campaignPersonId;
+    rows.push(`| ${name} | ${role} | error | n/a | n/a | $${error.cost.toFixed(3)} | none |`);
+    sections.push([`## ${name} · role: ${role} · state: **error** · cost $${error.cost.toFixed(3)}`, "", `**Error:** ${error.message.replace(/\s+/g, " ").slice(0, 500)}`, ""].join("\n"));
+  }
 
   const count = (state: string) => drafts.filter((draft) => draft.state === state).length;
   const costs = drafts.map((draft) => Number(draft.costUsd));
@@ -268,10 +301,11 @@ async function renderReport(db: Db, draftIds: string[], skipped: string[], args:
     "",
     "## Summary",
     "",
-    `- **Pass** (to review): ${count("to_review")} of ${drafts.length + skipped.length}`,
+    `- **Pass** (to review): ${count("to_review")} of ${drafts.length + skipped.length + errors.length}`,
     `- **Hold** (needs you): ${count("needs_you")}`,
     `- **Fail** (not written): ${count("failed")}; of those, for shape: ${shapeFailed}`,
     `- **Generations that did not come back in shape:** ${missedGenerations}`,
+    `- **Error** (the job threw; see its section): ${errors.length}`,
     `- **Not run** (would pass the cap): ${skipped.length}`,
     `- **Cost:** total $${spent.toFixed(3)}, median per draft $${median(costs).toFixed(3)}`,
     "",

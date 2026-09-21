@@ -350,6 +350,20 @@ describe("a person already in another campaign (Relay P1)", () => {
     expect((await view(b)).peopleFound?.inOtherCampaign).toBe(2);
   });
 
+  it("@proof counts each other campaign's current brief version only: a superseded version holds no one", async () => {
+    const { a, b } = await keptInFirst("l-001");
+    expect((await loadOrgKnowledge(prisma, { orgId: ORG, campaignId: b.id, briefVersion: 1 })).inOtherCampaigns).toHaveLength(1);
+
+    // The first campaign's brief is edited: its kept person stays on version 1, which is no longer live work.
+    await editCampaignBrief(prisma, { orgId: ORG, userId: REP, campaignId: a.id, fromBriefVersion: 1, requestId: randomUUID(), brief: toResearchBrief(briefFields({ howMany: 50 })) });
+    expect(await prisma.campaignPerson.count({ where: { campaignId: a.id, briefVersion: 1, providerId: "l-001", review: "kept" } })).toBe(1);
+    expect((await loadOrgKnowledge(prisma, { orgId: ORG, campaignId: b.id, briefVersion: 1 })).inOtherCampaigns).toEqual([]);
+
+    await run(await leadGenJob(b.id), [page(range(1, 12))]);
+    expect(await prisma.campaignPerson.count({ where: { campaignId: b.id, providerId: "l-001" } })).toBe(1);
+    expect((await view(b)).peopleFound?.inOtherCampaign).toBe(0);
+  });
+
   it("does not hold someone only found, never kept or revealed, elsewhere; nor in another org", async () => {
     const source = await planned();
     const [a, b] = (await create(source, [CLAIMS, BROKERS])).campaigns;

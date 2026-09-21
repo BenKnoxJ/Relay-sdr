@@ -15,6 +15,7 @@ import { campaignsCopy } from "@/lib/copy/campaigns";
 import { PERSON_DRAFT_COST_CAP_USD } from "@/lib/outreach/cost";
 
 import { BriefCard } from "./BriefCard";
+import { OutreachCard } from "./OutreachCard";
 import { PeopleFound } from "./PeopleFound";
 import { PeopleNeedsYou } from "./PeopleNeedsYou";
 import { PlanDecision } from "./PlanDecision";
@@ -61,6 +62,8 @@ export function CampaignPage({
   onReveal,
   onRetryReveal,
   onWriteEmails,
+  onStartOutreach,
+  onPauseOutreach,
 }: {
   campaign: Campaign;
   /** A line the route arrived with, such as Start's "research has started". */
@@ -76,6 +79,10 @@ export function CampaignPage({
   onRetryReveal?: (submission: RetrySubmission) => Promise<StartResult>;
   /** Write emails (outreach v2.1): first emails drafted for review, nothing sent (a server action). */
   onWriteEmails?: (submission: RetrySubmission) => Promise<StartResult>;
+  /** Start outreach (Relay P3): the chosen day on everyone with drafts who has not started (a server action). */
+  onStartOutreach?: (submission: { campaignId: string; requestId: string; startOn: string }) => Promise<StartResult>;
+  /** Pause or Resume the campaign's outreach (Relay P3, a server action). */
+  onPauseOutreach?: (submission: { campaignId: string; paused: boolean }) => Promise<StartResult>;
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
   onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
   onReveal?: (submission: RevealSubmission) => Promise<StartResult>;
@@ -154,6 +161,36 @@ export function CampaignPage({
         setWriteError(campaignsCopy.cannotChange);
         setPending(false);
       });
+  };
+  // Start outreach mints its own request id and a fresh one after each start: a later batch on the same page is a new press.
+  const [outreachRequestId, setOutreachRequestId] = useState(() => crypto.randomUUID());
+  const [outreachError, setOutreachError] = useState<string | null>(null);
+  const outreachChange = (change: () => Promise<StartResult>, after?: () => void) => {
+    if (pending) return;
+    setPending(true);
+    setOutreachError(null);
+    void change()
+      .then((result) => {
+        if ("id" in result) {
+          after?.();
+          router.refresh();
+        } else {
+          setOutreachError(result.error);
+        }
+      })
+      .catch(() => setOutreachError(campaignsCopy.cannotChange))
+      .finally(() => setPending(false));
+  };
+  const startOutreach = (startOn: string) => {
+    if (onStartOutreach === undefined) return;
+    outreachChange(
+      () => onStartOutreach({ campaignId: campaign.id, requestId: outreachRequestId, startOn }),
+      () => setOutreachRequestId(crypto.randomUUID()),
+    );
+  };
+  const pauseOutreach = (paused: boolean) => {
+    if (onPauseOutreach === undefined) return;
+    outreachChange(() => onPauseOutreach({ campaignId: campaign.id, paused }));
   };
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
 
@@ -310,6 +347,10 @@ export function CampaignPage({
     // Drafting, drafts to review, ready to send: the counts and the way into the Inbox, above the people.
     if (state === "drafting" && facts !== undefined && facts.drafts !== null) {
       main.push(<DraftingCard key="drafting" stage={facts.stage} inFlight={facts.inFlight} drafts={facts.drafts} attention={facts.attention} editHref={editHref} />);
+    }
+    // Start outreach, Pause and Resume (Relay P3), once drafts are asked for. A start or a new day in London is a fresh card: the picker closes and takes the new default.
+    if (state === "drafting" && live && campaign.outreach != null && onStartOutreach !== undefined && onPauseOutreach !== undefined) {
+      main.push(<OutreachCard key={`outreach:${campaign.outreach.today}:${campaign.outreach.batches.map((batch) => `${batch.startOn}=${batch.people}`).join(",")}`} view={campaign.outreach} pending={pending} error={outreachError} onStart={startOutreach} onPause={pauseOutreach} />);
     }
     if (state === "revealing") {
       // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.

@@ -24,6 +24,10 @@ import {
 } from "@/lib/repo/campaigns";
 import { campaignSummariesForOwner } from "@/lib/repo/campaignSummary";
 import { campaignActivityFor } from "@/lib/repo/campaignActivity";
+import { OutreachChangeRefused, outreachStatusFor, setOutreachPaused, startOutreach } from "@/lib/repo/outreachStart";
+import { outreachStartCopy } from "@/lib/copy/outreachStart";
+import { londonDay, nextWorkingDay } from "@/lib/outreach/sequence";
+import type { OutreachStartView } from "@/lib/campaigns/types";
 import { activityOf } from "@/lib/campaigns/activity";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
@@ -89,6 +93,27 @@ function asRefusal(error: unknown): never {
     case "nothing_to_draft":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.writeNothing });
   }
+}
+
+/** A refused Start outreach, Pause or Resume as the code and line a page can show; anything else is rethrown. */
+function asOutreachRefusal(error: unknown): never {
+  if (!(error instanceof OutreachChangeRefused)) throw error;
+  switch (error.refusal) {
+    case "not_found":
+      throw new TRPCError({ code: "NOT_FOUND" });
+    case "nothing_to_start":
+      throw new TRPCError({ code: "BAD_REQUEST", message: outreachStartCopy.nothingToStart });
+    case "bad_date":
+      throw new TRPCError({ code: "BAD_REQUEST", message: outreachStartCopy.badDate });
+    case "request_reused":
+      throw new TRPCError({ code: "CONFLICT", message: campaignsCopy.changedSince });
+  }
+}
+
+/** Start outreach and pause, as the campaign page draws them (Relay P3). */
+async function outreachViewFor(db: Parameters<typeof outreachStatusFor>[0], scope: { orgId: string; campaignId: string }, now: Date): Promise<OutreachStartView> {
+  const status = await outreachStatusFor(db, scope);
+  return { startable: status.startable, batches: status.batches, paused: status.pausedAt !== null, today: londonDay(now), defaultStartOn: nextWorkingDay(now) };
 }
 
 /** How finding people is set up here, as the screens need it: nothing about the provider itself. */
@@ -290,6 +315,34 @@ export const campaignsRouter = createTRPCRouter({
     .input(z.object({ campaignId, briefVersion, requestId }).strict())
     .mutation(({ ctx, input }) => refusing(requestDrafts(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input }))),
 
+  /**
+   * Start outreach (Relay P3): the chosen day on every kept, revealed person
+   * with drafts who has not started. A day once set is never moved; the same
+   * request id twice is one press.
+   */
+  startOutreach: repProcedure
+    .input(z.object({ campaignId, requestId, startOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict())
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const started = await startOutreach(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input });
+        return { id: input.campaignId, people: started.people };
+      } catch (error) {
+        asOutreachRefusal(error);
+      }
+    }),
+
+  /** Pause or Resume the campaign's outreach (Relay P3): while paused nothing is due and nothing is sent. */
+  pauseOutreach: repProcedure
+    .input(z.object({ campaignId, paused: z.boolean() }).strict())
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await setOutreachPaused(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input });
+        return { id: input.campaignId, paused: result.paused };
+      } catch (error) {
+        asOutreachRefusal(error);
+      }
+    }),
+
   list: repProcedure.query(async ({ ctx }) => {
     const options = leadGenOptions();
     const rows = await campaignSummariesForOwner(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId }, { leadGenAvailable: options.available });
@@ -302,7 +355,10 @@ export const campaignsRouter = createTRPCRouter({
     if (record === null) throw new TRPCError({ code: "NOT_FOUND" });
     // The page's Activity tab reads the same feed as `activity`, in one round trip with the campaign.
     const rows = await campaignActivityFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id });
-    return { ...toCampaign(record, leadGenOptions()), activity: activityOf(rows ?? [], ctx.userId) };
+    const campaign = toCampaign(record, leadGenOptions());
+    // Once drafts are asked for, Start outreach and pause are on the page (Relay P3).
+    const outreach = campaign.state === "drafting" ? await outreachViewFor(ctx.prisma, { orgId: ctx.orgId, campaignId: input.id }, new Date()) : null;
+    return { ...campaign, activity: activityOf(rows ?? [], ctx.userId), outreach };
   }),
 
   /**

@@ -42,6 +42,7 @@ export async function campaignActivityFor(db: Db, scope: { orgId: string; userId
              WHEN 'outreach.requested' THEN jsonb_build_object('people', CASE WHEN jsonb_typeof(e.after->'people') = 'array' THEN jsonb_array_length(e.after->'people') ELSE 0 END)
              WHEN 'outreach.drafted' THEN jsonb_build_object('state', e.after->'state', 'person', cp.preview->'name')
              WHEN 'draft.approved' THEN jsonb_build_object('edited', e.after->'edited', 'person', cp.preview->'name')
+             WHEN 'outreach.started' THEN jsonb_build_object('startOn', e.after->'startOn', 'people', CASE WHEN jsonb_typeof(e.after->'people') = 'array' THEN jsonb_array_length(e.after->'people') ELSE 0 END)
              WHEN 'draft.rejected' THEN jsonb_build_object('reason', e.after->'reason', 'person', cp.preview->'name')
            END AS projection
       FROM events e

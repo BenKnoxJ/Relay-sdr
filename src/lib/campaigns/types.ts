@@ -434,7 +434,10 @@ export type ActivityEntry = {
     | "drafts_requested"
     | "drafted"
     | "draft_approved"
-    | "draft_rejected";
+    | "draft_rejected"
+    | "outreach_started"
+    | "outreach_paused"
+    | "outreach_resumed";
   /** Who did it: the rep reading, Relay itself, or someone else by first name. */
   actor: { kind: "you" | "relay" | "person"; name: string | null };
   line: string;
@@ -673,4 +676,21 @@ export type Campaign = CampaignSummary & {
   finding?: FindingView | null;
   /** What has happened to this campaign, newest first. Absent on samples. */
   activity?: ActivityEntry[];
+  /** Start outreach and pause (Relay P3), once drafts are asked for. Absent on samples. */
+  outreach?: OutreachStartView | null;
+};
+
+/**
+ * Start outreach and pause (Relay P3): how many people are waiting to start,
+ * each start day with how many people it started, and whether the campaign
+ * is paused. Days are calendar days in London, `YYYY-MM-DD`.
+ */
+export type OutreachStartView = {
+  startable: number;
+  batches: Array<{ startOn: string; people: number }>;
+  paused: boolean;
+  /** London's today: the earliest day Start outreach takes. */
+  today: string;
+  /** The next working day: what the date picker starts on. */
+  defaultStartOn: string;
 };

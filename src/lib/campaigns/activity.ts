@@ -1,4 +1,6 @@
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { outreachStartCopy } from "@/lib/copy/outreachStart";
+import { dayLabel, isIsoDate } from "@/lib/outreach/sequence";
 
 import type { ActivityEntry } from "./types";
 
@@ -42,6 +44,9 @@ const KINDS: Record<string, ActivityEntry["kind"]> = {
   "outreach.drafted": "drafted",
   "draft.approved": "draft_approved",
   "draft.rejected": "draft_rejected",
+  "outreach.started": "outreach_started",
+  "outreach.paused": "outreach_paused",
+  "outreach.resumed": "outreach_resumed",
 };
 
 /** The Event kinds the activity reads. */
@@ -97,6 +102,15 @@ function lineOf(kind: ActivityEntry["kind"], p: Record<string, unknown>): string
       const words = reason !== null && reason in c.activityDraftReasons ? c.activityDraftReasons[reason as keyof typeof c.activityDraftReasons] : null;
       return `${c.activityDraftRejected} ${text(p.person) ?? ""}${words === null ? "" : ` (${words})`}`.trim();
     }
+    case "outreach_started":
+    {
+      const on = text(p.startOn);
+      return `${outreachStartCopy.activityStarted} ${on !== null && isIsoDate(on) ? dayLabel(on) : ""} ${outreachStartCopy.activityFor} ${people(num(p.people))}`;
+    }
+    case "outreach_paused":
+      return outreachStartCopy.activityPaused;
+    case "outreach_resumed":
+      return outreachStartCopy.activityResumed;
   }
 }
 

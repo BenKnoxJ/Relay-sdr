@@ -159,6 +159,7 @@ describe("campaigns", () => {
   });
 
   it("stores no campaign state: where a campaign is, is derived", async () => {
+    // `outreach_paused_at` is the rep's own switch (Relay P3), not a stage: nothing derives it.
     expect(await listColumns("campaigns")).toEqual([
       "brief",
       "brief_version",
@@ -166,6 +167,7 @@ describe("campaigns", () => {
       "id",
       "name",
       "org_id",
+      "outreach_paused_at",
       "owner_user_id",
       "play_id",
       "research_from_brief_version",
@@ -200,6 +202,19 @@ describe("campaigns", () => {
  * what the database holds must agree, so a later `prisma migrate dev` has
  * nothing to "fix" by dropping a guarantee.
  */
+describe("sequence dates (Relay P3)", () => {
+  it("adds a nullable DATE start day per person and a nullable pause instant per campaign, and nothing else", async () => {
+    const columns = await prisma.$queryRaw<Array<{ table_name: string; column_name: string; data_type: string; is_nullable: string; column_default: string | null }>>`
+      SELECT table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns
+       WHERE table_schema = 'public' AND column_name IN ('outreach_start_on', 'outreach_paused_at')
+       ORDER BY table_name, column_name`;
+    expect(columns).toEqual([
+      { table_name: "campaign_people", column_name: "outreach_start_on", data_type: "date", is_nullable: "YES", column_default: null },
+      { table_name: "campaigns", column_name: "outreach_paused_at", data_type: "timestamp without time zone", is_nullable: "YES", column_default: null },
+    ]);
+  });
+});
+
 describe("outreach drafts", () => {
   it("keeps one draft per person, touch and attempt, and one voice per rep within the org", async () => {
     expect((await listUniqueIndexes("outreach_drafts")).map((unique) => unique.columns)).toContainEqual(["org_id", "campaign_person_id", "touch", "attempt"]);

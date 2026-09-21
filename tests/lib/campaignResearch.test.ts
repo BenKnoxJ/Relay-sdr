@@ -256,7 +256,7 @@ describe("A pack a limit cut short", () => {
 describe("the research page's data, from a stored campaign", () => {
   const record = (brief: ResearchBrief, job: Job["status"], pack: PackShape | null) =>
     ({
-      campaign: { id: "camp_1", orgId: "org", ownerUserId: "user", name: nameFrom(brief.who), briefVersion: 1, brief, startRequestId: "req", createdAt: new Date(), updatedAt: new Date() },
+      campaign: { id: "camp_1", orgId: "org", ownerUserId: "user", name: nameFrom(brief.who), briefVersion: 1, brief, startRequestId: "req", researchFromCampaignId: null, researchFromBriefVersion: null, playId: null, createdAt: new Date(), updatedAt: new Date() },
       job: { id: "job_1", status: job, error: null } as Job,
       event: pack === null ? null : ({ id: "event_1", after: { jobId: "job_1", pack: JSON.parse(JSON.stringify(pack)) } } as unknown as Event),
     }) as unknown as CampaignRecord;

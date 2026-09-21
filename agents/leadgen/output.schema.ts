@@ -38,6 +38,8 @@ export const HOLD_REASONS = [
   "dnc",
   "opted_out",
   "duplicate_in_campaign",
+  // Kept or revealed in another of the org's campaigns (Relay P1).
+  "in_other_campaign",
   // After reveal.
   "invalid_id",
   "wrong_person",

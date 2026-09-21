@@ -242,18 +242,21 @@ describe("Start", () => {
     expect(screen.getAllByTestId("channel-chip")[1]?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("refuses to start until the mailbox is connected, says why, and says where to go", () => {
+  it("starts without a connected mailbox, with one quiet line that Outlook is needed before sending (Relay P1)", async () => {
     const { unmount } = start({ connected: false });
 
-    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByTestId("start-blocked").textContent).toBe(startCopy.startBlockedMailbox);
-    expect(screen.getByTestId("connect-first").textContent).toContain(startCopy.connectFirst);
+    expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByTestId("start-blocked")).toBeNull();
+    expect(screen.getByText(startCopy.startNote)).toBeDefined();
+    expect(screen.getByTestId("connect-later").textContent).toContain(startCopy.connectBeforeSending);
     expect(screen.getByRole("link", { name: startCopy.connectLink }).getAttribute("href")).toBe("/settings");
+    pressStart();
+    await waitFor(() => expect(onStart).toHaveBeenCalledTimes(1));
     unmount();
 
     start({ connected: true });
     expect(screen.getByRole("button", { name: startCopy.start }).hasAttribute("disabled")).toBe(false);
-    expect(screen.queryByTestId("start-blocked")).toBeNull();
+    expect(screen.queryByTestId("connect-later")).toBeNull();
     expect(screen.getByText(startCopy.startNote)).toBeDefined();
   });
 

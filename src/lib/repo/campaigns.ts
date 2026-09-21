@@ -6,6 +6,7 @@ import { haltSchema } from "../../../agents/leadgen/output.schema";
 import { nameFrom, researchJobInputSchema, sameBrief, widenedBrief, type ResearchBrief, type ResearchJobInput } from "@/lib/campaigns/brief";
 import { deriveResearch, failureOf, leadGenResultOf, storedPack } from "@/lib/campaigns/derive";
 import { buildLeadGenHandoff } from "@/lib/campaigns/leadgenHandoff";
+import { playsOf, researchSourceOf } from "@/lib/campaigns/plays";
 import { editAllowed, inFlight, leadGenRetryable, researchRetryable, revealRecovery } from "@/lib/campaigns/retry";
 import { revealLedgerOf, type LedgerGroup, type ResearchCost } from "@/lib/campaigns/summary";
 import { campaignsCopy } from "@/lib/copy/campaigns";
@@ -169,10 +170,18 @@ export type CampaignRecord = {
 
 type Owner = { orgId: string; userId: string };
 
-/** The latest research job for the campaign's current brief version. */
-export async function latestResearchJob(db: Prisma.TransactionClient, campaign: Pick<Campaign, "id" | "orgId" | "briefVersion">): Promise<Job | null> {
+/**
+ * The latest research job for the campaign's current brief version: its own,
+ * or, for a campaign made from one play of another's plan, that campaign's at
+ * the version it was made from (`researchSourceOf`). Always within the org.
+ */
+export async function latestResearchJob(
+  db: Prisma.TransactionClient,
+  campaign: Pick<Campaign, "id" | "orgId" | "briefVersion" | "researchFromCampaignId" | "researchFromBriefVersion">,
+): Promise<Job | null> {
+  const source = researchSourceOf(campaign);
   return db.job.findFirst({
-    where: { orgId: campaign.orgId, campaignId: campaign.id, kind: RESEARCH_JOB, briefVersion: campaign.briefVersion },
+    where: { orgId: campaign.orgId, campaignId: source.campaignId, kind: RESEARCH_JOB, briefVersion: source.briefVersion },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 }
@@ -249,6 +258,7 @@ type ChangeKind =
   | typeof LEADGEN_RERUN
   | typeof CAMPAIGN_REVEAL_CONFIRMED
   | typeof CAMPAIGN_REVEAL_RETRIED
+  | typeof CAMPAIGN_PLAYS_CHOSEN
   | typeof OUTREACH_REQUESTED;
 
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
@@ -394,7 +404,8 @@ async function advance(tx: Tx, campaign: Campaign, input: ResearchJobInput, rena
   const to = campaign.briefVersion + 1;
   const updated = await tx.campaign.updateMany({
     where: { id: campaign.id, orgId: campaign.orgId, ownerUserId: campaign.ownerUserId, briefVersion: campaign.briefVersion },
-    data: { brief: input.brief as Prisma.InputJsonObject, briefVersion: to, ...rename },
+    // A play chosen on the old plan is not one the new research has ranked yet (Relay P1): the rep chooses again.
+    data: { brief: input.brief as Prisma.InputJsonObject, briefVersion: to, playId: null, ...rename },
   });
   if (updated.count !== 1) throw new CampaignChangeRefused("version_behind");
   const { job, deduped } = await enqueue(tx, {
@@ -552,14 +563,20 @@ export async function editCampaignBrief(db: PrismaClient, input: EditInput): Pro
     const brief = briefOf(campaign);
     if (sameBrief(brief, input.brief)) throw new CampaignChangeRefused("unchanged");
 
-    const prior = await latestPack(tx, campaign);
+    // A campaign made from another's plan has no pack of its own yet: research reads the plan it was made from.
+    const prior = (await latestPack(tx, campaign)) ?? (campaign.researchFromCampaignId === null ? null : ((await researchNow(tx, campaign)).event?.id ?? null));
     const jobInput = researchJobInputSchema.parse({ brief: input.brief, ...(prior === null ? {} : { priorPackIds: [prior] }) });
     const name = input.brief.who === brief.who ? campaign.name : nameFrom(input.brief.who);
     const renamed = name !== campaign.name;
     const next = await advance(tx, campaign, jobInput, renamed ? { name } : {});
     return {
       ...next,
-      before: { briefVersion: campaign.briefVersion, brief: brief as Prisma.InputJsonObject, ...(renamed ? { name: campaign.name } : {}) },
+      before: {
+        briefVersion: campaign.briefVersion,
+        brief: brief as Prisma.InputJsonObject,
+        ...(renamed ? { name: campaign.name } : {}),
+        ...(campaign.playId === null ? {} : { playId: campaign.playId }),
+      },
       after: {
         briefVersion: next.campaign.briefVersion,
         brief: jobInput.brief as Prisma.InputJsonObject,
@@ -676,6 +693,11 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
   return change(db, input, CAMPAIGN_CONFIRMED, async (tx) => {
     const campaign = await lockOwnCampaign(tx, input);
     if (campaign === null) throw new CampaignChangeRefused("not_found");
+    // A campaign made for one play (Relay P1) confirms that play and no other.
+    if (campaign.playId !== null && input.candidateId !== undefined && input.candidateId !== campaign.playId) {
+      throw new CampaignChangeRefused("unknown_candidate");
+    }
+    const candidateId = campaign.playId ?? input.candidateId;
     // A repeat of the same press names the same version and the same choice:
     // the same play when it named one, and no play when it took the default.
     await alreadyMade(
@@ -684,9 +706,9 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
       CAMPAIGN_CONFIRMED,
       (after) =>
         after.briefVersion === input.fromBriefVersion &&
-        (input.candidateId === undefined
+        (candidateId === undefined
           ? after.selection !== "chosen"
-          : (after.handoff as { play?: { id?: unknown } } | undefined)?.play?.id === input.candidateId),
+          : (after.handoff as { play?: { id?: unknown } } | undefined)?.play?.id === candidateId),
     );
     checkVersion(campaign, input.fromBriefVersion);
     const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
@@ -708,7 +730,7 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
       brief: briefOf(campaign),
       research: { jobId: research.job.id, eventId: research.event.id, pack },
       confirmRequestId: input.requestId,
-      ...(input.candidateId === undefined ? {} : { candidateId: input.candidateId }),
+      ...(candidateId === undefined ? {} : { candidateId }),
       spend: {
         searchCreditCap: setup.searchCreditCap,
         balanceSnapshot: {
@@ -743,12 +765,155 @@ export async function confirmCampaign(db: PrismaClient, input: ConfirmInput): Pr
         briefVersion: campaign.briefVersion,
         handoff: JSON.parse(JSON.stringify(built.handoff)) as Prisma.InputJsonObject,
         // Whether the rep chose the play or took research's top-ranked one (lead gen v2.3).
-        selection: input.candidateId === undefined ? "default" : "chosen",
+        selection: candidateId === undefined ? "default" : "chosen",
         balanceSource: balance.source,
         jobId: job.id,
       },
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// One campaign per play (Relay P1).
+
+export const CAMPAIGN_PLAYS_CHOSEN = "campaign.plays_chosen" as const;
+
+export type CreatePlayCampaignsInput = ChangeInput & { fromBriefVersion: number; playIds: readonly string[] };
+
+export type CreatePlayCampaignsResult = {
+  /** The campaign the research ran on first, then one new campaign per other play, in research's order. */
+  campaigns: Campaign[];
+  repeated: boolean;
+};
+
+/** The start request id a play's campaign is made under: unique per org, so a repeated press cannot make it twice. */
+function playRequestId(requestId: string, playId: string): string {
+  return `plays:${requestId}:${playId}`;
+}
+
+/**
+ * Create campaigns (Relay P1): on Plan ready, the plays the rep ticked each
+ * become a campaign of their own, sharing this campaign's research. The first
+ * ticked play (in research's order) stays on this campaign; each other play is
+ * a new campaign at brief version 1 that reads this campaign's research at the
+ * version on screen (`researchSourceOf`). No research job is made and nothing
+ * is spent. Each campaign is then confirmed on its own, for its own play.
+ *
+ * Only the campaign the research ran on, only before Confirm, and only once:
+ * a campaign that already has a play is refused. Every campaign is named from
+ * its play. One transaction, under the campaign's lock: this campaign's
+ * `campaign.plays_chosen` Event, and a `campaign.created` Event per new one.
+ * A repeated press is the press that landed, found by its request id.
+ */
+export async function createPlayCampaigns(db: PrismaClient, input: CreatePlayCampaignsInput): Promise<CreatePlayCampaignsResult> {
+  required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, CAMPAIGN_PLAYS_CHOSEN);
+  const asked = [...new Set(input.playIds)];
+  if (asked.length === 0) throw new CampaignChangeRefused("unknown_candidate");
+  const repeat = async (): Promise<CreatePlayCampaignsResult> => {
+    const campaigns = await db.campaign.findMany({
+      where: {
+        orgId: input.orgId,
+        ownerUserId: input.userId,
+        OR: [{ id: input.campaignId }, { researchFromCampaignId: input.campaignId, startRequestId: { startsWith: playRequestId(input.requestId, "") } }],
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return { campaigns, repeated: true };
+  };
+
+  type Made = { campaigns: Campaign[]; before: Prisma.InputJsonObject; after: Prisma.InputJsonObject };
+  try {
+    const made = await mutate(db, {
+      orgId: input.orgId,
+      actor: { kind: "user", userId: input.userId },
+      kind: CAMPAIGN_PLAYS_CHOSEN,
+      campaignId: input.campaignId,
+      before: (written: Made) => written.before,
+      after: (written: Made) => written.after,
+      apply: async (tx): Promise<Made> => {
+        const campaign = await lockOwnCampaign(tx, input);
+        if (campaign === null) throw new CampaignChangeRefused("not_found");
+        await alreadyMade(tx, input, CAMPAIGN_PLAYS_CHOSEN, (after) => JSON.stringify(after.playIds) === JSON.stringify(asked));
+        checkVersion(campaign, input.fromBriefVersion);
+        // Only the campaign the research ran on, once, and before any Confirm.
+        if (campaign.researchFromCampaignId !== null || campaign.playId !== null) throw new CampaignChangeRefused("wrong_state");
+        const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+        if ((await findConfirmEvent(tx, scope)) !== null) throw new CampaignChangeRefused("wrong_state");
+
+        const research = await researchNow(tx, campaign);
+        const pack = research.event === null ? null : storedPack(research.event.after);
+        if (stateOf(research).state !== "planReady" || pack === null) throw new CampaignChangeRefused("wrong_state");
+        // Only a play that can be searched can be confirmed, so only one can be ticked.
+        const plays = playsOf(pack).filter((play) => play.executable && asked.includes(play.id));
+        if (plays.length !== asked.length) throw new CampaignChangeRefused("unknown_candidate");
+
+        const [first, ...others] = plays;
+        const kept = await tx.campaign.update({ where: { id: campaign.id }, data: { playId: first!.id, name: first!.group.name } });
+        const created: Campaign[] = [];
+        for (const play of others) {
+          const startRequestId = playRequestId(input.requestId, play.id);
+          const row = await tx.campaign.create({
+            data: {
+              orgId: campaign.orgId,
+              ownerUserId: campaign.ownerUserId,
+              name: play.group.name,
+              briefVersion: 1,
+              brief: campaign.brief as Prisma.InputJsonObject,
+              startRequestId,
+              researchFromCampaignId: campaign.id,
+              researchFromBriefVersion: campaign.briefVersion,
+              playId: play.id,
+            },
+          });
+          await tx.event.create({
+            data: {
+              orgId: campaign.orgId,
+              kind: CAMPAIGN_CREATED,
+              actorKind: "user",
+              actorUserId: input.userId,
+              campaignId: row.id,
+              after: {
+                name: row.name,
+                briefVersion: 1,
+                brief: campaign.brief as Prisma.InputJsonObject,
+                startRequestId,
+                researchFrom: { campaignId: campaign.id, briefVersion: campaign.briefVersion },
+                playId: play.id,
+              },
+            },
+          });
+          created.push(row);
+        }
+        return {
+          campaigns: [kept, ...created],
+          before: { name: campaign.name, briefVersion: campaign.briefVersion },
+          after: {
+            requestId: input.requestId,
+            briefVersion: campaign.briefVersion,
+            playIds: asked,
+            name: kept.name,
+            playId: first!.id,
+            created: created.map((row) => ({ campaignId: row.id, playId: row.playId })),
+          },
+        };
+      },
+    });
+    return { campaigns: made.campaigns, repeated: false };
+  } catch (error) {
+    if (error instanceof AlreadyDone) return repeat();
+    // Two presses that both passed the lock cannot happen; a clash on a play's
+    // start request id is still the same press. Any other unique violation
+    // rolled the whole create back, and surfaces.
+    if (isUniqueViolation(error) && targetsStartRequestId(error)) return repeat();
+    throw error;
+  }
+}
+
+/** Whether a P2002 names the campaigns' `start_request_id` unique key, as Prisma reports it. */
+function targetsStartRequestId(error: unknown): boolean {
+  const target: unknown = (error as { meta?: { target?: unknown } }).meta?.target;
+  const fields = Array.isArray(target) ? target.map(String) : typeof target === "string" ? [target] : [];
+  return fields.some((field) => field.includes("start_request_id") || field.includes("startRequestId"));
 }
 
 export type RerunInput = ChangeInput & {

@@ -374,6 +374,8 @@ export type PeopleFoundView = {
   roles: boolean;
   review: { kept: number; dropped: number; pending: number };
   onHold: number;
+  /** Of those on hold, how many were already in another of the org's campaigns (Relay P1). */
+  inOtherCampaign?: number;
   /** Candidates found that Relay kept in reserve as weaker matches: counted honestly, never listed as people. */
   spare: number;
   /** The plan's roles nobody was found for. */
@@ -577,8 +579,8 @@ export type CampaignSummaryFacts = CampaignStageAttention & {
   updatedAt: string;
   inFlight: InFlightWork | null;
   nextAction: CampaignNextAction | null;
-  /** Null until research has a readable result at this version. */
-  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number } | null;
+  /** Null until research has a readable result at this version. `play` names a made campaign's play (Relay P1). */
+  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number; play?: string } | null;
   /** The play Confirm froze at this version. */
   confirmed: { groupId: string; groupName: string; playId: string | null; sourceRank: number } | null;
   /** The latest search's chosen people at this version. */
@@ -656,8 +658,15 @@ export type Campaign = CampaignSummary & {
   spentAtThisVersion?: boolean;
   /** On a stop, research's widening options as the rep chooses between them. Null in every other state. */
   widenings: WidenChoice[] | null;
-  /** Every play research ranked that the rep could start with, best first. Null until there is a readable plan. */
+  /**
+   * Every play research ranked that the rep could start with, best first. Null until there is a readable plan.
+   * A campaign made for one play (Relay P1) has that play only.
+   */
   plays?: ResearchPlayView[] | null;
+  /** The play this campaign is for, once the rep chose plays on Plan ready (Relay P1); null before. */
+  playId?: string | null;
+  /** Plan ready on the campaign research ran on, before any play was chosen: plays can be ticked and made campaigns. */
+  canCreatePlays?: boolean;
   /** What the campaign has cost, each kind in its own unit. */
   spend?: CampaignSpendView;
   /** While people are being found: the frozen search, its roles and seed firms, and the credits so far. */

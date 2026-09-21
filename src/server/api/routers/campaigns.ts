@@ -11,6 +11,7 @@ import {
   confirmCampaign,
   confirmReveal,
   createCampaign,
+  createPlayCampaigns,
   editCampaignBrief,
   getCampaignForOwner,
   requestDrafts,
@@ -179,6 +180,22 @@ export const campaignsRouter = createTRPCRouter({
     .mutation(({ ctx, input }) =>
       refusing(confirmCampaign(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() })),
     ),
+
+  /**
+   * Create campaigns (Relay P1): on Plan ready, each ticked play as a
+   * campaign of its own on this campaign's research. The first stays on this
+   * campaign; nothing is searched or spent. A repeated `requestId` is the same press.
+   */
+  createPlays: repProcedure
+    .input(z.object({ campaignId, fromBriefVersion: briefVersion, requestId, playIds: z.array(candidateId).min(1).max(10) }).strict())
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { campaigns } = await createPlayCampaigns(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input });
+        return { id: input.campaignId, ids: campaigns.map((campaign) => campaign.id) };
+      } catch (error) {
+        asRefusal(error);
+      }
+    }),
 
   /** Try again on finding people, from Needs you (v2.1 §11). */
   retryPeople: repProcedure

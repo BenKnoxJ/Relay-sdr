@@ -41,6 +41,11 @@ export type OrgKnowledge = {
   suppressions: ContactSuppression[];
   /** People with an active enrolment in *this* campaign. */
   enrolledPersonIds: string[];
+  /**
+   * People kept or revealed in the org's *other* campaigns (Relay P1), by
+   * provider record and by Person. `revealed` says the email was obtained there.
+   */
+  inOtherCampaigns?: { providerId: string; personId: string | null; revealed: boolean }[];
 };
 
 /**
@@ -66,6 +71,8 @@ export class Knowledge {
   private readonly byEmail = new Map<string, KnownPerson>();
   private readonly suppressed = new Map<string, ContactSuppressionReason>();
   private readonly enrolled: Set<string>;
+  /** Provider record (`p:`) or Person (`h:`) taken in another campaign, and whether it was revealed there. */
+  private readonly elsewhere = new Map<string, boolean>();
 
   constructor(knowledge: OrgKnowledge) {
     for (const identity of knowledge.providerIdentities) this.identities.set(identity.providerId, identity);
@@ -78,6 +85,11 @@ export class Knowledge {
       if (value !== undefined) this.suppressed.set(`${suppression.kind}:${value}`, suppression.reason);
     }
     this.enrolled = new Set(knowledge.enrolledPersonIds);
+    for (const taken of knowledge.inOtherCampaigns ?? []) {
+      for (const key of [`p:${taken.providerId}`, ...(taken.personId === null ? [] : [`h:${taken.personId}`])]) {
+        this.elsewhere.set(key, this.elsewhere.get(key) === true || taken.revealed);
+      }
+    }
   }
 
   identity(providerId: string): KnownProviderIdentity | undefined {
@@ -101,6 +113,19 @@ export class Knowledge {
   isEnrolled(personId: string): boolean {
     return this.enrolled.has(personId);
   }
+
+  /**
+   * Whether this provider record, or this Person, is already in another of the
+   * org's campaigns: kept or revealed there, or, with `revealedOnly`, revealed
+   * there. Lead gen holds on either; Reveal only on revealed, so two campaigns
+   * that both kept someone never hold each other's reveal.
+   */
+  inOtherCampaign(providerId: string, personId: string | null | undefined, revealedOnly = false): boolean {
+    return [`p:${providerId}`, ...(personId === null || personId === undefined ? [] : [`h:${personId}`])].some((key) => {
+      const revealed = this.elsewhere.get(key);
+      return revealed !== undefined && (revealed || !revealedOnly);
+    });
+  }
 }
 
 export type PreRevealDecision = { kind: "held"; reason: HoldReason } | { kind: "eligible"; reused: KnownPerson | null };
@@ -118,6 +143,7 @@ export function preRevealChecks(
 ): PreRevealDecision {
   const identity = knowledge.identity(candidate.providerId);
   if (identity !== undefined && identity.status !== "usable") return { kind: "held", reason: "provider_unusable" };
+  if (knowledge.inOtherCampaign(candidate.providerId, identity?.personId)) return { kind: "held", reason: "in_other_campaign" };
 
   const domainSuppression = knowledge.suppression("domain", candidate.domain);
   if (domainSuppression !== undefined) return { kind: "held", reason: domainSuppression };
@@ -227,10 +253,14 @@ export async function evaluateReveal(
       : { existing: true, personId: existing.id };
   const identity: IdentityUpdate = { provider: "lusha", providerId: candidate.providerId, status: "usable", personId: existing?.id ?? null };
 
-  // A Person existing elsewhere in Relay is never itself a hold; the same
-  // Person already enrolled here is.
+  // A Person existing elsewhere in Relay is not itself a hold; the same
+  // Person already enrolled here is, and so is one revealed in another of the
+  // org's live campaigns (leadgen amendment 2026-09-21).
   if (existing !== undefined && (knowledge.isEnrolled(existing.id) || alreadyInCampaign.has(existing.id))) {
     return { kind: "held", reason: "duplicate_in_campaign", person, identity };
+  }
+  if (existing !== undefined && knowledge.inOtherCampaign(candidate.providerId, existing.id, true)) {
+    return { kind: "held", reason: "in_other_campaign", person, identity };
   }
   const hold = await emailHold({ address: answer.email, type: answer.emailType, grade: answer.grade }, knowledge, crm, policy);
   if (hold !== null) return { kind: "held", reason: hold.reason, person, identity, ...(hold.suppress === undefined ? {} : { suppress: hold.suppress }) };

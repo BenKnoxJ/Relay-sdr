@@ -94,6 +94,14 @@ describe("before anything is bought", () => {
     expect(result.plan.counts.noEmail).toBe(1);
   });
 
+  it("never buys an email revealed in another campaign since the person was picked, and counts them unavailable (Relay P1)", () => {
+    const org = knowledge({ inOtherCampaigns: [{ providerId: "l-2", personId: null, revealed: true }, { providerId: "l-3", personId: null, revealed: false }] });
+    const plan = planReveal([kept(1), kept(2), kept(3)], new Knowledge(org), PRICING);
+    expect(plan.entries.get("cp-2")).toEqual({ kind: "skip", reveal: "held", hold: "in_other_campaign" });
+    expect(plan.entries.get("cp-3")).toMatchObject({ kind: "reveal" });
+    expect(plan.counts).toMatchObject({ toReveal: 2, unavailable: 1 });
+  });
+
   it("@proof reserves every email at the documented price at least, so the approved maximum holds whatever the preview said", () => {
     expect(revealWorstCase({ emailRevealCredits: null }, PRICING)).toBe(1);
     expect(revealWorstCase({ emailRevealCredits: 0 }, PRICING)).toBe(1);

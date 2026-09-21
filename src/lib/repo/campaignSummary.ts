@@ -3,7 +3,7 @@ import type { Campaign, JobStatus, Prisma, PrismaClient } from "@prisma/client";
 import { HALT_REASONS, type Halt } from "../../../agents/leadgen/output.schema";
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { widenedBrief } from "@/lib/campaigns/brief";
-import { executablePlayCount, rankedPlays, type PlayFacts } from "@/lib/campaigns/plays";
+import { executablePlayCount, rankedPlays, researchSourceOf, type PlayFacts } from "@/lib/campaigns/plays";
 import type { LeadGenResult, OutreachFacts, ResearchResultFacts } from "@/lib/campaigns/stage";
 import { revealLedgerOf, spendOf, type LedgerGroup, type PeopleGroup, type ResearchCost, type SummaryInput } from "@/lib/campaigns/summary";
 
@@ -87,7 +87,8 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
                'widenings', e.after->'pack'->'insufficient'->'widenings',
                'archetypeIds', jsonb_path_query_array(e.after, '$.pack.modules.m03 ? (@.status == "complete").archetypes[*].id'),
                'recipeArchetypeIds', jsonb_path_query_array(e.after, '$.pack.modules.m04 ? (@.status == "complete").perArchetype[*] ? (exists(@.recipe)).archetypeId'),
-               'candidates', jsonb_path_query_array(e.after, '$.pack.modules.m16 ? (@.status == "complete").candidates[*]')
+               'candidates', jsonb_path_query_array(e.after, '$.pack.modules.m16 ? (@.status == "complete").candidates[*]'),
+               'archetypeNames', jsonb_path_query_array(e.after, '$.pack.modules.m03 ? (@.status == "complete").archetypes[*] ? (exists(@.id) && exists(@.name))')
              )
              WHEN 'campaign.confirmed' THEN jsonb_build_object(
                'buyerGroup', e.after->'handoff'->'buyerGroup',
@@ -127,11 +128,12 @@ function playFactsOfProjection(projection: Record<string, unknown>): PlayFacts {
   return { archetypeIds: strings(projection.archetypeIds), recipeArchetypeIds: strings(projection.recipeArchetypeIds), candidates };
 }
 
-/** The latest job of one kind at the campaign's current version. */
+/** The latest job of one kind at the campaign's current version; research through the campaign it reads it from (`researchSourceOf`). */
 function latest(jobs: readonly JobRow[], campaign: Campaign, kind: string): JobRow | null {
+  const at = kind === "research" ? researchSourceOf(campaign) : { campaignId: campaign.id, briefVersion: campaign.briefVersion };
   return (
     jobs
-      .filter((job) => job.campaignId === campaign.id && job.briefVersion === campaign.briefVersion && job.kind === kind)
+      .filter((job) => job.campaignId === at.campaignId && job.briefVersion === at.briefVersion && job.kind === kind)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))[0] ?? null
   );
 }
@@ -142,15 +144,17 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
   const campaigns = await db.campaign.findMany({ where: { orgId: owner.orgId, ownerUserId: owner.userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   if (campaigns.length === 0) return [];
   const ids = campaigns.map((campaign) => campaign.id);
+  // A campaign made from one play of another's plan reads that campaign's research (Relay P1).
+  const withSources = [...new Set([...ids, ...campaigns.flatMap((campaign) => (campaign.researchFromCampaignId === null ? [] : [campaign.researchFromCampaignId]))])];
 
   const [jobs, ledger, costs, events] = await Promise.all([
     db.job.findMany({
-      where: { orgId: owner.orgId, campaignId: { in: ids }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB, OUTREACH_DRAFT_JOB] } },
+      where: { orgId: owner.orgId, campaignId: { in: withSources }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB, OUTREACH_DRAFT_JOB] } },
       select: { id: true, campaignId: true, briefVersion: true, kind: true, status: true, error: true, createdAt: true },
     }),
     ledgerGroupsFor(db, owner.orgId, ids),
     researchCostsFor(db, owner.orgId, ids),
-    resultEventsFor(db, owner.orgId, ids),
+    resultEventsFor(db, owner.orgId, withSources),
   ]);
 
   // The first Event of a kind for a job is its result, as the campaign page reads it.
@@ -296,5 +300,14 @@ function researchFactsOf(event: EventRow | null, campaign: Campaign): { stage: R
   const facts = playFactsOfProjection(projection);
   const viablePlays = executablePlayCount(facts);
   const outcome = projection.partial === true ? "partial" : "complete";
-  return { stage: { readable: true, outcome, executablePlays: viablePlays }, summary: { outcome, plays: rankedPlays(facts).length, viablePlays } };
+  const play = playNameOfProjection(projection, facts, campaign.playId);
+  return { stage: { readable: true, outcome, executablePlays: viablePlays }, summary: { outcome, plays: rankedPlays(facts).length, viablePlays, ...(play === undefined ? {} : { play }) } };
+}
+
+/** The kind of buyer a made campaign's play is for, by name (Relay P1). */
+function playNameOfProjection(projection: Record<string, unknown>, facts: PlayFacts, playId: string | null): string | undefined {
+  if (playId === null) return undefined;
+  const archetypeId = facts.candidates.find((candidate) => candidate.id === playId)?.archetypeId;
+  const named = (Array.isArray(projection.archetypeNames) ? projection.archetypeNames : []).map(record).find((group) => group.id === archetypeId);
+  return typeof named?.name === "string" ? named.name : undefined;
 }

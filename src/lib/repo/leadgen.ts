@@ -96,8 +96,30 @@ export async function findLeadGenResult(db: Db, where: { orgId: string; jobId: s
 
 const EMAIL_TYPES = new Set<KnownPerson["emailType"]>(["work", "personal", "unknown"]);
 
+/**
+ * Kept or revealed in the org's other campaigns (Relay P1; leadgen amendment
+ * 2026-09-21): lead gen does not pick them again. Live work only: each other
+ * campaign at its current brief version, so a superseded version holds no one.
+ * Relay has no stopped or done campaign yet; a campaign whose current version
+ * has nothing kept or revealed contributes no rows.
+ */
+async function inOtherLiveCampaigns(db: Db, where: Scope) {
+  const others = await db.campaign.findMany({ where: { orgId: where.orgId, id: { not: where.campaignId } }, select: { id: true, briefVersion: true } });
+  if (others.length === 0) return [];
+  return db.campaignPerson.findMany({
+    where: {
+      orgId: where.orgId,
+      AND: [
+        { OR: others.map((campaign) => ({ campaignId: campaign.id, briefVersion: campaign.briefVersion })) },
+        { OR: [{ review: "kept" }, { reveal: { in: ["revealed", "known"] } }] },
+      ],
+    },
+    select: { providerId: true, personId: true, reveal: true },
+  });
+}
+
 export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowledge> {
-  const [people, identities, suppressions, enrolled] = await Promise.all([
+  const [people, identities, suppressions, enrolled, elsewhere] = await Promise.all([
     db.person.findMany({ where: { orgId: where.orgId }, select: { id: true, email: true, emailType: true, grade: true } }),
     db.providerIdentity.findMany({ where: { orgId: where.orgId, provider: "lusha" }, select: { providerId: true, personId: true, status: true } }),
     db.contactSuppression.findMany({ where: { orgId: where.orgId }, select: { kind: true, value: true, reason: true } }),
@@ -105,6 +127,7 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
       where: { orgId: where.orgId, campaignId: where.campaignId, briefVersion: where.briefVersion, personId: { not: null } },
       select: { personId: true },
     }),
+    inOtherLiveCampaigns(db, where),
   ]);
   return {
     people: people.map((person) => ({
@@ -116,6 +139,7 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
     providerIdentities: identities.map((identity) => ({ provider: "lusha" as const, ...identity })),
     suppressions,
     enrolledPersonIds: enrolled.map((row) => row.personId).filter((id): id is string => id !== null),
+    inOtherCampaigns: elsewhere.map((row) => ({ providerId: row.providerId, personId: row.personId, revealed: row.reveal === "revealed" || row.reveal === "known" })),
   };
 }
 

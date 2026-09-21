@@ -41,7 +41,7 @@ export type SummaryInput = {
   campaign: { id: string; name: string; briefVersion: number; createdAt: Date; updatedAt: Date };
   stage: StageInput;
   /** Research's result at this version, when it could be read. */
-  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number } | null;
+  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number; play?: string } | null;
   confirmed: CampaignSummaryFacts["confirmed"];
   /** The latest search's candidates, when it picked people. */
   people: readonly PeopleGroup[] | null;

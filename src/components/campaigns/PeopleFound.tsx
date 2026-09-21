@@ -308,9 +308,15 @@ export function PeopleFound({ view, editHref, spent, onReview }: { view: PeopleF
         )}
 
         <div className="mt-3 grid gap-1 border-t border-line pt-3">
-          {view.onHold > 0 ? (
+          {/* Someone already in another campaign has their own line, so they are not counted under the rules too. */}
+          {view.onHold - (view.inOtherCampaign ?? 0) > 0 ? (
             <p data-testid="on-hold" className="type-small text-muted">
-              {view.onHold} {c.peopleHeldBack}
+              {view.onHold - (view.inOtherCampaign ?? 0)} {c.peopleHeldBack}
+            </p>
+          ) : null}
+          {(view.inOtherCampaign ?? 0) > 0 ? (
+            <p data-testid="in-other-campaign" className="type-small text-muted">
+              {view.inOtherCampaign} {c.peopleInOtherCampaign}
             </p>
           ) : null}
           <p data-testid="spend-line" className="type-small text-muted">

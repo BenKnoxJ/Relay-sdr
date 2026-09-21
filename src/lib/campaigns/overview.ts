@@ -2,6 +2,7 @@ import { completeModule, type PackShape } from "../../../agents/research/output.
 
 import {
   buyerLanguage,
+  candidateById,
   groupName,
   groupsByRank,
   leadAngle,
@@ -32,9 +33,14 @@ const BIGGEST_UNKNOWN = 3;
 /** How many first-call questions lead Check first. */
 const FIRST_QUESTIONS = 3;
 
-export function overviewOf(pack: PackShape): CampaignOverview {
+/**
+ * `playId` is the play a campaign was made for (Relay P1): Start with and the
+ * pain are that play's. Absent, or not in this pack, they are research's
+ * top-ranked play's, as always.
+ */
+export function overviewOf(pack: PackShape, playId: string | null = null): CampaignOverview {
   const summary = completeModule(pack, "repSummary");
-  const top = topCandidate(pack);
+  const top = (playId === null ? undefined : candidateById(pack, playId)) ?? topCandidate(pack);
 
   const groups = groupsByRank(pack).map((group) => ({
     id: group.id,

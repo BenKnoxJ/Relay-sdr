@@ -35,6 +35,24 @@ describe("before reveal", () => {
     expect(preRevealChecks(candidate(1), handoff(), known, NO_PLACES)).toEqual({ kind: "eligible", reused: person });
   });
 
+  it("holds someone kept or revealed in another of the org's campaigns, by provider record and by Person (Relay P1)", () => {
+    const kept = new Knowledge(knowledge({ inOtherCampaigns: [{ providerId: "l-001", personId: null, revealed: false }] }));
+    expect(preRevealChecks(candidate(1), handoff(), kept, NO_PLACES)).toEqual({ kind: "held", reason: "in_other_campaign" });
+    expect(preRevealChecks(candidate(2), handoff(), kept, NO_PLACES)).toMatchObject({ kind: "eligible" });
+
+    const byPerson = new Knowledge(
+      knowledge({
+        people: [person],
+        providerIdentities: [{ provider: "lusha", providerId: "l-002", personId: "person-1", status: "usable" }],
+        inOtherCampaigns: [{ providerId: "l-001", personId: "person-1", revealed: true }],
+      }),
+    );
+    expect(preRevealChecks(candidate(2), handoff(), byPerson, NO_PLACES)).toEqual({ kind: "held", reason: "in_other_campaign" });
+    // Kept elsewhere but not revealed there is not enough at Reveal: two campaigns never hold each other's reveal.
+    expect(kept.inOtherCampaign("l-001", null, true)).toBe(false);
+    expect(byPerson.inOtherCampaign("l-009", "person-1", true)).toBe(true);
+  });
+
   it("holds a domain under the organisation's do-not-contact list", () => {
     const known = new Knowledge(knowledge({ suppressions: [{ kind: "domain", value: "www.firm1.co.uk", reason: "dnc" }] }));
     expect(preRevealChecks(candidate(1), handoff(), known, NO_PLACES)).toEqual({ kind: "held", reason: "dnc" });
@@ -109,6 +127,14 @@ describe("after reveal", () => {
     expect(await reveal(ok, { known })).toMatchObject({ kind: "held", reason: "duplicate_in_campaign" });
     const elsewhere = knowledge({ people: [{ ...person, email: "person.1@firm1.co.uk" }] });
     expect(await reveal(ok, { known: elsewhere, inCampaign: ["person-1"] })).toMatchObject({ reason: "duplicate_in_campaign" });
+  });
+
+  it("holds a revealed email whose Person was revealed in another campaign, and not one only kept there (Relay P1)", async () => {
+    const people = [{ ...person, email: "person.1@firm1.co.uk" }];
+    const revealed = knowledge({ people, inOtherCampaigns: [{ providerId: "l-900", personId: "person-1", revealed: true }] });
+    expect(await reveal(ok, { known: revealed })).toMatchObject({ kind: "held", reason: "in_other_campaign", person: { existing: true, personId: "person-1" } });
+    const onlyKept = knowledge({ people, inOtherCampaigns: [{ providerId: "l-900", personId: "person-1", revealed: false }] });
+    expect(await reveal(ok, { known: onlyKept })).toMatchObject({ kind: "ready" });
   });
 
   it("holds an opted-out or do-not-contact email, and writes the org-wide opt-out only when the CRM says so", async () => {

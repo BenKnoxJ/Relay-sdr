@@ -8,6 +8,8 @@ import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rolesMissingFrom, searchLine, spareCount } from "./accounts";
 import type { FindingView } from "./types";
 import { becomesLine, widenHeadings } from "./briefLines";
+import { overviewOf } from "./overview";
+import { candidateById, groupName } from "./packSelectors";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
 import type { ResearchResultFacts, StageResult } from "./stage";
@@ -81,6 +83,9 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
   const revealRecord = result?.kind === "picked" ? (leadGen?.reveal ?? null) : null;
   const ledger = record.ledger ?? [];
   const facts = pack === null || pack.insufficient !== undefined ? null : playFactsOf(pack);
+  // A made campaign's play by name (Relay P1), as the list reads it.
+  const chosen = facts === null || pack === null || record.campaign.playId === null ? undefined : candidateById(pack, record.campaign.playId);
+  const play = chosen === undefined || pack === null ? undefined : groupName(pack, chosen.archetypeId);
   const researchResult: ResearchResultFacts | null =
     record.event === null
       ? null
@@ -111,7 +116,12 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
         ? null
         : researchResult.outcome === "insufficient"
           ? { outcome: "insufficient", plays: 0, viablePlays: 0 }
-          : { outcome: researchResult.outcome, plays: facts === null ? 0 : rankedPlays(facts).length, viablePlays: researchResult.executablePlays },
+          : {
+              outcome: researchResult.outcome,
+              plays: facts === null ? 0 : rankedPlays(facts).length,
+              viablePlays: researchResult.executablePlays,
+              ...(play === undefined ? {} : { play }),
+            },
     confirmed:
       handoff === null
         ? null
@@ -177,12 +187,19 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     live: true,
   };
   const pack = record.event === null ? null : storedPack(record.event.after);
+  // A campaign made for one play (Relay P1) shows and confirms that play only.
+  const playId = record.campaign.playId;
+  const allPlays = pack === null || pack.insufficient !== undefined ? null : playsOf(pack);
+  const plays = allPlays === null || playId === null ? allPlays : allPlays.filter((play) => play.id === playId);
+
+  // Start with and the pain are the campaign's own play's, not research's top one.
+  const overview = research.state !== "planReady" ? null : playId === null || pack === null ? research.overview : overviewOf(pack, playId);
 
   const confirmPlan: ConfirmPlanView | null =
     state === "planReady"
       ? {
           available: options.available,
-          groupName: research.state === "planReady" ? (research.overview.startWith?.groupName ?? null) : null,
+          groupName: overview?.startWith?.groupName ?? null,
           searchCreditCap: options.searchCreditCap,
           sample: options.sample,
           lawfulBasis: campaignsCopy.lawfulBasis,
@@ -202,6 +219,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
+          inOtherCampaign: found.holdsApplied.find((hold) => hold.reason === "in_other_campaign")?.count ?? 0,
           spare: spareCount(leadGen?.people ?? []),
           rolesMissing: rolesMissingFrom(buyerRolesOf(handoff), leadGen?.people ?? []),
           spend: { charged: spend?.charged ?? 0, reserved: spend?.reserved ?? 0, cap },
@@ -242,7 +260,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     // The research pack leaves the server only for a stop, which draws what it found and the ways to widen.
     // A plan is read through `overview` and `plays`; the whole pack is on the research page.
     pack: research.state === "stopped" ? research.pack : null,
-    overview: research.state === "planReady" ? research.overview : null,
+    overview,
     plan: null,
     progress: counts.progress,
     people:
@@ -266,7 +284,11 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     peopleFound,
     peopleNeedsYou,
     spentAtThisVersion: spend !== null && spend.charged + spend.reserved > 0,
-    plays: pack === null || pack.insufficient !== undefined ? null : playsOf(pack),
+    plays: plays,
+    playId,
+    // Only on the campaign research ran on, before a play was chosen, and when there is more than one to choose.
+    canCreatePlays:
+      state === "planReady" && playId === null && record.campaign.researchFromCampaignId === null && (plays ?? []).filter((play) => play.executable).length > 1,
     spend: facts.spend,
     finding: findingOf(derived.stage, handoff, leadGen?.job ?? null, facts.spend),
   };

@@ -670,8 +670,8 @@ export type LeadGenRecord = {
   spend: { charged: number; reserved: number; exceededDocumentedWorstCase: boolean } | null;
   /** The search cap `spend` counts against: the Confirm's, or the new one a later batch was approved with (P5b). */
   searchCap?: number | null;
-  /** Every new search cap later batches approved at this version, added up (P5b). */
-  raisedCaps?: number;
+  /** The approval the latest search spent against: the newest a Find more press made, else the Confirm (P5b). */
+  searchApprovalId?: string;
   /** Once Reveal emails is pressed for this People found. */
   reveal?: RevealRecord | null;
   /** Before it is pressed: what it would do for the kept people. */
@@ -698,9 +698,8 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
   const approval = (press === null ? null : moreApproval(press)) ?? null;
   const spend = await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: approval?.eventId ?? confirm.id });
   const searchCap = approval?.cap ?? null;
-  const presses = await db.event.findMany({ where: { orgId: campaign.orgId, campaignId: campaign.id, kind: CAMPAIGN_MORE_PEOPLE, after: { path: ["briefVersion"], equals: campaign.briefVersion } } });
-  const raisedCaps = presses.reduce((total, event) => total + (moreApproval(event)?.cap ?? 0), 0);
-  if (!found) return { confirm, job, result, people, spend, searchCap, raisedCaps, reveal: null, revealPlan: null };
+  const searchApprovalId = approval?.eventId ?? confirm.id;
+  if (!found) return { confirm, job, result, people, spend, searchCap, searchApprovalId, reveal: null, revealPlan: null };
 
   const revealConfirm = await findRevealConfirm(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
   if (revealConfirm === null) {
@@ -711,7 +710,7 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
       pricing = null;
     }
     const plan = pricing === null ? null : (await revealPlanFor(db, { ...scope, jobId: job.id }, pricing)).plan.counts;
-    return { confirm, job, result, people, spend, searchCap, raisedCaps, reveal: null, revealPlan: plan };
+    return { confirm, job, result, people, spend, searchCap, searchApprovalId, reveal: null, revealPlan: plan };
   }
   const parsed = revealConfirmedSchema.safeParse(revealConfirm.after);
   const revealJob = parsed.success ? await db.job.findFirst({ where: { orgId: campaign.orgId, id: parsed.data.jobId, kind: REVEAL_JOB } }) : null;
@@ -723,7 +722,7 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
     people,
     spend,
     searchCap,
-    raisedCaps,
+    searchApprovalId,
     reveal: {
       confirm: revealConfirm,
       after: parsed.success ? parsed.data : null,

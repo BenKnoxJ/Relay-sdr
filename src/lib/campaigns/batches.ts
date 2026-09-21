@@ -31,20 +31,22 @@ export type LatestSearch = {
   revealed: boolean;
   /** Write emails was pressed for its people. */
   outreachRequested: boolean;
-  /** Kept people with a usable email: what Write emails would draft for. */
+  /** Start outreach was pressed for its people: someone in it has a start day. */
+  started: boolean;
+  /** Kept people with a usable email: what Write emails would draft for. Read only before it is pressed. */
   writable: number;
 };
 
 /**
  * Whether Find more people is offered, and the batch it would make. Only once
  * the latest batch is finished with, so a new batch never strands an earlier
- * one half way: its emails revealed, and its outreach written (or nobody to
+ * one half way: its emails revealed, and its outreach started (or nobody to
  * write for). A later batch that found nobody, or failed, can be asked for
  * again under the same number; batch 1 that did is Needs you, as before.
  */
 export function nextBatch(latest: LatestSearch | null): number | null {
   if (latest === null || latest.inFlight) return null;
-  if (latest.picked) return latest.revealed && (latest.outreachRequested || latest.writable === 0) ? latest.batch + 1 : null;
+  if (latest.picked) return latest.revealed && (latest.outreachRequested ? latest.started : latest.writable === 0) ? latest.batch + 1 : null;
   return latest.batch > 1 ? latest.batch : null;
 }
 

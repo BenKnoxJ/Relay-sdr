@@ -120,7 +120,7 @@ function asOutreachRefusal(error: unknown): never {
 /** Start outreach and pause, as the campaign page draws them (Relay P3). */
 async function outreachViewFor(db: Parameters<typeof outreachStatusFor>[0], scope: { orgId: string; campaignId: string }, now: Date): Promise<OutreachStartView> {
   const status = await outreachStatusFor(db, scope);
-  return { startable: status.startable, batches: status.batches, paused: status.pausedAt !== null, today: londonDay(now), defaultStartOn: nextWorkingDay(now), latestStartOn: addCalendarDays(londonDay(now), START_HORIZON_DAYS) };
+  return { startable: status.startable, drafted: status.drafted, batches: status.batches, paused: status.pausedAt !== null, today: londonDay(now), defaultStartOn: nextWorkingDay(now), latestStartOn: addCalendarDays(londonDay(now), START_HORIZON_DAYS) };
 }
 
 /** How finding people is set up here, as the screens need it: nothing about the provider itself. */
@@ -384,7 +384,7 @@ export const campaignsRouter = createTRPCRouter({
     // under way, so an earlier batch's running outreach keeps its People tab and its Pause (P5b).
     const laterBatch = (campaign.batch ?? 1) > 1;
     const outreach = campaign.state === "drafting" || laterBatch ? await outreachViewFor(ctx.prisma, { orgId: ctx.orgId, campaignId: input.id }, new Date()) : null;
-    // Find more people (P5b), once the latest batch is finished with: written for, found nobody new, or nobody to write for.
+    // Find more people (P5b), once the latest batch is finished with: started, found nobody new, or nobody to write for.
     const findMore =
       campaign.live && (campaign.state === "drafting" || campaign.state === "peopleNeedsYou" || campaign.state === "peopleReady")
         ? await findMoreViewFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id }, leadGenSetup())

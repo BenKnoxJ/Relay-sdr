@@ -109,10 +109,10 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
   `;
 }
 
-/** The Confirm's search limit plus each new limit a Find more people press approved; null when the Confirm's is unreadable. */
-function sumCaps(confirmCap: number | null, presses: readonly EventRow[]): number | null {
-  if (confirmCap === null) return null;
-  return presses.reduce((total, press) => total + (numberOr(record(press.projection).cap, null) ?? 0), confirmCap);
+/** The search limit spent against now: the newest Find more people press that approved one (events run oldest first), else the Confirm's. */
+function currentSearchCap(confirm: EventRow, confirmCap: number | null, presses: readonly EventRow[]): { cap: number | null; approvalId: string } {
+  const press = [...presses].reverse().find((event) => numberOr(record(event.projection).cap, null) !== null);
+  return press === undefined ? { cap: confirmCap, approvalId: confirm.id } : { cap: numberOr(record(press.projection).cap, null), approvalId: press.id };
 }
 
 const record = (value: unknown): Record<string, unknown> => (value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
@@ -243,6 +243,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
             : { kind: "unreadable" };
     const campaignLedger = ledger.filter((group) => group.campaignId === campaign.id);
     const confirmProjection = record(row.confirm?.projection);
+    const presses = events.filter((event) => event.kind === "campaign.more_people" && event.campaignId === campaign.id && event.briefVersion === campaign.briefVersion);
+    const search = row.confirm === null ? null : currentSearchCap(row.confirm, numberOr(confirmProjection.cap, null), presses);
     const buyerGroup = record(confirmProjection.buyerGroup);
     const play = record(confirmProjection.play);
     const groups: PeopleGroup[] =
@@ -275,8 +277,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           costs.filter((cost) => cost.campaignId === campaign.id),
           {
             briefVersion: campaign.briefVersion,
-            // Every search limit approved at this version: the Confirm's, and any a later batch approved (P5b).
-            searchCap: row.confirm === null ? null : sumCaps(numberOr(confirmProjection.cap, null), events.filter((event) => event.kind === "campaign.more_people" && event.campaignId === campaign.id && event.briefVersion === campaign.briefVersion)),
+            searchCap: search?.cap ?? null,
+            searchApprovalId: search?.approvalId ?? null,
             revealMax: row.revealConfirm === null ? null : numberOr(record(row.revealConfirm.projection).maxCredits, null) },
         ),
       },

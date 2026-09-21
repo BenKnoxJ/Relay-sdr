@@ -161,6 +161,7 @@ describe("Start outreach", () => {
 
     expect(await outreachStatusFor(prisma, { orgId: actor.orgId, campaignId })).toEqual({
       startable: 0,
+      drafted: 5,
       batches: [
         { startOn: "2026-09-22", people: 2 },
         { startOn: "2026-10-05", people: 3 },

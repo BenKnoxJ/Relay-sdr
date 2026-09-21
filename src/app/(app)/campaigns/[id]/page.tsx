@@ -62,7 +62,8 @@ export default async function CampaignDetailPage({
                 ? findMoreCopy.toastFinding
                 : null;
 
-  const running = campaign.live && (campaign.outreach?.batches.length ?? 0) > 0;
+  // The People tab shows once anyone in the campaign, in any batch, has a draft (P5b).
+  const running = campaign.live && (campaign.outreach?.drafted ?? 0) > 0;
   const people = running ? await peopleView(campaign.id, query) : undefined;
 
   return (

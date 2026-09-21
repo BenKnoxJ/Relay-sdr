@@ -706,6 +706,8 @@ export type FindMoreView = {
  */
 export type OutreachStartView = {
   startable: number;
+  /** People in the campaign, in any batch, with a draft: the People tab shows once there is one (P5b). */
+  drafted: number;
   batches: Array<{ startOn: string; people: number }>;
   paused: boolean;
   /** London's today: the earliest day Start outreach takes. */

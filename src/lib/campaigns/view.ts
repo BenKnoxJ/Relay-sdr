@@ -130,8 +130,9 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
     people,
     spend: spendOf(ledger, record.researchCost ?? [], {
       briefVersion: record.campaign.briefVersion,
-      // Every search limit approved at this version: the Confirm's, and any a later batch approved (P5b).
-      searchCap: handoff === null ? null : handoff.spend.searchCreditCap + (leadGen?.raisedCaps ?? 0),
+      // The search limit spent against now: the newest a later batch approved, else the Confirm's (P5b).
+      searchCap: handoff === null ? null : (leadGen?.searchCap ?? handoff.spend.searchCreditCap),
+      searchApprovalId: leadGen?.searchApprovalId ?? null,
       revealMax: revealRecord?.after?.maxCredits ?? null,
     }),
   };

@@ -144,8 +144,12 @@ async function view(campaign: CampaignRow) {
   return toCampaign(record, { available: true, searchCreditCap: 40, sample: true });
 }
 
-/** Keep the first `keep` of the latest batch, reveal them, ask for their drafts, write each Email 1 as the draft job would, and start them on `startOn`. */
-async function throughOutreach(campaign: CampaignRow, keep: number, startOn: string): Promise<string[]> {
+/**
+ * Keep the first `keep` of the latest batch, reveal them, ask for their drafts, write each Email 1 as the draft job
+ * would, and start them on `startOn` (null: never pressed). The last `late` drafts land after the start, as a draft
+ * still writing when Start outreach is pressed does.
+ */
+async function throughOutreach(campaign: CampaignRow, keep: number, startOn: string | null, late = 0): Promise<string[]> {
   const latest = await prisma.job.findFirstOrThrow({ where: { campaignId: campaign.id, kind: LEAD_GEN_JOB }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   const chosen = await prisma.campaignPerson.findMany({ where: { campaignId: campaign.id, jobId: latest.id, status: "chosen" }, orderBy: { rank: "asc" } });
   const kept = chosen.slice(0, keep);
@@ -157,16 +161,21 @@ async function throughOutreach(campaign: CampaignRow, keep: number, startOn: str
   await revealHandler({ revealer: () => provider, crm: NO_CRM, pricing: DOCUMENTED_UNVERIFIED_PRICING, retry: NO_WAIT })({ db: prisma, job: { ...reveal, attempts: 1 }, signal: new AbortController().signal });
   await prisma.job.update({ where: { id: reveal.id }, data: { status: "done" } });
   await requestDrafts(prisma, { ...owner(campaign), briefVersion: 1, requestId: randomUUID() });
-  const draftJobs = await prisma.job.findMany({ where: { campaignId: campaign.id, kind: OUTREACH_DRAFT_JOB, status: "queued" } });
-  for (const job of draftJobs) {
-    const campaignPersonId = (job.input as { campaignPersonId: string }).campaignPersonId;
-    await prisma.outreachDraft.create({
-      data: { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: 1, campaignPersonId, ownerUserId: campaign.ownerUserId, jobId: job.id, touch: "email1", state: "to_review", findings: [], advice: [], lookup: {}, generations: 1, body: "Hello.", ask: "Worth a call?", opener: { ref: "x", kind: "role_pain" } },
-    });
-    await prisma.job.update({ where: { id: job.id }, data: { status: "done" } });
-  }
-  await startOutreach(prisma, { ...owner(campaign), requestId: randomUUID(), startOn, now: MONDAY });
+  const draftJobs = await prisma.job.findMany({ where: { campaignId: campaign.id, kind: OUTREACH_DRAFT_JOB, status: "queued" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  const cut = draftJobs.length - late;
+  for (const job of draftJobs.slice(0, cut)) await writeDraft(campaign, job);
+  if (startOn !== null) await startOutreach(prisma, { ...owner(campaign), requestId: randomUUID(), startOn, now: MONDAY });
+  for (const job of draftJobs.slice(cut)) await writeDraft(campaign, job);
   return kept.map((row) => row.id);
+}
+
+/** Write one person's Email 1 as their draft job would. */
+async function writeDraft(campaign: CampaignRow, job: Job) {
+  const campaignPersonId = (job.input as { campaignPersonId: string }).campaignPersonId;
+  await prisma.outreachDraft.create({
+    data: { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: 1, campaignPersonId, ownerUserId: campaign.ownerUserId, jobId: job.id, touch: "email1", state: "to_review", findings: [], advice: [], lookup: {}, generations: 1, body: "Hello.", ask: "Worth a call?", opener: { ref: "x", kind: "role_pain" } },
+  });
+  await prisma.job.update({ where: { id: job.id }, data: { status: "done" } });
 }
 
 /** A campaign whose batch 1 (l-001 to l-012 returned, 10 chosen) is found, revealed, drafted and started on Tue 22 Sep. */
@@ -261,8 +270,22 @@ describe("Find more people: the second batch", () => {
       ...second.map(() => [2, "2026-09-29"]),
     ]);
 
-    // With batch 2 written for, a batch 3 is on offer.
+    // With batch 2 started, a batch 3 is on offer, and a fresh press makes it.
     expect((await findMoreViewFor(prisma, { orgId: ORG, userId: REP, campaignId: campaign.id }, setup()))?.batch).toBe(3);
+    expect((await more(campaign)).repeated).toBe(false);
+    expect((await batchJob(campaign.id, 3)).input).toMatchObject({ run: 3, batch: 3 });
+  });
+
+  it("is not offered until the latest batch is started", async () => {
+    const campaign = await planned();
+    await confirmCampaign(prisma, { ...owner(campaign), fromBriefVersion: 1, requestId: randomUUID(), setup: setup() });
+    await runLeadGen(await prisma.job.findFirstOrThrow({ where: { campaignId: campaign.id, kind: LEAD_GEN_JOB } }), [page(range(1, 12))]);
+    // Revealed and written for, but Start outreach never pressed: batch 1 is still the rep's to finish.
+    await throughOutreach(campaign, 4, null);
+    expect(await findMoreViewFor(prisma, { orgId: ORG, userId: REP, campaignId: campaign.id }, setup())).toBeNull();
+    expect(await refusalOf(more(campaign))).toBe("wrong_state");
+    await startOutreach(prisma, { ...owner(campaign), requestId: randomUUID(), startOn: "2026-09-22", now: MONDAY });
+    expect((await findMoreViewFor(prisma, { orgId: ORG, userId: REP, campaignId: campaign.id }, setup()))?.batch).toBe(2);
   });
 
   it("is not offered until the latest batch is revealed and written for", async () => {
@@ -329,10 +352,11 @@ describe("Find more people: the search cap", () => {
     expect(await prisma.campaignPerson.count({ where: { jobId: job.id, status: "chosen" } })).toBe(30);
     // The page reads the batch's spend against the limit it was approved with.
     expect((await view(campaign)).peopleFound?.spend).toEqual({ charged: 30, reserved: 0, cap: 60 });
-    // The campaign's search spend, on the page and in the list alike, reads against every limit approved: 40 and 60.
-    expect((await view(campaign)).spend?.search).toMatchObject({ cap: 100, charged: 42 });
+    // The campaign's search spend, on the page and in the list alike, reads against the limit spent against now: the
+    // new 60 and the 30 charged under it, not 40 + 60 with batch 1's 12 as well.
+    expect((await view(campaign)).spend?.search).toMatchObject({ cap: 60, charged: 30 });
     const [row] = await campaignSummariesForOwner(prisma, { orgId: ORG, userId: REP }, { leadGenAvailable: true });
-    expect(row?.input.spend.search).toMatchObject({ cap: 100, charged: 42 });
+    expect(row?.input.spend.search).toMatchObject({ cap: 60, charged: 30 });
   });
 
   it("stops a batch at what is left of the cap, never past it", async () => {
@@ -396,16 +420,19 @@ describe("the batch column", () => {
 });
 
 describe("the batch rules", () => {
-  const latest = (over: Partial<LatestSearch> = {}): LatestSearch => ({ batch: 1, inFlight: false, picked: true, revealed: true, outreachRequested: true, writable: 3, ...over });
+  const latest = (over: Partial<LatestSearch> = {}): LatestSearch => ({ batch: 1, inFlight: false, picked: true, revealed: true, outreachRequested: true, started: true, writable: 3, ...over });
 
-  it("offers the next batch only once the latest is revealed and written for", () => {
+  it("offers the next batch only once the latest is revealed, written for and started", () => {
     expect(nextBatch(null)).toBeNull();
     expect(nextBatch(latest())).toBe(2);
     expect(nextBatch(latest({ inFlight: true }))).toBeNull();
     expect(nextBatch(latest({ revealed: false, outreachRequested: false }))).toBeNull();
-    expect(nextBatch(latest({ outreachRequested: false }))).toBeNull();
+    expect(nextBatch(latest({ outreachRequested: false, started: false }))).toBeNull();
+    // Written for but never started: batch 1 would be stranded behind batch 2. Once pressed, writable reads 0.
+    expect(nextBatch(latest({ started: false }))).toBeNull();
+    expect(nextBatch(latest({ started: false, writable: 0 }))).toBeNull();
     // Nobody to write for is finished with too.
-    expect(nextBatch(latest({ outreachRequested: false, writable: 0 }))).toBe(2);
+    expect(nextBatch(latest({ outreachRequested: false, started: false, writable: 0 }))).toBe(2);
     // A later batch that found nobody is asked for again under its own number; batch 1's is Needs you.
     expect(nextBatch(latest({ batch: 2, picked: false, revealed: false, outreachRequested: false }))).toBe(2);
     expect(nextBatch(latest({ batch: 1, picked: false, revealed: false, outreachRequested: false }))).toBeNull();
@@ -429,6 +456,31 @@ describe("the campaign page while a later batch is under way", () => {
     const ctx: TRPCContext = { prisma, headers: new Headers(), session, actor: () => (pending ??= ensureUser(prisma, session)) };
     return appRouter.createCaller(ctx).campaigns.get({ id });
   };
+
+  it("never strands batch 1: a draft that lands after Start outreach can still be started while batch 2 is in review", async () => {
+    process.env.RELAY_LEADGEN_PROVIDER = "sample";
+    resetEnv();
+    const actor = await ensureUser(prisma, session);
+    const campaign = await planned(actor.orgId, actor.userId);
+    await confirmCampaign(prisma, { ...owner(campaign), fromBriefVersion: 1, requestId: randomUUID(), setup: setup() });
+    await runLeadGen(await prisma.job.findFirstOrThrow({ where: { campaignId: campaign.id, kind: LEAD_GEN_JOB } }), [page(range(1, 12))]);
+    // Start outreach pressed while one of batch 1's four drafts was still writing: three start, one lands after.
+    const first = await throughOutreach(campaign, 4, "2026-09-22", 1);
+    await more(campaign);
+    await runLeadGen(await batchJob(campaign.id, 2), [page(range(101, 112))]);
+
+    const reviewing = await get(campaign.id);
+    expect(reviewing.state).toBe("peopleFound");
+    expect(reviewing.batch).toBe(2);
+    // Batch 1's late person is waiting to start, and the People tab has everyone drafted.
+    expect(reviewing.outreach).toMatchObject({ startable: 1, drafted: 4, batches: [{ startOn: "2026-09-22", people: 3 }] });
+
+    // Start outreach takes them, and batch 2's people, not yet drafted, are left alone.
+    const started = await startOutreach(prisma, { ...owner(campaign), requestId: randomUUID(), startOn: "2026-09-23", now: MONDAY });
+    expect(started.people).toBe(1);
+    expect((await startDays(first)).filter((day) => day === null)).toHaveLength(0);
+    expect(await prisma.campaignPerson.count({ where: { jobId: (await batchJob(campaign.id, 2)).id, outreachStartOn: { not: null } } })).toBe(0);
+  });
 
   it("keeps batch 1's outreach (its days and Pause) and offers more once a batch has nobody to write for", async () => {
     // Sample lead gen, as a development server runs it: the page's Find more reads the configured setup.

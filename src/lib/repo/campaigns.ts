@@ -1305,9 +1305,10 @@ async function latestSearchOf(db: Prisma.TransactionClient | PrismaClient, campa
   const revealed = approved?.success === true && (await findRevealResult(db, { orgId: campaign.orgId, jobId: approved.data.jobId })) !== null;
   const outreachRequested = revealed && (await findOutreachRequested(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id })) !== null;
   const writable = revealed && !outreachRequested ? (await draftablePeople(db, { ...scope, jobId: job.id })).length : 0;
+  const started = outreachRequested && (await db.campaignPerson.count({ where: { ...scope, jobId: job.id, outreachStartOn: { not: null } } })) > 0;
   return {
     job,
-    search: { batch: batchOf(job), inFlight: inFlight(job), picked, revealed, outreachRequested, writable },
+    search: { batch: batchOf(job), inFlight: inFlight(job), picked, revealed, outreachRequested, started, writable },
   };
 }
 

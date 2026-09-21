@@ -207,13 +207,23 @@ export function CampaignPage({
     outreachChange(() => onPauseOutreach({ campaignId: campaign.id, paused }));
   };
   const [findMoreError, setFindMoreError] = useState<string | null>(null);
+  // Find more repeats (batch 2, then 3), so each press that lands is a new request; a double click on one is not.
+  const [findMoreRequestId, setFindMoreRequestId] = useState(() => crypto.randomUUID());
+  // A press that landed keeps the buttons down until the page offers a different batch, so a quick second press never reads as refused.
+  const offeredBatch = campaign.findMore?.batch ?? null;
+  const [seenBatch, setSeenBatch] = useState(offeredBatch);
+  if (offeredBatch !== seenBatch) {
+    setSeenBatch(offeredBatch);
+    setPending(false);
+  }
   const findMore = (howMany: 10 | 20 | 30, newCap: boolean) => {
     if (onFindMore === undefined || pending) return;
     setPending(true);
     setFindMoreError(null);
-    void onFindMore({ ...target, requestId, howMany, newCap })
+    void onFindMore({ ...target, requestId: findMoreRequestId, howMany, newCap })
       .then((result) => {
         if ("id" in result) {
+          setFindMoreRequestId(crypto.randomUUID());
           router.push(`/campaigns/${result.id}?more=1`);
           router.refresh();
           return;
@@ -409,7 +419,7 @@ export function CampaignPage({
       main.push(<DraftingCard key="drafting" stage={facts.stage} inFlight={facts.inFlight} drafts={facts.drafts} attention={facts.attention} editHref={editHref} />);
     }
     if (state === "drafting" && outreachCard !== null) main.push(outreachCard);
-    // Find more people (P5b), once this batch is finished with: written for, or nobody in it to write for.
+    // Find more people (P5b), once this batch is finished with: started, or nobody in it to write for.
     if ((state === "drafting" || state === "peopleReady") && findMoreCard !== null) main.push(findMoreCard);
     if (state === "revealing") {
       // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.
@@ -432,8 +442,8 @@ export function CampaignPage({
     }
     main.push(<PlanSection key="plan-cards" pack={campaign.pack} collapsed={leadsWithProgress} />);
   }
-  // While a later batch is under way, an earlier batch's running outreach stays in reach: its days and Pause (P5b).
-  if (state !== "drafting" && batch > 1 && outreachCard !== null && (campaign.outreach?.batches.length ?? 0) > 0) main.push(outreachCard);
+  // While a later batch is under way, an earlier batch stays in reach: Start outreach for anyone drafted and waiting, and its days and Pause (P5b).
+  if (state !== "drafting" && batch > 1 && outreachCard !== null && ((campaign.outreach?.startable ?? 0) > 0 || (campaign.outreach?.batches.length ?? 0) > 0)) main.push(outreachCard);
   if (!live && (state === "researching" || state === "stopped" || state === "failed") && main.length === 0) {
     main.push(<BriefCard key="brief" brief={campaign.brief} />);
   }

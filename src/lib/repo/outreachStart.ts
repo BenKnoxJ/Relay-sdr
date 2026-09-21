@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 
-import { fromDbDate, isIsoDate, londonDay, toDbDate, type IsoDate } from "@/lib/outreach/sequence";
+import { START_HORIZON_DAYS, addCalendarDays, fromDbDate, isIsoDate, londonDay, startDayFor, toDbDate, type IsoDate } from "@/lib/outreach/sequence";
 
 import { mutate } from "./mutate";
 
@@ -30,6 +30,8 @@ export type OutreachRefusal =
   | "nothing_to_start"
   /** The start day is not a calendar day, or is before today in London. */
   | "bad_date"
+  /** The start day is more than 30 days ahead. */
+  | "too_far"
   /** A repeated request id carrying a different start day from the one it made. */
   | "request_reused";
 
@@ -79,15 +81,19 @@ function startableWhere(input: { orgId: string; campaignId: string }): Prisma.Ca
 }
 
 export type StartOutreachInput = Owner & { requestId: string; startOn: IsoDate; now?: () => Date };
-export type StartOutreachResult = { people: number; repeated: boolean };
+export type StartOutreachResult = { people: number; repeated: boolean; startOn: IsoDate };
 
 /**
- * Start outreach: the chosen day on everyone waiting to start. A repeat of the
- * same press (its request id) changes nothing and says how many it started.
+ * Start outreach: the chosen day on everyone waiting to start. A weekend day
+ * becomes the Monday after, and a day more than 30 days ahead is refused. A
+ * repeat of the same press (its request id) changes nothing and says how many
+ * it started.
  */
 export async function startOutreach(db: PrismaClient, input: StartOutreachInput): Promise<StartOutreachResult> {
   const today = londonDay((input.now ?? (() => new Date()))());
   if (!isIsoDate(input.startOn) || input.startOn < today) throw new OutreachChangeRefused("bad_date");
+  const startOn = startDayFor(input.startOn);
+  if (startOn > addCalendarDays(today, START_HORIZON_DAYS)) throw new OutreachChangeRefused("too_far");
   let repeat: StartOutreachResult | null = null;
   try {
     const started = await mutate(db, {
@@ -96,7 +102,7 @@ export async function startOutreach(db: PrismaClient, input: StartOutreachInput)
       kind: OUTREACH_STARTED,
       campaignId: input.campaignId,
       before: () => ({ startOn: null }),
-      after: (ids: string[]) => ({ requestId: input.requestId, startOn: input.startOn, people: ids }),
+      after: (ids: string[]) => ({ requestId: input.requestId, startOn: startOn, people: ids }),
       apply: async (tx) => {
         if (!(await lockOwn(tx, input))) throw new OutreachChangeRefused("not_found");
         const earlier = await tx.event.findFirst({
@@ -104,20 +110,20 @@ export async function startOutreach(db: PrismaClient, input: StartOutreachInput)
         });
         if (earlier !== null) {
           const after = earlier.after as { startOn?: unknown; people?: unknown } | null;
-          if (after?.startOn !== input.startOn) throw new OutreachChangeRefused("request_reused");
-          repeat = { people: Array.isArray(after.people) ? after.people.length : 0, repeated: true };
+          if (after?.startOn !== startOn) throw new OutreachChangeRefused("request_reused");
+          repeat = { people: Array.isArray(after.people) ? after.people.length : 0, repeated: true, startOn };
           throw new Unchanged();
         }
         const people = await tx.campaignPerson.findMany({ where: startableWhere(input), select: { id: true }, orderBy: [{ rank: "asc" }, { id: "asc" }] });
         if (people.length === 0) throw new OutreachChangeRefused("nothing_to_start");
         const ids = people.map((person) => person.id);
         // The null guard again on the write: a day once set is never moved by a later press.
-        const updated = await tx.campaignPerson.updateMany({ where: { orgId: input.orgId, campaignId: input.campaignId, id: { in: ids }, outreachStartOn: null }, data: { outreachStartOn: toDbDate(input.startOn) } });
+        const updated = await tx.campaignPerson.updateMany({ where: { orgId: input.orgId, campaignId: input.campaignId, id: { in: ids }, outreachStartOn: null }, data: { outreachStartOn: toDbDate(startOn) } });
         if (updated.count !== ids.length) throw new Error("start outreach: a person's start day moved under the lock");
         return ids;
       },
     });
-    return { people: started.length, repeated: false };
+    return { people: started.length, repeated: false, startOn };
   } catch (error) {
     if (error instanceof Unchanged && repeat !== null) return repeat;
     throw error;

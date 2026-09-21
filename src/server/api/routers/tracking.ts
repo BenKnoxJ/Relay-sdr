@@ -3,7 +3,9 @@ import { z } from "zod";
 
 import { outreachTrackingCopy } from "@/lib/copy/outreachTracking";
 import { londonDay } from "@/lib/outreach/sequence";
-import { CALL_RESULTS, NOTE_MAX, OUTREACH_OUTCOMES, STEP_ACTIONS } from "@/lib/outreach/track";
+import { draftItemOf } from "@/lib/outreach/view";
+import { draftsForCard } from "@/lib/repo/outreach";
+import { CALL_RESULTS, NOTE_MAX, OUTREACH_OUTCOMES, STEP_ACTIONS, channelOf, isStepId } from "@/lib/outreach/track";
 import {
   TrackingRefused,
   addNote,
@@ -44,6 +46,7 @@ function refused(error: unknown): never {
     undo_later_first: outreachTrackingCopy.undoLaterFirst,
     too_early: outreachTrackingCopy.tooEarly,
     not_started: outreachTrackingCopy.notStarted,
+    not_approved: outreachTrackingCopy.notApproved,
     bad_date: outreachTrackingCopy.badDate,
     bad_range: outreachTrackingCopy.badRange,
     empty_note: outreachTrackingCopy.emptyNote,
@@ -106,11 +109,20 @@ export const trackingRouter = createTRPCRouter({
     return view;
   }),
 
-  /** One person in full: steps, a draft per step, every mark, and the notes. */
+  /**
+   * One person in full: steps, a draft per step, every mark, and the notes.
+   * Each email step's draft also comes as the Inbox's card (`emailCards`),
+   * built by the same `draftItemOf`, so there is one place for that card.
+   */
   personTracking: repProcedure.input(z.object({ personId: id }).strict()).query(async ({ ctx, input }) => {
     const view = await personTracking(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignPersonId: input.personId, today: today() });
     if (view === null) throw new TRPCError({ code: "NOT_FOUND" });
-    return view;
+    const emailDraftIds = Object.entries(view.drafts).flatMap(([step, draft]) => (draft !== null && isStepId(step) && channelOf(step) === "email" ? [draft.id] : []));
+    const rows = await draftsForCard(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ids: emailDraftIds });
+    const repName = (await ctx.prisma.user.findFirst({ where: { id: ctx.userId, orgId: ctx.orgId }, select: { name: true } }))?.name?.trim() ?? "";
+    const cards = new Map(rows.map((row) => [row.id, draftItemOf(row, repName)]));
+    const emailCards = Object.fromEntries(Object.entries(view.drafts).flatMap(([step, draft]) => (draft !== null && cards.has(draft.id) ? [[step, cards.get(draft.id)!]] : [])));
+    return { ...view, emailCards };
   }),
 
   /** Open steps due between two days (both included) across the rep's campaigns, for the calendar. */

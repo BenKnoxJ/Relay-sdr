@@ -7,7 +7,7 @@ import { Chip } from "@/components/Chip";
 import { PillButton } from "@/components/PillButton";
 import type { OutreachStartView } from "@/lib/campaigns/types";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
-import { dayLabel } from "@/lib/outreach/sequence";
+import { dayLabel, isIsoDate, startDayFor } from "@/lib/outreach/sequence";
 
 /**
  * Start outreach, and Pause and Resume (Relay P3). The minimum the campaign
@@ -36,6 +36,9 @@ export function OutreachCard({
   const [startOn, setStartOn] = useState(view.defaultStartOn);
   const people = (n: number) => `${n} ${n === 1 ? c.person : c.people}`;
   const started = view.batches.length > 0;
+  // The day the press really uses, so the button says it: a weekend moves to the Monday after.
+  const snapped = isIsoDate(startOn) && startOn >= view.today ? startDayFor(startOn) : null;
+  const chosen = snapped !== null && snapped <= view.latestStartOn ? snapped : null;
 
   return (
     <Card label={c.label} aside={view.paused ? <Chip tone="warn">{c.paused}</Chip> : undefined}>
@@ -75,6 +78,7 @@ export function OutreachCard({
                 data-testid="outreach-start-on"
                 type="date"
                 min={view.today}
+                max={view.latestStartOn}
                 value={startOn}
                 onChange={(event) => setStartOn(event.target.value)}
                 disabled={pending}
@@ -94,8 +98,8 @@ export function OutreachCard({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {view.startable === 0 ? null : open ? (
             <>
-              <PillButton data-testid="outreach-start-confirm" disabled={pending || startOn === ""} onClick={() => onStart(startOn)}>
-                {pending ? c.starting : `${c.startFor} ${people(view.startable)}`}
+              <PillButton data-testid="outreach-start-confirm" disabled={pending || chosen === null} onClick={() => chosen !== null && onStart(chosen)}>
+                {pending ? c.starting : `${c.startFor} ${people(view.startable)}${chosen === null ? "" : ` ${c.startOnDay} ${dayLabel(chosen)}`}`}
               </PillButton>
               <PillButton data-testid="outreach-start-cancel" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
                 {c.cancel}

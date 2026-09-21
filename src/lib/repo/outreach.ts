@@ -223,7 +223,8 @@ export async function recordDrafts(db: PrismaClient, input: RecordDraftsInput): 
               touch: touch.touch,
               attempt: input.attempt,
               state: touch.state,
-              subject: touch.draft?.subject ?? null,
+              // A subject belongs to an email; LinkedIn and call drafts never carry one (P5).
+              subject: (EMAIL_TOUCHES as readonly string[]).includes(touch.touch) ? (touch.draft?.subject ?? null) : null,
               body: touch.draft?.body ?? null,
               ask: touch.draft?.ask ?? null,
               ...(touch.draft === null ? {} : { opener: touch.draft.opener as Prisma.InputJsonObject }),
@@ -258,6 +259,47 @@ export type QueuedDraft = OutreachDraft & {
 
 const STATE_ORDER: Record<string, number> = { needs_you: 0, to_review: 1, failed: 2 };
 
+/** What the Inbox card reads beside the draft: the campaign's name and the person's preview. */
+const QUEUED_INCLUDE = {
+  campaign: { select: { id: true, name: true } },
+  campaignPerson: { select: { preview: true, rolePart: true, roleTitle: true, roleMatch: true, companyKey: true, person: { select: { email: true } } } },
+} as const;
+
+type AttemptRef = Pick<OutreachDraft, "id" | "campaignId" | "briefVersion" | "campaignPersonId" | "touch" | "attempt">;
+
+/** The key of the job that writes the attempt after `draft`: the one a reject asking for another uses. */
+export const nextAttemptKey = (draft: AttemptRef): string => draftJobKey(draft.campaignId, draft.briefVersion, draft.campaignPersonId, draft.attempt + 1, draft.touch as TouchKind);
+
+/** Next attempts queued or being written, by `nextAttemptKey`. */
+export async function redraftsInFlight(db: Db, orgId: string, drafts: readonly AttemptRef[]): Promise<Set<string>> {
+  if (drafts.length === 0) return new Set();
+  const jobs = await db.job.findMany({ where: { orgId, kind: OUTREACH_DRAFT_JOB, status: { in: ["queued", "running"] }, idempotencyKey: { in: drafts.map(nextAttemptKey) } }, select: { idempotencyKey: true } });
+  return new Set(jobs.map((job) => job.idempotencyKey));
+}
+
+/**
+ * Drafts another attempt has taken over: a later attempt is written, or is
+ * on its way (Try again on a draft that failed leaves it failed, P5). Their
+ * card leaves the Inbox, so one email never has two.
+ */
+async function supersededDrafts(db: Db, orgId: string, drafts: readonly AttemptRef[]): Promise<Set<string>> {
+  if (drafts.length === 0) return new Set();
+  const later = await db.outreachDraft.findMany({
+    where: { orgId, campaignPersonId: { in: [...new Set(drafts.map((draft) => draft.campaignPersonId))] }, touch: { in: [...new Set(drafts.map((draft) => draft.touch))] } },
+    select: { campaignPersonId: true, touch: true, attempt: true },
+  });
+  const latest = new Map<string, number>();
+  for (const row of later) latest.set(`${row.campaignPersonId}:${row.touch}`, Math.max(latest.get(`${row.campaignPersonId}:${row.touch}`) ?? 0, row.attempt));
+  const inFlight = await redraftsInFlight(db, orgId, drafts);
+  return new Set(drafts.filter((draft) => (latest.get(`${draft.campaignPersonId}:${draft.touch}`) ?? 0) > draft.attempt || inFlight.has(nextAttemptKey(draft))).map((draft) => draft.id));
+}
+
+/** The rep's own drafts by id, in the Inbox's shape, whatever their state: the person's drawer draws them with the same card (P5). */
+export async function draftsForCard(db: Db, owner: { orgId: string; userId: string; ids: string[] }): Promise<QueuedDraft[]> {
+  if (owner.ids.length === 0) return [];
+  return db.outreachDraft.findMany({ where: { orgId: owner.orgId, ownerUserId: owner.userId, id: { in: owner.ids } }, include: QUEUED_INCLUDE });
+}
+
 /**
  * The rep's own emails waiting on them: needs you first, then to review, then
  * any that could not be written. Email touches only: the Inbox approves emails,
@@ -266,15 +308,13 @@ const STATE_ORDER: Record<string, number> = { needs_you: 0, to_review: 1, failed
 export async function reviewQueue(db: Db, owner: { orgId: string; userId: string }): Promise<QueuedDraft[]> {
   const drafts = await db.outreachDraft.findMany({
     where: { orgId: owner.orgId, ownerUserId: owner.userId, touch: { in: [...EMAIL_TOUCHES] }, state: { in: ["needs_you", "to_review", "failed"] } },
-    include: {
-      campaign: { select: { id: true, name: true } },
-      campaignPerson: { select: { preview: true, rolePart: true, roleTitle: true, roleMatch: true, companyKey: true, person: { select: { email: true } } } },
-    },
+    include: QUEUED_INCLUDE,
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   // A person's emails in their order: Email 1, the follow-up, the last email.
   const place = (touch: string) => (EMAIL_TOUCHES as readonly string[]).indexOf(touch);
-  return drafts.sort(
+  const replaced = await supersededDrafts(db, owner.orgId, drafts);
+  return drafts.filter((draft) => !replaced.has(draft.id)).sort(
     (a, b) =>
       (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9) ||
       a.createdAt.getTime() - b.createdAt.getTime() ||
@@ -314,8 +354,8 @@ export function editClassOf(before: string, after: string): "trim" | "reword" | 
 
 /**
  * The rep's own undecided draft, locked. Approving needs words to approve; a
- * touch parked at the drafting ceiling with nothing written can still be
- * rejected, so it never sits in the Inbox for good.
+ * touch parked at the drafting ceiling or failed, with nothing written, can
+ * still be rejected, so it never sits in the Inbox or the drawer for good.
  */
 async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; userId: string; draftId: string }, action: "approve" | "reject"): Promise<OutreachDraft> {
   // Lock the row: two presses on one draft queue here, and the second sees the first's decision.
@@ -325,8 +365,10 @@ async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; us
   if (rows.length === 0) throw new DraftRefused("not_found");
   const draft = await tx.outreachDraft.findFirstOrThrow({ where: { id: where.draftId, orgId: where.orgId, ownerUserId: where.userId } });
   if (draft.state === "approved" || draft.state === "rejected") throw new DraftRefused("decided");
-  const parked = draft.state === "needs_you" && draft.body === null;
-  if (draft.state === "failed" || (draft.body === null && !(parked && action === "reject"))) throw new DraftRefused("not_written");
+  // A touch with nothing written (parked at the drafting ceiling, or failed) can still be rejected, which is
+  // how Try again asks for it once more (P5): it never sits stuck.
+  const unwritten = (draft.state === "needs_you" && draft.body === null) || draft.state === "failed";
+  if (action === "approve" ? draft.state === "failed" || draft.body === null : !unwritten && draft.body === null) throw new DraftRefused("not_written");
   return draft;
 }
 
@@ -363,7 +405,8 @@ export type RejectReason = (typeof REJECT_REASONS)[number];
 /**
  * Reject with a reason (§9). "Wrong angle" and "wrong fact" ask Relay to write
  * it again, away from what was wrong, as the next attempt; the other two close
- * the draft. Each touch is written at most three times.
+ * the draft. Each touch is written at most three times. A draft that failed
+ * stays failed and can only be asked for again (Try again, P5).
  */
 export async function rejectDraft(
   db: PrismaClient,
@@ -376,9 +419,14 @@ export async function rejectDraft(
     kind: DRAFT_REJECTED,
     apply: async (tx) => {
       const draft = await ownDraft(tx, input, "reject");
-      const updated = await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: input.reason, decidedByUserId: input.userId, decidedAt: at } });
+      const redraft = input.reason === "wrong_angle" || input.reason === "wrong_fact";
+      // A draft that failed has nothing written to reject, and the table keeps it failed: only asking again
+      // changes anything (Try again, P5), and a repeat of that is the same queued attempt (the job key).
+      if (draft.state === "failed" && (!redraft || draft.attempt >= MAX_DRAFT_ATTEMPTS)) throw new DraftRefused("not_written");
+      const updated =
+        draft.state === "failed" ? draft : await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: input.reason, decidedByUserId: input.userId, decidedAt: at } });
       let redraftJobId: string | null = null;
-      if ((input.reason === "wrong_angle" || input.reason === "wrong_fact") && draft.attempt < MAX_DRAFT_ATTEMPTS) {
+      if (redraft && draft.attempt < MAX_DRAFT_ATTEMPTS) {
         const attempt = draft.attempt + 1;
         const opener = draft.opener as { ref?: string } | null;
         const { job } = await enqueue(tx, {

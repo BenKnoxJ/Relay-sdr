@@ -1,11 +1,15 @@
 import type { OutreachDraftState, Prisma, PrismaClient } from "@prisma/client";
 
+import { webUrlOf } from "@/lib/outreach/peopleList";
 import { fromDbDate, isIsoDate, londonDay, toDbDate, type IsoDate, type StepId } from "@/lib/outreach/sequence";
 import {
   NOTE_MAX,
   campaignCounts,
   checkEvent,
+  channelOf,
   checkUndo,
+  isStepId,
+  touchOf,
   dueSteps,
   liveEvents,
   trackPerson,
@@ -20,6 +24,7 @@ import {
 } from "@/lib/outreach/track";
 
 import { mutate } from "./mutate";
+import { MAX_DRAFT_ATTEMPTS, nextAttemptKey, redraftsInFlight } from "./outreach";
 
 /**
  * Tracking a person's outreach (Relay P4): the writes and the reads.
@@ -42,7 +47,7 @@ export const OUTREACH_TRACKED = "outreach.tracked" as const;
 export const OUTREACH_UNDONE = "outreach.undone" as const;
 export const OUTREACH_PHONE_SET = "outreach.phone_set" as const;
 
-export type TrackingRefusal = Refusal | "not_found" | "not_started" | "bad_date" | "bad_range" | "empty_note" | "long_note" | "bad_phone";
+export type TrackingRefusal = Refusal | "not_found" | "not_started" | "not_approved" | "bad_date" | "bad_range" | "empty_note" | "long_note" | "bad_phone";
 
 export class TrackingRefused extends Error {
   constructor(readonly refusal: TrackingRefusal) {
@@ -112,9 +117,10 @@ export type RecordedEvent = { id: string; campaignId: string; kind: TrackEvent["
 
 /**
  * Write one row after the fold has said it is a valid next action. `build`
- * sees the locked person, so a step mark can refuse a person not yet started.
+ * sees the locked person (and the transaction), so a step mark can refuse a
+ * person not yet started, or an email nobody approved.
  */
-async function record(db: PrismaClient, ref: PersonRef, build: (person: Locked) => Proposed): Promise<RecordedEvent> {
+async function record(db: PrismaClient, ref: PersonRef, build: (person: Locked, tx: Tx) => Proposed | Promise<Proposed>): Promise<RecordedEvent> {
   return mutate(db, {
     orgId: ref.orgId,
     actor: { kind: "user", userId: ref.userId },
@@ -124,7 +130,7 @@ async function record(db: PrismaClient, ref: PersonRef, build: (person: Locked) 
     apply: async (tx) => {
       const person = await lockPerson(tx, ref);
       if (person === null) throw new TrackingRefused("not_found");
-      const proposed = build(person);
+      const proposed = await build(person, tx);
       const refusal = checkEvent(await historyOf(tx, ref.orgId, person.id), proposed, { startOn: person.startOn });
       if (refusal !== null) throw new TrackingRefused(refusal);
       const row = await tx.outreachEvent.create({
@@ -152,12 +158,21 @@ const blank = { outcome: null, callResult: null, note: null, undoesEventId: null
 
 export type MarkStepInput = PersonRef & { step: string; kind: StepAction; callResult?: CallResult; note?: string; on?: string };
 
-/** Mark a step sent, accepted, declined, replied, bounced, or (a call) done with how it went. */
+/**
+ * Mark a step sent, accepted, declined, replied, bounced, or (a call) done
+ * with how it went. An email is marked sent only once the rep has approved
+ * it (P5): every email is approved before it goes, and the Inbox and the
+ * person's drawer then agree on where it is.
+ */
 export async function markStep(db: PrismaClient, input: MarkStepInput): Promise<RecordedEvent> {
   const happenedOn = dayOf(input.on, (input.now ?? (() => new Date()))());
   const note = cleanNote(input.note);
-  return record(db, input, (person) => {
+  return record(db, input, async (person, tx) => {
     if (person.startOn === null) throw new TrackingRefused("not_started");
+    if (input.kind === "sent" && isStepId(input.step) && channelOf(input.step) === "email") {
+      const approved = await tx.outreachDraft.count({ where: { orgId: input.orgId, campaignPersonId: person.id, touch: touchOf(input.step), state: "approved" } });
+      if (approved === 0) throw new TrackingRefused("not_approved");
+    }
     return { ...blank, step: input.step as StepId, kind: input.kind, callResult: input.callResult ?? null, note, happenedOn };
   });
 }
@@ -238,12 +253,24 @@ export async function setPhone(db: PrismaClient, input: PersonRef & { phone: str
 
 // ---- Reads ----------------------------------------------------------------
 
+/** Title, company and a LinkedIn link that is a web address, read off the lead gen preview. */
+function previewOf(value: unknown): { title: string; company: string; linkedinUrl: string | null } {
+  const preview = value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const text = (key: string) => (typeof preview[key] === "string" ? (preview[key] as string).trim() : "");
+  return { title: text("title"), company: text("company"), linkedinUrl: webUrlOf(preview.linkedinUrl) };
+}
+
 /** A tracked person on a campaign: kept, revealed, chosen. */
 const trackedWhere = (orgId: string, campaignId: string): Prisma.CampaignPersonWhereInput => ({ orgId, campaignId, status: "chosen", review: "kept", personId: { not: null } });
 
 export type TrackingRow = {
   campaignPersonId: string;
   name: string;
+  /** From the lead gen preview (P5). */
+  title: string;
+  company: string;
+  /** The profile link, only when it is a web address. */
+  linkedinUrl: string | null;
   email: string;
   phone: string | null;
   startOn: IsoDate | null;
@@ -271,7 +298,7 @@ export async function campaignPeopleTracking(db: Db, input: Owner & { campaignId
   const paused = campaign.outreachPausedAt !== null;
   const people = await db.campaignPerson.findMany({
     where: trackedWhere(input.orgId, campaign.id),
-    select: { id: true, phone: true, outreachStartOn: true, person: { select: { name: true, email: true } } },
+    select: { id: true, phone: true, outreachStartOn: true, preview: true, person: { select: { name: true, email: true } } },
     orderBy: [{ rank: "asc" }, { id: "asc" }],
   });
   const histories = await historiesFor(db, input.orgId, [campaign.id]);
@@ -284,6 +311,7 @@ export async function campaignPeopleTracking(db: Db, input: Owner & { campaignId
     rows: folded.map(({ person, startOn, tracking }) => ({
       campaignPersonId: person.id,
       name: person.person?.name ?? "",
+      ...previewOf(person.preview),
       email: person.person?.email ?? "",
       phone: person.phone,
       startOn,
@@ -296,14 +324,27 @@ export async function campaignPeopleTracking(db: Db, input: Owner & { campaignId
   };
 }
 
-export type StepDraft = { id: string; state: OutreachDraftState; attempt: number; subject: string | null; body: string | null };
+export type StepDraft = {
+  id: string;
+  state: OutreachDraftState;
+  attempt: number;
+  subject: string | null;
+  body: string | null;
+  /** Failed, or held as Needs you, with an attempt left: Try again redrafts this one draft. */
+  canTryAgain: boolean;
+  /** The next attempt at this draft is queued or being written. */
+  redrafting: boolean;
+};
 export type EventView = { id: string; step: string | null; kind: TrackEvent["kind"]; outcome: OutreachOutcome | null; callResult: CallResult | null; note: string | null; happenedOn: IsoDate; undoesEventId: string | null; undone: boolean; createdAt: Date };
 
 export type PersonTrackingView = TrackingRow & {
   campaignId: string;
   paused: boolean;
   tracking: PersonTracking;
-  /** The stored draft for each step's touch: the latest attempt. Both calls read the one call script. */
+  /**
+   * The stored draft for each step's touch: an approved attempt if there is
+   * one, else the latest. Both calls read the one call script.
+   */
   drafts: Record<string, StepDraft | null>;
   /** Every row, oldest first, each saying whether an undo reversed it. */
   events: EventView[];
@@ -315,7 +356,7 @@ export type PersonTrackingView = TrackingRow & {
 export async function personTracking(db: Db, input: Owner & { campaignPersonId: string; today: IsoDate }): Promise<PersonTrackingView | null> {
   const person = await db.campaignPerson.findFirst({
     where: { id: input.campaignPersonId, orgId: input.orgId, status: "chosen", review: "kept", personId: { not: null }, campaign: { ownerUserId: input.userId } },
-    select: { id: true, campaignId: true, phone: true, outreachStartOn: true, person: { select: { name: true, email: true } }, campaign: { select: { outreachPausedAt: true } } },
+    select: { id: true, campaignId: true, phone: true, outreachStartOn: true, preview: true, person: { select: { name: true, email: true } }, campaign: { select: { outreachPausedAt: true } } },
   });
   if (person === null) return null;
   const paused = person.campaign.outreachPausedAt !== null;
@@ -328,18 +369,34 @@ export async function personTracking(db: Db, input: Owner & { campaignPersonId: 
 
   const drafts = await db.outreachDraft.findMany({
     where: { orgId: input.orgId, campaignPersonId: person.id },
-    select: { id: true, touch: true, state: true, attempt: true, subject: true, body: true, editedBody: true },
+    select: { id: true, campaignId: true, briefVersion: true, touch: true, state: true, attempt: true, subject: true, body: true, editedBody: true },
     orderBy: [{ touch: "asc" }, { attempt: "desc" }],
   });
+  // A redraft on its way: the next attempt's job, by the key the reject that asked for it used.
+  const inFlight = await redraftsInFlight(db, input.orgId, drafts.map((draft) => ({ ...draft, campaignPersonId: person.id })));
+  const nextKey = (draft: (typeof drafts)[number]) => nextAttemptKey({ ...draft, campaignPersonId: person.id });
+  // Latest attempt first; an approved one wins, so a later redraft that failed cannot hide it (P4 review).
   const latest = new Map<string, StepDraft>();
   for (const draft of drafts) {
-    if (!latest.has(draft.touch)) latest.set(draft.touch, { id: draft.id, state: draft.state, attempt: draft.attempt, subject: draft.subject, body: draft.editedBody ?? draft.body });
+    const held = latest.get(draft.touch);
+    if (held !== undefined && (held.state === "approved" || draft.state !== "approved")) continue;
+    const attemptLeft = draft.attempt < MAX_DRAFT_ATTEMPTS;
+    latest.set(draft.touch, {
+      id: draft.id,
+      state: draft.state,
+      attempt: draft.attempt,
+      subject: draft.subject,
+      body: draft.editedBody ?? draft.body,
+      canTryAgain: (draft.state === "failed" || draft.state === "needs_you") && attemptLeft && !inFlight.has(nextKey(draft)),
+      redrafting: inFlight.has(nextKey(draft)),
+    });
   }
 
   return {
     campaignPersonId: person.id,
     campaignId: person.campaignId,
     name: person.person?.name ?? "",
+    ...previewOf(person.preview),
     email: person.person?.email ?? "",
     phone: person.phone,
     startOn,

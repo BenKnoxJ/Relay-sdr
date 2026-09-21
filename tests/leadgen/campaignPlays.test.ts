@@ -4,7 +4,7 @@ import type { Campaign as CampaignRow, Job, Prisma } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { nameFrom, toResearchBrief } from "@/lib/campaigns/brief";
-import { toCampaign } from "@/lib/campaigns/view";
+import { toCampaign, toCampaignResearch } from "@/lib/campaigns/view";
 import { prisma } from "@/lib/db";
 import { NO_CRM } from "@/lib/leadgen/crm";
 import { FakeLeadGenProvider, type FakeStep } from "@/lib/leadgen/fakeProvider";
@@ -283,6 +283,25 @@ describe("Create campaigns from ticked plays", () => {
     const confirmed = await planned();
     await confirm(confirmed);
     expect(await refusalOf(create(confirmed, [BROKERS, MGAS]))).toBe("wrong_state");
+  });
+
+  it("@proof shows a made campaign its own play, not research's top one: Start with, the pain, and the research page", async () => {
+    const source = await planned();
+    const [kept, made] = (await create(source, [BROKERS, MGAS])).campaigns;
+    // Research's top play is neither of these.
+    const topName = (await view(await planned())).overview?.startWith?.groupName;
+
+    for (const [campaign, playId] of [[made!, MGAS], [kept!, BROKERS]] as const) {
+      const shown = await view(campaign);
+      const name = shown.plays?.find((play) => play.id === playId)?.group.name;
+      expect(name).toBeDefined();
+      expect(name).not.toBe(topName);
+      expect(shown.overview?.startWith?.groupName).toBe(name);
+      expect(shown.overview?.pain?.groupName).toBe(name);
+      expect(shown.confirmPlan?.groupName).toBe(name);
+      const record = await getCampaignForOwner(prisma, { orgId: ORG, userId: REP, id: campaign.id });
+      expect(toCampaignResearch(record!).summary?.startWith?.groupName).toBe(name);
+    }
   });
 
   it("surfaces a unique violation on anything but a play's start request id, and creates nothing", async () => {

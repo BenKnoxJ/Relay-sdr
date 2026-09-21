@@ -8,6 +8,7 @@ import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rolesMissingFrom, searchLine, spareCount } from "./accounts";
 import type { FindingView } from "./types";
 import { becomesLine, widenHeadings } from "./briefLines";
+import { overviewOf } from "./overview";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
 import type { ResearchResultFacts, StageResult } from "./stage";
@@ -182,11 +183,14 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const allPlays = pack === null || pack.insufficient !== undefined ? null : playsOf(pack);
   const plays = allPlays === null || playId === null ? allPlays : allPlays.filter((play) => play.id === playId);
 
+  // Start with and the pain are the campaign's own play's, not research's top one.
+  const overview = research.state !== "planReady" ? null : playId === null || pack === null ? research.overview : overviewOf(pack, playId);
+
   const confirmPlan: ConfirmPlanView | null =
     state === "planReady"
       ? {
           available: options.available,
-          groupName: research.state === "planReady" ? (research.overview.startWith?.groupName ?? null) : null,
+          groupName: overview?.startWith?.groupName ?? null,
           searchCreditCap: options.searchCreditCap,
           sample: options.sample,
           lawfulBasis: campaignsCopy.lawfulBasis,
@@ -247,7 +251,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     // The research pack leaves the server only for a stop, which draws what it found and the ways to widen.
     // A plan is read through `overview` and `plays`; the whole pack is on the research page.
     pack: research.state === "stopped" ? research.pack : null,
-    overview: research.state === "planReady" ? research.overview : null,
+    overview,
     plan: null,
     progress: counts.progress,
     people:

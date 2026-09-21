@@ -608,11 +608,16 @@ async function outreachFor(db: Db, scope: Scope): Promise<OutreachRecord> {
   if (requested === null) return { requested: false, byPerson: {}, jobs: { queued: 0, running: 0 } };
   const byPerson: Record<string, string> = {};
   // Each person's latest attempt, then anyone whose next draft is still being written.
-  const drafts = await db.outreachDraft.findMany({ where: scope, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true, jobId: true } });
+  // A person's first email is where their outreach is: the rest of the sequence follows it (P2).
+  const drafts = await db.outreachDraft.findMany({ where: { ...scope, touch: "email1" }, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true, jobId: true } });
   for (const draft of drafts) byPerson[draft.campaignPersonId] = draft.state;
   const drafted = new Set(drafts.map((draft) => draft.jobId));
   const jobs = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running", "failed"] } }, select: { id: true, input: true, status: true } });
-  const personOf = (job: { input: unknown }) => (job.input as { campaignPersonId?: unknown } | null)?.campaignPersonId;
+  // A job writing a later touch again leaves the person's first email where it is.
+  const personOf = (job: { input: unknown }) => {
+    const value = job.input as { campaignPersonId?: unknown; touch?: unknown } | null;
+    return value?.touch === undefined || value.touch === "email1" ? value?.campaignPersonId : undefined;
+  };
   // A job that failed without recording a draft still failed for that person: never "not asked".
   for (const job of jobs) {
     const id = personOf(job);

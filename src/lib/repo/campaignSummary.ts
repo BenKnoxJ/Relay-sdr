@@ -191,7 +191,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
       ? [[], []]
       : await Promise.all([
           db.outreachDraft.findMany({
-            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns } },
+            // A person's first email is where their outreach is: the rest of the sequence follows it (P2).
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, touch: "email1" },
             select: { campaignId: true, briefVersion: true, campaignPersonId: true, state: true, attempt: true, jobId: true },
             orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
           }),
@@ -265,6 +266,12 @@ function outreachFactsOfList(
   requested: boolean,
 ): OutreachFacts {
   const writable = groups.filter((group) => group.status === "chosen" && group.review === "kept" && (group.reveal === "revealed" || group.reveal === "known")).reduce((total, group) => total + group.count, 0);
+  // A job writing a later touch again leaves the person's first email where it is, as the campaign page reads it.
+  const firstEmailJob = (input: unknown) => {
+    const touch = record(input).touch;
+    return touch === undefined || touch === "email1";
+  };
+  // Any draft job in flight is drafting, as the campaign page counts it.
   const inFlight = jobs.filter((job) => job.campaignId === campaign.id && job.briefVersion === campaign.briefVersion && job.kind === OUTREACH_DRAFT_JOB && (job.status === "queued" || job.status === "running"));
   const byPerson: Record<string, string> = {};
   const current = drafts.filter((draft) => draft.campaignId === campaign.id && draft.briefVersion === campaign.briefVersion);
@@ -272,7 +279,7 @@ function outreachFactsOfList(
   // As the campaign page reads it: a draft job that failed without recording a draft failed for that person.
   const drafted = new Set(current.map((draft) => draft.jobId));
   for (const job of failedJobs) {
-    if (job.campaignId !== campaign.id || job.briefVersion !== campaign.briefVersion || drafted.has(job.id)) continue;
+    if (job.campaignId !== campaign.id || job.briefVersion !== campaign.briefVersion || drafted.has(job.id) || !firstEmailJob(job.input)) continue;
     const id = record(job.input).campaignPersonId;
     if (typeof id === "string") byPerson[id] = "failed";
   }

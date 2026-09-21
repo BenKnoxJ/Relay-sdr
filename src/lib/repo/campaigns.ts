@@ -1088,7 +1088,8 @@ export async function requestDrafts(db: PrismaClient, input: ChangeInput & { bri
         orgId: campaign.orgId,
         ownerUserId: campaign.ownerUserId,
         kind: OUTREACH_DRAFT_JOB,
-        idempotencyKey: draftJobKey(campaign.id, campaign.briefVersion, person.id, 1),
+        // One job per person drafts their whole sequence (P2).
+        idempotencyKey: draftJobKey(campaign.id, campaign.briefVersion, person.id, 1, "sequence"),
         input: { requestId: input.requestId, campaignPersonId: person.id, attempt: 1 },
         campaignId: campaign.id,
         briefVersion: campaign.briefVersion,

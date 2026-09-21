@@ -16,8 +16,17 @@ import { angleSchema } from "../research/output/modules";
  * person is Relay's revealed Person (v2.1 §2), not lead gen's preview shape.
  */
 
-export const TOUCH_KINDS = ["email1", "email2", "breakup", "li_connect", "li_dm", "call"] as const;
+export const TOUCH_KINDS = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"] as const;
 export type TouchKind = (typeof TOUCH_KINDS)[number];
+
+/** The touches the Inbox approves: the emails. LinkedIn and the call are drafted and stored, and shown elsewhere. */
+export const EMAIL_TOUCHES = ["email1", "email2", "breakup"] as const satisfies readonly TouchKind[];
+
+/**
+ * The sequence one job drafts for a person, in order (P2, 21 Sep 2026). The
+ * position is the touch's `ordinal`; "shorter than the last" reads it.
+ */
+export const SEQUENCE = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"] as const satisfies readonly TouchKind[];
 
 /** Which register the rep's samples are drawn from (§15 resolution 1). */
 export const REGISTERS = ["email", "linkedin"] as const;
@@ -38,7 +47,8 @@ export const threadEntrySchema = z
     ordinal: z.number().int().positive().max(20),
     subject: z.string().max(200).optional(),
     body: z.string().max(5000),
-    fate: z.enum(["sent", "replied", "bounced", "rejected", "snoozed", "closed"]),
+    /** `drafted`: written in the same sequence, not yet sent. A follow-up reads it so it does not repeat it. */
+    fate: z.enum(["drafted", "sent", "replied", "bounced", "rejected", "snoozed", "closed"]),
     /** The reply, when there was one. §2's guard reads it; the writer must not answer it here (1b). */
     replyText: z.string().max(5000).optional(),
   })
@@ -146,6 +156,8 @@ export const redraftSchema = z
   .object({
     findings: z.array(z.string().min(1).max(500)).min(1).max(20),
     previous: z.object({ subject: z.string().max(200).optional(), body: z.string().max(5000), ask: z.string().max(300) }).strict(),
+    /** A sequence redraft: every touch as it was, so the ones that passed come back unchanged. */
+    previousTouches: z.array(threadEntrySchema).max(SEQUENCE.length).optional(),
   })
   .strict();
 
@@ -156,6 +168,11 @@ export const outreachInputSchema = z
     buyerRole: buyerRoleSchema.optional(),
     account: accountSchema,
     touch: touchSchema,
+    /**
+     * Present when one answer writes the whole sequence (P2): the touches, in
+     * order. `touch` is then the first of them.
+     */
+    sequence: z.array(z.enum(TOUCH_KINDS)).min(1).max(SEQUENCE.length).optional(),
     thread: z.array(threadEntrySchema).max(20),
     pack: packSliceSchema,
     /** Live ids only (§3). The runtime filters before the model sees them. */

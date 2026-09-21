@@ -12,6 +12,7 @@ import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, Revie
 import { actionFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { PERSON_DRAFT_COST_CAP_USD } from "@/lib/outreach/cost";
 
 import { BriefCard } from "./BriefCard";
 import { PeopleFound } from "./PeopleFound";
@@ -265,7 +266,7 @@ export function CampaignPage({
     }
     // Write emails: the card says what it does, and one press asks for the drafts (outreach v2.1).
     if (state === "peopleReady" && writeOpen && campaign.can.write === true) {
-      main.push(<WriteCard key="write" people={campaign.peopleFound.writable ?? 0} costCeilingUsd={10} pending={pending} error={writeError} onConfirm={writeEmails} onCancel={() => setWriteOpen(false)} />);
+      main.push(<WriteCard key="write" people={campaign.peopleFound.writable ?? 0} costCeilingUsd={PERSON_DRAFT_COST_CAP_USD} pending={pending} error={writeError} onConfirm={writeEmails} onCancel={() => setWriteOpen(false)} />);
     }
     // Drafting, drafts to review, ready to send: the counts and the way into the Inbox, above the people.
     if (state === "drafting" && facts !== undefined && facts.drafts !== null) {

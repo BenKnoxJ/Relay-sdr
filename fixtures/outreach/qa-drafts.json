@@ -1,5 +1,5 @@
 {
-  "note": "Scripted first emails for the Email 1 fixture walk-through (RELAY_OUTREACH_FIXTURE_DRAFTS, development and test only). Fictional people and firms. Each list is one attempt's generations in order; <email>#2 is a draft the rep asked for again. $lookup stands for the lookup item the job found. These are written to the signed standard, and a few are deliberately wrong so the gates can be seen working.",
+  "note": "Scripted first emails for the Email 1 fixture walk-through (RELAY_OUTREACH_FIXTURE_DRAFTS, development and test only). Fictional people and firms. Each list is one attempt's generations in order; <email>#2 is a draft the rep asked for again. $lookup stands for the lookup item the job found. These are written to the signed standard, and a few are deliberately wrong so the gates can be seen working. `touches` is the rest of the sequence (P2), the same for everyone; $role stands for the person's role problem.",
   "drafts": {
     "avery.dunmore@ardent-motor.example": [
       {
@@ -85,5 +85,79 @@
         "claims": ["i360.product.every-ingested-call-analysed"]
       }
     ]
+  },
+  "touches": {
+    "email2": {
+      "kind": "message",
+      "body": "Another angle on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Would that timing matter to your team?",
+      "ask": "Would that timing matter to your team?",
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    },
+    "breakup": {
+      "kind": "message",
+      "subject": "Right person for call quality",
+      "body": "I won't keep writing about this. If call quality sits with someone else on your side, who would be the right person to ask?",
+      "ask": "If call quality sits with someone else on your side, who would be the right person to ask?",
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    },
+    "li_connect": {
+      "kind": "message",
+      "body": "Your role came up while I was reading about complaint handling. Would you be open to connecting?",
+      "ask": "Would you be open to connecting?",
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    },
+    "li_dm": {
+      "kind": "message",
+      "body": "Thanks for connecting. Something that comes up a lot in claims teams is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. Is that something your team is looking at this year, or is it settled for now?",
+      "ask": "Is that something your team is looking at this year, or is it settled for now?",
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    },
+    "li_dm2": {
+      "kind": "message",
+      "body": "A last thought on this. The complaints that cost the most usually trace back to a handful of calls nobody heard. Finding those early is the whole idea. Worth a conversation, or not a priority right now?",
+      "ask": "Worth a conversation, or not a priority right now?",
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    },
+    "call": {
+      "kind": "call",
+      "talkingPoint": {
+        "openingLine": "It's about how the calls behind complaints get found, and I will be quick.",
+        "oneQuestion": "Is finding those calls earlier something you own?",
+        "listenFor": "whether sampling feels like a gap, and who owns call quality",
+        "numberSource": "find_a_number",
+        "voicemail": "Calling about how the calls behind complaints get found. I will send a short note by email, so there is nothing to call back about.",
+        "objections": [
+          {
+            "objection": "We already sample calls.",
+            "answer": "That makes sense; the question is how many of the calls behind complaints the sample catches."
+          }
+        ]
+      },
+      "opener": {
+        "ref": "$role",
+        "kind": "role_pain"
+      },
+      "claims": []
+    }
   }
 }

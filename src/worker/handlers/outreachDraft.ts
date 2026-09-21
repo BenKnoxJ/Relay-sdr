@@ -4,35 +4,48 @@ import path from "node:path";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 
-import type { OutreachInput } from "../../../agents/outreach/input.schema";
-import { outputSchemaFor, type OutreachOutput } from "../../../agents/outreach/output.schema";
+import { SEQUENCE, type OutreachInput, type TouchKind } from "../../../agents/outreach/input.schema";
+import { LIMITS, outputSchemaFor, type OutreachOutput } from "../../../agents/outreach/output.schema";
+import {
+  humanizeInputSchema,
+  humanizeOutputSchema,
+  proseOf,
+  sequenceOutputSchema,
+  touchesOf,
+  withProse,
+  type HumanizeInput,
+  type HumanTouches,
+  type SequenceOutput,
+} from "../../../agents/outreach/sequence.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
-import { loadDefinition } from "@/lib/agents/definitions";
+import { agentsDir, loadDefinition, type AgentDefinition } from "@/lib/agents/definitions";
 import type { RunModel } from "@/lib/agents/model";
 import type { PricedModel } from "@/lib/agents/pricing";
 import { makeModel } from "@/lib/agents/provider";
 import { AgentRunFailedError, rejectedAnswerText, runAgent, validationIssues } from "@/lib/agents/run";
 import { stubModel } from "@/lib/agents/stubModel";
 import { storedPack } from "@/lib/campaigns/derive";
+import { draftCopy } from "@/lib/copy/draft";
 import { PROSE_MACHINE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
 import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms } from "@/lib/outreach/adapter";
-import { gateEmail1, normaliseClaims, type Finding } from "@/lib/outreach/gates";
+import { addedFacts, gateFor, normaliseClaims, proseText, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { loadStandard } from "@/lib/outreach/standard";
 import { latestResearchJob } from "@/lib/repo/campaigns";
 import { findConfirmEvent, handoffOf } from "@/lib/repo/leadgen";
 import {
-  CAMPAIGN_DRAFT_COST_CAP_USD,
-  campaignDraftCost,
+  PERSON_DRAFT_COST_CAP_USD,
   cohortFor,
   draftJobInputSchema,
-  findDraftForJob,
+  findDraftsForJob,
   findLookup,
-  recordDraft,
+  personDraftCost,
+  recordDrafts,
   recordLookup,
   voiceFor,
+  type TouchRecord,
 } from "@/lib/repo/outreach";
 import { findResearchCompletedForJob } from "@/lib/repo/research";
 import { createFirecrawlService, createTavilyService, type FetchService, type SearchService } from "@/lib/services";
@@ -40,21 +53,28 @@ import { TerminalError, safeError } from "@/worker/errors";
 import type { Handler } from "@/worker/handlers/index";
 
 /**
- * The `outreach_draft` job (outreach v2 §2–§8, as amended by v2.1): one first
- * email for one kept person with a usable email.
+ * The `outreach_draft` job (outreach v2 §2–§8, as amended by v2.1 and by P2 on
+ * 21 Sep 2026). The first press drafts one person's whole sequence (three
+ * emails, a LinkedIn note and two messages, a call script); a rep's redraft
+ * writes one touch again.
  *
  *   1. the person must still be a kept, revealed or known person of this
- *      campaign version, with a work email;
+ *      campaign version, with a work email, and under the per-person drafting
+ *      ceiling (§11 as P2 set it); past it the touches are parked for the rep;
  *   2. the lookup runs once, code before the model, person then account, and
  *      stops at the first usable, relevant item (v2.1 §3); its result is an
  *      Event, so a retried job reads it back and searches for nothing;
- *   3. one model generation, offered the touch's own shape only (a first
- *      email is a message, never the message-or-call union); the opener's and
- *      the plan's ids moved out of `claims`; the gates; at most one corrective redraft with
- *      the findings; then the draft is written as to review, or as Needs you
- *      with the labels, or as not written when neither generation came back in
- *      shape (v2.1 §6);
- *   4. the draft and its Event are written once.
+ *   3. **a sequence** is one model call returning all seven touches, each in its
+ *      own shape; each touch is checked against its own rules and gates (Email
+ *      1 keeps `gateEmail1`); the touches that failed go back once, together, in
+ *      one corrective call, and the ones that passed keep their first words;
+ *      then one humanizer call edits the sequence, facts locked, and each
+ *      humanized touch is gated again and kept only if it broke nothing the
+ *      draft had not broken and added no number or name;
+ *      **a single touch** is one generation offered that touch's shape only, the
+ *      gates for its kind, and at most one corrective redraft (v2.1 §6), with
+ *      no humanizer pass, so a redraft stays one call;
+ *   4. the drafts and their one Event are written once, together.
  *
  * Nothing is sent.
  */
@@ -65,9 +85,12 @@ const FACTS_VERSION = 2;
 /** At most two model generations per draft (v2.1 §6). */
 export const MAX_GENERATIONS = 2;
 
+/** Which call a model is made for: a draft generation or the humanizer pass over a sequence. */
+export type ModelCall = { attempt: number; generation: number; pass: "draft" | "humanize"; humanize?: HumanizeInput };
+
 export type OutreachHandlerDeps = {
-  /** The model for one generation. Tests and the fixture walk-through hand in a scripted one. */
-  makeModel: (id: PricedModel, input: OutreachInput, at: { attempt: number; generation: number }) => RunModel | LanguageModel;
+  /** The model for one call. Tests and the fixture walk-through hand in a scripted one. */
+  makeModel: (id: PricedModel, input: OutreachInput, at: ModelCall) => RunModel | LanguageModel;
   search: SearchService;
   fetch: FetchService;
   facts?: ProductFacts;
@@ -81,25 +104,44 @@ const fixtureDraftSchema = z.object({
   opener: z.object({ ref: z.string(), kind: z.string() }),
   claims: z.array(z.string()).default([]),
 });
-const fixtureDraftsSchema = z.object({ drafts: z.record(z.array(fixtureDraftSchema).min(1)) });
+const fixtureDraftsSchema = z.object({
+  drafts: z.record(z.array(fixtureDraftSchema).min(1)),
+  /** The rest of the sequence, the same for everyone: every touch but Email 1, in its own shape. */
+  touches: z.record(z.unknown()).optional(),
+});
 
 /**
  * The scripted writer for walking the review workflow with no model: each
- * generation takes the person's scripted draft for that generation, under
+ * generation takes the person's scripted first email for that generation, under
  * `<email>` for the first attempt and `<email>#<attempt>` for a draft the rep
- * asked for again. `$lookup` stands for the lookup item the job actually
- * found. Local and test only (`env.ts`).
+ * asked for again. A sequence adds the file's shared `touches` for the rest.
+ * `$lookup` stands for the lookup item the job actually found and `$role` for
+ * the person's role problem. The humanizer pass hands the words back as they
+ * were. Local and test only (`env.ts`).
  */
 export function fixtureWriter(file: string): OutreachHandlerDeps["makeModel"] {
   const scripted = fixtureDraftsSchema.parse(JSON.parse(readFileSync(file, "utf8")));
   return (id, input, at) => {
+    const reply = (answer: unknown) => ({
+      transport: "stub" as const,
+      model: stubModel({ modelId: id, calls: [{ text: JSON.stringify(answer), usage: { in: 6000, out: 350, cacheRead: 0, cacheWrite: 0, reasoning: 0 } }], whenExhausted: "throw" }),
+    });
+    if (at.pass === "humanize") return reply(at.humanize?.touches ?? {});
     const email = input.person.email.toLowerCase();
     const list = scripted.drafts[`${email}#${at.attempt}`] ?? scripted.drafts[email];
     if (list === undefined) throw new TerminalError("outreach: no scripted draft for this person");
+    const resolve = (ref: string) => (ref === "$lookup" ? (input.lookup.items[0]?.id ?? "missing") : ref === "$role" ? (input.buyerRole?.id ?? input.pack.archetype.pains[0]?.id ?? "missing") : ref);
     const draft = list[Math.min(at.generation, list.length - 1)]!;
-    const ref = draft.opener.ref === "$lookup" ? (input.lookup.items[0]?.id ?? "missing") : draft.opener.ref;
-    const answer = { kind: "message", ...draft, opener: { ...draft.opener, ref } };
-    return { transport: "stub", model: stubModel({ modelId: id, calls: [{ text: JSON.stringify(answer), usage: { in: 6000, out: 350, cacheRead: 0, cacheWrite: 0, reasoning: 0 } }], whenExhausted: "throw" }) };
+    const first = { kind: "message", ...draft, opener: { ...draft.opener, ref: resolve(draft.opener.ref) } };
+    if (input.sequence === undefined) return reply(first);
+    if (scripted.touches === undefined) throw new TerminalError("outreach: the scripted drafts have no sequence touches");
+    const rest = Object.fromEntries(
+      Object.entries(scripted.touches).map(([kind, value]) => {
+        const touch = value as { opener: { ref: string; kind: string } };
+        return [kind, { ...touch, opener: { ...touch.opener, ref: resolve(touch.opener.ref) } }];
+      }),
+    );
+    return reply({ ...rest, email1: first });
   };
 }
 
@@ -115,13 +157,21 @@ export function defaultOutreachDeps(): OutreachHandlerDeps {
   };
 }
 
+let humanizerPrompt: string | null = null;
+
+/** The humanizer's system prompt: the fleet catalogue, vendored and adapted for cold outreach (`agents/outreach/humanizer.md`). */
+function loadHumanizer(): string {
+  humanizerPrompt ??= readFileSync(path.join(agentsDir(), "outreach", "humanizer.md"), "utf8").trim();
+  return humanizerPrompt;
+}
+
 /**
  * `refused` is what the writer is told about an answer the run refused: the
  * rules it broke and the answer itself, so the redraft fixes that and keeps the
  * rest. Model-facing only; the card shows the plain shape finding, because the
  * words named here are the ones a rep never sees.
  */
-type Generation = { output: OutreachOutput | null; tierA: Finding[]; tierB: Finding[]; costUsd: number; refused?: Refusal };
+type Generation = { output: OutreachOutput | null; tierA: Finding[]; tierB: Finding[]; refused?: Refusal };
 
 type Refusal = { fixes: string[]; previous?: { subject?: string; body: string; ask: string } };
 
@@ -131,8 +181,6 @@ const refusedCallSchema = z.object({ talkingPoint: z.object({ openingLine: z.str
 
 /** Why the run refused an answer, as instructions for the one redraft. */
 export function refusalOf(error: unknown): Refusal {
-  const fixes: string[] = [];
-  let previous: Refusal["previous"];
   const text = rejectedAnswerText(error);
   let answer: unknown = null;
   try {
@@ -140,6 +188,13 @@ export function refusalOf(error: unknown): Refusal {
   } catch {
     answer = null;
   }
+  return refusalFrom(answer, validationIssues(error));
+}
+
+/** Why an answer (a whole one, or one touch of a sequence) was refused, from the answer and its schema issues. */
+export function refusalFrom(answer: unknown, issues: readonly string[]): Refusal {
+  const fixes: string[] = [];
+  let previous: Refusal["previous"];
   const parsed = refusedAnswerSchema.safeParse(answer);
   const call = parsed.success ? null : refusedCallSchema.safeParse(answer);
   let prose: string[] = [];
@@ -156,7 +211,7 @@ export function refusalOf(error: unknown): Refusal {
   if (used.length > 0) {
     fixes.push(`Relay refuses these words in ${parsed.success ? "an email" : "a talking point"}, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
   }
-  for (const issue of validationIssues(error)) {
+  for (const issue of issues) {
     // Named above when the answer could be read; otherwise the issue is all there is.
     if (used.length > 0 && /machine word in a rep-facing string/.test(issue)) continue;
     fixes.push(/banned dash/.test(issue) ? "No em dashes, and no en dash with a space beside it." : issue.slice(0, 300));
@@ -182,6 +237,85 @@ export function resolveOpener(
   return { ref: opener.ref, kind: "role_pain", text, source: "The campaign plan", date: "" };
 }
 
+
+/** A call script as the rep reads it, stored as the draft's body: labelled lines, the objections as pairs. */
+export function callScriptText(point: Extract<OutreachOutput, { kind: "call" }>["talkingPoint"]): string {
+  const copy = draftCopy.callScript;
+  return [
+    `${copy.open} ${point.openingLine}`,
+    `${copy.ask} ${point.oneQuestion}`,
+    `${copy.listen} ${point.listenFor}`,
+    ...(point.voicemail === undefined ? [] : [`${copy.voicemail} ${point.voicemail}`]),
+    ...(point.objections ?? []).map((pair) => `${copy.ifTheySay} ${pair.objection}\n${copy.say} ${pair.answer}`),
+  ].join("\n\n");
+}
+
+/**
+ * A touch as it is stored. A message as written, except that the follow-up is
+ * a reply in Email 1's thread and LinkedIn has no subject line, so neither
+ * keeps one. A call script as labelled lines, its question as the ask.
+ */
+export function storedDraftOf(
+  output: OutreachOutput,
+  kind: TouchKind,
+  lookup: OutreachInput["lookup"],
+  slice: OutreachInput["pack"],
+  buyerRole: OutreachInput["buyerRole"],
+): NonNullable<TouchRecord["draft"]> {
+  const opener = resolveOpener(output.opener, lookup, slice, buyerRole);
+  if (output.kind === "call") return { body: callScriptText(output.talkingPoint), ask: output.talkingPoint.oneQuestion, opener, claims: output.claims };
+  const subject = kind === "email1" || kind === "breakup" ? output.subject : undefined;
+  return { ...(subject === undefined ? {} : { subject }), body: output.body, ask: output.ask, opener, claims: output.claims };
+}
+
+/** An earlier touch as a later one reads it. */
+function threadEntryOf(kind: TouchKind, output: OutreachOutput): OutreachInput["thread"][number] {
+  const ordinal = SEQUENCE.indexOf(kind) + 1;
+  if (output.kind === "call") return { kind, ordinal, body: proseText(output).slice(0, 5000), fate: "drafted" };
+  return { kind, ordinal, ...(output.subject === undefined ? {} : { subject: output.subject.slice(0, 200) }), body: output.body, fate: "drafted" };
+}
+
+/** A touch's limits in words, for the humanizer. */
+function limitText(kind: TouchKind): string {
+  if (kind === "call") return "opening line at most 25 words; voicemail at most 40 words; at most 3 objections";
+  const limits = LIMITS[kind];
+  const parts = [
+    limits.minWords !== undefined && limits.maxWords !== undefined ? `${limits.minWords} to ${limits.maxWords} words` : limits.maxWords !== undefined ? `at most ${limits.maxWords} words` : "",
+    limits.maxChars !== undefined ? `at most ${limits.maxChars} characters` : "",
+    limits.shrinks === true ? "shorter than the email before it" : "",
+    limits.noLink === true ? "no link" : "",
+  ];
+  return parts.filter((part) => part !== "").join("; ");
+}
+
+/** The words a person has already been given at this version, for a redraft of a later touch: each earlier touch's latest draft. */
+async function threadFor(
+  db: Parameters<Handler>[0]["db"],
+  where: { orgId: string; campaignId: string; briefVersion: number; campaignPersonId: string; before: TouchKind },
+): Promise<OutreachInput["thread"]> {
+  const earlier = SEQUENCE.slice(0, SEQUENCE.indexOf(where.before));
+  if (earlier.length === 0) return [];
+  const drafts = await db.outreachDraft.findMany({
+    where: { orgId: where.orgId, campaignId: where.campaignId, briefVersion: where.briefVersion, campaignPersonId: where.campaignPersonId, touch: { in: earlier }, body: { not: null } },
+    orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
+  });
+  const latest = new Map<string, (typeof drafts)[number]>();
+  for (const draft of drafts) latest.set(draft.touch, draft);
+  return earlier.flatMap((kind) => {
+    const draft = latest.get(kind);
+    if (draft === undefined) return [];
+    return [{ kind, ordinal: SEQUENCE.indexOf(kind) + 1, ...(draft.subject === null ? {} : { subject: draft.subject.slice(0, 200) }), body: (draft.editedBody ?? draft.body ?? "").slice(0, 5000), fate: "drafted" as const }];
+  });
+}
+
+type Outcome<T> = { ok: true; object: T } | { ok: false; refused: true; error: AgentRunFailedError } | { ok: false; refused: false; error: unknown };
+
+type HumanizerTouchLog = { drafted: HumanTouches[keyof HumanTouches]; humanized: HumanTouches[keyof HumanTouches] | null; kept: "humanized" | "drafted"; reason?: string };
+
+function resultOf(drafts: { id: string }[]): { draftId: string; draftIds: string[] } {
+  return { draftId: drafts[0]!.id, draftIds: drafts.map((draft) => draft.id) };
+}
+
 export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreachDeps()): Handler {
   return async ({ db, job, signal }) => {
     const parsed = draftJobInputSchema.safeParse(job.input);
@@ -190,8 +324,8 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const input = parsed.data;
     const scope = { orgId: job.orgId, campaignId: job.campaignId, briefVersion: job.briefVersion };
 
-    const done = await findDraftForJob(db, { orgId: job.orgId, jobId: job.id });
-    if (done !== null) return { draftId: done.id };
+    const done = await findDraftsForJob(db, { orgId: job.orgId, jobId: job.id });
+    if (done.length > 0) return resultOf(done);
 
     const campaign = await db.campaign.findFirst({ where: { id: job.campaignId, orgId: job.orgId } });
     if (campaign === null) throw new TerminalError("outreach: no such campaign");
@@ -214,18 +348,27 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const facts = liveFacts(deps.facts ?? loadFacts(FACTS_PRODUCT, FACTS_VERSION).facts);
     const noLookup = { items: [], usable: false, searches: 0, fetches: 0 };
 
+    // The first press drafts the whole sequence; a rep's redraft (or a job from before P2 that names no touch past attempt 1) writes one touch.
+    const sequence = input.touch === undefined && input.attempt === 1 && input.avoid === undefined;
+    const kinds: readonly TouchKind[] = sequence ? SEQUENCE : [input.touch ?? "email1"];
+    const write = async (touches: TouchRecord[], lookupUsed: OutreachInput["lookup"], record?: Record<string, unknown>) =>
+      resultOf(await recordDrafts(db, { ...recordFor, lookup: lookupUsed, touches, ...(record === undefined ? {} : { record }) }));
+    /** Every touch this job owns, in one state with one finding: the job's cost on the first. */
+    const every = (state: TouchRecord["state"], finding: Finding, costUsd = 0, generations = 0): TouchRecord[] =>
+      kinds.map((touch, index) => ({ touch, state, draft: null, findings: [finding], advice: [], generations, costUsd: index === 0 ? costUsd : 0 }));
+
     // An error that is not a failed agent run goes back to the queue while attempts remain. When no
     // retry is coming (the error is terminal, or this is the last attempt) the person gets a visible
     // "could not be written" draft instead of silently dropping out of the campaign. A lost lease is
     // never a failed draft.
     const unexpected = (error: unknown): boolean => !signal.aborted && (error instanceof TerminalError || job.attempts >= job.maxAttempts);
     const unexpectedFinding: Finding = { rule: "error", text: "Something went wrong while writing this draft." };
+    const capFinding: Finding = { rule: "cost-cap", text: "This person has reached their drafting limit, so Relay stopped here." };
 
-    // §11: the campaign's drafting ceiling. Past it, nothing more is written.
-    if ((await campaignDraftCost(db, { orgId: job.orgId, campaignId: job.campaignId })) >= CAMPAIGN_DRAFT_COST_CAP_USD) {
-      const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [{ rule: "cost-cap", text: "This campaign has reached its drafting limit." }], advice: [], lookup: noLookup, generations: 0, costUsd: 0 });
-      return { draftId: draft.id };
-    }
+    // §11 as P2 set it: a ceiling per person, across every touch and attempt at this version.
+    // Past it nothing more is written, and the touches wait for the rep rather than failing.
+    const prior = await personDraftCost(db, { ...scope, campaignPersonId: row.id });
+    if (prior >= PERSON_DRAFT_COST_CAP_USD) return write(every("needs_you", capFinding), noLookup);
 
     const now = (deps.now ?? (() => new Date()))();
     const slice = packSliceOf(pack, handoff, facts);
@@ -250,13 +393,13 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         );
       } catch (error) {
         if (!unexpected(error)) throw error;
-        const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [unexpectedFinding], advice: [], lookup: noLookup, generations: 0, costUsd: 0 });
-        return { draftId: draft.id };
+        return write(every("failed", unexpectedFinding), noLookup);
       }
       const { trail, ...result } = found;
       lookup = result;
       await recordLookup(db, { orgId: job.orgId, campaignId: job.campaignId, jobId: job.id, lookup: result, trail: trail as LookupTrail });
     }
+    const lookupUsed = lookup;
 
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
     const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true } });
@@ -269,10 +412,11 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       facts,
       voice: await voiceFor(db, { orgId: job.orgId, userId: ownerUserId }),
       standard: loadStandard(),
-      lookup,
+      lookup: lookupUsed,
       recentDrafts: cohort.filter((entry) => entry.opening.trim() !== "" && entry.ask.trim() !== "").slice(0, 20).map((entry) => ({ opening: entry.opening, ask: entry.ask, ...(entry.subject === undefined ? {} : { subject: entry.subject }), sameAccount: entry.sameAccount })),
       now,
     };
+    const context: GateContext = { productNames: [facts.product], repName, cohort };
     // A rep's "wrong angle" or "wrong fact" (§9): the new draft moves away from the rejected one.
     const repRedraft =
       input.avoid === undefined
@@ -286,70 +430,255 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const modelId = signed.model;
     if (modelId === null) throw new TerminalError("outreach: the definition names no model");
 
-    const generations: Generation[] = [];
-    let failure: Finding | null = null;
-    for (let index = 0; index < MAX_GENERATIONS; index += 1) {
-      const previous = generations.at(-1);
-      const redraft =
-        previous === undefined
-          ? repRedraft
-          : {
-              findings: [...previous.tierA.map((finding) => finding.text), ...(previous.refused?.fixes ?? [])].slice(0, 20),
-              previous:
-                previous.output !== null && previous.output.kind === "message"
-                  ? { ...(previous.output.subject === undefined ? {} : { subject: previous.output.subject }), body: previous.output.body, ask: previous.output.ask }
-                  : (previous.refused?.previous ?? { body: "(the last answer did not come back in the right shape)", ask: "(none)" }),
-            };
-      const generationInput = buildOutreachInput({ ...base, ...(redraft === undefined ? {} : { redraft }) });
-      const definition = { ...signed, output: outputSchemaFor(generationInput.touch.kind) };
+    // What this job has spent, split between the draft calls and the humanizer.
+    const spent = { draft: 0, humanize: 0 };
+    const total = () => spent.draft + spent.humanize;
+    const capped = () => prior + total() >= PERSON_DRAFT_COST_CAP_USD;
+
+    /** One model call, its cost counted whatever happens. A lost lease is rethrown: the queue retries the job. */
+    async function call<IN, OUT>(definition: AgentDefinition<IN, OUT>, runInput: IN, modelInput: OutreachInput, at: ModelCall): Promise<Outcome<OUT>> {
       try {
         const result = await runAgent({
           definition,
-          input: generationInput,
-          ctx: { db, orgId: job.orgId, jobId: job.id, model: deps.makeModel(modelId, generationInput, { attempt: input.attempt, generation: index }), modelId, signal, scrub: safeError },
+          input: runInput,
+          ctx: { db, orgId: job.orgId, jobId: job.id, model: deps.makeModel(modelId!, modelInput, at), modelId: modelId!, signal, scrub: safeError },
         });
-        const output = normaliseClaims(result.object, generationInput);
-        const gates = gateEmail1(output, generationInput, { productNames: [facts.product], repName, cohort });
-        generations.push({ output, tierA: gates.tierA, tierB: gates.tierB, costUsd: Number(result.run.costTotal) });
-        if (gates.tierA.length === 0) break;
+        spent[at.pass] += Number(result.run.costTotal);
+        return { ok: true, object: result.object };
       } catch (error) {
-        if (!(error instanceof AgentRunFailedError)) {
-          if (!unexpected(error)) throw error;
-          failure = unexpectedFinding;
-          break;
-        }
-        // A lost lease is not a failed draft: let the queue retry the job.
+        if (!(error instanceof AgentRunFailedError)) return { ok: false, refused: false, error };
         if (error.reason === "aborted") throw error;
         const run = error.runId === "" ? null : await db.agentRun.findFirst({ where: { id: error.runId, orgId: job.orgId }, select: { costTotal: true } });
-        generations.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], costUsd: Number(run?.costTotal ?? 0), refused: refusalOf(error) });
+        spent[at.pass] += Number(run?.costTotal ?? 0);
+        return { ok: false, refused: true, error };
       }
     }
 
-    const costUsd = generations.reduce((total, generation) => total + generation.costUsd, 0);
-    if (failure !== null) {
-      const draft = await recordDraft(db, { ...recordFor, state: "failed", draft: null, findings: [failure], advice: [], lookup, generations: generations.length, costUsd });
-      return { draftId: draft.id };
+    /** A touch's generations settled: to review, Needs you with the labels, or not written (v2.1 §6). */
+    function settle(kind: TouchKind, generations: Generation[], stoppedByCap: boolean): { record: TouchRecord; output: OutreachOutput | null } {
+      const shape = kind === "call" ? "call" : "message";
+      const last = generations.at(-1)!;
+      const written = [...generations].reverse().find((generation) => generation.output?.kind === shape);
+      const passed = last.output !== null && last.tierA.length === 0;
+      const chosen = passed ? last : written;
+      const output = chosen?.output?.kind === shape ? chosen.output : null;
+      const findings = passed ? [] : (chosen ?? last).tierA;
+      const record: TouchRecord = {
+        touch: kind,
+        state: passed ? "to_review" : output === null ? "failed" : "needs_you",
+        draft: output === null ? null : storedDraftOf(output, kind, lookupUsed, slice, buyerRole),
+        findings,
+        advice: chosen?.tierB ?? [],
+        generations: generations.length,
+        costUsd: 0,
+      };
+      // The ceiling stopped the corrective redraft: parked for the rep, never a dead end.
+      if (stoppedByCap && !passed) Object.assign(record, { state: "needs_you", findings: [capFinding, ...findings] });
+      return { record, output };
     }
-    const last = generations.at(-1)!;
-    const written = [...generations].reverse().find((generation) => generation.output !== null && generation.output.kind === "message");
-    const passed = last.output !== null && last.tierA.length === 0;
-    const chosen = passed ? last : written;
-    const message = chosen?.output !== null && chosen?.output?.kind === "message" ? chosen.output : null;
-    const draft = await recordDraft(db, {
-      ...recordFor,
-      state: passed ? "to_review" : message === null ? "failed" : "needs_you",
-      draft:
-        message === null
-          ? null
-          : { ...(message.subject === undefined ? {} : { subject: message.subject }), body: message.body, ask: message.ask, opener: resolveOpener(message.opener, lookup, slice, buyerRole), claims: message.claims },
-      findings: passed ? [] : (chosen ?? last).tierA,
-      advice: chosen?.tierB ?? [],
-      lookup,
-      generations: generations.length,
-      costUsd,
+
+    const redraftPrevious = (previous: Generation | undefined) =>
+      previous?.output?.kind === "message"
+        ? { ...(previous.output.subject === undefined ? {} : { subject: previous.output.subject }), body: previous.output.body, ask: previous.output.ask }
+        : previous?.output?.kind === "call"
+          ? { body: callScriptText(previous.output.talkingPoint), ask: previous.output.talkingPoint.oneQuestion }
+          : (previous?.refused?.previous ?? { body: "(the last answer did not come back in the right shape)", ask: "(none)" });
+
+    // -------------------------------------------------------------------------
+    // One touch: the rep asked for it again. One call, and at most one corrective redraft.
+    if (!sequence) {
+      const kind = kinds[0]!;
+      const thread = await threadFor(db, { ...scope, campaignPersonId: row.id, before: kind });
+      const generations: Generation[] = [];
+      let stoppedByCap = false;
+      for (let index = 0; index < MAX_GENERATIONS; index += 1) {
+        if (index > 0 && capped()) {
+          stoppedByCap = true;
+          break;
+        }
+        const previous = generations.at(-1);
+        const redraft =
+          previous === undefined
+            ? repRedraft
+            : { findings: [...previous.tierA.map((finding) => finding.text), ...(previous.refused?.fixes ?? [])].slice(0, 20), previous: redraftPrevious(previous) };
+        const generationInput = buildOutreachInput({ ...base, touch: kind, thread, ...(redraft === undefined ? {} : { redraft }) });
+        const outcome = await call({ ...signed, output: outputSchemaFor(kind) }, generationInput, generationInput, { attempt: input.attempt, generation: index, pass: "draft" });
+        if (outcome.ok) {
+          const output = normaliseClaims(outcome.object, generationInput);
+          const gates = gateFor(output, generationInput, context);
+          generations.push({ output, tierA: gates.tierA, tierB: gates.tierB });
+          if (gates.tierA.length === 0) break;
+        } else if (!outcome.refused) {
+          if (!unexpected(outcome.error)) throw outcome.error;
+          return write(every("failed", unexpectedFinding, total(), generations.length), lookupUsed);
+        } else {
+          generations.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], refused: refusalOf(outcome.error) });
+        }
+      }
+      const { record } = settle(kind, generations, stoppedByCap);
+      return write([{ ...record, costUsd: total() }], lookupUsed, { cost: { draftUsd: round(spent.draft), humanizerUsd: 0 } });
+    }
+
+    // -------------------------------------------------------------------------
+    // The sequence: one call for all seven touches, then the gates per touch.
+    const draftInput = buildOutreachInput({ ...base, sequence: true });
+    const sequenceDefinition = { ...signed, output: sequenceOutputSchema };
+    const history = new Map<TouchKind, Generation[]>(kinds.map((kind) => [kind, []]));
+    const latest = (kind: TouchKind) => [...history.get(kind)!].reverse().find((generation) => generation.output !== null)?.output ?? null;
+    const threadOf = (kind: TouchKind, outputOf: (kind: TouchKind) => OutreachOutput | null) =>
+      SEQUENCE.slice(0, SEQUENCE.indexOf(kind)).flatMap((earlier) => {
+        const output = outputOf(earlier);
+        return output === null ? [] : [threadEntryOf(earlier, output)];
+      });
+    const touchInput = (kind: TouchKind, outputOf: (kind: TouchKind) => OutreachOutput | null) => buildOutreachInput({ ...base, touch: kind, thread: threadOf(kind, outputOf) });
+
+    /** An answer's touches onto their histories, then each gated against the earlier touches as they now stand. */
+    function take(outcome: Outcome<SequenceOutput>, which: readonly TouchKind[]): void {
+      if (!outcome.ok) {
+        const refused = outcome.refused ? refusalOf(outcome.error) : undefined;
+        for (const kind of which) history.get(kind)!.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], ...(refused === undefined ? {} : { refused }) });
+        return;
+      }
+      const parsedTouches = touchesOf(outcome.object);
+      for (const kind of which) {
+        const touch = parsedTouches.find((candidate) => candidate.kind === kind)!;
+        history
+          .get(kind)!
+          .push(
+            touch.output === null
+              ? { output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], refused: refusalFrom(outcome.object[kind], touch.issues) }
+              : { output: normaliseClaims(touch.output, draftInput), tierA: [], tierB: [] },
+          );
+      }
+      for (const kind of SEQUENCE.filter((candidate) => which.includes(candidate))) {
+        const generation = history.get(kind)!.at(-1)!;
+        if (generation.output === null) continue;
+        const gates = gateFor(generation.output, touchInput(kind, latest), context);
+        generation.tierA = gates.tierA;
+        generation.tierB = gates.tierB;
+      }
+    }
+
+    const first = await call(sequenceDefinition, draftInput, draftInput, { attempt: input.attempt, generation: 0, pass: "draft" });
+    if (!first.ok && !first.refused) {
+      if (!unexpected(first.error)) throw first.error;
+      return write(every("failed", unexpectedFinding, total()), lookupUsed);
+    }
+    take(first, kinds);
+
+    // One corrective call for the touches that failed, together. The ones that passed keep their words.
+    const failing = kinds.filter((kind) => history.get(kind)!.at(-1)!.tierA.length > 0);
+    const stoppedByCap = failing.length > 0 && capped();
+    let redraftError: string | undefined;
+    if (failing.length > 0 && !stoppedByCap) {
+      const findings = failing
+        .flatMap((kind) => {
+          const last = history.get(kind)!.at(-1)!;
+          return [...last.tierA.map((finding) => `${kind}: ${finding.text}`), ...(last.refused?.fixes ?? []).map((fix) => `${kind}: ${fix}`)];
+        })
+        .map((finding) => finding.slice(0, 500))
+        .slice(0, 20);
+      const previousTouches = SEQUENCE.flatMap((kind) => {
+        const output = latest(kind);
+        return output === null ? [] : [threadEntryOf(kind, output)];
+      });
+      const firstEmail = history.get("email1")!.at(-1);
+      const redraft = { findings, previous: redraftPrevious(firstEmail), ...(previousTouches.length === 0 ? {} : { previousTouches }) };
+      const redraftInput = buildOutreachInput({ ...base, sequence: true, redraft });
+      const second = await call(sequenceDefinition, redraftInput, redraftInput, { attempt: input.attempt, generation: 1, pass: "draft" });
+      // An unexpected failure here keeps the first answer: a retry would pay for the whole sequence again.
+      if (!second.ok && !second.refused) redraftError = safeError(second.error);
+      else take(second, failing);
+    }
+
+    const settled = new Map(kinds.map((kind) => [kind, settle(kind, history.get(kind)!, stoppedByCap)]));
+
+    // The humanizer: subtractive, facts locked, voice free. Each touch it edits is gated again.
+    const candidates = kinds.filter((kind) => settled.get(kind)!.output !== null);
+    const humanizer: { ran: boolean; skipped?: string; error?: string; touches: Partial<Record<TouchKind, HumanizerTouchLog>> } = { ran: false, touches: {} };
+    if (candidates.length === 0) humanizer.skipped = "nothing written";
+    else if (capped()) humanizer.skipped = "cost-cap";
+    else {
+      const humanizeInput: HumanizeInput = {
+        firstName: draftInput.person.firstName,
+        voice: draftInput.voice,
+        bannedLexicon: draftInput.standard.bannedLexicon,
+        touches: Object.fromEntries(candidates.map((kind) => [kind, proseOf(settled.get(kind)!.output!)])),
+        limits: Object.fromEntries(candidates.map((kind) => [kind, limitText(kind)])),
+      };
+      const outcome = await call({ ...signed, prompt: loadHumanizer(), input: humanizeInputSchema, output: humanizeOutputSchema }, humanizeInput, draftInput, {
+        attempt: input.attempt,
+        generation: 0,
+        pass: "humanize",
+        humanize: humanizeInput,
+      });
+      if (!outcome.ok) humanizer.error = outcome.refused ? `refused: ${outcome.error.reason}` : safeError(outcome.error);
+      else {
+        humanizer.ran = true;
+        const keptOf = (kind: TouchKind) => settled.get(kind)?.output ?? null;
+        for (const kind of SEQUENCE.filter((candidate) => candidates.includes(candidate))) {
+          const entry = settled.get(kind)!;
+          const drafted = entry.output!;
+          const rewritten = withProse(drafted, outcome.object[kind]);
+          let reason: string | undefined;
+          let accepted: { output: OutreachOutput; tierA: Finding[]; tierB: Finding[] } | undefined;
+          if (rewritten === null) reason = "no humanized text came back for this touch";
+          else {
+            const shaped = outputSchemaFor(kind).safeParse(rewritten);
+            const added = shaped.success ? addedFacts(drafted, shaped.data) : [];
+            if (!shaped.success) reason = `out of shape: ${shaped.error.issues.map((issue) => issue.message).join("; ").slice(0, 300)}`;
+            else if (added.length > 0) reason = `added what the draft did not say: ${added.join(", ")}`;
+            else {
+              const gateInput = touchInput(kind, keptOf);
+              const output = normaliseClaims(shaped.data, gateInput);
+              const gates = gateFor(output, gateInput, context);
+              const had = new Set(entry.record.findings.map((finding) => finding.rule));
+              const broke = [...new Set(gates.tierA.map((finding) => finding.rule).filter((rule) => !had.has(rule)))];
+              if (broke.length > 0) reason = `failed a check the draft passed: ${broke.join(", ")}`;
+              else accepted = { output, tierA: gates.tierA, tierB: gates.tierB };
+            }
+          }
+          humanizer.touches[kind] = { drafted: proseOf(drafted), humanized: rewritten === null ? null : proseOf(rewritten), kept: accepted === undefined ? "drafted" : "humanized", ...(reason === undefined ? {} : { reason }) };
+          if (accepted === undefined) continue;
+          const passed = accepted.tierA.length === 0;
+          settled.set(kind, {
+            output: accepted.output,
+            record: {
+              ...entry.record,
+              state: passed ? "to_review" : "needs_you",
+              draft: storedDraftOf(accepted.output, kind, lookupUsed, slice, buyerRole),
+              findings: passed ? [] : accepted.tierA,
+              advice: accepted.tierB,
+            },
+          });
+        }
+      }
+    }
+
+    // The last word: every touch gated once more against the sequence as it now stands. A corrective call or the
+    // humanizer can change an earlier email, and "shorter than the last" must hold against the email actually kept.
+    const finalOf = (kind: TouchKind) => settled.get(kind)?.output ?? null;
+    for (const kind of SEQUENCE.filter((candidate) => kinds.includes(candidate))) {
+      const entry = settled.get(kind)!;
+      if (entry.output === null) continue;
+      const gates = gateFor(entry.output, touchInput(kind, finalOf), context);
+      const cap = entry.record.findings.some((finding) => finding.rule === capFinding.rule) ? [capFinding] : [];
+      const passed = gates.tierA.length === 0 && cap.length === 0;
+      settled.set(kind, { ...entry, record: { ...entry.record, state: passed ? "to_review" : "needs_you", findings: passed ? [] : [...cap, ...gates.tierA], advice: gates.tierB } });
+    }
+
+    // The job's cost sits on its first touch, so a person's drafts add up to what the job spent.
+    const records = kinds.map((kind, index) => ({ ...settled.get(kind)!.record, costUsd: index === 0 ? total() : 0 }));
+    return write(records, lookupUsed, {
+      cost: { draftUsd: round(spent.draft), humanizerUsd: round(spent.humanize) },
+      ...(redraftError === undefined ? {} : { redraftError }),
+      humanizer,
     });
-    return { draftId: draft.id };
   };
+}
+
+function round(usd: number): number {
+  return Math.round(usd * 1_000_000) / 1_000_000;
 }
 
 export const outreachDraft: Handler = (context) => outreachDraftHandler()(context);

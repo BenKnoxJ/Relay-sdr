@@ -64,22 +64,42 @@ export const messageDraftSchema = z
   })
   .strict();
 
+/** P2: the call script's objection handling, at most three short pairs. */
+export const MAX_OBJECTIONS = 3;
+/** P2: the voicemail the rep leaves when nobody answers. */
+export const MAX_VOICEMAIL_WORDS = 40;
+
+const objectionSchema = z.object({ objection: z.string().min(1).max(200), answer: z.string().min(1).max(400) }).strict();
+
+const talkingPointObject = z
+  .object({
+    openingLine: z.string().min(1).max(300),
+    oneQuestion: z.string().min(1).max(300),
+    listenFor: z.string().min(1).max(600),
+    numberSource: z.enum(["zoho", "switchboard", "find_a_number"]),
+    /**
+     * P2 (21 Sep 2026). Optional on the shape so a talking point written before
+     * it still reads; the sequence asks for both, and `gateTouch` holds a call
+     * script that comes back without a voicemail.
+     */
+    voicemail: z.string().min(1).max(400).optional(),
+    objections: z.array(objectionSchema).max(MAX_OBJECTIONS).optional(),
+  })
+  .strict();
+
+function refineTalkingPoint(point: z.infer<typeof talkingPointObject>, ctx: z.RefinementCtx): void {
+  if (words(point.openingLine) > 25) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["openingLine"], message: "an opening line is 25 words or fewer (§5)" });
+  }
+  if (point.voicemail !== undefined && words(point.voicemail) > MAX_VOICEMAIL_WORDS) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["voicemail"], message: `a voicemail is ${MAX_VOICEMAIL_WORDS} words or fewer` });
+  }
+}
+
 export const callDraftSchema = z
   .object({
     kind: z.literal("call"),
-    talkingPoint: z
-      .object({
-        openingLine: z.string().min(1).max(300),
-        oneQuestion: z.string().min(1).max(300),
-        listenFor: z.string().min(1).max(600),
-        numberSource: z.enum(["zoho", "switchboard", "find_a_number"]),
-      })
-      .strict()
-      .superRefine((point, ctx) => {
-        if (words(point.openingLine) > 25) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["openingLine"], message: "an opening line is 25 words or fewer (§5)" });
-        }
-      }),
+    talkingPoint: talkingPointObject.superRefine(refineTalkingPoint),
     ...common,
   })
   .strict();
@@ -173,10 +193,16 @@ function authoredProse(
     if (draft.subject !== undefined) out.unshift(["subject", draft.subject]);
     return out;
   }
+  const point = draft.talkingPoint;
   return [
-    ["talkingPoint.openingLine", draft.talkingPoint.openingLine],
-    ["talkingPoint.oneQuestion", draft.talkingPoint.oneQuestion],
-    ["talkingPoint.listenFor", draft.talkingPoint.listenFor],
+    ["talkingPoint.openingLine", point.openingLine],
+    ["talkingPoint.oneQuestion", point.oneQuestion],
+    ["talkingPoint.listenFor", point.listenFor],
+    ...(point.voicemail === undefined ? [] : ([["talkingPoint.voicemail", point.voicemail]] as [string, string][])),
+    ...(point.objections ?? []).flatMap((pair, index): [string, string][] => [
+      [`talkingPoint.objections.${index}.objection`, pair.objection],
+      [`talkingPoint.objections.${index}.answer`, pair.answer],
+    ]),
   ];
 }
 
@@ -208,19 +234,28 @@ function checkMessageShape(draft: z.infer<typeof messageDraftSchema>, ctx: z.Ref
 export type OutreachOutput = z.infer<typeof outreachOutputSchema>;
 export type MessageDraft = z.infer<typeof messageDraftSchema>;
 
-/** §5's per-touch limits. Lower bound, upper bound, and whether a shrink is required. */
-const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number; shrinks?: boolean; noLink?: boolean }> = {
+/**
+ * §5's per-touch limits, one row per kind and read only by that kind: a limit
+ * is never borrowed or loosened for another. Lower bound, upper bound, and
+ * whether a shrink is required. P2 (21 Sep 2026) sets the break-up at 70 words
+ * and adds the second LinkedIn message.
+ */
+export const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number; shrinks?: boolean; noLink?: boolean }> = {
   // v2.1 §4: 40 to 110 words, aiming for 50 to 90.
   email1: { minWords: 40, maxWords: 110 },
   email2: { maxWords: 100, shrinks: true },
-  breakup: { maxWords: 60, shrinks: true },
+  breakup: { maxWords: 70, shrinks: true },
   // §5: 300 characters on Premium, else 200. The lower bound is what a draft
   // must satisfy without knowing the rep's plan, so 200 is the gate and the
   // extra hundred is headroom a Premium account does not need.
   li_connect: { maxChars: 200, noLink: true },
   li_dm: { minWords: 50, maxWords: 80, noLink: true },
+  li_dm2: { maxWords: 60, noLink: true },
   call: {},
 };
+
+/** The touches that go by email; "shorter than the last" compares an email with the email before it. */
+const EMAIL_KINDS: readonly TouchKind[] = ["email1", "email2", "breakup"];
 
 /** A Tier A finding, in rep words (§7). */
 export type Finding = { rule: string; text: string };
@@ -254,8 +289,9 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
     // §6 rule 7: a follow-up shrinks. Measured against the previous touch this
     // person actually received, not against the campaign's template — which is
     // the same reason the rule exists.
+    // Within the same channel: a follow-up email is shorter than the email before it, not than a 200-character connection note.
     const previous = [...input.thread]
-      .filter((entry) => entry.ordinal < input.touch.ordinal)
+      .filter((entry) => entry.ordinal < input.touch.ordinal && EMAIL_KINDS.includes(entry.kind) === EMAIL_KINDS.includes(input.touch.kind))
       .sort((a, b) => b.ordinal - a.ordinal)[0];
     if (previous !== undefined && length >= words(previous.body)) {
       findings.push({

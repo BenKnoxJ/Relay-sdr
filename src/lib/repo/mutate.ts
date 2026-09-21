@@ -100,6 +100,13 @@ export type EventKind =
   /// A draft job finished: the draft is written (to review, needs you, or
   /// could not be written) in the same transaction.
   | "outreach.drafted"
+  /// A rep pressed Start outreach (Relay P3): `after` has the start day and
+  /// the people it was set on; their rows change in the same transaction.
+  | "outreach.started"
+  /// A rep paused a campaign's outreach: nothing is due or sent until resumed.
+  | "outreach.paused"
+  /// A rep resumed a paused campaign's outreach.
+  | "outreach.resumed"
   /// The rep rejected a draft with a reason (§9); a redraft, when the reason
   /// asks for one, is enqueued in the same transaction.
   | "draft.rejected"

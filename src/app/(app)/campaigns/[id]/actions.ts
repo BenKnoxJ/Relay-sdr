@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 
 import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
+import { outreachStartCopy } from "@/lib/copy/outreachStart";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
 /**
@@ -31,6 +32,8 @@ const LINES: readonly string[] = [
   campaignsCopy.revealOverBalance,
   campaignsCopy.revealNotAvailable,
   campaignsCopy.writeNothing,
+  outreachStartCopy.nothingToStart,
+  outreachStartCopy.badDate,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {
@@ -184,4 +187,20 @@ export async function reviewPeople(submission: ReviewSubmission): Promise<StartR
       decision: submission.decision,
     }),
   );
+}
+
+/** Start outreach (Relay P3): the chosen day on everyone with drafts who has not started. Nothing is sent. */
+export async function startOutreach(submission: { campaignId: string; requestId: string; startOn: string }): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.startOutreach({
+      campaignId: submission.campaignId,
+      requestId: submission.requestId,
+      startOn: submission.startOn,
+    }),
+  );
+}
+
+/** Pause or Resume the campaign's outreach (Relay P3). */
+export async function pauseOutreach(submission: { campaignId: string; paused: boolean }): Promise<StartResult> {
+  return answered(async () => (await serverCaller()).campaigns.pauseOutreach({ campaignId: submission.campaignId, paused: submission.paused }));
 }

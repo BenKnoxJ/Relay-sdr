@@ -239,24 +239,27 @@ model Event {
 /// takes it from the row `apply` wrote (`mutate`'s `campaignId` can be read
 /// off `apply`'s result), so nothing has to be minted ahead of the row.
 model Campaign {
-  id                       String   @id @default(cuid())
-  orgId                    String   @map("org_id")
-  ownerUserId              String   @map("owner_user_id")
+  id                       String    @id @default(cuid())
+  orgId                    String    @map("org_id")
+  ownerUserId              String    @map("owner_user_id")
   name                     String
-  briefVersion             Int      @default(1) @map("brief_version")
+  briefVersion             Int       @default(1) @map("brief_version")
   brief                    Json
-  startRequestId           String   @map("start_request_id")
+  startRequestId           String    @map("start_request_id")
   /// Set on a campaign made from one play of another campaign's research
   /// (Relay P1): that campaign, and the brief version whose research this one
   /// reads at its own version 1. Both or neither (a CHECK in the migration);
   /// the repo checks the source is this org's and this rep's.
-  researchFromCampaignId   String?  @map("research_from_campaign_id")
-  researchFromBriefVersion Int?     @map("research_from_brief_version")
+  researchFromCampaignId   String?   @map("research_from_campaign_id")
+  researchFromBriefVersion Int?      @map("research_from_brief_version")
   /// The play (an m16 candidate id) this campaign is for, once the rep chose
   /// plays on Plan ready. Confirm names it; null is research's own choice.
-  playId                   String?  @map("play_id")
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
+  playId                   String?   @map("play_id")
+  /// When the rep paused this campaign's outreach (Relay P3); null while it
+  /// runs. While paused nothing is due and nothing is sent.
+  outreachPausedAt         DateTime? @map("outreach_paused_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
 
   org          Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
   ownerUser    User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
@@ -650,6 +653,10 @@ model CampaignPerson {
   reveal           CampaignPersonReveal? @map("reveal")
   revealHold       String?               @map("reveal_hold")
   revealedAt       DateTime?             @map("revealed_at")
+  /// The day this person's sequence starts (Relay P3): a calendar day in
+  /// Europe/London, set once by Start outreach. Each step's due day is worked
+  /// out from it (`src/lib/outreach/sequence.ts`). Null until started.
+  outreachStartOn  DateTime?             @map("outreach_start_on") @db.Date
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 

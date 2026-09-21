@@ -26,7 +26,7 @@ import { campaignSummariesForOwner } from "@/lib/repo/campaignSummary";
 import { campaignActivityFor } from "@/lib/repo/campaignActivity";
 import { OutreachChangeRefused, outreachStatusFor, setOutreachPaused, startOutreach } from "@/lib/repo/outreachStart";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
-import { londonDay, nextWorkingDay } from "@/lib/outreach/sequence";
+import { START_HORIZON_DAYS, addCalendarDays, londonDay, nextWorkingDay } from "@/lib/outreach/sequence";
 import type { OutreachStartView } from "@/lib/campaigns/types";
 import { activityOf } from "@/lib/campaigns/activity";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
@@ -105,6 +105,8 @@ function asOutreachRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: outreachStartCopy.nothingToStart });
     case "bad_date":
       throw new TRPCError({ code: "BAD_REQUEST", message: outreachStartCopy.badDate });
+    case "too_far":
+      throw new TRPCError({ code: "BAD_REQUEST", message: outreachStartCopy.tooFar });
     case "request_reused":
       throw new TRPCError({ code: "CONFLICT", message: campaignsCopy.changedSince });
   }
@@ -113,7 +115,7 @@ function asOutreachRefusal(error: unknown): never {
 /** Start outreach and pause, as the campaign page draws them (Relay P3). */
 async function outreachViewFor(db: Parameters<typeof outreachStatusFor>[0], scope: { orgId: string; campaignId: string }, now: Date): Promise<OutreachStartView> {
   const status = await outreachStatusFor(db, scope);
-  return { startable: status.startable, batches: status.batches, paused: status.pausedAt !== null, today: londonDay(now), defaultStartOn: nextWorkingDay(now) };
+  return { startable: status.startable, batches: status.batches, paused: status.pausedAt !== null, today: londonDay(now), defaultStartOn: nextWorkingDay(now), latestStartOn: addCalendarDays(londonDay(now), START_HORIZON_DAYS) };
 }
 
 /** How finding people is set up here, as the screens need it: nothing about the provider itself. */

@@ -11,7 +11,7 @@ import { outreachStartCopy as c } from "@/lib/copy/outreachStart";
  * Resume, with a clear Paused state.
  */
 
-const view = (over: Partial<OutreachStartView> = {}): OutreachStartView => ({ startable: 18, batches: [], paused: false, today: "2026-09-21", defaultStartOn: "2026-09-22", ...over });
+const view = (over: Partial<OutreachStartView> = {}): OutreachStartView => ({ startable: 18, batches: [], paused: false, today: "2026-09-21", defaultStartOn: "2026-09-22", latestStartOn: "2026-10-21", ...over });
 
 function draw(v: OutreachStartView, error: string | null = null) {
   const onStart = vi.fn();
@@ -37,6 +37,40 @@ describe("OutreachCard", () => {
     fireEvent.change(picker, { target: { value: "2026-09-28" } });
     fireEvent.click(screen.getByTestId("outreach-start-confirm"));
     expect(onStart).toHaveBeenCalledWith("2026-09-28");
+  });
+
+  it("the confirm button names the day, and a weekend day is sent as the Monday after (P3 review)", () => {
+    const { onStart } = draw(view({ startable: 6 }));
+    fireEvent.click(screen.getByTestId("outreach-start"));
+    expect(screen.getByTestId("outreach-start-confirm").textContent).toBe("Start outreach for 6 people on Tue 22 Sep");
+    fireEvent.change(screen.getByTestId("outreach-start-on"), { target: { value: "2026-09-26" } });
+    expect(screen.getByTestId("outreach-start-confirm").textContent).toBe("Start outreach for 6 people on Mon 28 Sep");
+    fireEvent.click(screen.getByTestId("outreach-start-confirm"));
+    expect(onStart).toHaveBeenCalledWith("2026-09-28");
+  });
+
+  it("the picker stops 30 days ahead, and a day past it cannot be pressed", () => {
+    const { onStart } = draw(view());
+    fireEvent.click(screen.getByTestId("outreach-start"));
+    const picker = screen.getByTestId("outreach-start-on") as HTMLInputElement;
+    expect(picker.max).toBe("2026-10-21");
+    fireEvent.change(picker, { target: { value: "2026-10-22" } });
+    const confirm = screen.getByTestId("outreach-start-confirm") as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    expect(confirm.textContent).toBe("Start outreach for 18 people");
+    fireEvent.click(confirm);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("a weekend at the end of the 30 days moves past it, so it cannot be pressed", () => {
+    // The last day is Sat 17 Oct: it would start on Mon 19 Oct, which the server refuses.
+    const { onStart } = draw(view({ latestStartOn: "2026-10-17" }));
+    fireEvent.click(screen.getByTestId("outreach-start"));
+    fireEvent.change(screen.getByTestId("outreach-start-on"), { target: { value: "2026-10-17" } });
+    const confirm = screen.getByTestId("outreach-start-confirm") as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onStart).not.toHaveBeenCalled();
   });
 
   it("after starting: each start day with its people, and anyone added later waiting to start", () => {

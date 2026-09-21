@@ -97,9 +97,11 @@ async function campaignWith(actor: Actor, n: number, startOn: string | null = TO
         ...(startOn === null ? {} : { outreachStartOn: toDbDate(startOn) }),
       },
     });
+    // Email 1's second draft is approved: an email is marked sent only once it is (P5).
     for (const [touch, attempt, body] of [["email1", 1, "First try."], ["email1", 2, "Second try."], ["call", 1, "Call script."]] as const) {
+      const approved = touch === "email1" && attempt === 2;
       await prisma.outreachDraft.create({
-        data: { orgId: actor.orgId, campaignId: campaign.id, briefVersion: 1, campaignPersonId: row.id, ownerUserId: actor.userId, jobId: attempt === 2 ? job.id : draftJob.id, touch, attempt, state: "to_review", body, ask: "Worth a call?", opener: { ref: "x", kind: "role_pain" }, subject: touch === "call" ? null : "Hello", findings: [], advice: [], lookup: {}, generations: 1 },
+        data: { orgId: actor.orgId, campaignId: campaign.id, briefVersion: 1, campaignPersonId: row.id, ownerUserId: actor.userId, jobId: attempt === 2 ? job.id : draftJob.id, touch, attempt, state: approved ? "approved" : "to_review", ...(approved ? { decidedAt: new Date(), decidedByUserId: actor.userId } : {}), body, ask: "Worth a call?", opener: { ref: "x", kind: "role_pain" }, subject: touch === "call" ? null : "Hello", findings: [], advice: [], lookup: {}, generations: 1 },
       });
     }
     people.push(row.id);

@@ -693,4 +693,6 @@ export type OutreachStartView = {
   today: string;
   /** The next working day: what the date picker starts on. */
   defaultStartOn: string;
+  /** The last day Start outreach takes: 30 days on from today. */
+  latestStartOn: string;
 };

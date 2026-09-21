@@ -34,6 +34,7 @@ const LINES: readonly string[] = [
   campaignsCopy.writeNothing,
   outreachStartCopy.nothingToStart,
   outreachStartCopy.badDate,
+  outreachStartCopy.tooFar,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {

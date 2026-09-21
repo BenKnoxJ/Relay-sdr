@@ -124,6 +124,23 @@ export function londonDay(instant: Date): IsoDate {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** A calendar day `n` days after `day` (weekends included). */
+export function addCalendarDays(day: IsoDate, n: number): IsoDate {
+  return isoOf(new Date(utcMidnight(day).getTime() + n * DAY_MS));
+}
+
+/** The furthest ahead Start outreach may be dated, in calendar days from London's today. */
+export const START_HORIZON_DAYS = 30;
+
+/**
+ * The day Start outreach really uses for a chosen day: a weekend moves to the
+ * Monday after, a working day stays (P3 review). The button and the server
+ * both read this, so the day the rep is shown is the day that is stored.
+ */
+export function startDayFor(day: IsoDate): IsoDate {
+  return addWorkingDays(day, 0);
+}
+
 /** The first working day after London's today: Start outreach's default. */
 export function nextWorkingDay(now: Date): IsoDate {
   return addWorkingDays(isoOf(new Date(utcMidnight(londonDay(now)).getTime() + DAY_MS)), 0);

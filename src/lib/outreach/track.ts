@@ -47,7 +47,7 @@ export type TrackEvent = {
   undoesEventId: string | null;
 };
 
-type Channel = "email" | "connect" | "dm" | "call";
+export type Channel = "email" | "connect" | "dm" | "call";
 
 const CHANNEL: Record<TouchKind, Channel> = {
   email1: "email",
@@ -63,6 +63,8 @@ const STEP_IDS: readonly StepId[] = SEQUENCE_TEMPLATE.map((step) => step.id);
 const TOUCH_OF = Object.fromEntries(SEQUENCE_TEMPLATE.map((step) => [step.id, step.touch])) as Record<StepId, TouchKind>;
 
 export const channelOf = (step: StepId): Channel => CHANNEL[TOUCH_OF[step]];
+/** The draft a step reads: both calls read the one call script. */
+export const touchOf = (step: StepId): TouchKind => TOUCH_OF[step];
 export const isStepId = (value: string): value is StepId => (STEP_IDS as readonly string[]).includes(value);
 
 /** A step's record so far. `sentOn` is the day the step itself was done: sent, or for a call, made. */

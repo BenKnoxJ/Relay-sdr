@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/Card";
@@ -12,6 +13,7 @@ import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, Revie
 import { actionFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { outreachPeopleCopy } from "@/lib/copy/outreachPeople";
 import { PERSON_DRAFT_COST_CAP_USD } from "@/lib/outreach/cost";
 
 import { BriefCard } from "./BriefCard";
@@ -64,8 +66,15 @@ export function CampaignPage({
   onWriteEmails,
   onStartOutreach,
   onPauseOutreach,
+  people,
 }: {
   campaign: Campaign;
+  /**
+   * The People tab (Relay P5), on a campaign that has started outreach:
+   * whether it is the view open (`?tab=people`), and the list and drawer the
+   * page built for it. Absent, there are no tabs.
+   */
+  people?: { active: boolean; content: ReactNode };
   /** A line the route arrived with, such as Start's "research has started". */
   banner?: string | null;
   onWiden?: (submission: WidenSubmission) => Promise<StartResult>;
@@ -464,21 +473,45 @@ export function CampaignPage({
         </p>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-campaign">
-        <div className="grid min-w-0 content-start gap-grid">{main}</div>
-        <SupportRail
-          overview={campaign.overview}
-          researchHref={researchHref}
-          spend={campaign.spend ?? null}
-          sample={campaign.confirmPlan?.sample === true || campaign.peopleFound?.sample === true}
-          brief={campaign.brief}
-          editHref={editHref}
-          {...(campaign.activity === undefined ? {} : { activity: campaign.activity })}
-          confirmed={state !== "planReady"}
-          // The rail opens on what the rep is likeliest to want beside the work: the plan once there are people, the brief before.
-          initial={peopleStates.includes(state) ? "research" : "brief"}
-        />
-      </div>
+      {people === undefined ? null : (
+        <nav aria-label={outreachPeopleCopy.tabsLabel} data-testid="campaign-tabs" className="mb-grid flex gap-1 border-b border-line">
+          {[
+            { id: "overview", label: outreachPeopleCopy.tabOverview, href: `/campaigns/${campaign.id}`, current: !people.active },
+            { id: "people", label: outreachPeopleCopy.tabPeople, href: `/campaigns/${campaign.id}?tab=people`, current: people.active },
+          ].map((tab) => (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              scroll={false}
+              data-testid={`campaign-tab-${tab.id}`}
+              aria-current={tab.current ? "page" : undefined}
+              className={`-mb-px rounded-t-input border-b-2 px-3 py-2 text-14 font-medium outline-none focus-visible:ring-2 ${tab.current ? "border-action text-ink" : "border-transparent text-muted hover:text-ink"}`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {people?.active === true ? (
+        people.content
+      ) : (
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-grid wide:grid-cols-campaign">
+          <div className="grid min-w-0 content-start gap-grid">{main}</div>
+          <SupportRail
+            overview={campaign.overview}
+            researchHref={researchHref}
+            spend={campaign.spend ?? null}
+            sample={campaign.confirmPlan?.sample === true || campaign.peopleFound?.sample === true}
+            brief={campaign.brief}
+            editHref={editHref}
+            {...(campaign.activity === undefined ? {} : { activity: campaign.activity })}
+            confirmed={state !== "planReady"}
+            // The rail opens on what the rep is likeliest to want beside the work: the plan once there are people, the brief before.
+            initial={peopleStates.includes(state) ? "research" : "brief"}
+          />
+        </div>
+      )}
     </div>
   );
 }

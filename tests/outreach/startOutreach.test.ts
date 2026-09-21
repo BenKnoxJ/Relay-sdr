@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { nameFrom, toResearchBrief } from "@/lib/campaigns/brief";
+import { nextWorkingDay } from "@/lib/outreach/sequence";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
 import { prisma } from "@/lib/db";
 import { createCampaign } from "@/lib/repo/campaigns";
@@ -137,7 +138,7 @@ describe("Start outreach", () => {
     const [a, b, c, failed, rejected, undrafted, dropped, noEmail] = people as [string, string, string, string, string, string, string, string];
 
     const result = await startOutreach(prisma, { orgId: actor.orgId, userId: actor.userId, campaignId, requestId: randomUUID(), startOn: "2026-09-22", now: MONDAY });
-    expect(result).toEqual({ people: 3, repeated: false });
+    expect(result).toEqual({ people: 3, repeated: false, startOn: "2026-09-22" });
     expect(await startDays(people)).toEqual({ [a]: "2026-09-22", [b]: "2026-09-22", [c]: "2026-09-22", [failed]: null, [rejected]: null, [undrafted]: null, [dropped]: null, [noEmail]: null });
 
     const events = await eventsOf(campaignId, OUTREACH_STARTED);
@@ -204,6 +205,33 @@ describe("Start outreach", () => {
     expect(Object.values(await startDays(people))).toEqual(["2026-09-21"]);
   });
 
+  it("a weekend day starts on the Monday after, and the Event says so (P3 review)", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { campaignId, people } = await campaignWith(actor, [{}]);
+    await expect(startOutreach(prisma, { orgId: actor.orgId, userId: actor.userId, campaignId, requestId: randomUUID(), startOn: "2026-09-26", now: MONDAY })).resolves.toMatchObject({ people: 1, startOn: "2026-09-28" });
+    expect(Object.values(await startDays(people))).toEqual(["2026-09-28"]);
+    const [event] = await eventsOf(campaignId, "outreach.started");
+    expect((event?.after as { startOn?: string }).startOn).toBe("2026-09-28");
+  });
+
+  it("refuses a day more than 30 days ahead, and takes the 30th (P3 review)", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { campaignId, people } = await campaignWith(actor, [{}]);
+    const base = { orgId: actor.orgId, userId: actor.userId, campaignId, requestId: randomUUID(), now: MONDAY };
+    // Mon 21 Sep + 31 days is Thu 22 Oct; + 30 is Wed 21 Oct.
+    await expect(startOutreach(prisma, { ...base, startOn: "2026-10-22" })).rejects.toMatchObject({ refusal: "too_far" });
+    expect(await refusal(caller(rep()).campaigns.startOutreach({ campaignId, requestId: randomUUID(), startOn: "2099-01-05" }))).toEqual({ code: "BAD_REQUEST", message: outreachStartCopy.tooFar });
+    await expect(startOutreach(prisma, { ...base, startOn: "2026-10-21" })).resolves.toMatchObject({ people: 1 });
+    expect(Object.values(await startDays(people))).toEqual(["2026-10-21"]);
+  });
+
+  it("starts people whose first email is still to review: every email is still approved before it goes", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { campaignId, people } = await campaignWith(actor, [{ draft: "to_review" }, { draft: "needs_you" }, { draft: "approved" }]);
+    await expect(startOutreach(prisma, { orgId: actor.orgId, userId: actor.userId, campaignId, requestId: randomUUID(), startOn: "2026-09-22", now: MONDAY })).resolves.toMatchObject({ people: 3 });
+    expect(Object.values(await startDays(people))).toEqual(["2026-09-22", "2026-09-22", "2026-09-22"]);
+  });
+
   it("stores the day the rep chose, not the instant: 23:30 UTC in summer is already the next day in London", async () => {
     const actor = await ensureUser(prisma, rep());
     const { campaignId } = await campaignWith(actor, [{}]);
@@ -252,7 +280,8 @@ describe("org and owner scoping", () => {
     const { campaignId, people } = await campaignWith(actor, [{}, {}]);
 
     for (const session of [stranger(), colleague()]) {
-      expect(await refusal(caller(session).campaigns.startOutreach({ campaignId, requestId: randomUUID(), startOn: "2099-01-05" }))).toMatchObject({ code: "NOT_FOUND" });
+      // A day the router takes on any day the suite runs, so the answer is about whose campaign it is.
+      expect(await refusal(caller(session).campaigns.startOutreach({ campaignId, requestId: randomUUID(), startOn: nextWorkingDay(new Date()) }))).toMatchObject({ code: "NOT_FOUND" });
       expect(await refusal(caller(session).campaigns.pauseOutreach({ campaignId, paused: true }))).toMatchObject({ code: "NOT_FOUND" });
     }
     expect(Object.values(await startDays(people))).toEqual([null, null]);

@@ -1,10 +1,11 @@
 /**
- * The shell: the five areas, in the signed order, plus the two things on the
+ * The shell: the six areas, in the signed order, plus the two things on the
  * right of the nav pill.
  *
  * The ORDER is the signed one (master doc §23.0: Home, Inbox, Campaigns,
- * Content, Settings) and it lives in `src/components/Nav.tsx` as the order of
- * its item list, not here — this file is words. `tests/ui/nav.test.tsx`
+ * Content, Settings), with Calendar after Inbox since Relay P6. It lives
+ * in `src/components/Nav.tsx` as the order of its item list, not here —
+ * this file is words. `tests/ui/nav.test.tsx`
  * asserts the rendered order, so the two cannot drift apart quietly.
  *
  * Inbox and Content are example surfaces until their rows exist, so the nav
@@ -15,6 +16,7 @@
 export const navCopy = {
   home: "Home",
   inbox: "Inbox",
+  calendar: "Calendar",
   campaigns: "Campaigns",
   content: "Content",
   settings: "Settings",

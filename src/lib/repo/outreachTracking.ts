@@ -1,5 +1,6 @@
 import type { OutreachDraftState, Prisma, PrismaClient } from "@prisma/client";
 
+import type { CalendarItem } from "@/lib/outreach/calendar";
 import { webUrlOf } from "@/lib/outreach/peopleList";
 import { fromDbDate, isIsoDate, londonDay, toDbDate, type IsoDate, type StepId } from "@/lib/outreach/sequence";
 import {
@@ -415,29 +416,91 @@ export async function personTracking(db: Db, input: Owner & { campaignPersonId: 
   };
 }
 
-export type DueItem = { campaignId: string; campaignName: string; campaignPersonId: string; name: string; step: StepId; touch: string; due: IsoDate; state: string };
+export type DueItem = CalendarItem & { touch: string };
 
 const DAY_MS = 86_400_000;
+
+/** The email touches: a step on one of these needs its draft approved before it goes. */
+const EMAIL_TOUCHES = ["email1", "email2", "breakup"] as const;
+
+/**
+ * Every open step due up to `to` (and from `from`, when there is one) on the
+ * rep's running campaigns: the fold's own due day and state, per person
+ * (`trackPerson`, `dueSteps`). A paused campaign adds none.
+ */
+async function openSteps(db: Db, input: Owner & { from: IsoDate | null; to: IsoDate; today: IsoDate; campaignIds: string[] }): Promise<DueItem[]> {
+  if (input.campaignIds.length === 0) return [];
+  const campaigns = await db.campaign.findMany({ where: { id: { in: input.campaignIds }, orgId: input.orgId, ownerUserId: input.userId, outreachPausedAt: null }, select: { id: true, name: true } });
+  if (campaigns.length === 0) return [];
+  const names = new Map(campaigns.map((campaign) => [campaign.id, campaign.name]));
+  const people = await db.campaignPerson.findMany({
+    where: { orgId: input.orgId, campaignId: { in: campaigns.map((campaign) => campaign.id) }, status: "chosen", review: "kept", personId: { not: null }, outreachStartOn: { not: null } },
+    select: { id: true, campaignId: true, outreachStartOn: true, preview: true, person: { select: { name: true } } },
+    orderBy: [{ campaignId: "asc" }, { rank: "asc" }, { id: "asc" }],
+  });
+  if (people.length === 0) return [];
+  const histories = await historiesFor(db, input.orgId, [...new Set(people.map((person) => person.campaignId))]);
+  const approved = await db.outreachDraft.findMany({
+    where: { orgId: input.orgId, campaignPersonId: { in: people.map((person) => person.id) }, touch: { in: [...EMAIL_TOUCHES] }, state: "approved" },
+    select: { campaignPersonId: true, touch: true },
+  });
+  const isApproved = new Set(approved.map((draft) => `${draft.campaignPersonId}:${draft.touch}`));
+  const items: DueItem[] = [];
+  for (const person of people) {
+    const startOn = fromDbDate(person.outreachStartOn!);
+    const tracking = trackPerson({ startOn, events: histories.get(person.id) ?? [], today: input.today, paused: false });
+    // No lower bound is the person's own start day: nothing is due before it.
+    for (const step of dueSteps(tracking, { from: input.from ?? startOn, to: input.to, paused: false })) {
+      items.push({
+        campaignId: person.campaignId,
+        campaignName: names.get(person.campaignId) ?? "",
+        campaignPersonId: person.id,
+        name: person.person?.name ?? "",
+        company: previewOf(person.preview).company,
+        step: step.id,
+        touch: step.touch,
+        due: step.due!,
+        state: step.state,
+        needsApproval: channelOf(step.id) === "email" && !isApproved.has(`${person.id}:${step.touch}`),
+      });
+    }
+  }
+  return items.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
+}
+
+async function ownCampaigns(db: Db, owner: Owner): Promise<Array<{ id: string; name: string; paused: boolean; started: boolean }>> {
+  const campaigns = await db.campaign.findMany({ where: { orgId: owner.orgId, ownerUserId: owner.userId }, select: { id: true, name: true, outreachPausedAt: true }, orderBy: [{ name: "asc" }, { id: "asc" }] });
+  if (campaigns.length === 0) return [];
+  const started = await db.campaignPerson.groupBy({
+    by: ["campaignId"],
+    where: { orgId: owner.orgId, campaignId: { in: campaigns.map((campaign) => campaign.id) }, status: "chosen", review: "kept", personId: { not: null }, outreachStartOn: { not: null } },
+  });
+  const startedIds = new Set(started.map((row) => row.campaignId));
+  return campaigns.map((campaign) => ({ id: campaign.id, name: campaign.name, paused: campaign.outreachPausedAt !== null, started: startedIds.has(campaign.id) }));
+}
 
 /** Every open step due from `from` to `to` across the rep's campaigns, for the calendar. A paused campaign adds none. */
 export async function dueBetween(db: Db, input: Owner & { from: string; to: string; today: IsoDate }): Promise<DueItem[]> {
   if (!isIsoDate(input.from) || !isIsoDate(input.to) || input.from > input.to) throw new TrackingRefused("bad_range");
   if ((toDbDate(input.to).getTime() - toDbDate(input.from).getTime()) / DAY_MS > DUE_RANGE_MAX_DAYS) throw new TrackingRefused("bad_range");
-  const campaigns = await db.campaign.findMany({ where: { orgId: input.orgId, ownerUserId: input.userId, outreachPausedAt: null }, select: { id: true, name: true } });
-  if (campaigns.length === 0) return [];
-  const names = new Map(campaigns.map((campaign) => [campaign.id, campaign.name]));
-  const people = await db.campaignPerson.findMany({
-    where: { orgId: input.orgId, campaignId: { in: campaigns.map((campaign) => campaign.id) }, status: "chosen", review: "kept", personId: { not: null }, outreachStartOn: { not: null } },
-    select: { id: true, campaignId: true, outreachStartOn: true, person: { select: { name: true } } },
-    orderBy: [{ campaignId: "asc" }, { rank: "asc" }, { id: "asc" }],
-  });
-  const histories = await historiesFor(db, input.orgId, [...new Set(people.map((person) => person.campaignId))]);
-  const items: DueItem[] = [];
-  for (const person of people) {
-    const tracking = trackPerson({ startOn: fromDbDate(person.outreachStartOn!), events: histories.get(person.id) ?? [], today: input.today, paused: false });
-    for (const step of dueSteps(tracking, { from: input.from, to: input.to, paused: false })) {
-      items.push({ campaignId: person.campaignId, campaignName: names.get(person.campaignId) ?? "", campaignPersonId: person.id, name: person.person?.name ?? "", step: step.id, touch: step.touch, due: step.due!, state: step.state });
-    }
-  }
-  return items.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
+  const campaigns = await ownCampaigns(db, input);
+  return openSteps(db, { ...input, campaignIds: campaigns.filter((campaign) => !campaign.paused).map((campaign) => campaign.id) });
+}
+
+export type CalendarView = {
+  /** Every open step due up to `to`, overdue ones included however old. */
+  items: DueItem[];
+  /** The running campaigns with outreach started: the campaign filter's choices. */
+  campaigns: Array<{ id: string; name: string }>;
+  /** Campaigns with outreach started and paused: nothing of theirs is due. */
+  pausedCampaigns: number;
+};
+
+/** The calendar's read (P6): everything open up to `to`, and which campaigns are running or paused. */
+export async function calendarItems(db: Db, input: Owner & { to: string; today: IsoDate }): Promise<CalendarView> {
+  if (!isIsoDate(input.to)) throw new TrackingRefused("bad_range");
+  const campaigns = (await ownCampaigns(db, input)).filter((campaign) => campaign.started);
+  const running = campaigns.filter((campaign) => !campaign.paused);
+  const items = await openSteps(db, { ...input, from: null, campaignIds: running.map((campaign) => campaign.id) });
+  return { items, campaigns: running.map(({ id, name }) => ({ id, name })), pausedCampaigns: campaigns.length - running.length };
 }

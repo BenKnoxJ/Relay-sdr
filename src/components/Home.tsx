@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { bucketOf, chipToneOf, isWaiting, reasonLineOf, stageLineOf } from "@/lib/campaigns/stageLine";
 import type { CampaignSummary } from "@/lib/campaigns/types";
+import { CALENDAR_CHANNELS, type DueToday } from "@/lib/outreach/calendar";
+import { calendarCopy } from "@/lib/copy/calendar";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { homeCopy } from "@/lib/copy/home";
 
@@ -67,6 +69,22 @@ function WorkingRow({ campaign }: { campaign: WithFacts }) {
   );
 }
 
+/** Today's outreach in one row (Relay P6): the calendar's own counts, and a link to it. */
+function DueTodayRow({ due }: { due: DueToday }) {
+  const c = calendarCopy;
+  const parts = CALENDAR_CHANNELS.filter((channel) => due.counts[channel] > 0).map((channel) => `${due.counts[channel]} ${due.counts[channel] === 1 ? c.channelOne[channel] : c.channelMany[channel]}`);
+  const today = parts.length === 0 ? c.nothingDueToday : `${c.dueTodayLabel}: ${parts.join(" · ")}`;
+  return (
+    <Link href="/calendar" data-testid="home-due-today" className={ROW}>
+      <span className="type-name min-w-0 flex-1">
+        {today}
+        {due.overdue === 0 ? null : <span className="text-warn">{` · ${due.overdue} ${c.overdueCount}`}</span>}
+      </span>
+      <span className="type-small text-action">{c.openCalendar}</span>
+    </Link>
+  );
+}
+
 type WithFacts = CampaignSummary & { facts: NonNullable<CampaignSummary["facts"]> };
 const withFacts = (campaign: CampaignSummary): campaign is WithFacts => campaign.facts !== undefined;
 
@@ -75,6 +93,7 @@ export function Home({
   today,
   connections,
   campaigns,
+  dueToday,
   startBrief,
 }: {
   firstName: string;
@@ -82,6 +101,8 @@ export function Home({
   today: string;
   connections: { mailbox: boolean };
   campaigns: readonly CampaignSummary[];
+  /** What is due today, when the rep has outreach running; absent, the row is not drawn. */
+  dueToday?: DueToday;
   startBrief: (previous: string | null, form: FormData) => Promise<string | null>;
 }) {
   const stored = campaigns.filter(withFacts);
@@ -97,6 +118,12 @@ export function Home({
 
       {/* One column, centred. 880px is the widest a single list column reads well at; not a signed number. */}
       <div data-testid="home-blocks" className="mx-auto grid w-full min-w-0 max-w-[880px] grid-cols-[minmax(0,1fr)] gap-grid">
+        {dueToday === undefined ? null : (
+          <Card>
+            <DueTodayRow due={dueToday} />
+          </Card>
+        )}
+
         <Card label={homeCopy.needsYouLabel} aside={<Count n={needsYou.length} />}>
           {needsYou.length === 0 ? (
             <p className="type-small text-muted">{homeCopy.needsYouEmpty}</p>

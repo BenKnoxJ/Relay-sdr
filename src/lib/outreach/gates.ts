@@ -234,12 +234,11 @@ function sentenceStartNames(body: string, lowerCorpus: string): string[] {
   return found;
 }
 
-function provenanceFindings(draft: MessageDraft, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
+function provenanceFindings(body: string, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
   const found: Finding[] = [];
   const advice: Finding[] = [];
   const allowed = allowedWords(input, context);
   const evidence = evidenceText(input);
-  const body = draft.body;
   // Words written in lower case anywhere the draft could have learnt them: its own body and the evidence as written.
   const lowerCorpus = [body, evidenceRaw(input)].join("\n").match(/\b[a-z][a-z0-9'’-]*\b/g)?.join(" ") ?? "";
 
@@ -380,7 +379,7 @@ function adviceFindings(draft: MessageDraft): Finding[] {
 export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
   if (draft.kind !== "message") return { tierA: [{ rule: "kind", text: "A first email is a message, not a call." }], tierB: [] };
   const cohort = cohortFindings(draft, input, context.cohort);
-  const provenance = provenanceFindings(draft, input, context);
+  const provenance = provenanceFindings(draft.body, input, context);
   const tierA = [
     ...checkTouchLimits(draft, input),
     ...shapeFindings(draft, input, input.standard.bannedLexicon),
@@ -412,4 +411,89 @@ export function normaliseClaims<T extends OutreachOutput>(draft: T, input: Outre
   ]);
   const claims = draft.claims.filter((claim) => facts.has(claim) || !notClaims.has(claim));
   return claims.length === draft.claims.length ? draft : { ...draft, claims };
+}
+
+// ---------------------------------------------------------------------------
+// The rest of the sequence (P2, 21 Sep 2026)
+
+/**
+ * The words a rep reads on a touch, part by part: a message's subject and
+ * body, or a call script's lines. Kept apart because a subject or a line
+ * without a full stop would otherwise run into the next part as one sentence,
+ * and a sentence's first word would read as a name in the middle of one.
+ */
+export function proseParts(draft: OutreachOutput): string[] {
+  if (draft.kind === "message") return [draft.subject ?? "", draft.body].filter((part) => part !== "");
+  const point = draft.talkingPoint;
+  return [point.openingLine, point.oneQuestion, point.listenFor, point.voicemail ?? "", ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer])].filter((part) => part !== "");
+}
+
+/** The same, as one text, for the checks that read words rather than sentences. */
+export function proseText(draft: OutreachOutput): string {
+  return proseParts(draft).join("\n");
+}
+
+/**
+ * Every gate on a touch other than the first email: its own limits
+ * (`checkTouchLimits`, which reads the touch's own row), the tell list, the
+ * wording rules, and provenance. No cohort logic: a follow-up is read against
+ * this person's own earlier touches, which the writer is given.
+ */
+export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
+  const kind = input.touch.kind;
+  if (kind === "email1") return gateEmail1(draft, input, context);
+  if ((draft.kind === "call") !== (kind === "call")) {
+    return { tierA: [{ rule: "kind", text: kind === "call" ? "A call script is a talking point, not a message." : "This touch is a message, not a call script." }], tierB: [] };
+  }
+  const text = proseText(draft);
+  const found: Finding[] = [...checkTouchLimits(draft, input)];
+  if (text.includes("!")) found.push({ rule: "exclamation", text: "No exclamation marks." });
+  if (draft.kind === "message") {
+    if ((kind === "email2" || kind === "breakup") && /https?:\/\/|www\.[a-z]/i.test(draft.body)) found.push({ rule: "link", text: "A follow-up email carries no link." });
+    if (TIME_ASK.some((pattern) => pattern.test(`${draft.ask} ${draft.body}`))) {
+      found.push({ rule: "time-ask", text: "It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead." });
+    }
+    const first = input.person.firstName.trim();
+    const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(draft.body);
+    const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(draft.body);
+    if (/^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(draft.body) || opensWithName || signsOff) {
+      found.push({ rule: "envelope", text: "Relay adds the greeting and the sign-off; the message starts with the first sentence and ends with the question." });
+    }
+  } else if (draft.talkingPoint.voicemail === undefined) {
+    found.push({ rule: "voicemail", text: "The call script has no voicemail." });
+  }
+  if (ANTITHESIS.some((pattern) => pattern.test(text))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
+  const tells = input.standard.bannedLexicon.filter((phrase) => hasPhrase(text, phrase));
+  if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
+  const us = US_SPELLINGS.filter((word) => new RegExp(`\\b${word}\\b`, "i").test(text));
+  if (us.length > 0) found.push({ rule: "spelling", text: `American spelling: ${us.join(", ")}. Use British English.` });
+  // Provenance part by part, one finding per rule and text.
+  const checked = proseParts(draft).map((part) => provenanceFindings(part, input, context));
+  const unique = (list: Finding[]) => list.filter((finding, index) => list.findIndex((other) => other.rule === finding.rule && other.text === finding.text) === index);
+  const provenance = { tierA: unique(checked.flatMap((result) => result.tierA)), tierB: unique(checked.flatMap((result) => result.tierB)) };
+  const advice = draft.kind === "message" ? adviceFindings(draft).filter((finding) => finding.rule !== "subject") : [];
+  return { tierA: [...found, ...provenance.tierA], tierB: [...advice, ...provenance.tierB] };
+}
+
+/** The gate for a touch, chosen by its kind: Email 1 keeps its own. */
+export function gateFor(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
+  return input.touch.kind === "email1" ? gateEmail1(draft, input, context) : gateTouch(draft, input, context);
+}
+
+/**
+ * What a rewrite added that the draft did not have: a number, or a name. The
+ * humanizer is subtractive (facts locked, voice free), so anything here sends
+ * the touch back to its drafted words. A name counts as added when one of its
+ * words appears nowhere in the draft, in any case.
+ */
+export function addedFacts(before: OutreachOutput, after: OutreachOutput): string[] {
+  const was = proseText(before);
+  const now = proseText(after);
+  const known = new Set(words(was));
+  // Whole numbers, not substrings: "15" becoming "5" is a changed figure.
+  const numbersOf = (text: string) => (text.match(/(?<![\d.,])\d[\d,.]*%?/g) ?? []).map((n) => n.replace(/[.,]$/, ""));
+  const earlier = new Set(numbersOf(was));
+  const numbers = numbersOf(now).filter((n) => !earlier.has(n));
+  const names = proseParts(after).flatMap((part) => namedEntities(part)).filter((entity) => words(entity).some((word) => !ORDINARY.has(word) && !CALENDAR.has(word) && !known.has(word)));
+  return [...new Set([...numbers, ...names])];
 }

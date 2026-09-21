@@ -324,17 +324,17 @@ export const campaignsCopy = {
     provider_unusable: "This person's email can't be revealed.",
   },
   revealFailedWhy: "Relay couldn't confirm this reveal. It won't be bought again automatically.",
-  actionWriteEmails: "Write emails",
+  actionWriteEmails: "Write outreach",
   outreachLater: "Writing emails comes next. Nothing has been sent.",
   outreachNextLabel: "Next: outreach",
   outreachNextLine: "These people have emails ready. Writing to them comes next, and nothing is sent until you approve it.",
   reviewKeepAccount: "Keep account",
 
   /**
-   * Write emails (outreach v2.1): the first email to each person with an
-   * email ready, drafted for the rep to review. Nothing is sent.
+   * Write outreach (outreach v2.1, P2): the full sequence for each person with
+   * an email ready, drafted for the rep to review. Nothing is sent.
    */
-  actionWriteEmailsLive: "Write emails",
+  actionWriteEmailsLive: "Write outreach",
   actionReviewDrafts: "Review drafts",
   actionSendEmails: "Send emails",
   sendLater: "Sending comes next. Nothing has been sent.",
@@ -353,7 +353,7 @@ export const campaignsCopy = {
   summaryDraftsRejected: "rejected",
   summaryDraftsNotWritten: "couldn't be written",
   draftsExhausted: "None of the first emails is left to review or send: each was rejected or couldn't be written. Edit the brief to start again.",
-  activityDraftsRequested: "Write emails pressed:",
+  activityDraftsRequested: "Write outreach pressed:",
   activityDraftsToWrite: "first emails to draft",
   activityDrafted: "First email drafted for",
   activityDraftedNeedsYou: "First email needs you for",
@@ -364,14 +364,14 @@ export const campaignsCopy = {
   activityDraftReasons: { wrong_angle: "wrong angle, Relay redrafts", wrong_person: "wrong person", wrong_fact: "wrong fact, Relay redrafts", not_now: "not now" },
   writeNote: "Drafts a first email to each person with an email ready. Nothing is sent.",
   writeNothing: "Nobody kept has an email ready to write to.",
-  writeCardLabel: "Write first emails",
-  writeLead: "Relay drafts one first email for each of",
+  writeCardLabel: "Write outreach",
+  writeLead: "Relay drafts three emails, a LinkedIn note, two LinkedIn messages and a call script for each of",
   writePeople: "people with an email ready.",
   writePerson: "person with an email ready.",
-  writeHow: "Each opens on something real about them or their firm when Relay finds it, and on the problem their role owns when it doesn't. You read, edit and approve every one. Nothing is sent.",
-  writeCost: "Drafting costs a few pence each, up to",
-  writeCostTail: "for the campaign.",
-  writeConfirm: "Write the emails",
+  writeHow: "Each opens on something real about them or their firm when Relay finds it, and on the problem their role owns when it doesn't. The emails wait in Inbox for you to read, edit and approve. Nothing is sent.",
+  writeCost: "Drafting costs up to",
+  writeCostTail: "per person.",
+  writeConfirm: "Write the drafts",
   writeCancel: "Not now",
   actionWriting: "Starting",
   toastWriting: "Relay is drafting first emails now. They will be in your Inbox to review. Nothing is sent.",

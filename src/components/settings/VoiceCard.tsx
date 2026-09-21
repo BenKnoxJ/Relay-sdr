@@ -36,11 +36,8 @@ const SHOWN_FOLDED = 3;
  *   * Add opens a box; the email goes in on Add and the box closes, "Added"
  *     on the line. At ten, Add is gone and the line under the list says why
  *     (`voiceCopy.full`). An empty box is refused in place.
- *   * Until outreach exists there is no row to save a voice into, so Add is
- *     drawn and disabled with one line saying when it arrives
- *     (`voiceCopy.addComing`). The box behind it is intact and reachable
- *     the moment the button is enabled; the adapter still takes samples, so
- *     the list, the fold and Remove render as they will.
+ *   * Add saves through the same path as Remove and the note: live, the
+ *     rep's voice row (`saveVoice`); without `onPersist`, the fixture adapter.
  *   * Remove is immediate, no confirm: a paste is cheap. "Removed" quietly.
  *   * The note saves on blur, guarded on a change, and is refused over ten
  *     lines with the count said plainly; the text stays in the box.
@@ -162,21 +159,15 @@ export function VoiceCard({ initial, onPersist }: { initial?: RepProfile; onPers
         {full ? (
           <span className="type-small text-muted">{voiceCopy.full}</span>
         ) : adding ? null : (
-          <>
-            <button
-              type="button"
-              disabled
-              aria-expanded={adding}
-              aria-controls={addId}
-              onClick={() => setAdding(true)}
-              className="type-small rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
-            >
-              {voiceCopy.add}
-            </button>
-            <span data-testid="voice-add-coming" className="type-small text-muted">
-              {voiceCopy.addComing}
-            </span>
-          </>
+          <button
+            type="button"
+            aria-expanded={adding}
+            aria-controls={addId}
+            onClick={() => setAdding(true)}
+            className="type-small rounded-pill font-semibold text-action focus-visible:outline-none focus-visible:ring-2"
+          >
+            {voiceCopy.add}
+          </button>
         )}
       </div>
 

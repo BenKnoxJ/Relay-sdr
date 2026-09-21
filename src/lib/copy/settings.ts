@@ -70,8 +70,6 @@ export const voiceCopy = {
   addCancel: "Cancel",
   /** After an email lands in the list. */
   addedLine: "Added",
-  /** Under the Add control while it is off: there is no row to save a voice into until outreach. */
-  addComing: "Saving your voice arrives with outreach.",
   /** An empty box. */
   empty: "Paste the email first.",
   /** Why Add is gone once there are ten. */

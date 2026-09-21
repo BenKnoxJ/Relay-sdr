@@ -19,9 +19,9 @@ import { checkVoiceNote, checkVoiceSample, countLines, tooManyLines } from "@/li
  * through the adapter and the card shows what comes back.
  *
  * The fixture is empty, so the page opens on the empty line and nothing
- * invented. Add is drawn and disabled until outreach gives a voice somewhere
- * to be saved; the list and the fold are checked by putting emails into the
- * adapter directly, which is the seam a repository replaces.
+ * invented. Add saves through the adapter, or live through `onPersist`; the
+ * list and the fold are checked by putting emails into the adapter directly,
+ * which is the seam a repository replaces.
  */
 
 beforeEach(() => {
@@ -62,16 +62,38 @@ describe("the Your voice card", () => {
     expect(screen.getByText(voiceCopy.noteHint)).toBeDefined();
   });
 
-  it("draws Add disabled, with one line saying when it arrives, and opens no box", () => {
+  it("opens Add's box, and adds the email to the adapter with Added on the line", () => {
     render(<VoiceCard />);
 
-    expect(addButton().hasAttribute("disabled")).toBe(true);
-    expect(screen.getByTestId("voice-add-coming").textContent).toBe(voiceCopy.addComing);
-    expect(voiceCopy.addComing).toBe("Saving your voice arrives with outreach.");
+    expect(addButton().hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByText("Saving your voice arrives with outreach.")).toBeNull();
+    fireEvent.click(addButton());
+    const box = screen.getByRole("textbox", { name: voiceCopy.addLabel });
+    fireEvent.change(box, { target: { value: "Subject 1\n\nA short email I was proud of." } });
+    fireEvent.click(screen.getByRole("button", { name: voiceCopy.addConfirm }));
+
+    expect(getProfile().voiceSamples).toHaveLength(1);
+    expect(rows()).toHaveLength(1);
+    expect(status().textContent).toContain(voiceCopy.addedLine);
+    expect(screen.queryByRole("textbox", { name: voiceCopy.addLabel })).toBeNull();
+  });
+
+  it("saves an added email live through onPersist, with the samples already there", async () => {
+    const saved: { samples: { text: string; addedAt: string }[]; howIWrite: string }[] = [];
+    const onPersist = async (voice: (typeof saved)[number]) => {
+      saved.push(voice);
+      return null;
+    };
+    render(<VoiceCard initial={{ ...getProfile(), voiceSamples: [{ id: "v1", text: "Earlier email", addedAt: "2026-09-01" }], voiceNote: "Short." }} onPersist={onPersist} />);
 
     fireEvent.click(addButton());
-    expect(screen.queryByRole("textbox", { name: voiceCopy.addLabel })).toBeNull();
-    expect(getProfile().voiceSamples).toHaveLength(0);
+    fireEvent.change(screen.getByRole("textbox", { name: voiceCopy.addLabel }), { target: { value: "A new one." } });
+    fireEvent.click(screen.getByRole("button", { name: voiceCopy.addConfirm }));
+
+    expect(saved).toHaveLength(1);
+    expect(saved[0]!.samples.map((sample) => sample.text)).toEqual(["Earlier email", "A new one."]);
+    expect(saved[0]!.howIWrite).toBe("Short.");
+    expect(rows()).toHaveLength(2);
   });
 
   it("shows the emails the adapter holds: the count, three rows and the fold", () => {

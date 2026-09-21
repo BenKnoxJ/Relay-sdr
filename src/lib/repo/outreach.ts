@@ -1,7 +1,7 @@
 import type { CampaignPerson, OutreachDraft, OutreachDraftState, Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
-import { lookupResultSchema, type LookupResult } from "../../../agents/outreach/input.schema";
+import { EMAIL_TOUCHES, TOUCH_KINDS, lookupResultSchema, type LookupResult, type TouchKind } from "../../../agents/outreach/input.schema";
 import { enqueue } from "@/lib/jobs/queue";
 
 import { mutate } from "./mutate";
@@ -21,17 +21,18 @@ export const DRAFT_APPROVED = "draft.approved" as const;
 export const DRAFT_REJECTED = "draft.rejected" as const;
 export const VOICE_SAVED = "rep.voice_saved" as const;
 
-/** The only touch the first implementation writes (v2.1 §1). */
-export const EMAIL1 = "email1" as const;
-/** A person's first email is written at most three times: the first, and two the rep asks for with a reason. */
+/** A person's touch is written at most three times: the first, and two the rep asks for with a reason. */
 export const MAX_DRAFT_ATTEMPTS = 3;
-/** §11: a per-campaign ceiling on drafting cost, in USD. */
-export const CAMPAIGN_DRAFT_COST_CAP_USD = 10;
+export { PERSON_DRAFT_COST_CAP_USD } from "@/lib/outreach/cost";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
-export function draftJobKey(campaignId: string, briefVersion: number, campaignPersonId: string, attempt: number): string {
-  return `campaign:${campaignId}:outreach:v${briefVersion}:cp:${campaignPersonId}:${EMAIL1}:a${attempt}`;
+/**
+ * One job per person per touch per attempt. The first press drafts the whole
+ * sequence under `sequence`; a rep's redraft of one touch is keyed by that touch.
+ */
+export function draftJobKey(campaignId: string, briefVersion: number, campaignPersonId: string, attempt: number, touch: TouchKind | "sequence"): string {
+  return `campaign:${campaignId}:outreach:v${briefVersion}:cp:${campaignPersonId}:${touch}:a${attempt}`;
 }
 
 /** The guard that makes a job's draft one row across retries. */
@@ -46,6 +47,8 @@ export const draftJobInputSchema = z
     requestId: z.string().min(1).max(200),
     campaignPersonId: z.string().min(1).max(100),
     attempt: z.number().int().min(1).max(MAX_DRAFT_ATTEMPTS),
+    /** One touch to write again. Absent on the first press: the job drafts the whole sequence. */
+    touch: z.enum(TOUCH_KINDS).optional(),
     /** A rep's rejection that asks for another draft (§9): what to move away from. */
     avoid: z
       .object({ reason: z.enum(REDRAFT_REASONS), previousBody: z.string().max(5000), previousOpenerRef: z.string().max(80).optional() })
@@ -65,7 +68,12 @@ export async function draftablePeople(db: Db, where: { orgId: string; campaignId
 }
 
 export async function findDraftForJob(db: Db, where: { orgId: string; jobId: string }): Promise<OutreachDraft | null> {
-  return db.outreachDraft.findFirst({ where: { orgId: where.orgId, jobId: where.jobId } });
+  return db.outreachDraft.findFirst({ where: { orgId: where.orgId, jobId: where.jobId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+}
+
+/** Every draft a job wrote: one for a single touch, seven for a sequence. */
+export async function findDraftsForJob(db: Db, where: { orgId: string; jobId: string }): Promise<OutreachDraft[]> {
+  return db.outreachDraft.findMany({ where: { orgId: where.orgId, jobId: where.jobId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
 }
 
 // ---------------------------------------------------------------------------
@@ -107,6 +115,8 @@ export async function cohortFor(
       campaignId: where.campaignId,
       briefVersion: where.briefVersion,
       campaignPersonId: { not: where.excludeCampaignPersonId },
+      // First emails only: the repetition gates are Email 1's.
+      touch: "email1",
       state: { in: ["to_review", "needs_you", "approved"] },
       body: { not: null },
     },
@@ -126,8 +136,8 @@ export async function cohortFor(
   });
 }
 
-/** Everything drafting has cost this campaign so far, for the §11 ceiling. */
-export async function campaignDraftCost(db: Db, where: { orgId: string; campaignId: string }): Promise<number> {
+/** Everything drafting has cost this person at this brief version, across every touch and attempt, for the §11 ceiling. */
+export async function personDraftCost(db: Db, where: { orgId: string; campaignId: string; briefVersion: number; campaignPersonId: string }): Promise<number> {
   const total = await db.outreachDraft.aggregate({ where, _sum: { costUsd: true } });
   return Number(total._sum.costUsd ?? 0);
 }
@@ -137,76 +147,104 @@ export async function campaignDraftCost(db: Db, where: { orgId: string; campaign
 
 export type Finding = { rule: string; text: string };
 
-export type RecordDraftInput = {
-  orgId: string;
-  job: { id: string; campaignId: string; briefVersion: number; ownerUserId: string };
-  campaignPersonId: string;
-  attempt: number;
+/** One touch's draft, as a job records it. */
+export type TouchRecord = {
+  touch: TouchKind;
   state: Extract<OutreachDraftState, "to_review" | "needs_you" | "failed">;
   /** The opener carries the words, source and date the card shows, resolved when the draft is written. */
   draft: { subject?: string; body: string; ask: string; opener: { ref: string; kind: string; text: string; source: string; date: string }; claims: string[] } | null;
   findings: Finding[];
   advice: Finding[];
-  lookup: LookupResult & { trail?: unknown };
   generations: number;
   costUsd: number;
 };
 
-/**
- * The draft and its Event, one transaction, once per job. A retried job that
- * already wrote its draft gets that draft back and writes nothing.
- */
+export type RecordDraftsInput = {
+  orgId: string;
+  job: { id: string; campaignId: string; briefVersion: number; ownerUserId: string };
+  campaignPersonId: string;
+  attempt: number;
+  lookup: LookupResult & { trail?: unknown };
+  touches: TouchRecord[];
+  /** More for the Event: the cost split and what the humanizer changed. Never on the rep's card. */
+  record?: Record<string, unknown>;
+};
+
+export type RecordDraftInput = Omit<RecordDraftsInput, "touches" | "record"> & Omit<TouchRecord, "touch"> & { touch?: TouchKind };
+
+/** One touch's draft and its Event (`recordDrafts` with one touch). */
 export async function recordDraft(db: PrismaClient, input: RecordDraftInput): Promise<OutreachDraft> {
-  const existing = await findDraftForJob(db, { orgId: input.orgId, jobId: input.job.id });
-  if (existing !== null) return existing;
+  const { touch = "email1", state, draft, findings, advice, generations, costUsd, ...rest } = input;
+  const [written] = await recordDrafts(db, { ...rest, touches: [{ touch, state, draft, findings, advice, generations, costUsd }] });
+  return written!;
+}
+
+/**
+ * A job's drafts and their one Event, in one transaction, once per job: every
+ * touch lands or none does. A retried job that already wrote its drafts gets
+ * them back and writes nothing.
+ */
+export async function recordDrafts(db: PrismaClient, input: RecordDraftsInput): Promise<OutreachDraft[]> {
+  const existing = await findDraftsForJob(db, { orgId: input.orgId, jobId: input.job.id });
+  if (existing.length > 0) return existing;
+  const first = input.touches[0];
+  if (first === undefined) throw new Error("outreach: a job records at least one draft");
   try {
     await mutate(db, {
       orgId: input.orgId,
       actor: { kind: "system" },
       kind: OUTREACH_DRAFTED,
       campaignId: input.job.campaignId,
-      after: {
-        jobId: input.job.id,
-        campaignPersonId: input.campaignPersonId,
-        attempt: input.attempt,
-        state: input.state,
-        generations: input.generations,
-        findings: input.findings.map((finding) => finding.rule),
-        lookup: { usable: input.lookup.usable, searches: input.lookup.searches, fetches: input.lookup.fetches },
-      },
+      after: JSON.parse(
+        JSON.stringify({
+          jobId: input.job.id,
+          campaignPersonId: input.campaignPersonId,
+          attempt: input.attempt,
+          // The first touch's, as the activity line reads it; each touch's own below.
+          state: first.state,
+          generations: first.generations,
+          findings: first.findings.map((finding) => finding.rule),
+          touches: input.touches.map((touch) => ({ touch: touch.touch, state: touch.state, generations: touch.generations, findings: touch.findings.map((finding) => finding.rule) })),
+          lookup: { usable: input.lookup.usable, searches: input.lookup.searches, fetches: input.lookup.fetches },
+          ...input.record,
+        }),
+      ) as Prisma.InputJsonObject,
       apply: async (tx) => {
         await tx.sideEffect.create({ data: { orgId: input.orgId, key: draftGuardKey(input.job.id), jobId: input.job.id } });
-        return tx.outreachDraft.create({
-          data: {
-            orgId: input.orgId,
-            campaignId: input.job.campaignId,
-            briefVersion: input.job.briefVersion,
-            campaignPersonId: input.campaignPersonId,
-            ownerUserId: input.job.ownerUserId,
-            jobId: input.job.id,
-            touch: EMAIL1,
-            attempt: input.attempt,
-            state: input.state,
-            subject: input.draft?.subject ?? null,
-            body: input.draft?.body ?? null,
-            ask: input.draft?.ask ?? null,
-            ...(input.draft === null ? {} : { opener: input.draft.opener as Prisma.InputJsonObject }),
-            claims: input.draft?.claims ?? [],
-            findings: input.findings as unknown as Prisma.InputJsonArray,
-            advice: input.advice as unknown as Prisma.InputJsonArray,
-            lookup: JSON.parse(JSON.stringify(input.lookup)) as Prisma.InputJsonObject,
-            generations: input.generations,
-            costUsd: input.costUsd.toFixed(6),
-          },
-        });
+        for (const touch of input.touches) {
+          await tx.outreachDraft.create({
+            data: {
+              orgId: input.orgId,
+              campaignId: input.job.campaignId,
+              briefVersion: input.job.briefVersion,
+              campaignPersonId: input.campaignPersonId,
+              ownerUserId: input.job.ownerUserId,
+              jobId: input.job.id,
+              touch: touch.touch,
+              attempt: input.attempt,
+              state: touch.state,
+              subject: touch.draft?.subject ?? null,
+              body: touch.draft?.body ?? null,
+              ask: touch.draft?.ask ?? null,
+              ...(touch.draft === null ? {} : { opener: touch.draft.opener as Prisma.InputJsonObject }),
+              claims: touch.draft?.claims ?? [],
+              findings: touch.findings as unknown as Prisma.InputJsonArray,
+              advice: touch.advice as unknown as Prisma.InputJsonArray,
+              lookup: JSON.parse(JSON.stringify(input.lookup)) as Prisma.InputJsonObject,
+              generations: touch.generations,
+              costUsd: touch.costUsd.toFixed(6),
+            },
+          });
+        }
+        return null;
       },
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    // Another attempt wrote it first; its draft is the answer.
+    // Another attempt wrote them first; its drafts are the answer.
   }
-  const written = await findDraftForJob(db, { orgId: input.orgId, jobId: input.job.id });
-  if (written === null) throw new Error(`outreach: the draft for job ${input.job.id} was not found after writing it`);
+  const written = await findDraftsForJob(db, { orgId: input.orgId, jobId: input.job.id });
+  if (written.length === 0) throw new Error(`outreach: the drafts for job ${input.job.id} were not found after writing them`);
   return written;
 }
 
@@ -220,17 +258,30 @@ export type QueuedDraft = OutreachDraft & {
 
 const STATE_ORDER: Record<string, number> = { needs_you: 0, to_review: 1, failed: 2 };
 
-/** The rep's own drafts waiting on them: needs you first, then to review, then any that could not be written. */
+/**
+ * The rep's own emails waiting on them: needs you first, then to review, then
+ * any that could not be written. Email touches only: the Inbox approves emails,
+ * and the LinkedIn and call drafts are stored for the person, not queued here.
+ */
 export async function reviewQueue(db: Db, owner: { orgId: string; userId: string }): Promise<QueuedDraft[]> {
   const drafts = await db.outreachDraft.findMany({
-    where: { orgId: owner.orgId, ownerUserId: owner.userId, state: { in: ["needs_you", "to_review", "failed"] } },
+    where: { orgId: owner.orgId, ownerUserId: owner.userId, touch: { in: [...EMAIL_TOUCHES] }, state: { in: ["needs_you", "to_review", "failed"] } },
     include: {
       campaign: { select: { id: true, name: true } },
       campaignPerson: { select: { preview: true, rolePart: true, roleTitle: true, roleMatch: true, companyKey: true, person: { select: { email: true } } } },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  return drafts.sort((a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9));
+  // A person's emails in their order: Email 1, the follow-up, the last email.
+  const place = (touch: string) => (EMAIL_TOUCHES as readonly string[]).indexOf(touch);
+  return drafts.sort(
+    (a, b) =>
+      (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9) ||
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      a.campaignPersonId.localeCompare(b.campaignPersonId) ||
+      place(a.touch) - place(b.touch) ||
+      a.id.localeCompare(b.id),
+  );
 }
 
 export type DraftRefusal = "not_found" | "decided" | "not_written" | "bad_edit";
@@ -261,7 +312,12 @@ export function editClassOf(before: string, after: string): "trim" | "reword" | 
   return share >= 0.6 ? "reword" : "rewrite";
 }
 
-async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; userId: string; draftId: string }): Promise<OutreachDraft> {
+/**
+ * The rep's own undecided draft, locked. Approving needs words to approve; a
+ * touch parked at the drafting ceiling with nothing written can still be
+ * rejected, so it never sits in the Inbox for good.
+ */
+async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; userId: string; draftId: string }, action: "approve" | "reject"): Promise<OutreachDraft> {
   // Lock the row: two presses on one draft queue here, and the second sees the first's decision.
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM outreach_drafts WHERE id = ${where.draftId} AND org_id = ${where.orgId} AND owner_user_id = ${where.userId} FOR UPDATE
@@ -269,7 +325,8 @@ async function ownDraft(tx: Prisma.TransactionClient, where: { orgId: string; us
   if (rows.length === 0) throw new DraftRefused("not_found");
   const draft = await tx.outreachDraft.findFirstOrThrow({ where: { id: where.draftId, orgId: where.orgId, ownerUserId: where.userId } });
   if (draft.state === "approved" || draft.state === "rejected") throw new DraftRefused("decided");
-  if (draft.state === "failed" || draft.body === null) throw new DraftRefused("not_written");
+  const parked = draft.state === "needs_you" && draft.body === null;
+  if (draft.state === "failed" || (draft.body === null && !(parked && action === "reject"))) throw new DraftRefused("not_written");
   return draft;
 }
 
@@ -283,7 +340,7 @@ export async function approveDraft(db: PrismaClient, input: { orgId: string; use
     actor: { kind: "user", userId: input.userId },
     kind: DRAFT_APPROVED,
     apply: async (tx) => {
-      const draft = await ownDraft(tx, input);
+      const draft = await ownDraft(tx, input, "approve");
       const changed = edited !== undefined && edited !== draft.body;
       return tx.outreachDraft.update({
         where: { id: draft.id },
@@ -306,7 +363,7 @@ export type RejectReason = (typeof REJECT_REASONS)[number];
 /**
  * Reject with a reason (§9). "Wrong angle" and "wrong fact" ask Relay to write
  * it again, away from what was wrong, as the next attempt; the other two close
- * the draft. A person's first email is written at most three times.
+ * the draft. Each touch is written at most three times.
  */
 export async function rejectDraft(
   db: PrismaClient,
@@ -318,7 +375,7 @@ export async function rejectDraft(
     actor: { kind: "user", userId: input.userId },
     kind: DRAFT_REJECTED,
     apply: async (tx) => {
-      const draft = await ownDraft(tx, input);
+      const draft = await ownDraft(tx, input, "reject");
       const updated = await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: input.reason, decidedByUserId: input.userId, decidedAt: at } });
       let redraftJobId: string | null = null;
       if ((input.reason === "wrong_angle" || input.reason === "wrong_fact") && draft.attempt < MAX_DRAFT_ATTEMPTS) {
@@ -328,11 +385,12 @@ export async function rejectDraft(
           orgId: draft.orgId,
           ownerUserId: draft.ownerUserId,
           kind: OUTREACH_DRAFT_JOB,
-          idempotencyKey: draftJobKey(draft.campaignId, draft.briefVersion, draft.campaignPersonId, attempt),
+          idempotencyKey: draftJobKey(draft.campaignId, draft.briefVersion, draft.campaignPersonId, attempt, draft.touch as TouchKind),
           input: {
             requestId: input.requestId,
             campaignPersonId: draft.campaignPersonId,
             attempt,
+            touch: draft.touch,
             avoid: { reason: input.reason, previousBody: draft.body ?? "", ...(typeof opener?.ref === "string" ? { previousOpenerRef: opener.ref } : {}) },
           },
           campaignId: draft.campaignId,

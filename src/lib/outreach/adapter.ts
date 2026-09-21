@@ -1,7 +1,7 @@
 import type { CampaignPerson } from "@prisma/client";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
-import type { LookupResult, OutreachInput, RecentDraft } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, type LookupResult, type OutreachInput, type RecentDraft, type TouchKind } from "../../../agents/outreach/input.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { completeModule, deriveArchetype, deriveHook, type PackShape } from "../../../agents/research/output.schema";
 import { isSeedFirm } from "@/lib/leadgen/rank";
@@ -31,6 +31,12 @@ export type AdapterFacts = {
   recentDrafts: RecentDraft[];
   redraft?: OutreachInput["redraft"];
   now: Date;
+  /** The touch to write; Email 1 when absent. */
+  touch?: TouchKind;
+  /** The earlier touches' words, so a follow-up does not repeat them (P2). */
+  thread?: OutreachInput["thread"];
+  /** P2: one answer writes the whole sequence, starting at Email 1. */
+  sequence?: boolean;
 };
 
 type Preview = { name: string; title: string; company: string; domain?: string; city?: string };
@@ -109,8 +115,9 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
       ...(preview.domain === undefined ? {} : { domain: preview.domain }),
       ...(seed ? { seedEvidence: "Research named this firm for the plan." } : {}),
     },
-    touch: { kind: "email1", ordinal: 1, dueAt: input.now.toISOString() },
-    thread: [],
+    touch: touchOf(input.sequence === true ? "email1" : (input.touch ?? "email1"), input.now),
+    ...(input.sequence === true ? { sequence: [...SEQUENCE] } : {}),
+    thread: (input.thread ?? []).slice(0, 20),
     pack: packSliceOf(input.pack, input.handoff, facts),
     facts,
     // §15 resolution 1: the eight most recent email samples.
@@ -120,6 +127,11 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
     recentDrafts: input.recentDrafts.slice(0, 20),
     ...(input.redraft === undefined ? {} : { redraft: input.redraft }),
   };
+}
+
+/** A touch at its place in the sequence. */
+export function touchOf(kind: TouchKind, now: Date): OutreachInput["touch"] {
+  return { kind, ordinal: SEQUENCE.indexOf(kind) + 1, dueAt: now.toISOString() };
 }
 
 /** What the lookup must touch to be relevant: the role's needs, the plan's pains and hook (v2.1 §3). */

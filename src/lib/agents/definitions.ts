@@ -167,7 +167,9 @@ const SPECS = {
     // the first and one corrective redraft (v2.1 §6). The second step is
     // headroom for a transport that returns the structured answer on a second
     // turn; a run that needs more fails at the cap rather than spending on.
-    budget: { maxModelSteps: 2, maxSearches: 0, maxFetches: 0, maxSeconds: 120 },
+    // P2 (21 Sep 2026): one call writes a person's whole sequence, seven touches, where a first
+    // email alone took about 50 s on the M0 walk; 120 s would time out a sound answer.
+    budget: { maxModelSteps: 2, maxSearches: 0, maxFetches: 0, maxSeconds: 300 },
     hasPrompt: true,
     model: "claude-sonnet-5",
     effort: "high",

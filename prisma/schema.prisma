@@ -745,7 +745,7 @@ model OutreachDraft {
   briefVersion     Int                @map("brief_version")
   campaignPersonId String             @map("campaign_person_id")
   ownerUserId      String             @map("owner_user_id")
-  /// The `outreach_draft` job that wrote it: one draft per job.
+  /// The `outreach_draft` job that wrote it: one draft per touch per job.
   jobId            String             @map("job_id")
   touch            String
   /// 1 for the first draft; a rep's "wrong angle" or "wrong fact" asks for 2, and so on.
@@ -782,7 +782,8 @@ model OutreachDraft {
   owner          User           @relation("OutreachDraftOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
   decidedBy      User?          @relation("OutreachDraftDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
-  @@unique([orgId, jobId])
+  /// One draft per job and touch: a sequence job writes seven, a redraft one.
+  @@unique([orgId, jobId, touch])
   /// One draft per person, touch and attempt: a repeated press or a retried job
   /// cannot write a second first email for the same person.
   @@unique([orgId, campaignPersonId, touch, attempt], map: "outreach_drafts_one_per_attempt")

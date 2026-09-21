@@ -26,7 +26,18 @@ export const draftCopy = {
     breakup: "Last email",
     li_connect: "LinkedIn invite",
     li_dm: "LinkedIn message",
+    li_dm2: "LinkedIn follow-up",
     call: "Call",
+  },
+
+  /** A call script as it is stored and read: the labels in front of each line (P2). */
+  callScript: {
+    open: "Open with:",
+    ask: "Ask:",
+    listen: "Listen for:",
+    voicemail: "Voicemail:",
+    ifTheySay: "If they say:",
+    say: "Say:",
   },
 
   /** Before the time the message is due to go. */

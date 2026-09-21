@@ -102,7 +102,7 @@ export const inboxCopy = {
   /** A draft that could not be changed, and the reason is not the rep's to act on. */
   cannotDecide: "That did not go through. Reload the Inbox and try again.",
   /** The empty Inbox on real data, while replies and calls are not built. */
-  emptyLive: "No drafts waiting. First emails land here when you press Write emails on a campaign.",
+  emptyLive: "No drafts waiting. Emails land here when you press Write outreach on a campaign.",
   /** The line under a draft's evidence when the opener is the role problem. */
   noPersonFact: "Nothing usable came up about them or their firm, so this opens on the problem their role owns.",
   /** A draft card's small campaign line. */

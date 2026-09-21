@@ -1,5 +1,6 @@
 import type { OutreachDraft } from "@prisma/client";
 
+import { EMAIL_TOUCHES } from "../../../agents/outreach/input.schema";
 import { inboxCopy, type FitWord, type NeedsYouReason } from "@/lib/copy/inbox";
 import type { DraftItem, Opener } from "@/lib/fixtures/inbox";
 import type { QueuedDraft } from "@/lib/repo/outreach";
@@ -30,13 +31,15 @@ function findingTexts(value: OutreachDraft["findings"]): string[] {
 
 export function draftItemOf(draft: QueuedDraft, repName: string): DraftItem {
   const preview = previewFields(draft.campaignPerson.preview);
-  const needsYou: NeedsYouReason | null = draft.state === "needs_you" ? "checks" : draft.state === "failed" ? "not_written" : null;
+  // A touch parked with nothing written (the drafting limit) reads as not written, whatever its state.
+  const needsYou: NeedsYouReason | null = draft.state === "failed" || (draft.state === "needs_you" && draft.body === null) ? "not_written" : draft.state === "needs_you" ? "checks" : null;
   return {
     kind: "draft",
     id: draft.id,
     person: { name: preview.name, title: preview.title, company: preview.company, email: draft.campaignPerson.person?.email ?? null },
-    ordinal: 1,
-    total: 1,
+    // Where this email sits in the person's three: "Email 2 of 3".
+    ordinal: Math.max(1, (EMAIL_TOUCHES as readonly string[]).indexOf(draft.touch) + 1),
+    total: EMAIL_TOUCHES.length,
     draft: {
       kind: "message",
       ...(draft.subject === null ? {} : { subject: draft.subject }),
@@ -54,7 +57,7 @@ export function draftItemOf(draft: QueuedDraft, repName: string): DraftItem {
     advice: findingTexts(draft.advice),
     envelope: { greeting: `Hi ${firstNameOf(preview.name)},`, signOff: firstNameOf(repName) },
     campaignName: draft.campaign.name,
-    written: draft.state !== "failed",
+    written: draft.state !== "failed" && draft.body !== null,
   };
 }
 

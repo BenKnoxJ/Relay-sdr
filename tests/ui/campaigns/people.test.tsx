@@ -794,7 +794,7 @@ describe("People ready: Write emails (outreach v2.1)", () => {
 
     // The card: how many, what it costs at most, and that nothing is sent.
     expect(screen.getByTestId("write-lead").textContent).toBe(`${campaignsCopy.writeLead} 2 ${campaignsCopy.writePeople}`);
-    expect(screen.getByTestId("write-cost").textContent).toBe(`${campaignsCopy.writeCost} $10 ${campaignsCopy.writeCostTail}`);
+    expect(screen.getByTestId("write-cost").textContent).toBe(`${campaignsCopy.writeCost} $1.50 ${campaignsCopy.writeCostTail}`);
     expect(onWriteEmails).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("write-confirm"));

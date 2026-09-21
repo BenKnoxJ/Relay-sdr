@@ -1,7 +1,9 @@
 /**
- * Re-run the first-email cohort with the real model and write the report a
+ * Re-run the outreach cohort with the real model and write the report a
  * person scores, so every change to the outreach prompt or its checks is
- * measured on the same six people in the same way.
+ * measured on the same six people in the same way. Since P2 (21 Sep 2026) each
+ * person's job drafts the whole sequence and humanizes it, and the report shows
+ * every touch's drafted and humanized text side by side.
  *
  *   node --import tsx scripts/outreach-cohort.ts [--source relay_outreach_cohort_dev] \
  *       [--out <dir>] [--cap 5] [--keep]
@@ -21,8 +23,9 @@
  *      forced), and the model is the real one on the local worker's
  *      credential (`.env`); no Lusha, Microsoft or Zoho call is made;
  *   4. stops before a draft that could take the run past `--cap` dollars;
- *   5. writes `cohort.md` to `--out` in the 15 Sep format, with a summary, and
- *      drops the copy unless `--keep`.
+ *   5. writes `cohort.md` to `--out`: pass, hold and fail per touch kind, cost
+ *      per person split between draft and humanizer, and every touch's text
+ *      grouped by person; then drops the copy unless `--keep`.
  *
  * `--export-fixture` does steps 1 and 5's reading only: it writes the source's
  * recorded drafts and the inputs they were written from as a test fixture, and
@@ -183,7 +186,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
 
   const handler = outreachDraftHandler(defaultOutreachDeps());
   const stamp = copyName;
-  const draftIds: string[] = [];
+  const jobIds: string[] = [];
   const skipped: string[] = [];
   const errors: CohortError[] = [];
   let spent = 0;
@@ -197,6 +200,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
     let jobId: string | undefined;
     const started = Date.now();
     try {
+      // No touch: the job drafts the person's whole sequence, as Write outreach does.
       const { job } = await enqueue(db, {
         orgId: template.orgId,
         ...(template.ownerUserId === null ? {} : { ownerUserId: template.ownerUserId }),
@@ -207,13 +211,13 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
         briefVersion: template.briefVersion!,
       });
       jobId = job.id;
-      const result = (await handler({ db, job, signal: new AbortController().signal })) as { draftId: string };
-      const draft = await db.outreachDraft.findUniqueOrThrow({ where: { id: result.draftId } });
-      const cost = Number(draft.costUsd);
+      await handler({ db, job, signal: new AbortController().signal });
+      const drafts = await db.outreachDraft.findMany({ where: { jobId: job.id } });
+      const cost = drafts.reduce((sum, draft) => sum + Number(draft.costUsd), 0);
       spent += cost;
       dearest = Math.max(dearest, cost);
-      draftIds.push(draft.id);
-      console.log(`cohort: ${draft.state} · ${draft.generations} generation(s) · $${cost.toFixed(3)} · ${Math.round((Date.now() - started) / 1000)}s`);
+      jobIds.push(job.id);
+      console.log(`cohort: ${drafts.map((draft) => `${draft.touch} ${draft.state}`).join(" · ")} · $${cost.toFixed(3)} · ${Math.round((Date.now() - started) / 1000)}s`);
     } catch (error) {
       // One bad job costs that person's row, not the run: what it spent still counts against the cap.
       const runs = jobId === undefined ? [] : await db.agentRun.findMany({ where: { jobId }, select: { costTotal: true } });
@@ -226,7 +230,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
     }
   }
 
-  const report = await renderReport(db, draftIds, skipped, errors, args, spent);
+  const report = await renderReport(db, jobIds, skipped, errors, args, spent);
   mkdirSync(args.out, { recursive: true });
   writeFileSync(path.join(args.out, "cohort.md"), report);
   console.log(`cohort: wrote ${path.join(args.out, "cohort.md")} · spent $${spent.toFixed(3)}`);
@@ -234,51 +238,102 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
 
 type CohortError = { campaignPersonId: string; message: string; cost: number };
 
-async function renderReport(db: Db, draftIds: string[], skipped: string[], errors: CohortError[], args: Args, spent: number): Promise<string> {
+type Prose = { subject?: string; body?: string; ask?: string; openingLine?: string; oneQuestion?: string; listenFor?: string; voicemail?: string; objections?: { objection: string; answer: string }[] };
+type HumanizerLog = { ran?: boolean; skipped?: string; error?: string; touches?: Record<string, { drafted?: Prose; humanized?: Prose | null; kept?: string; reason?: string }> };
+type DraftedAfter = { cost?: { draftUsd?: number; humanizerUsd?: number }; humanizer?: HumanizerLog; redraftError?: string };
+
+const TOUCH_NAME: Record<string, string> = {
+  email1: "Email 1",
+  email2: "Email 2 (follow-up)",
+  breakup: "Email 3 (last email)",
+  li_connect: "LinkedIn connection note",
+  li_dm: "LinkedIn message",
+  li_dm2: "LinkedIn follow-up",
+  call: "Call script",
+};
+
+function proseLines(prose: Prose | null | undefined): string {
+  if (prose === null || prose === undefined) return "(none)";
+  if (prose.body !== undefined) return [prose.subject === undefined ? null : `Subject: ${prose.subject}`, prose.body].filter((line) => line !== null).join("\n\n");
+  return [
+    `Open with: ${prose.openingLine ?? ""}`,
+    `Ask: ${prose.oneQuestion ?? ""}`,
+    `Listen for: ${prose.listenFor ?? ""}`,
+    ...(prose.voicemail === undefined ? [] : [`Voicemail: ${prose.voicemail}`]),
+    ...(prose.objections ?? []).map((pair) => `If they say: ${pair.objection}\nSay: ${pair.answer}`),
+  ].join("\n\n");
+}
+
+async function renderReport(db: Db, jobIds: string[], skipped: string[], errors: CohortError[], args: Args, spent: number): Promise<string> {
   const { previewFields } = await import("@/lib/outreach/adapter");
   const { loadDefinition } = await import("@/lib/agents/definitions");
-  const drafts = await db.outreachDraft.findMany({ where: { id: { in: draftIds } }, include: { campaignPerson: true } });
-  drafts.sort((a, b) => draftIds.indexOf(a.id) - draftIds.indexOf(b.id));
-  const runs = await db.agentRun.findMany({ where: { jobId: { in: drafts.map((draft) => draft.jobId) }, kind: "outreach" }, select: { jobId: true, status: true, error: true } });
+  const { SEQUENCE } = await import("../agents/outreach/input.schema");
+  const drafts = await db.outreachDraft.findMany({ where: { jobId: { in: jobIds } }, include: { campaignPerson: true } });
+  const events = await db.event.findMany({ where: { kind: "outreach.drafted" } });
+  const afterOf = (jobId: string): DraftedAfter => (events.find((event) => (event.after as { jobId?: string } | null)?.jobId === jobId)?.after ?? {}) as DraftedAfter;
+  const runs = await db.agentRun.findMany({ where: { jobId: { in: jobIds }, kind: "outreach" }, select: { jobId: true, status: true, error: true } });
   const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
   const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim() !== "";
   const sha = dirty ? `${head}, with uncommitted changes` : head;
-  const model = loadDefinition("outreach").model;
+  const definition = loadDefinition("outreach");
 
-  const rows: string[] = [];
+  const personRows: string[] = [];
   const sections: string[] = [];
-  for (const draft of drafts) {
-    const preview = previewFields(draft.campaignPerson.preview);
-    const role = ROLE_WORD[draft.campaignPerson.rolePart ?? ""] ?? "related";
-    const tierA = findingsOf(draft.findings);
-    const tierB = findingsOf(draft.advice);
-    const lookup = draft.lookup as { usable?: boolean; items?: unknown[] } | null;
-    const itemCount = lookup?.items?.length ?? 0;
-    const jobRuns = runs.filter((run) => run.jobId === draft.jobId);
-    const shapeMisses = jobRuns.filter((run) => run.status === "failed").length;
-    rows.push(
-      `| ${preview.name} | ${role} | ${draft.state} | ${draft.generations} | ${shapeMisses} | $${Number(draft.costUsd).toFixed(3)} | ${tierA.map((finding) => finding.rule).join(", ") || "none"} |`,
+  const draftCosts: number[] = [];
+  const humanCosts: number[] = [];
+  const totals: number[] = [];
+  for (const jobId of jobIds) {
+    const own = drafts.filter((draft) => draft.jobId === jobId).sort((a, b) => SEQUENCE.indexOf(a.touch as never) - SEQUENCE.indexOf(b.touch as never));
+    const first = own[0];
+    if (first === undefined) continue;
+    const preview = previewFields(first.campaignPerson.preview);
+    const role = ROLE_WORD[first.campaignPerson.rolePart ?? ""] ?? "related";
+    const after = afterOf(jobId);
+    const draftUsd = after.cost?.draftUsd ?? 0;
+    const humanizerUsd = after.cost?.humanizerUsd ?? 0;
+    draftCosts.push(draftUsd);
+    humanCosts.push(humanizerUsd);
+    totals.push(draftUsd + humanizerUsd);
+    const jobRuns = runs.filter((run) => run.jobId === jobId);
+    const humanizer = after.humanizer ?? {};
+    const lookup = first.lookup as { usable?: boolean; items?: unknown[] } | null;
+    personRows.push(
+      `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} | $${humanizerUsd.toFixed(3)} | $${(draftUsd + humanizerUsd).toFixed(3)} |`,
     );
-    const body = draft.body ?? "(no body: the draft could not be written)";
+    const touchSections = own.map((draft) => {
+      const log = humanizer.touches?.[draft.touch];
+      const tierA = findingsOf(draft.findings);
+      const tierB = findingsOf(draft.advice);
+      return [
+        `### ${TOUCH_NAME[draft.touch] ?? draft.touch} · **${draft.state}** · generations: ${draft.generations}${log?.kept === undefined ? "" : ` · kept: ${log.kept}`}`,
+        "",
+        "**Drafted:**",
+        "",
+        "```",
+        log === undefined ? (draft.body ?? "(not written)") : proseLines(log.drafted),
+        "```",
+        "",
+        "**Humanized:**",
+        "",
+        "```",
+        log === undefined ? `(no humanizer pass: ${humanizer.skipped ?? humanizer.error ?? "not run"})` : proseLines(log.humanized),
+        "```",
+        "",
+        ...(log?.reason === undefined ? [] : [`**Humanized version not kept:** ${log.reason}  `]),
+        `**Stored (what the rep sees):** ${draft.subject === null ? "" : `subject "${draft.subject}"; `}ask "${draft.ask ?? "(none)"}"  `,
+        `**Opener:** \`${JSON.stringify(draft.opener)}\` · **Claims:** \`${JSON.stringify(draft.claims)}\`  `,
+        `**Gate findings (Tier A):** ${tierA.map((finding) => `${finding.rule}: ${finding.text}`).join("; ") || "none"}  `,
+        `**Advice (Tier B):** ${tierB.map((finding) => `${finding.rule}: ${finding.text}`).join("; ") || "none"}`,
+        "",
+      ].join("\n");
+    });
     sections.push(
       [
-        `## ${preview.name} · ${preview.title}, ${preview.company} · role: ${role} · state: **${draft.state}** · generations: ${draft.generations} · cost $${Number(draft.costUsd).toFixed(3)}`,
+        `## ${preview.name} · ${preview.title}, ${preview.company} · role: ${role}`,
         "",
-        `**Subject:** ${draft.subject ?? "(none)"}`,
+        `Model runs: ${jobRuns.length} (${jobRuns.map((run) => run.status).join(", ")}${jobRuns.some((run) => run.error !== null) ? `; errors: ${jobRuns.flatMap((run) => (run.error === null ? [] : [run.error.slice(0, 200)])).join(" | ")}` : ""}) · cost: draft $${draftUsd.toFixed(3)}, humanizer $${humanizerUsd.toFixed(3)} · lookup: ${lookup?.usable === true ? `usable, ${lookup.items?.length ?? 0} item(s)` : "nothing usable (role problem used)"}${after.redraftError === undefined ? "" : ` · corrective call error: ${after.redraftError}`}`,
         "",
-        "```",
-        body,
-        "```",
-        "",
-        `**Ask:** ${draft.ask ?? "(none)"}`,
-        "",
-        `**Opener:** \`${JSON.stringify(draft.opener)}\`  `,
-        `**Claims:** \`${JSON.stringify(draft.claims)}\`  `,
-        `**Gate findings (Tier A):** ${tierA.map((finding) => `${finding.rule}: ${finding.text}`).join("; ") || "none"}  `,
-        `**Advice (Tier B):** ${tierB.map((finding) => JSON.stringify(finding)).join("; ") || "none"}  `,
-        `**Generations that did not come back in shape:** ${shapeMisses}${jobRuns.filter((run) => run.status === "failed").map((run) => ` (${run.error ?? ""})`).join("")}  `,
-        `**Lookup:** ${lookup?.usable === true ? `usable, ${itemCount} item(s)` : "nothing usable (role problem used)"}`,
-        "",
+        ...touchSections,
       ].join("\n"),
     );
   }
@@ -288,32 +343,38 @@ async function renderReport(db: Db, draftIds: string[], skipped: string[], error
     const preview = row === undefined ? null : previewFields(row.preview);
     const role = ROLE_WORD[row?.rolePart ?? ""] ?? "related";
     const name = preview?.name ?? error.campaignPersonId;
-    rows.push(`| ${name} | ${role} | error | n/a | n/a | $${error.cost.toFixed(3)} | none |`);
-    sections.push([`## ${name} · role: ${role} · state: **error** · cost $${error.cost.toFixed(3)}`, "", `**Error:** ${error.message.replace(/\s+/g, " ").slice(0, 500)}`, ""].join("\n"));
+    personRows.push(`| ${name} | ${role} | error | n/a | n/a | n/a | $${error.cost.toFixed(3)} |`);
+    sections.push([`## ${name} · role: ${role} · **error** · cost $${error.cost.toFixed(3)}`, "", `**Error:** ${error.message.replace(/\s+/g, " ").slice(0, 500)}`, ""].join("\n"));
   }
 
-  const count = (state: string) => drafts.filter((draft) => draft.state === state).length;
-  const costs = drafts.map((draft) => Number(draft.costUsd));
-  const shapeFailed = drafts.filter((draft) => findingsOf(draft.findings).some((finding) => finding.rule === "shape")).length;
-  const missedGenerations = runs.filter((run) => run.status === "failed").length;
+  const kindRows = SEQUENCE.map((kind) => {
+    const own = drafts.filter((draft) => draft.touch === kind);
+    const count = (state: string) => own.filter((draft) => draft.state === state).length;
+    const kept = own.filter((draft) => afterOf(draft.jobId).humanizer?.touches?.[kind]?.kept === "humanized").length;
+    const rules = [...new Set(own.flatMap((draft) => findingsOf(draft.findings).map((finding) => finding.rule)))];
+    return `| ${TOUCH_NAME[kind]} | ${count("to_review")} | ${count("needs_you")} | ${count("failed")} | ${kept} of ${own.length} | ${rules.join(", ") || "none"} |`;
+  });
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
   return [
-    `# Relay Outreach: first-email cohort (${today()})`,
+    `# Relay Outreach: full-sequence cohort, drafted and humanized (${today()})`,
     "",
-    `Real model drafts (${model ?? "no model"}), lookup on the recorded fixtures (\`fixtures/tools/outreach\`), gates live, commit \`${sha}\`. A throwaway copy of \`${args.source}\` with the earlier drafts removed; the same people the earlier cohort drafted, one at a time. Written by \`scripts/outreach-cohort.ts\`, spend capped at $${args.cap.toFixed(2)}. Nothing was approved, sent or bought.`,
+    `Real model (${definition.model ?? "no model"}, effort ${definition.effort ?? "none"}): one call drafts each person's seven touches, the gates run per touch, the failing touches get one corrective call together, then one humanizer call edits the sequence and each humanized touch is gated again. Lookup on the recorded fixtures (\`fixtures/tools/outreach\`), commit \`${sha}\`. A throwaway copy of \`${args.source}\` with the earlier drafts removed; the same people the earlier cohort drafted, one at a time. Written by \`scripts/outreach-cohort.ts\`, spend capped at $${args.cap.toFixed(2)}. Nothing was approved, sent or bought.`,
     "",
-    "## Summary",
+    "## Summary per touch kind (after the humanizer)",
     "",
-    `- **Pass** (to review): ${count("to_review")} of ${drafts.length + skipped.length + errors.length}`,
-    `- **Hold** (needs you): ${count("needs_you")}`,
-    `- **Fail** (not written): ${count("failed")}; of those, for shape: ${shapeFailed}`,
-    `- **Generations that did not come back in shape:** ${missedGenerations}`,
-    `- **Error** (the job threw; see its section): ${errors.length}`,
-    `- **Not run** (would pass the cap): ${skipped.length}`,
-    `- **Cost:** total $${spent.toFixed(3)}, median per draft $${median(costs).toFixed(3)}`,
+    "| Touch | Pass (to review) | Hold (needs you) | Fail (not written) | Humanized version kept | Tier A rules seen |",
+    "|---|---|---|---|---|---|",
+    ...kindRows,
     "",
-    "| Person | Role | State | Generations | Out of shape | Cost | Tier A rules |",
+    `- **People drafted:** ${jobIds.length} of ${jobIds.length + skipped.length + errors.length}; **error:** ${errors.length}; **not run** (would pass the cap): ${skipped.length}`,
+    `- **Cost per person:** median $${median(totals).toFixed(3)} (draft $${median(draftCosts).toFixed(3)}, humanizer $${median(humanCosts).toFixed(3)})`,
+    `- **Cost in total:** $${spent.toFixed(3)} (draft $${sum(draftCosts).toFixed(3)}, humanizer $${sum(humanCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
+    "",
+    "## Per person",
+    "",
+    "| Person | Role | Touches | Model runs | Draft | Humanizer | Total |",
     "|---|---|---|---|---|---|---|",
-    ...rows,
+    ...personRows,
     "",
     ...sections,
   ].join("\n");
@@ -330,7 +391,7 @@ async function exportFixture(db: Db, file: string, source: string): Promise<void
   const { loadFacts } = await import("@/lib/facts/load");
   const { loadStandard } = await import("@/lib/outreach/standard");
 
-  const drafts = await db.outreachDraft.findMany({ include: { campaignPerson: { include: { person: { select: { email: true } } } } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  const drafts = await db.outreachDraft.findMany({ where: { touch: "email1" }, include: { campaignPerson: { include: { person: { select: { email: true } } } } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
   const first = drafts[0];
   if (first === undefined) throw new Error("the source has no drafts");
   const campaign = await db.campaign.findUniqueOrThrow({ where: { id: first.campaignId } });

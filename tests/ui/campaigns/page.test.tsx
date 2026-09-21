@@ -237,6 +237,11 @@ describe("a real campaign", () => {
     expect(ticks).toHaveLength(executable.length);
     const create = screen.getByRole("button", { name: campaignsCopy.playsCreate });
     expect(create.hasAttribute("disabled")).toBe(true);
+    // One clear action: Create campaigns is the primary, and Confirm waits until the campaigns exist.
+    expect(create.className).toContain("bg-action");
+    expect(screen.queryByRole("button", { name: campaignsCopy.actionConfirm })).toBeNull();
+    expect(screen.queryByTestId("confirm-card")).toBeNull();
+    expect(screen.queryByTestId("confirm-starts-with")).toBeNull();
     fireEvent.click(ticks[1]!);
     fireEvent.click(ticks[0]!);
     fireEvent.click(create);
@@ -257,6 +262,19 @@ describe("a real campaign", () => {
     expect(screen.queryAllByTestId("play-tick")).toHaveLength(0);
     expect(screen.queryByTestId("plays-create")).toBeNull();
     expect(screen.getByTestId("confirm-starts-with").textContent).toContain(mine.group.name);
+    // Once campaigns are made, Confirm is the header's action again.
+    expect(screen.getByRole("button", { name: campaignsCopy.actionConfirm })).toBeDefined();
+  });
+
+  it("keeps Confirm as it was when only one play can be searched (Relay P1)", () => {
+    const live = liveCampaign("complete");
+    const only = (live.plays ?? []).filter((play) => play.executable)[0]!;
+    const single = { ...live, plays: [only], canCreatePlays: false };
+    render(<CampaignPage campaign={single} onConfirm={vi.fn()} onCreatePlays={vi.fn()} />);
+
+    expect(screen.queryByTestId("plays-create")).toBeNull();
+    expect(screen.getByRole("button", { name: campaignsCopy.actionConfirm })).toBeDefined();
+    expect(screen.getByTestId("confirm-starts-with").textContent).toContain(only.group.name);
   });
 
   it("keeps the whole research one tab away, and offers Edit brief", () => {

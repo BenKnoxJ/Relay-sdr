@@ -106,8 +106,10 @@ export function CampaignPage({
   const [revealError, setRevealError] = useState<string | null>(null);
   const revealPlan = campaign.peopleFound?.revealPlan ?? null;
   const revealBlocked = revealPlan !== null && revealPlan.kept > 0 ? campaignsCopy.revealNothingToReveal : campaignsCopy.revealKeepFirst;
+  // Ticking plays (Relay P1) is the plan's one action: Confirm waits until the campaigns exist.
+  const choosingPlays = live && campaign.canCreatePlays === true && onCreatePlays !== undefined;
   // The header's one control: the backend's next action for a stored campaign; a sample keeps its signed screen actions.
-  const action: HeaderAction | ReturnType<typeof actionFor> =
+  const nextAction: HeaderAction | ReturnType<typeof actionFor> =
     facts !== undefined
       ? headerActionOf(
           facts,
@@ -129,6 +131,7 @@ export function CampaignPage({
           revealBlocked,
           retryReveal: campaign.can.retryReveal === true && onRetryReveal !== undefined,
         });
+  const action = choosingPlays && nextAction?.kind === "confirm" ? null : nextAction;
   const peopleStates: CampaignState[] = ["peopleFound", "revealing", "peopleReady", "drafting"];
   const [writeOpen, setWriteOpen] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
@@ -231,7 +234,7 @@ export function CampaignPage({
       });
   };
   const pick =
-    live && campaign.canCreatePlays === true && onCreatePlays !== undefined
+    choosingPlays
       ? {
           ticked,
           onTick: (id: string) => setTicked((now) => (now.includes(id) ? now.filter((each) => each !== id) : [...now, id])),
@@ -290,7 +293,7 @@ export function CampaignPage({
   } else if (state === "stopped" && campaign.pack?.insufficient !== undefined) {
     main.push(<WidenCard key="widen" reason={campaign.pack.insufficient.reason} found={campaign.pack.stopEvidence ?? []} choices={campaign.widenings ?? []} onWiden={widen} />);
   } else if (state === "planReady" && campaign.overview !== null && live) {
-    main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={campaign.confirmPlan ?? null} selectedId={candidateId} onSelect={setCandidateId} pick={pick} />);
+    main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={pick === null ? (campaign.confirmPlan ?? null) : null} selectedId={candidateId} onSelect={setCandidateId} pick={pick} />);
   } else if (state === "findingPeople") {
     main.push(<FindingCard key="finding" inFlight={facts?.inFlight} finding={campaign.finding ?? null} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} spend={facts?.spend.search ?? campaign.spend?.search ?? null} />);
   } else if (state === "peopleNeedsYou" && campaign.peopleNeedsYou) {

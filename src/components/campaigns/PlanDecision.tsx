@@ -241,7 +241,7 @@ export function PlanDecision({
 
         {pick === null ? null : (
           <div data-testid="plays-create" className="-mt-2 flex flex-wrap items-center gap-3">
-            <PillButton variant="outline" disabled={pick.ticked.length === 0 || pick.pending} onClick={pick.onCreate}>
+            <PillButton disabled={pick.ticked.length === 0 || pick.pending} onClick={pick.onCreate}>
               {pick.pending ? c.playsCreating : c.playsCreate}
             </PillButton>
             <span className="type-small max-w-measure text-muted">{c.playsCreateNote}</span>

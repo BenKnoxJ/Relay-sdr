@@ -75,6 +75,10 @@ export type EventKind =
   /// A rep asked lead gen to run again at the same version: Try again, or a
   /// chosen industry. The new job is enqueued in the same transaction.
   | "leadgen.rerun"
+  /// A rep pressed Find more people (P5b): `after` has the batch, how many,
+  /// and, when the rep approved a new search cap, the cap and the balance read
+  /// for it. The batch's lead gen job is enqueued in the same transaction.
+  | "campaign.more_people"
   /// A rep kept or dropped people found, one person or a whole account
   /// (lead gen v2.2 §9a). `before` has each changed person's previous review,
   /// `after` the decision and who it covered; the rows change in the same

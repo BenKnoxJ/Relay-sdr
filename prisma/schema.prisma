@@ -662,6 +662,9 @@ model CampaignPerson {
   outreachStartOn  DateTime?             @map("outreach_start_on") @db.Date
   /// The rep's number for this person, for the calls (Relay P4); 40 characters at most.
   phone            String?
+  /// Which batch of the campaign found this person (P5b): 1 for the first
+  /// search, then one more for each Find more people. Written with the row.
+  batch            Int                   @default(1)
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
@@ -708,7 +711,8 @@ model CreditLedgerEntry {
   campaignId     String      @map("campaign_id")
   briefVersion   Int         @map("brief_version")
   /// The Event whose cap this spend counts against: `campaign.confirmed` for a
-  /// search, `campaign.reveal_confirmed` for a reveal. Each cap counts its own
+  /// search (or `campaign.more_people` when Find more people approved a new
+  /// cap, P5b), `campaign.reveal_confirmed` for a reveal. Each cap counts its own
   /// kind only; the balance counts every kind.
   confirmEventId String      @map("confirm_event_id")
   jobId          String      @map("job_id")

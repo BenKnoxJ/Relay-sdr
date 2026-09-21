@@ -31,6 +31,7 @@ export async function campaignActivityFor(db: Db, scope: { orgId: string; userId
              WHEN 'research.completed' THEN jsonb_build_object('outcome', e.after->'outcome')
              WHEN 'campaign.confirmed' THEN jsonb_build_object('group', e.after->'handoff'->'buyerGroup'->'name', 'selection', e.after->'selection')
              WHEN 'leadgen.picked' THEN jsonb_build_object('found', e.after->'output'->'found'->'n', 'of', e.after->'output'->'found'->'ofM')
+             WHEN 'campaign.more_people' THEN jsonb_build_object('batch', e.after->'batch', 'howMany', e.after->'howMany', 'cap', e.after->'cap'->'searchCreditCap')
              WHEN 'leadgen.rerun' THEN jsonb_build_object('cause', e.after->'cause', 'choice', e.after->'choice'->'label')
              WHEN 'campaign.people_reviewed' THEN jsonb_build_object(
                'decision', e.after->'decision',

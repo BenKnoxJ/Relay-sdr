@@ -274,6 +274,8 @@ export type TrackingRow = {
   email: string;
   phone: string | null;
   startOn: IsoDate | null;
+  /** Which batch of the campaign found this person (P5b). */
+  batch: number;
   status: PersonTracking["status"];
   progress: PersonTracking["progress"];
   nextDue: PersonTracking["nextDue"];
@@ -298,8 +300,9 @@ export async function campaignPeopleTracking(db: Db, input: Owner & { campaignId
   const paused = campaign.outreachPausedAt !== null;
   const people = await db.campaignPerson.findMany({
     where: trackedWhere(input.orgId, campaign.id),
-    select: { id: true, phone: true, outreachStartOn: true, preview: true, person: { select: { name: true, email: true } } },
-    orderBy: [{ rank: "asc" }, { id: "asc" }],
+    select: { id: true, phone: true, outreachStartOn: true, batch: true, preview: true, person: { select: { name: true, email: true } } },
+    // Each batch ranks its own people from 1 (P5b): batch first keeps them apart.
+    orderBy: [{ batch: "asc" }, { rank: "asc" }, { id: "asc" }],
   });
   const histories = await historiesFor(db, input.orgId, [campaign.id]);
   const folded = people.map((person) => {
@@ -315,6 +318,7 @@ export async function campaignPeopleTracking(db: Db, input: Owner & { campaignId
       email: person.person?.email ?? "",
       phone: person.phone,
       startOn,
+      batch: person.batch,
       status: tracking.status,
       progress: tracking.progress,
       nextDue: tracking.nextDue,
@@ -356,7 +360,7 @@ export type PersonTrackingView = TrackingRow & {
 export async function personTracking(db: Db, input: Owner & { campaignPersonId: string; today: IsoDate }): Promise<PersonTrackingView | null> {
   const person = await db.campaignPerson.findFirst({
     where: { id: input.campaignPersonId, orgId: input.orgId, status: "chosen", review: "kept", personId: { not: null }, campaign: { ownerUserId: input.userId } },
-    select: { id: true, campaignId: true, phone: true, outreachStartOn: true, preview: true, person: { select: { name: true, email: true } }, campaign: { select: { outreachPausedAt: true } } },
+    select: { id: true, campaignId: true, phone: true, outreachStartOn: true, batch: true, preview: true, person: { select: { name: true, email: true } }, campaign: { select: { outreachPausedAt: true } } },
   });
   if (person === null) return null;
   const paused = person.campaign.outreachPausedAt !== null;
@@ -400,6 +404,7 @@ export async function personTracking(db: Db, input: Owner & { campaignPersonId: 
     email: person.person?.email ?? "",
     phone: person.phone,
     startOn,
+    batch: person.batch,
     paused,
     status: tracking.status,
     progress: tracking.progress,

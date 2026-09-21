@@ -6,12 +6,15 @@ import type { CrmCheck } from "@/lib/leadgen/holds";
 import { leadGenSetup, type LeadGenEnvironment } from "@/lib/leadgen/setup";
 import { DOCUMENTED_UNVERIFIED_PRICING, type SearchPricing } from "@/lib/leadgen/spend";
 import {
+  confirmApproval,
   findConfirmByRequest,
   findLeadGenResult,
+  findMorePeopleByRequest,
   handoffOf,
   leadGenJobInputSchema,
   loadOrgKnowledge,
   markStaleReservations,
+  moreApproval,
   persistedSpend,
   recordLeadGenResult,
 } from "@/lib/repo/leadgen";
@@ -33,6 +36,10 @@ import type { Handler } from "@/worker/handlers/index";
  *      counted at their worst case;
  *   4. `findPeople` runs with the persisted spend ledger;
  *   5. the result Event, and People found's candidates, are written once.
+ *
+ * A later batch (Find more people, P5b) runs the same frozen handoff with its
+ * own number of people, and spends against the Confirm's cap or the new cap
+ * the rep approved when they pressed it. The people it finds are that batch's.
  *
  * With no provider set up the job fails and says so. It never finds sample
  * people in place of real ones.
@@ -86,6 +93,19 @@ export function leadGenHandler(deps: LeadGenHandlerDeps = defaultLeadGenDeps()):
     } catch {
       throw new TerminalError("lead gen: the frozen handoff does not parse");
     }
+    // The approval this run spends against: the Confirm's, or a Find more press's new cap (P5b).
+    let approval = confirmApproval(confirm);
+    if (parsed.data.capRequestId !== undefined) {
+      const press = await findMorePeopleByRequest(db, { orgId: job.orgId, campaignId: job.campaignId, requestId: parsed.data.capRequestId });
+      const raised = press === null ? null : moreApproval(press);
+      if (raised === null) throw new TerminalError("lead gen: bad input (no approved cap for this batch)");
+      approval = raised;
+    }
+    handoff = {
+      ...handoff,
+      ...(parsed.data.howMany === undefined ? {} : { howMany: parsed.data.howMany }),
+      spend: { ...handoff.spend, searchCreditCap: approval.cap, balanceSnapshot: approval.balanceSnapshot },
+    };
     // The handoff is this job's own, never another org's or campaign's.
     if (handoff.campaign.orgId !== job.orgId || handoff.campaign.id !== job.campaignId || handoff.campaign.briefVersion !== job.briefVersion) {
       throw new TerminalError("lead gen: the handoff does not belong to this job");
@@ -100,7 +120,7 @@ export function leadGenHandler(deps: LeadGenHandlerDeps = defaultLeadGenDeps()):
     await markStaleReservations(db, { orgId: job.orgId, jobId: job.id });
     const spend = persistedSpend(db, {
       ...scope,
-      confirmEventId: confirm.id,
+      confirmEventId: approval.eventId,
       jobId: job.id,
       attempt: job.attempts,
       cap: handoff.spend.searchCreditCap,
@@ -118,7 +138,7 @@ export function leadGenHandler(deps: LeadGenHandlerDeps = defaultLeadGenDeps()):
       ...(deps.retry === undefined ? {} : { retry: deps.retry }),
       ...(parsed.data.industryChoices === undefined ? {} : { industryChoices: parsed.data.industryChoices }),
     });
-    const event = await recordLeadGenResult(db, { orgId: job.orgId, job: { id: job.id, ...scope }, confirmEventId: confirm.id, result, knowledge });
+    const event = await recordLeadGenResult(db, { orgId: job.orgId, job: { id: job.id, ...scope, batch: parsed.data.batch ?? 1 }, confirmEventId: approval.eventId, result, knowledge });
     return { eventId: event.id };
   };
 }

@@ -9,6 +9,8 @@ import { buildLeadGenHandoff } from "@/lib/campaigns/leadgenHandoff";
 import { playsOf, researchSourceOf } from "@/lib/campaigns/plays";
 import { editAllowed, inFlight, leadGenRetryable, researchRetryable, revealRecovery } from "@/lib/campaigns/retry";
 import { revealLedgerOf, type LedgerGroup, type ResearchCost } from "@/lib/campaigns/summary";
+import { MORE_SIZES, nextBatch, searchEstimate, type LatestSearch, type MoreSize } from "@/lib/campaigns/batches";
+import type { FindMoreView } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { norm } from "@/lib/leadgen/normalise";
 import type { LeadGenSetup } from "@/lib/leadgen/setup";
@@ -21,14 +23,18 @@ import { RESEARCH_COMPLETED, findResearchCompletedForJob } from "./research";
 import { pricingById } from "@/lib/leadgen/spend";
 import {
   CAMPAIGN_CONFIRMED,
+  CAMPAIGN_MORE_PEOPLE,
   CAMPAIGN_REVEAL_CONFIRMED,
   LEADGEN_HALTED,
   LEADGEN_PICKED,
   LEADGEN_RERUN,
   LEAD_GEN_JOB,
   REVEAL_JOB,
+  batchOf,
+  currentSearchApproval,
   findConfirmEvent,
   findLeadGenResult,
+  findOutreachRequested,
   findRevealConfirm,
   findRevealResult,
   handoffOf,
@@ -39,6 +45,8 @@ import {
   revealConfirmedSchema,
   revealJobKey,
   revealPlanFor,
+  searchHistory,
+  searchRemaining,
   type LeadGenRecord,
 } from "./leadgen";
 import { OUTREACH_DRAFT_JOB, OUTREACH_REQUESTED, draftJobKey, draftablePeople } from "./outreach";
@@ -259,6 +267,7 @@ type ChangeKind =
   | typeof CAMPAIGN_REVEAL_CONFIRMED
   | typeof CAMPAIGN_REVEAL_RETRIED
   | typeof CAMPAIGN_PLAYS_CHOSEN
+  | typeof CAMPAIGN_MORE_PEOPLE
   | typeof OUTREACH_REQUESTED;
 
 /** Why a change was refused. The router turns each into a code and a line from the copy file. */
@@ -298,7 +307,9 @@ export type ChangeRefusal =
   /** The reveal's credit maximum is more than the credits available. */
   | "reveal_over_balance"
   /** Write emails with nobody kept who has a usable email. */
-  | "nothing_to_draft";
+  | "nothing_to_draft"
+  /** Find more people without a new cap when what is left of the approved one is less than the estimate. */
+  | "cap_used";
 
 export class CampaignChangeRefused extends Error {
   constructor(
@@ -965,7 +976,15 @@ export async function rerunPeople(db: PrismaClient, input: RerunInput): Promise<
       ownerUserId: campaign.ownerUserId,
       kind: LEAD_GEN_JOB,
       idempotencyKey: leadGenJobKey(campaign.id, campaign.briefVersion, run),
-      input: { confirmRequestId: previous.confirmRequestId, run, ...(Object.keys(industryChoices).length === 0 ? {} : { industryChoices }) },
+      input: {
+        confirmRequestId: previous.confirmRequestId,
+        run,
+        ...(Object.keys(industryChoices).length === 0 ? {} : { industryChoices }),
+        // A later batch's Try again is the same batch, for the same number, under the same cap (P5b).
+        ...(previous.batch === undefined ? {} : { batch: previous.batch }),
+        ...(previous.howMany === undefined ? {} : { howMany: previous.howMany }),
+        ...(previous.capRequestId === undefined ? {} : { capRequestId: previous.capRequestId }),
+      },
       campaignId: campaign.id,
       briefVersion: campaign.briefVersion,
     });
@@ -1133,13 +1152,13 @@ export async function confirmReveal(db: PrismaClient, input: RevealInput): Promi
       orgId: campaign.orgId,
       ownerUserId: campaign.ownerUserId,
       kind: REVEAL_JOB,
-      idempotencyKey: revealJobKey(campaign.id, campaign.briefVersion),
+      idempotencyKey: revealJobKey(campaign.id, campaign.briefVersion, batchOf(job)),
       input: { revealRequestId: input.requestId, leadGenJobId: job.id },
       campaignId: campaign.id,
       briefVersion: campaign.briefVersion,
     });
     // Unreachable under the lock, after the reveal-confirm check above: a job under this key is somebody else's.
-    if (deduped) throw new Error("reveal: this version's reveal key already had a job");
+    if (deduped) throw new Error("reveal: this batch's reveal key already had a job");
     return {
       campaign,
       job: revealJob,
@@ -1225,8 +1244,8 @@ export async function retryReveal(db: PrismaClient, input: RevealRetryInput): Pr
 /**
  * Write emails: one `outreach_draft` job per kept person with a usable email,
  * in one transaction with the `outreach.requested` Event. Nothing is sent; a
- * draft waits for the rep. Offered once per version, after Reveal emails has
- * finished; a repeated press is the press that landed.
+ * draft waits for the rep. Offered once per batch (P5b), after that batch's
+ * Reveal emails has finished; a repeated press is the press that landed.
  */
 export async function requestDrafts(db: PrismaClient, input: ChangeInput & { briefVersion: number }): Promise<ChangeResult> {
   return change(db, input, OUTREACH_REQUESTED, async (tx) => {
@@ -1241,9 +1260,8 @@ export async function requestDrafts(db: PrismaClient, input: ChangeInput & { bri
     const approved = revealConfirm === null ? null : revealConfirmedSchema.safeParse(revealConfirm.after);
     const revealed = approved?.success === true ? await findRevealResult(tx, { orgId: campaign.orgId, jobId: approved.data.jobId }) : null;
     if (job === null || revealed === null) throw new CampaignChangeRefused("wrong_state");
-    // Once per version: the drafts it asked for are the ones the rep reviews.
-    const earlier = await tx.event.findFirst({ where: { orgId: campaign.orgId, campaignId: campaign.id, kind: OUTREACH_REQUESTED, after: { path: ["briefVersion"], equals: campaign.briefVersion } } });
-    if (earlier !== null) throw new CampaignChangeRefused("wrong_state");
+    // Once per batch: the drafts it asked for are the ones the rep reviews. An earlier batch's are its own.
+    if ((await findOutreachRequested(tx, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id })) !== null) throw new CampaignChangeRefused("wrong_state");
 
     const people = await draftablePeople(tx, { ...scope, jobId: job.id });
     if (people.length === 0) throw new CampaignChangeRefused("nothing_to_draft");
@@ -1259,7 +1277,7 @@ export async function requestDrafts(db: PrismaClient, input: ChangeInput & { bri
         campaignId: campaign.id,
         briefVersion: campaign.briefVersion,
       });
-      // Unreachable under the lock, after the once-per-version check: a job under this key is somebody else's.
+      // Unreachable under the lock, after the once-per-batch check: a job under this key is somebody else's.
       if (deduped) throw new Error("write emails: a first draft's key already had a job");
       jobs.push(draftJob);
     }
@@ -1268,6 +1286,158 @@ export async function requestDrafts(db: PrismaClient, input: ChangeInput & { bri
       job: jobs[0]!,
       before: { briefVersion: campaign.briefVersion },
       after: { requestId: input.requestId, briefVersion: campaign.briefVersion, leadGenJobId: job.id, people: people.map((person) => person.id), jobIds: jobs.map((draftJob) => draftJob.id) },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Find more people: add a batch to a campaign (P5b).
+
+/** The latest search at the campaign's version, read as `nextBatch` needs it. Null before Confirm. */
+async function latestSearchOf(db: Prisma.TransactionClient | PrismaClient, campaign: Campaign): Promise<{ search: LatestSearch; job: Job } | null> {
+  const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+  const job = await latestLeadGenJob(db, scope);
+  if (job === null) return null;
+  const result = await findLeadGenResult(db, { orgId: campaign.orgId, jobId: job.id });
+  const picked = result?.kind === LEADGEN_PICKED;
+  const revealConfirm = picked ? await findRevealConfirm(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id }) : null;
+  const approved = revealConfirm === null ? null : revealConfirmedSchema.safeParse(revealConfirm.after);
+  const revealed = approved?.success === true && (await findRevealResult(db, { orgId: campaign.orgId, jobId: approved.data.jobId })) !== null;
+  const outreachRequested = revealed && (await findOutreachRequested(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id })) !== null;
+  const writable = revealed && !outreachRequested ? (await draftablePeople(db, { ...scope, jobId: job.id })).length : 0;
+  return {
+    job,
+    search: { batch: batchOf(job), inFlight: inFlight(job), picked, revealed, outreachRequested, writable },
+  };
+}
+
+/** Null where Find more people is not offered: not set up here, not confirmed, or the latest batch not yet finished with. */
+export async function findMoreViewFor(db: PrismaClient, owner: Owner & { campaignId: string }, setup: LeadGenSetup | null): Promise<FindMoreView | null> {
+  if (setup === null) return null;
+  const campaign = await db.campaign.findFirst({ where: { id: owner.campaignId, orgId: owner.orgId, ownerUserId: owner.userId } });
+  if (campaign === null) return null;
+  const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+  const confirm = await findConfirmEvent(db, scope);
+  const latest = confirm === null ? null : await latestSearchOf(db, campaign);
+  const batch = nextBatch(latest?.search ?? null);
+  if (confirm === null || batch === null) return null;
+  const approval = await currentSearchApproval(db, scope, confirm);
+  const remaining = Math.max(0, await searchRemaining(db, campaign.orgId, approval));
+  const history = await searchHistory(db, scope);
+  return {
+    batch,
+    cap: approval.cap,
+    remaining,
+    newCap: setup.searchCreditCap,
+    options: MORE_SIZES.map((howMany) => {
+      const estimate = searchEstimate(howMany, history, setup.pricing);
+      return { howMany, estimate, needsNewCap: remaining < estimate };
+    }),
+    sample: setup.sample,
+  };
+}
+
+export type FindMoreInput = ChangeInput & {
+  briefVersion: number;
+  howMany: MoreSize;
+  /** The rep approved a new search cap on this press, as the page asked them to. */
+  newCap: boolean;
+  setup: LeadGenSetup | null;
+};
+
+/**
+ * Find more people: lead gen again on the same play and recipe (the Confirm's
+ * frozen handoff), for the number the rep chose, as the campaign's next batch.
+ * One transaction writes the `campaign.more_people` Event and enqueues the
+ * lead gen job; the job holds everyone already in this campaign and anyone
+ * kept or revealed in another (`loadOrgKnowledge`).
+ *
+ * The batch spends against what is left of the approved search cap. When that
+ * is less than the estimate, the rep approves a new cap on the press, as at
+ * Confirm: the configured limit, against a balance read now and frozen on the
+ * Event, which the batch (and any after it) then spends against. A press that
+ * does not match what the page showed is refused, never quietly approved.
+ *
+ * Offered only once the latest batch is finished with (`nextBatch`), so a
+ * second press from another tab finds a batch in flight and is refused; the
+ * same press twice is the press that landed.
+ */
+export async function findMorePeople(db: PrismaClient, input: FindMoreInput): Promise<ChangeResult> {
+  const setup = input.setup;
+  if (setup === null) throw new CampaignChangeRefused("not_available");
+  required({ orgId: input.orgId, userId: input.userId, campaignId: input.campaignId, requestId: input.requestId }, CAMPAIGN_MORE_PEOPLE);
+  if (!(MORE_SIZES as readonly number[]).includes(input.howMany)) throw new CampaignChangeRefused("bad_option");
+  let balance: Awaited<ReturnType<typeof setup.readBalance>> | null = null;
+  if (input.newCap) {
+    try {
+      balance = await setup.readBalance(input.orgId);
+    } catch {
+      throw new CampaignChangeRefused("balance_unavailable");
+    }
+  }
+
+  return change(db, input, CAMPAIGN_MORE_PEOPLE, async (tx) => {
+    const campaign = await lockOwnCampaign(tx, input);
+    if (campaign === null) throw new CampaignChangeRefused("not_found");
+    await alreadyMade(tx, input, CAMPAIGN_MORE_PEOPLE, (after) => after.briefVersion === input.briefVersion && after.howMany === input.howMany);
+    checkVersion(campaign, input.briefVersion);
+
+    const scope = { orgId: campaign.orgId, campaignId: campaign.id, briefVersion: campaign.briefVersion };
+    const confirm = await findConfirmEvent(tx, scope);
+    const latest = confirm === null ? null : await latestSearchOf(tx, campaign);
+    const batch = nextBatch(latest?.search ?? null);
+    if (confirm === null || latest === null || batch === null) throw new CampaignChangeRefused("wrong_state");
+    const previous = leadGenJobInputSchema.parse(latest.job.input);
+
+    // The pricing the Confirm froze: the estimate is worked out with it, as the page's was.
+    const pricing = pricingById(handoffOf(confirm).spend.pricingAssumptions);
+    if (pricing === null || pricing.id !== setup.pricing.id) throw new CampaignChangeRefused("not_available");
+    const approval = await currentSearchApproval(tx, scope, confirm);
+    const estimate = searchEstimate(input.howMany, await searchHistory(tx, scope), pricing);
+    const needsNewCap = (await searchRemaining(tx, campaign.orgId, approval)) < estimate;
+    if (needsNewCap !== input.newCap) throw new CampaignChangeRefused(needsNewCap ? "cap_used" : "estimate_changed");
+    if (balance !== null && setup.searchCreditCap > balance.remaining) throw new CampaignChangeRefused("over_cap");
+    const capRequestId = balance !== null ? input.requestId : (approval.capRequestId ?? undefined);
+
+    const run = (await tx.job.count({ where: { ...scope, kind: LEAD_GEN_JOB } })) + 1;
+    const { job, deduped } = await enqueue(tx, {
+      orgId: campaign.orgId,
+      ownerUserId: campaign.ownerUserId,
+      kind: LEAD_GEN_JOB,
+      idempotencyKey: leadGenJobKey(campaign.id, campaign.briefVersion, run),
+      input: { confirmRequestId: previous.confirmRequestId, run, batch, howMany: input.howMany, ...(capRequestId === undefined ? {} : { capRequestId }) },
+      campaignId: campaign.id,
+      briefVersion: campaign.briefVersion,
+    });
+    // Unreachable under the lock: the run number counts every job at this version.
+    if (deduped) throw new Error("find more people: this run's lead gen key already had a job");
+    return {
+      campaign,
+      job,
+      before: { briefVersion: campaign.briefVersion, batch: latest.search.batch, jobId: latest.job.id },
+      after: {
+        requestId: input.requestId,
+        briefVersion: campaign.briefVersion,
+        batch,
+        howMany: input.howMany,
+        estimate,
+        jobId: job.id,
+        ...(capRequestId === undefined ? {} : { capRequestId }),
+        ...(balance === null
+          ? {}
+          : {
+              cap: {
+                searchCreditCap: setup.searchCreditCap,
+                balanceSnapshot: {
+                  remaining: balance.remaining,
+                  ...(balance.used === undefined ? {} : { used: balance.used }),
+                  ...(balance.total === undefined ? {} : { total: balance.total }),
+                  readAt: balance.readAt.toISOString(),
+                },
+                balanceSource: balance.source,
+              },
+            }),
+      },
     };
   });
 }

@@ -13,6 +13,7 @@ import type { ChooseIndustrySubmission, RetrySubmission, RevealSubmission, Revie
 import { actionFor, revealStoppedLine, type CampaignState } from "@/lib/campaigns/state";
 import type { Campaign } from "@/lib/campaigns/types";
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { outreachPeopleCopy } from "@/lib/copy/outreachPeople";
 import { PERSON_DRAFT_COST_CAP_USD } from "@/lib/outreach/cost";
 
@@ -24,6 +25,7 @@ import { PlanDecision } from "./PlanDecision";
 import { PlanSection } from "./PlanCards";
 import { ProgressCounts } from "./ProgressCounts";
 import { RevealCard } from "./RevealCard";
+import { FindMoreCard } from "./FindMoreCard";
 import { DraftingCard, FindingCard, ResearchNeedsYouCard, ResearchingCard, RevealNeedsYouCard, RevealingCard } from "./StageNotes";
 import { StageSummary } from "./StageSummary";
 import { StateRow } from "./StateRow";
@@ -66,6 +68,7 @@ export function CampaignPage({
   onWriteEmails,
   onStartOutreach,
   onPauseOutreach,
+  onFindMore,
   people,
 }: {
   campaign: Campaign;
@@ -92,6 +95,8 @@ export function CampaignPage({
   onStartOutreach?: (submission: { campaignId: string; requestId: string; startOn: string }) => Promise<StartResult>;
   /** Pause or Resume the campaign's outreach (Relay P3, a server action). */
   onPauseOutreach?: (submission: { campaignId: string; paused: boolean }) => Promise<StartResult>;
+  /** Find more people (P5b): the next batch, for the number the rep chose (a server action). */
+  onFindMore?: (submission: RetrySubmission & { howMany: 10 | 20 | 30; newCap: boolean }) => Promise<StartResult>;
   onChooseIndustry?: (submission: ChooseIndustrySubmission) => Promise<StartResult>;
   onReview?: (submission: ReviewSubmission) => Promise<StartResult>;
   onReveal?: (submission: RevealSubmission) => Promise<StartResult>;
@@ -201,6 +206,43 @@ export function CampaignPage({
     if (onPauseOutreach === undefined) return;
     outreachChange(() => onPauseOutreach({ campaignId: campaign.id, paused }));
   };
+  const [findMoreError, setFindMoreError] = useState<string | null>(null);
+  const findMore = (howMany: 10 | 20 | 30, newCap: boolean) => {
+    if (onFindMore === undefined || pending) return;
+    setPending(true);
+    setFindMoreError(null);
+    void onFindMore({ ...target, requestId, howMany, newCap })
+      .then((result) => {
+        if ("id" in result) {
+          router.push(`/campaigns/${result.id}?more=1`);
+          router.refresh();
+          return;
+        }
+        setFindMoreError(result.error);
+        setPending(false);
+      })
+      .catch(() => {
+        setFindMoreError(campaignsCopy.cannotChange);
+        setPending(false);
+      });
+  };
+  // Start outreach, Pause and Resume (Relay P3), once drafts are asked for. A start or a new day in London is a fresh card: the picker closes and takes the new default.
+  const outreachCard =
+    live && campaign.outreach != null && onStartOutreach !== undefined && onPauseOutreach !== undefined ? (
+      <OutreachCard
+        key={`outreach:${campaign.outreach.today}:${campaign.outreach.batches.map((batch) => `${batch.startOn}=${batch.people}`).join(",")}`}
+        view={campaign.outreach}
+        pending={pending}
+        error={outreachError}
+        onStart={startOutreach}
+        onPause={pauseOutreach}
+      />
+    ) : null;
+  const findMoreCard =
+    live && campaign.findMore != null && onFindMore !== undefined ? <FindMoreCard key="find-more" view={campaign.findMore} pending={pending} error={findMoreError} onFind={findMore} /> : null;
+  // While a later batch is under way (P5b), one line says where it is: "Batch 2: 18 found, review them".
+  const batch = campaign.batch ?? 1;
+  const batchLine = live && batch > 1 ? batchLineOf(batch, state, campaign.peopleFound?.found.n ?? null) : null;
   const leadsWithProgress = state === "running" || state === "paused" || state === "done";
 
   // While Relay works, ask the server again every little while: a queued job becomes running, a finished one the next stage.
@@ -333,6 +375,13 @@ export function CampaignPage({
 
   /* The main area: the rep's job in this state, chosen by the backend's stage where there is one. */
   const main: React.ReactNode[] = [];
+  if (batchLine !== null) {
+    main.push(
+      <p key="batch-line" data-testid="batch-line" className="type-body rounded-input border border-line bg-soft px-4 py-3 text-ink">
+        {batchLine}
+      </p>,
+    );
+  }
   if (state === "researching" || state === "brief") {
     main.push(<ResearchingCard key="researching" inFlight={facts?.inFlight} />);
   } else if (state === "failed") {
@@ -345,6 +394,8 @@ export function CampaignPage({
     main.push(<FindingCard key="finding" inFlight={facts?.inFlight} finding={campaign.finding ?? null} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} spend={facts?.spend.search ?? campaign.spend?.search ?? null} />);
   } else if (state === "peopleNeedsYou" && campaign.peopleNeedsYou) {
     main.push(<PeopleNeedsYou key="needs-you" view={campaign.peopleNeedsYou} canRetry={campaign.can.retryPeople === true} spent={campaign.spentAtThisVersion === true} editHref={editHref} onChoose={choose} />);
+    // A later batch that found nobody new: ask again (P5b).
+    if (findMoreCard !== null) main.push(findMoreCard);
   } else if (peopleStates.includes(state) && campaign.peopleFound) {
     if (state === "peopleFound" && revealOpen && revealPlan !== null && campaign.can.reveal === true) {
       main.push(<RevealCard key="reveal" plan={revealPlan} pending={pending} error={revealError} onConfirm={() => void confirmReveal()} onCancel={() => setRevealOpen(false)} />);
@@ -357,10 +408,9 @@ export function CampaignPage({
     if (state === "drafting" && facts !== undefined && facts.drafts !== null) {
       main.push(<DraftingCard key="drafting" stage={facts.stage} inFlight={facts.inFlight} drafts={facts.drafts} attention={facts.attention} editHref={editHref} />);
     }
-    // Start outreach, Pause and Resume (Relay P3), once drafts are asked for. A start or a new day in London is a fresh card: the picker closes and takes the new default.
-    if (state === "drafting" && live && campaign.outreach != null && onStartOutreach !== undefined && onPauseOutreach !== undefined) {
-      main.push(<OutreachCard key={`outreach:${campaign.outreach.today}:${campaign.outreach.batches.map((batch) => `${batch.startOn}=${batch.people}`).join(",")}`} view={campaign.outreach} pending={pending} error={outreachError} onStart={startOutreach} onPause={pauseOutreach} />);
-    }
+    if (state === "drafting" && outreachCard !== null) main.push(outreachCard);
+    // Find more people (P5b), once this batch is finished with: written for, or nobody in it to write for.
+    if ((state === "drafting" || state === "peopleReady") && findMoreCard !== null) main.push(findMoreCard);
     if (state === "revealing") {
       // A stopped reveal is never drawn as live work: the backend says it needs the rep, and why.
       if (revealNeedsYou || campaign.peopleFound.revealResult?.stopped === true) {
@@ -382,6 +432,8 @@ export function CampaignPage({
     }
     main.push(<PlanSection key="plan-cards" pack={campaign.pack} collapsed={leadsWithProgress} />);
   }
+  // While a later batch is under way, an earlier batch's running outreach stays in reach: its days and Pause (P5b).
+  if (state !== "drafting" && batch > 1 && outreachCard !== null && (campaign.outreach?.batches.length ?? 0) > 0) main.push(outreachCard);
   if (!live && (state === "researching" || state === "stopped" || state === "failed") && main.length === 0) {
     main.push(<BriefCard key="brief" brief={campaign.brief} />);
   }
@@ -514,4 +566,24 @@ export function CampaignPage({
       )}
     </div>
   );
+}
+
+/** Where a later batch is (P5b), in one line. Null once its outreach is being written and there is nothing more to say. */
+function batchLineOf(batch: number, state: CampaignState, found: number | null): string | null {
+  const c = findMoreCopy;
+  const lead = `${c.batch} ${batch}:`;
+  switch (state) {
+    case "findingPeople":
+      return `${lead} ${c.lineFinding}`;
+    case "peopleNeedsYou":
+      return `${lead} ${c.lineStopped}`;
+    case "peopleFound":
+      return `${lead} ${found ?? 0} ${c.lineFound}`;
+    case "revealing":
+      return `${lead} ${c.lineRevealing}`;
+    case "peopleReady":
+      return `${lead} ${c.lineReady}`;
+    default:
+      return null;
+  }
 }

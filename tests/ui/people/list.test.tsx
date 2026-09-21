@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PeopleTab } from "@/components/people/PeopleTab";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { outreachPeopleCopy as c } from "@/lib/copy/outreachPeople";
 import type { PeopleFilter } from "@/lib/outreach/peopleList";
 
@@ -129,3 +130,34 @@ describe("the People list", () => {
     expect(screen.getByTestId("people-paused").textContent).toBe(c.paused);
   });
 });
+
+describe("batches (P5b)", () => {
+  const batched = [
+    listRow("Avery Dunmore", { batch: 1, startOn: "2026-09-22" }),
+    listRow("Orla Bellamy", { batch: 2, startOn: "2026-09-29" }),
+    listRow("Marlo Holloway", { batch: 2, startOn: null, status: "not_started", nextDue: null }),
+  ];
+
+  it("with one batch, a row keeps its plain start day and there is no batch filter", () => {
+    draw();
+    expect(screen.queryByTestId("people-filter-batch")).toBeNull();
+    expect(screen.queryAllByTestId("people-batch")).toHaveLength(0);
+  });
+
+  it("with more than one, each row says its batch and when it started, and the list filters by batch", () => {
+    draw(NONE, { rows: batched });
+    expect(screen.getAllByTestId("people-batch").map((node) => node.textContent)).toEqual([
+      `${findMoreCopy.batch} 1 · ${findMoreCopy.started} Tue 22 Sep`,
+      `${findMoreCopy.batch} 2 · ${findMoreCopy.started} Tue 29 Sep`,
+      `${findMoreCopy.batch} 2 · ${findMoreCopy.notStarted}`,
+    ]);
+    fireEvent.change(screen.getByTestId("people-filter-batch"), { target: { value: "2" } });
+    expect(replace).toHaveBeenCalledWith("/campaigns/c1?tab=people&batch=2", { scroll: false });
+  });
+
+  it("a batch in the URL shows that batch only", () => {
+    draw({ ...NONE, batch: 2 }, { rows: batched });
+    expect(names()).toEqual(["Orla Bellamy", "Marlo Holloway"]);
+  });
+});
+

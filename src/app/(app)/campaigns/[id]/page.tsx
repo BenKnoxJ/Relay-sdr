@@ -5,6 +5,7 @@ import { CampaignPage } from "@/components/campaigns/CampaignPage";
 import { PeopleTab } from "@/components/people/PeopleTab";
 import type { PersonView } from "@/components/people/PersonDrawer";
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { parsePeopleFilter } from "@/lib/outreach/peopleList";
 import { londonDay } from "@/lib/outreach/sequence";
 import { serverCaller } from "@/server/api/caller";
@@ -21,7 +22,7 @@ import {
   tryAgainAction,
   undoAction,
 } from "./peopleActions";
-import { chooseIndustry, confirmPlan, createPlayCampaigns, pauseOutreach, retryPeople, retryResearch, retryRevealEmails, revealEmails, reviewPeople, startOutreach, widenResearch, writeEmails } from "./actions";
+import { chooseIndustry, confirmPlan, createPlayCampaigns, findMorePeople, pauseOutreach, retryPeople, retryResearch, retryRevealEmails, revealEmails, reviewPeople, startOutreach, widenResearch, writeEmails } from "./actions";
 
 /**
  * One campaign (master doc §23.1c, mock 3b and 3c).
@@ -57,7 +58,9 @@ export default async function CampaignDetailPage({
             ? campaignsCopy.toastRevealing
             : query.writing === "1"
               ? campaignsCopy.toastWriting
-              : null;
+              : query.more === "1"
+                ? findMoreCopy.toastFinding
+                : null;
 
   const running = campaign.live && (campaign.outreach?.batches.length ?? 0) > 0;
   const people = running ? await peopleView(campaign.id, query) : undefined;
@@ -80,6 +83,7 @@ export default async function CampaignDetailPage({
       onWriteEmails={writeEmails}
       onStartOutreach={startOutreach}
       onPauseOutreach={pauseOutreach}
+      onFindMore={findMorePeople}
       {...(people === undefined ? {} : { people })}
     />
   );

@@ -1,4 +1,5 @@
 import { campaignsCopy } from "@/lib/copy/campaigns";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
 import { dayLabel, isIsoDate } from "@/lib/outreach/sequence";
 
@@ -36,6 +37,7 @@ const KINDS: Record<string, ActivityEntry["kind"]> = {
   "leadgen.picked": "people_found",
   "leadgen.halted": "people_stopped",
   "leadgen.rerun": "people_rerun",
+  "campaign.more_people": "more_people",
   "campaign.people_reviewed": "people_reviewed",
   "campaign.reveal_confirmed": "reveal_confirmed",
   "leadgen.revealed": "revealed",
@@ -111,6 +113,10 @@ function lineOf(kind: ActivityEntry["kind"], p: Record<string, unknown>): string
       return outreachStartCopy.activityPaused;
     case "outreach_resumed":
       return outreachStartCopy.activityResumed;
+    case "more_people": {
+      const cap = num(p.cap);
+      return `${findMoreCopy.activity} ${people(num(p.howMany))}, ${findMoreCopy.activityBatch} ${num(p.batch)}${cap > 0 ? ` ${findMoreCopy.activityNewCap} ${cap} ${c.activityCredits}` : ""}`;
+    }
   }
 }
 

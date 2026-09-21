@@ -437,7 +437,8 @@ export type ActivityEntry = {
     | "draft_rejected"
     | "outreach_started"
     | "outreach_paused"
-    | "outreach_resumed";
+    | "outreach_resumed"
+    | "more_people";
   /** Who did it: the rep reading, Relay itself, or someone else by first name. */
   actor: { kind: "you" | "relay" | "person"; name: string | null };
   line: string;
@@ -678,6 +679,24 @@ export type Campaign = CampaignSummary & {
   activity?: ActivityEntry[];
   /** Start outreach and pause (Relay P3), once drafts are asked for. Absent on samples. */
   outreach?: OutreachStartView | null;
+  /** The batch the latest search found or is finding (P5b): 1 until Find more people. */
+  batch?: number;
+  /** Find more people (P5b), once the latest batch is finished with; null where it is not offered. */
+  findMore?: FindMoreView | null;
+};
+
+/**
+ * Find more people (P5b), as the campaign page draws it: the batch it would
+ * make, the approved search limit it spends against and what is left of it,
+ * the limit a new approval would set, and each size's estimate in credits.
+ */
+export type FindMoreView = {
+  batch: number;
+  cap: number;
+  remaining: number;
+  newCap: number;
+  options: Array<{ howMany: 10 | 20 | 30; estimate: number; needsNewCap: boolean }>;
+  sample: boolean;
 };
 
 /**

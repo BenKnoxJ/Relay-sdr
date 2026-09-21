@@ -4,6 +4,7 @@ import { leadGenHandoffSchema } from "../../../agents/leadgen/input.schema";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
 import type { CampaignRecord } from "@/lib/repo/campaigns";
 
+import { batchOfInput } from "./batches";
 import { briefFieldsFrom, widenedBrief, type ResearchBrief } from "./brief";
 import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rolesMissingFrom, searchLine, spareCount } from "./accounts";
 import type { FindingView } from "./types";
@@ -129,7 +130,8 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
     people,
     spend: spendOf(ledger, record.researchCost ?? [], {
       briefVersion: record.campaign.briefVersion,
-      searchCap: handoff?.spend.searchCreditCap ?? null,
+      // Every search limit approved at this version: the Confirm's, and any a later batch approved (P5b).
+      searchCap: handoff === null ? null : handoff.spend.searchCreditCap + (leadGen?.raisedCaps ?? 0),
       revealMax: revealRecord?.after?.maxCredits ?? null,
     }),
   };
@@ -167,7 +169,8 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
   const handoff = frozen?.success === true ? frozen.data : null;
   const sampleRun = confirm !== null && (confirm.after as { balanceSource?: unknown } | null)?.balanceSource === "sample";
   const spend = leadGen?.spend ?? null;
-  const cap = handoff?.spend.searchCreditCap ?? 0;
+  // A later batch approved with a new cap reads against that cap (P5b).
+  const cap = leadGen?.searchCap ?? handoff?.spend.searchCreditCap ?? 0;
   const found = people?.state === "peopleFound" ? people.pick : null;
   const plan = found !== null && revealRecord === null ? (leadGen?.revealPlan ?? null) : null;
   const failure = derived.failure;
@@ -278,6 +281,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     live: true,
     failure,
     briefVersion: record.campaign.briefVersion,
+    batch: leadGen?.job === null || leadGen?.job === undefined ? 1 : batchOfInput(leadGen.job.input),
     can,
     widenings,
     confirmPlan,

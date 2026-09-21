@@ -13,6 +13,8 @@ import {
   createCampaign,
   createPlayCampaigns,
   editCampaignBrief,
+  findMorePeople,
+  findMoreViewFor,
   getCampaignForOwner,
   requestDrafts,
   rerunPeople,
@@ -26,6 +28,7 @@ import { campaignSummariesForOwner } from "@/lib/repo/campaignSummary";
 import { campaignActivityFor } from "@/lib/repo/campaignActivity";
 import { OutreachChangeRefused, outreachStatusFor, setOutreachPaused, startOutreach } from "@/lib/repo/outreachStart";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { START_HORIZON_DAYS, addCalendarDays, londonDay, nextWorkingDay } from "@/lib/outreach/sequence";
 import type { OutreachStartView } from "@/lib/campaigns/types";
 import { activityOf } from "@/lib/campaigns/activity";
@@ -92,6 +95,8 @@ function asRefusal(error: unknown): never {
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.revealOverBalance });
     case "nothing_to_draft":
       throw new TRPCError({ code: "BAD_REQUEST", message: campaignsCopy.writeNothing });
+    case "cap_used":
+      throw new TRPCError({ code: "CONFLICT", message: findMoreCopy.capUsedRefused });
   }
 }
 
@@ -333,6 +338,23 @@ export const campaignsRouter = createTRPCRouter({
       }
     }),
 
+  /**
+   * Find more people (P5b): lead gen again on the same play and recipe, for
+   * 10, 20 or 30 people, as the campaign's next batch. `newCap` says the rep
+   * approved a new search limit because the page said what is left was not
+   * enough; a press that does not match the campaign now is refused.
+   */
+  findMore: repProcedure
+    .input(z.object({ campaignId, briefVersion, requestId, howMany: z.union([z.literal(10), z.literal(20), z.literal(30)]), newCap: z.boolean() }).strict())
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return { id: (await findMorePeople(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, setup: leadGenSetup() })).campaign.id };
+      } catch (error) {
+        if (error instanceof CampaignChangeRefused && error.refusal === "estimate_changed") throw new TRPCError({ code: "CONFLICT", message: findMoreCopy.capUsedRefused });
+        asRefusal(error);
+      }
+    }),
+
   /** Pause or Resume the campaign's outreach (Relay P3): while paused nothing is due and nothing is sent. */
   pauseOutreach: repProcedure
     .input(z.object({ campaignId, paused: z.boolean() }).strict())
@@ -358,9 +380,16 @@ export const campaignsRouter = createTRPCRouter({
     // The page's Activity tab reads the same feed as `activity`, in one round trip with the campaign.
     const rows = await campaignActivityFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id });
     const campaign = toCampaign(record, leadGenOptions());
-    // Once drafts are asked for, Start outreach and pause are on the page (Relay P3).
-    const outreach = campaign.state === "drafting" ? await outreachViewFor(ctx.prisma, { orgId: ctx.orgId, campaignId: input.id }, new Date()) : null;
-    return { ...campaign, activity: activityOf(rows ?? [], ctx.userId), outreach };
+    // Once drafts are asked for, Start outreach and pause are on the page (Relay P3); and while a later batch is
+    // under way, so an earlier batch's running outreach keeps its People tab and its Pause (P5b).
+    const laterBatch = (campaign.batch ?? 1) > 1;
+    const outreach = campaign.state === "drafting" || laterBatch ? await outreachViewFor(ctx.prisma, { orgId: ctx.orgId, campaignId: input.id }, new Date()) : null;
+    // Find more people (P5b), once the latest batch is finished with: written for, found nobody new, or nobody to write for.
+    const findMore =
+      campaign.live && (campaign.state === "drafting" || campaign.state === "peopleNeedsYou" || campaign.state === "peopleReady")
+        ? await findMoreViewFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignId: input.id }, leadGenSetup())
+        : null;
+    return { ...campaign, activity: activityOf(rows ?? [], ctx.userId), outreach, findMore };
   }),
 
   /**

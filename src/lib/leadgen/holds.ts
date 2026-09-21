@@ -46,6 +46,12 @@ export type OrgKnowledge = {
    * provider record and by Person. `revealed` says the email was obtained there.
    */
   inOtherCampaigns?: { providerId: string; personId: string | null; revealed: boolean }[];
+  /**
+   * Provider records already found for *this* campaign at this version, by an
+   * earlier batch (P5b): chosen or spare, kept or dropped. Find more people
+   * never finds them again.
+   */
+  inThisCampaign?: string[];
 };
 
 /**
@@ -73,6 +79,7 @@ export class Knowledge {
   private readonly enrolled: Set<string>;
   /** Provider record (`p:`) or Person (`h:`) taken in another campaign, and whether it was revealed there. */
   private readonly elsewhere = new Map<string, boolean>();
+  private readonly here: Set<string>;
 
   constructor(knowledge: OrgKnowledge) {
     for (const identity of knowledge.providerIdentities) this.identities.set(identity.providerId, identity);
@@ -85,6 +92,7 @@ export class Knowledge {
       if (value !== undefined) this.suppressed.set(`${suppression.kind}:${value}`, suppression.reason);
     }
     this.enrolled = new Set(knowledge.enrolledPersonIds);
+    this.here = new Set(knowledge.inThisCampaign ?? []);
     for (const taken of knowledge.inOtherCampaigns ?? []) {
       for (const key of [`p:${taken.providerId}`, ...(taken.personId === null ? [] : [`h:${taken.personId}`])]) {
         this.elsewhere.set(key, this.elsewhere.get(key) === true || taken.revealed);
@@ -114,6 +122,11 @@ export class Knowledge {
     return this.enrolled.has(personId);
   }
 
+  /** Whether an earlier batch of this campaign already found this provider record (P5b). */
+  foundInThisCampaign(providerId: string): boolean {
+    return this.here.has(providerId);
+  }
+
   /**
    * Whether this provider record, or this Person, is already in another of the
    * org's campaigns: kept or revealed there, or, with `revealedOnly`, revealed
@@ -141,6 +154,8 @@ export function preRevealChecks(
   knowledge: Knowledge,
   placeNames: ReadonlySet<string>,
 ): PreRevealDecision {
+  // Found by an earlier batch of this campaign (P5b): never a second row for the same record.
+  if (knowledge.foundInThisCampaign(candidate.providerId)) return { kind: "held", reason: "duplicate_in_campaign" };
   const identity = knowledge.identity(candidate.providerId);
   if (identity !== undefined && identity.status !== "usable") return { kind: "held", reason: "provider_unusable" };
   if (knowledge.inOtherCampaign(candidate.providerId, identity?.personId)) return { kind: "held", reason: "in_other_campaign" };

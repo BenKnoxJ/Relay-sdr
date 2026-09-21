@@ -901,10 +901,19 @@ export async function createPlayCampaigns(db: PrismaClient, input: CreatePlayCam
     return { campaigns: made.campaigns, repeated: false };
   } catch (error) {
     if (error instanceof AlreadyDone) return repeat();
-    // Two presses that both passed the lock cannot happen; a unique violation here is still the same press.
-    if (isUniqueViolation(error)) return repeat();
+    // Two presses that both passed the lock cannot happen; a clash on a play's
+    // start request id is still the same press. Any other unique violation
+    // rolled the whole create back, and surfaces.
+    if (isUniqueViolation(error) && targetsStartRequestId(error)) return repeat();
     throw error;
   }
+}
+
+/** Whether a P2002 names the campaigns' `start_request_id` unique key, as Prisma reports it. */
+function targetsStartRequestId(error: unknown): boolean {
+  const target: unknown = (error as { meta?: { target?: unknown } }).meta?.target;
+  const fields = Array.isArray(target) ? target.map(String) : typeof target === "string" ? [target] : [];
+  return fields.some((field) => field.includes("start_request_id") || field.includes("startRequestId"));
 }
 
 export type RerunInput = ChangeInput & {

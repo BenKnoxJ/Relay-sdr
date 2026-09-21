@@ -285,6 +285,35 @@ describe("Create campaigns from ticked plays", () => {
     expect(await refusalOf(create(confirmed, [BROKERS, MGAS]))).toBe("wrong_state");
   });
 
+  it("surfaces a unique violation on anything but a play's start request id, and creates nothing", async () => {
+    const source = await planned();
+    // A second campaign.created in this org now clashes: the source's own creation wrote the first.
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX test_only_one_created_per_org ON events (org_id, kind) WHERE kind = 'campaign.created'`);
+    try {
+      const error = await create(source, [CLAIMS, BROKERS]).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      );
+      expect((error as { code?: string } | null)?.code).toBe("P2002");
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP INDEX test_only_one_created_per_org`);
+    }
+    expect(await prisma.campaign.count({ where: { orgId: ORG } })).toBe(1);
+    expect(await prisma.campaign.findUniqueOrThrow({ where: { id: source.id } })).toMatchObject({ playId: null, name: source.name });
+  });
+
+  it("treats a clash on a play's start request id as the press that landed", async () => {
+    const source = await planned();
+    const requestId = randomUUID();
+    // The row a landed press made, without the Event that would have stopped this press earlier.
+    const landed = await prisma.campaign.create({
+      data: { orgId: ORG, ownerUserId: REP, name: "landed", brief: source.brief as Prisma.InputJsonObject, startRequestId: `plays:${requestId}:${BROKERS}`, researchFromCampaignId: source.id, researchFromBriefVersion: 1, playId: BROKERS },
+    });
+    const { campaigns, repeated } = await create(source, [CLAIMS, BROKERS], { requestId });
+    expect(repeated).toBe(true);
+    expect(campaigns.map((campaign) => campaign.id)).toEqual([source.id, landed.id]);
+  });
+
   it("runs research of its own once a made campaign's brief is edited, reading the plan it came from, and the play is chosen again", async () => {
     const source = await planned();
     const [, made] = (await create(source, [CLAIMS, BROKERS])).campaigns;

@@ -77,6 +77,7 @@ model Org {
   creditLedger        CreditLedgerEntry[]
   outreachDrafts      OutreachDraft[]
   repVoices           RepVoice[]
+  outreachEvents      OutreachEvent[]
 
   @@map("orgs")
 }
@@ -104,6 +105,7 @@ model User {
   reviewedPeople    CampaignPerson[]   @relation("CampaignPersonReviewer")
   outreachDrafts    OutreachDraft[]    @relation("OutreachDraftOwner")
   decidedDrafts     OutreachDraft[]    @relation("OutreachDraftDecider")
+  outreachEvents    OutreachEvent[]
   repVoice          RepVoice?
 
   @@unique([orgId, email])
@@ -261,14 +263,15 @@ model Campaign {
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
-  org          Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  ownerUser    User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
-  researchFrom Campaign?           @relation("CampaignResearchFrom", fields: [researchFromCampaignId], references: [id], onDelete: Restrict)
-  researchFor  Campaign[]          @relation("CampaignResearchFrom")
-  jobs         Job[]
-  people       CampaignPerson[]
-  credits      CreditLedgerEntry[]
-  drafts       OutreachDraft[]
+  org            Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser      User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  researchFrom   Campaign?           @relation("CampaignResearchFrom", fields: [researchFromCampaignId], references: [id], onDelete: Restrict)
+  researchFor    Campaign[]          @relation("CampaignResearchFrom")
+  jobs           Job[]
+  people         CampaignPerson[]
+  credits        CreditLedgerEntry[]
+  drafts         OutreachDraft[]
+  outreachEvents OutreachEvent[]
 
   @@unique([orgId, startRequestId])
   @@index([orgId, ownerUserId, createdAt])
@@ -657,6 +660,8 @@ model CampaignPerson {
   /// Europe/London, set once by Start outreach. Each step's due day is worked
   /// out from it (`src/lib/outreach/sequence.ts`). Null until started.
   outreachStartOn  DateTime?             @map("outreach_start_on") @db.Date
+  /// The rep's number for this person, for the calls (Relay P4); 40 characters at most.
+  phone            String?
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
@@ -665,6 +670,7 @@ model CampaignPerson {
   job        Job             @relation(fields: [jobId], references: [id], onDelete: Restrict)
   person     Person?         @relation(fields: [personId], references: [id], onDelete: Restrict)
   drafts     OutreachDraft[]
+  events     OutreachEvent[]
   reviewedBy User?           @relation("CampaignPersonReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, campaignId, briefVersion, provider, providerId])
@@ -817,4 +823,74 @@ model RepVoice {
   /// Written and read within the org, like every other row.
   @@unique([orgId, userId])
   @@map("rep_voices")
+}
+
+enum OutreachEventKind {
+  sent
+  accepted
+  declined
+  replied
+  bounced
+  done
+  note
+  meeting
+  outcome
+  undo
+
+  @@map("outreach_event_kind")
+}
+
+enum OutreachOutcome {
+  not_interested
+  wrong_person
+  bounced
+  closed
+
+  @@map("outreach_outcome")
+}
+
+enum CallResult {
+  spoke
+  voicemail
+  no_answer
+  wrong_number
+
+  @@map("call_result")
+}
+
+/// What the rep recorded on a person's outreach (Relay P4): a step sent,
+/// accepted, declined, replied, bounced or done, a note, a meeting, an outcome,
+/// or an undo naming the row it reverses. Append-only, like `events`: no
+/// `updated_at`, and a trigger in the migration refuses UPDATE and DELETE. The
+/// fold (`src/lib/outreach/track.ts`) replays the rows in `seq` order.
+model OutreachEvent {
+  id               String            @id @default(cuid())
+  orgId            String            @map("org_id")
+  campaignId       String            @map("campaign_id")
+  campaignPersonId String            @map("campaign_person_id")
+  /// A step id from the sequence template, or null for a person-level row.
+  step             String?
+  kind             OutreachEventKind
+  outcome          OutreachOutcome?
+  callResult       CallResult?       @map("call_result")
+  /// 2,000 characters at most (a CHECK in the migration).
+  note             String?
+  /// A calendar day in Europe/London.
+  happenedOn       DateTime          @default(dbgenerated("((now() AT TIME ZONE 'Europe/London'::text))::date")) @map("happened_on") @db.Date
+  undoesEventId    String?           @unique @map("undoes_event_id")
+  byUserId         String            @map("by_user_id")
+  /// Write order, taken at insert under the write path's lock on the person.
+  seq              Int               @unique @default(autoincrement())
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  org            Org            @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign       Campaign       @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  campaignPerson CampaignPerson @relation(fields: [campaignPersonId], references: [id], onDelete: Restrict)
+  undoes         OutreachEvent? @relation("OutreachEventUndo", fields: [undoesEventId], references: [id], onDelete: Restrict)
+  undoneBy       OutreachEvent? @relation("OutreachEventUndo")
+  byUser         User           @relation(fields: [byUserId], references: [id], onDelete: Restrict)
+
+  @@index([orgId, campaignPersonId, seq])
+  @@index([orgId, campaignId])
+  @@map("outreach_events")
 }

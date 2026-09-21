@@ -253,8 +253,9 @@ export async function evaluateReveal(
       : { existing: true, personId: existing.id };
   const identity: IdentityUpdate = { provider: "lusha", providerId: candidate.providerId, status: "usable", personId: existing?.id ?? null };
 
-  // A Person existing elsewhere in Relay is never itself a hold; the same
-  // Person already enrolled here is.
+  // A Person existing elsewhere in Relay is not itself a hold; the same
+  // Person already enrolled here is, and so is one revealed in another of the
+  // org's live campaigns (leadgen amendment 2026-09-21).
   if (existing !== undefined && (knowledge.isEnrolled(existing.id) || alreadyInCampaign.has(existing.id))) {
     return { kind: "held", reason: "duplicate_in_campaign", person, identity };
   }

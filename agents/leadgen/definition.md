@@ -183,6 +183,7 @@ Pre-reveal (preview only, before ranking). Each is a campaign-only hold unless m
 4. Title matches `excludeTitles` or `exclusions.roles`.
 5. Wrong geography: country not in `targeting.countries`; or, when locations are set, preview state/city not matching a location or alias, **or missing**.
 6. Customer company: `findLead({domain})` returns a lead with `isCustomer`. Best-effort, positive only (approved); no match never proves "not a customer" (§10).
+7. `in_other_campaign`: the provider identity, or the Person it maps to, is kept or revealed in another of the org's live campaigns (Amendment 2026-09-21).
 
 Reuse (pre-reveal, no spend): a candidate whose provider identity maps to a Person with a usable email is **reused**, not held (§9). It then passes the post-reveal checks below at attach time, without a provider call.
 
@@ -195,8 +196,9 @@ Post-reveal (only once an email exists, whether revealed now or reused). Each is
 4. A CRM person check: `findLead({email})` returns a customer lead (best-effort, positive only).
 5. Not a work email, or email grade outside the configured allowed set. The proposed default is {A+, A}; the API's grade vocabulary is **UNKNOWN**. The Person keeps its email and grade; this campaign holds it.
 6. `duplicate_in_campaign`: the identity resolves to a Person already enrolled in this same campaign (§9).
+7. `in_other_campaign`: the identity resolves to a Person revealed in another of the org's live campaigns (Amendment 2026-09-21). Kept there without a reveal does not hold a reveal here.
 
-A Person existing elsewhere in Relay is never itself a hold. Resolving to a Person not yet enrolled here continues normally (§9).
+A Person existing elsewhere in Relay is not itself a hold, except as `in_other_campaign` (Amendment 2026-09-21). Resolving to a Person not yet enrolled here, and not held by another live campaign, continues normally (§9).
 
 Post-reveal holds on bought records have already cost their credit. They are recorded and shown ("K held"). There is no top-up in H1.
 
@@ -234,9 +236,10 @@ Reuse:
 1. A preview whose ProviderIdentity is `usable` and maps to a Person, where that Person is not under ContactSuppression: the candidate's CampaignPerson references that Person with `source: reused`. No reveal call, no reveal credit.
    - It is ranked and capped normally (§8).
    - This campaign's post-reveal checks (§7) decide at attach time whether its email is usable here: opt-out/DNC, CRM customer, grade and work-email policy.
+   - Amendment 2026-09-21: not when that Person is kept or revealed in another of the org's live campaigns. That candidate is held as `in_other_campaign`, so reuse at no cost applies only to a Person no other live campaign holds.
 2. A reveal that resolves to an existing org-level Person who is **not** already enrolled in this campaign: the provider identity is linked to that Person, and the candidate continues normally through this campaign's checks.
 3. A reveal (or reuse) that resolves to a Person **already enrolled in this same campaign**: the additional candidate/provider identity is `duplicate_in_campaign`.
-4. The mere fact that a Person already exists elsewhere in Relay is never itself a hold.
+4. The mere fact that a Person already exists elsewhere in Relay is not itself a hold. Being kept or revealed in another of the org's live campaigns is: `in_other_campaign` (Amendment 2026-09-21).
 
 Scope:
 - **Org-wide human/contact suppression** (ContactSuppression): genuine opt-out, and DNC where a source supports it.
@@ -250,7 +253,8 @@ Scope:
   - per-company cap;
   - email grade or work-email policy;
   - customer company (re-checked against CRM each run);
-  - `duplicate_in_campaign`.
+  - `duplicate_in_campaign`;
+  - `in_other_campaign` (Amendment 2026-09-21).
 - There is no generic suppression framework, and no "know them already" reason in H1 (swap is deferred).
 
 ## 10. CRM (Zoho) — what the current adapter guarantees
@@ -507,3 +511,6 @@ Recipe, roles and seed firms belong to a kind of buyer, not to a candidate. Two 
 
 ## 3. Still not here (amends v2.2 §15a)
 Choosing another play leaves the list: it is §1 above. The rest of v2.2 §15a stands.
+
+## Amendment 2026-09-21: held when already in another campaign (Relay P1)
+Decided by the product owner on 2026-09-21 (Relay lean plan, P1: "A person already in another campaign is held at lead gen"). This amends v2.1 §7 and §9. Where they differ, this amendment wins. A candidate whose provider record, or the Person it maps to, is kept or revealed in another of the org's live campaigns is held in this campaign as `in_other_campaign`. This is a campaign-only hold and is never written org-wide. Before reveal it holds on kept or revealed. At reveal it holds only on revealed, so two campaigns that both kept someone do not block each other's reveal. Only each other campaign's current brief version counts. A superseded version, or a campaign whose current version has nothing kept or revealed, holds no one. Relay has no stopped or done campaign state yet; once it has one, those campaigns hold no one either. v2.1 §7's "a Person existing elsewhere in Relay is never itself a hold" and §9 Reuse 4 are narrowed to match. §9 Reuse 1 (reuse at no cost) now applies only to a Person that no other live campaign holds.

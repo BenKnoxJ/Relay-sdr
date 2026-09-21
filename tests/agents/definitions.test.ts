@@ -76,7 +76,12 @@ describe("the signed definitions", () => {
     // Lead gen v2.3 (choosing the play) is carried whole after v2.2, and the orchestrator carries its A3.
     const v23 = leadgen.slice(leadgen.indexOf("# Relay agent definition: Lead gen (v2.3, signed)"));
     expect(v23).toMatch(/v2\.3 · SIGNED by the product owner 2026-09-15/);
-    expect(createHash("sha256").update(v23).digest("hex")).toBe("7bdb728287e4cefa1f9f02ee73fa2697d364f79659f47eb7c3aa92ac900a667c");
+    // v2.3 now ends with the 2026-09-21 amendment (Relay P1, `in_other_campaign`), carried as the vault's signed file ends.
+    expect(createHash("sha256").update(v23).digest("hex")).toBe("23d6af4ef3cad360a49bcf2633879e93e128a813fb34bea04c6a944ea050f38b");
+    expect(v23).toContain("## Amendment 2026-09-21: held when already in another campaign (Relay P1)");
+    // v2.1 §7 and §9 name the hold the amendment adds.
+    expect(leadgen).toContain("7. `in_other_campaign`: the provider identity, or the Person it maps to, is kept or revealed in another of the org's live campaigns (Amendment 2026-09-21).");
+    expect(leadgen).toContain("  - `in_other_campaign` (Amendment 2026-09-21).");
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A3: choosing the play/);
     // Outreach v2.1 is carried after the v2 it amends, whole: a change to the signed text changes this on purpose.
     const outreach = loadDefinition("outreach").definition;

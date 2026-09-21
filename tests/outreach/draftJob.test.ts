@@ -194,7 +194,7 @@ function answerFor(input: OutreachInput, kind: Answer): string {
   const firm = Number(input.person.company.match(/\d+/)?.[0] ?? 0);
   const good = GOOD[firm % GOOD.length]!;
   if (kind === "machine-word") {
-    // Relay's own nouns, which the prose list refuses, beside plain English ("pipeline", "job") it does not.
+    // Relay's own nouns and "pipeline", which the outreach list refuses (P5c), beside plain English ("job") it does not.
     const ask = "Is the current review doing the job?";
     return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", body: good.body.replace(good.ask, `Our orchestrator reads every call in the pipeline, with no prompt to tune. ${ask}`), ask, opener: { ref, kind: "role_pain" }, claims: [] });
   }
@@ -364,6 +364,8 @@ describe("the draft job", () => {
     // One call wrote all seven, one humanizer pass edited them: two runs, one Event.
     expect(model.inputs).toHaveLength(1);
     expect(model.inputs[0]!.sequence).toEqual([...SEQUENCE]);
+    // P5c: the drafter is told who is writing: the rep's first name, and Conversant while the org is only its domain.
+    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
     expect(model.humanized).toHaveLength(1);
     expect(Object.keys(model.humanized[0]!.touches).sort()).toEqual([...SEQUENCE].sort());
     // The job's cost sits on its first touch.
@@ -428,9 +430,9 @@ describe("the draft job", () => {
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(draft).toMatchObject({ state: "to_review", generations: 2 });
     const redraft = model.inputs[1]!.redraft!;
-    expect(redraft.findings.join(" ")).toMatch(/"orchestrator", "prompt"/);
-    // Only the words the prose list refuses are named; the plain English stays.
-    expect(redraft.findings.join(" ")).not.toMatch(/"pipeline"|"job"/);
+    expect(redraft.findings.join(" ")).toMatch(/"orchestrator", "pipeline", "prompt"/);
+    // Only the words the outreach list refuses are named; the plain English stays.
+    expect(redraft.findings.join(" ")).not.toMatch(/"job"/);
     // The refused answer is what the writer fixes, not a placeholder.
     expect(redraft.previous.body).toContain("Our orchestrator reads every call");
     expect(redraft.previous.ask).toBe("Is the current review doing the job?");

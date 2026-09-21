@@ -11,7 +11,7 @@ import {
   peopleHref,
   sortByUrgency,
   undoableId,
-  webUrlOf,
+  linkedinUrlOf,
   type ListRow,
 } from "@/lib/outreach/peopleList";
 import type { PersonStatus } from "@/lib/outreach/track";
@@ -146,11 +146,21 @@ describe("activity and Undo", () => {
 
 describe("a LinkedIn link", () => {
   it("is kept only when it is a web address", () => {
-    expect(webUrlOf("https://www.linkedin.com/in/avery")).toBe("https://www.linkedin.com/in/avery");
-    expect(webUrlOf(" http://linkedin.com/in/avery ")).toBe("http://linkedin.com/in/avery");
-    expect(webUrlOf("javascript:alert(1)")).toBeNull();
-    expect(webUrlOf("linkedin.com/in/avery")).toBeNull();
-    expect(webUrlOf("")).toBeNull();
-    expect(webUrlOf(42)).toBeNull();
+    expect(linkedinUrlOf("https://www.linkedin.com/in/avery")).toBe("https://www.linkedin.com/in/avery");
+    expect(linkedinUrlOf(" http://linkedin.com/in/avery ")).toBe("http://linkedin.com/in/avery");
+    expect(linkedinUrlOf("javascript:alert(1)")).toBeNull();
+    expect(linkedinUrlOf("linkedin.com/in/avery")).toBeNull();
+    expect(linkedinUrlOf("")).toBeNull();
+    expect(linkedinUrlOf(42)).toBeNull();
+  });
+
+  it("is kept only on linkedin.com (P5c): any other site draws no link", () => {
+    expect(linkedinUrlOf("https://uk.linkedin.com/in/avery")).toBe("https://uk.linkedin.com/in/avery");
+    expect(linkedinUrlOf("https://LinkedIn.com/in/avery")).toBe("https://linkedin.com/in/avery");
+    expect(linkedinUrlOf("https://example.com/in/avery")).toBeNull();
+    expect(linkedinUrlOf("https://linkedin.com.evil.example/in/avery")).toBeNull();
+    expect(linkedinUrlOf("https://notlinkedin.com/in/avery")).toBeNull();
+    expect(linkedinUrlOf("https://linkedin.com@evil.example/in/avery")).toBeNull();
+    expect(linkedinUrlOf("ftp://linkedin.com/in/avery")).toBeNull();
   });
 });

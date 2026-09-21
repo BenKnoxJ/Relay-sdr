@@ -26,10 +26,10 @@ import { AgentRunFailedError, rejectedAnswerText, runAgent, validationIssues } f
 import { stubModel } from "@/lib/agents/stubModel";
 import { storedPack } from "@/lib/campaigns/derive";
 import { draftCopy } from "@/lib/copy/draft";
-import { PROSE_MACHINE_WORDS } from "@/lib/copy/plainWords";
+import { OUTREACH_PROSE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
-import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms } from "@/lib/outreach/adapter";
+import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf } from "@/lib/outreach/adapter";
 import { addedFacts, gateFor, normaliseClaims, proseText, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { loadStandard } from "@/lib/outreach/standard";
@@ -206,10 +206,10 @@ export function refusalFrom(answer: unknown, issues: readonly string[]): Refusal
   }
   // The rep-words rule, read off the whole answer with the list the schema
   // checks it against: the issue text is cut short and names no word.
-  const all = new RegExp(PROSE_MACHINE_WORDS.source, "gi");
+  const all = new RegExp(OUTREACH_PROSE_WORDS.source, "gi");
   const used = [...new Set(prose.flatMap((field) => [...field.matchAll(all)].map((match) => match[0].toLowerCase())))];
   if (used.length > 0) {
-    fixes.push(`Relay refuses these words in ${parsed.success ? "an email" : "a talking point"}, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
+    fixes.push(`These words are refused in ${parsed.success ? "an email" : "a talking point"}, even in their everyday sense: ${used.map((word) => `"${word}"`).join(", ")}. Say each another way.`);
   }
   for (const issue of issues) {
     // Named above when the answer could be read; otherwise the issue is all there is.
@@ -402,11 +402,13 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const lookupUsed = lookup;
 
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
-    const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true } });
-    const repName = owner?.name ?? owner?.email.split("@")[0] ?? "";
+    const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true, org: { select: { name: true } } } });
+    if (owner === null) throw new TerminalError("outreach: the campaign's owner is not in this org");
+    const repName = owner.name ?? owner.email.split("@")[0] ?? "";
     const base = {
       row,
       email: row.person.email,
+      sender: senderOf({ userName: owner.name, email: owner.email, orgName: owner.org.name }),
       handoff,
       pack,
       facts,

@@ -9,7 +9,7 @@ export const outreachTrackingCopy = {
   alreadyRecorded: "That's already recorded for this person. Undo it first to change it.",
   cannotUndo: "That can't be undone.",
   undoLaterFirst: "Something marked later follows from this. Undo that first.",
-  tooEarly: "That day is before the person started, or before the step it answers was sent.",
+  tooEarly: "That day is too early: before the person started, before the step it answers was sent, or before they accepted your connection request.",
   notStarted: "Start outreach for this person first.",
   notApproved: "Approve this email before you mark it sent.",
   badDate: "Choose today or an earlier day.",

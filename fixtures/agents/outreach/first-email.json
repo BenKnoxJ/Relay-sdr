@@ -14,6 +14,10 @@
       "domain": "westburymutual.co.uk",
       "email": "helen.marsh@westburymutual.co.uk"
     },
+    "sender": {
+      "firstName": "Ben",
+      "company": "Conversant"
+    },
     "buyerRole": {
       "id": "role-runs",
       "part": "runs",

@@ -75,6 +75,7 @@ export const campaignsCopy = {
   stepFindingPeople: "Finding people",
   stepDrafting: "Drafting",
   stepRunning: "Running",
+  stepPaused: "Paused",
   stepDone: "Done",
   stepsLabel: "Where this campaign is",
 

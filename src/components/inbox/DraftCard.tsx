@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
 import { PillButton } from "@/components/PillButton";
+import { useUnsaved } from "@/components/people/unsaved";
 import { inboxCopy, type RejectReason } from "@/lib/copy/inbox";
 import type { DraftItem } from "@/lib/fixtures/inbox";
 
@@ -49,6 +50,8 @@ export function DraftCard({
   const [rejecting, setRejecting] = useState(false);
   const [body, setBody] = useState(draft.kind === "message" ? draft.body : "");
   const edited = draft.kind === "message" && body !== draft.body;
+  // In the person drawer, an edit not yet approved is unsaved words (P5c); in the Inbox nothing listens.
+  useUnsaved(`draft:${item.id}`, edited);
   const bodyId = useId();
   const busy = deciding !== null;
 

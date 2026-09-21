@@ -61,6 +61,46 @@ describe("the drawer as a dialog", () => {
     ]);
   });
 
+  it("asks before closing over a note not yet saved: Esc, the ✕ and the backdrop alike (P5c)", () => {
+    draw(personView());
+    screen.getByTestId("drawer-note-field").focus();
+    fireEvent.change(screen.getByTestId("drawer-note-field"), { target: { value: "Call back after the board meets." } });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByTestId("drawer-unsaved").textContent).toContain(c.unsavedPrompt);
+    expect(document.activeElement).toBe(screen.getByTestId("drawer-keep-editing"));
+    // Esc on the question keeps editing: the note is still there, and focus is back in it.
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.queryByTestId("drawer-unsaved")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByTestId("drawer-note-field"));
+    expect((screen.getByTestId("drawer-note-field") as HTMLTextAreaElement).value).toBe("Call back after the board meets.");
+    // A click in jsdom moves no focus, so the ✕ is focused as a browser would on pressing it.
+    screen.getByRole("button", { name: c.close }).focus();
+    fireEvent.click(screen.getByRole("button", { name: c.close }));
+    fireEvent.click(screen.getByTestId("drawer-keep-editing"));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: c.close }));
+    fireEvent.click(screen.getByTestId("person-drawer-backdrop"));
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("drawer-close-anyway"));
+    expect(push.mock.calls).toEqual([[CLOSE, { scroll: false }]]);
+  });
+
+  it("asks before closing over an edited email, and not once the edit is put back (P5c)", () => {
+    draw(personView({ drafts: { email1: draft("d1") }, emailCards: { email1: emailCard("d1") } }));
+    const item = openStep("email1");
+    fireEvent.click(within(item).getByRole("button", { name: inboxCopy.edit }));
+    const field = within(item).getByRole("textbox", { name: inboxCopy.bodyField });
+    const original = (field as HTMLTextAreaElement).value;
+    fireEvent.change(field, { target: { value: `${original} One more line.` } });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByTestId("drawer-unsaved")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("drawer-keep-editing"));
+    fireEvent.change(field, { target: { value: original } });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(push).toHaveBeenCalledWith(CLOSE, { scroll: false });
+  });
+
   it("keeps Tab inside: past the last control is the first, before the first is the last", () => {
     draw(personView());
     const dialog = screen.getByRole("dialog");

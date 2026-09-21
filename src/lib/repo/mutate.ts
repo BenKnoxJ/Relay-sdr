@@ -107,6 +107,14 @@ export type EventKind =
   | "outreach.paused"
   /// A rep resumed a paused campaign's outreach.
   | "outreach.resumed"
+  /// A rep recorded something on a person's outreach (Relay P4): a step
+  /// marked, a note, a meeting, an outcome. `after` is the `outreach_events`
+  /// row, written in the same transaction.
+  | "outreach.tracked"
+  /// A rep undid one of those: `after` is the undo row naming the one it reverses.
+  | "outreach.undone"
+  /// A rep set or cleared a person's phone number; `before` and `after` carry it.
+  | "outreach.phone_set"
   /// The rep rejected a draft with a reason (§9); a redraft, when the reason
   /// asks for one, is enqueued in the same transaction.
   | "draft.rejected"

@@ -4,6 +4,7 @@ import { connectionsRouter } from "@/server/api/routers/connections";
 import { draftsRouter } from "@/server/api/routers/drafts";
 import { meRouter } from "@/server/api/routers/me";
 import { runsRouter } from "@/server/api/routers/runs";
+import { trackingRouter } from "@/server/api/routers/tracking";
 import { createTRPCRouter } from "@/server/api/trpc";
 
 /**
@@ -16,6 +17,7 @@ export const appRouter = createTRPCRouter({
   connections: connectionsRouter,
   drafts: draftsRouter,
   runs: runsRouter,
+  tracking: trackingRouter,
 });
 
 export type AppRouter = typeof appRouter;

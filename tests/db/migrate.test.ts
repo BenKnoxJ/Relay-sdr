@@ -22,6 +22,7 @@ const EXPECTED_TABLES = [
   "oauth_states",
   "orgs",
   "outreach_drafts",
+  "outreach_events",
   "people",
   "product_facts_versions",
   "provider_identities",
@@ -79,7 +80,8 @@ describe("foundations", () => {
   it("timestamps every other table with created_at and updated_at", async () => {
     const missing: string[] = [];
     for (const table of EXPECTED_TABLES) {
-      if (table === "events") continue;
+      // Append-only tables: a row that can be edited is not a record of anything.
+      if (table === "events" || table === "outreach_events") continue;
       const columns = await listColumns(table);
       if (!columns.includes("created_at")) missing.push(`${table}.created_at`);
       if (!columns.includes("updated_at")) missing.push(`${table}.updated_at`);
@@ -212,6 +214,51 @@ describe("sequence dates (Relay P3)", () => {
       { table_name: "campaign_people", column_name: "outreach_start_on", data_type: "date", is_nullable: "YES", column_default: null },
       { table_name: "campaigns", column_name: "outreach_paused_at", data_type: "timestamp without time zone", is_nullable: "YES", column_default: null },
     ]);
+  });
+});
+
+describe("tracking events (Relay P4)", () => {
+  it("adds the table and a nullable phone per person, and changes no existing column", async () => {
+    expect(await listColumns("outreach_events")).toEqual([
+      "by_user_id",
+      "call_result",
+      "campaign_id",
+      "campaign_person_id",
+      "created_at",
+      "happened_on",
+      "id",
+      "kind",
+      "note",
+      "org_id",
+      "outcome",
+      "seq",
+      "step",
+      "undoes_event_id",
+    ]);
+    const phone = await prisma.$queryRaw<Array<{ data_type: string; is_nullable: string; column_default: string | null }>>`
+      SELECT data_type, is_nullable, column_default FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'campaign_people' AND column_name = 'phone'`;
+    expect(phone).toEqual([{ data_type: "text", is_nullable: "YES", column_default: null }]);
+    // Additive: the migration's only statements on existing tables add the phone column and its length check.
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync("prisma/migrations/20260921180000_outreach_events/migration.sql", "utf8").replace(/--.*$/gm, "");
+    expect(sql).not.toMatch(/\b(DROP|RENAME|TRUNCATE)\b|\bUPDATE\s+"|\bDELETE\s+FROM\b/i);
+    expect(sql.match(/ALTER TABLE "(\w+)" (ADD|ALTER|DROP) (COLUMN|CONSTRAINT) "?(\w+)/g)?.filter((line) => !line.includes('"outreach_events"'))).toEqual([
+      'ALTER TABLE "campaign_people" ADD COLUMN "phone',
+      'ALTER TABLE "campaign_people" ADD CONSTRAINT "campaign_people_phone_length',
+    ]);
+  });
+
+  it("@proof keeps outreach_events append-only: no updated_at, and UPDATE and DELETE are refused by the table itself", async () => {
+    expect(await listColumns("outreach_events")).not.toContain("updated_at");
+    const triggers = await prisma.$queryRaw<Array<{ event_manipulation: string }>>`
+      SELECT event_manipulation FROM information_schema.triggers
+       WHERE event_object_table = 'outreach_events' AND action_timing = 'BEFORE' ORDER BY event_manipulation`;
+    expect(triggers.map((trigger) => trigger.event_manipulation)).toEqual(["DELETE", "UPDATE"]);
+  });
+
+  it("undoes a row at most once", async () => {
+    expect((await listUniqueIndexes("outreach_events")).map((unique) => unique.columns)).toContainEqual(["undoes_event_id"]);
   });
 });
 

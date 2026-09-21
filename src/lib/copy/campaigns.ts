@@ -515,6 +515,8 @@ export const campaignsCopy = {
   summaryNotKept: "not kept",
   summaryPlays: "plays found",
   summaryPlay: "play found",
+  /** A campaign made for one play (Relay P1) names it in the list instead of counting research's plays. */
+  summaryPlayFor: "Play:",
   summaryStartWith: "start with",
   summaryWaiting: "Waiting to start",
   summaryRunning: "Running",

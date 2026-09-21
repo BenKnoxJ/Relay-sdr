@@ -4,7 +4,10 @@ import type { Campaign as CampaignRow, Job, Prisma } from "@prisma/client";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { nameFrom, toResearchBrief } from "@/lib/campaigns/brief";
+import { stageLineOf } from "@/lib/campaigns/stageLine";
+import { summaryFactsOf } from "@/lib/campaigns/summary";
 import { toCampaign, toCampaignResearch } from "@/lib/campaigns/view";
+import { campaignsCopy } from "@/lib/copy/campaigns";
 import { prisma } from "@/lib/db";
 import { NO_CRM } from "@/lib/leadgen/crm";
 import { FakeLeadGenProvider, type FakeStep } from "@/lib/leadgen/fakeProvider";
@@ -199,6 +202,17 @@ describe("Create campaigns from ticked plays", () => {
       expect(summary.input.stage.research.job?.status).toBe("done");
       expect(summary.input.research).toMatchObject({ outcome: "complete", viablePlays: 3 });
     }
+    // Each row names its own play, not "3 plays found"; the page's line says the same.
+    for (const campaign of campaigns) {
+      const page = await view(campaign);
+      const line = `${campaignsCopy.summaryPlayFor} ${page.plays?.[0]?.group.name}`;
+      expect(stageLineOf(summaryFactsOf(summaries.find((summary) => summary.campaign.id === campaign.id)!.input).facts)).toBe(line);
+      expect(stageLineOf(page.facts!)).toBe(line);
+    }
+    // A campaign with no play chosen still counts what research found.
+    const unmade = await planned();
+    const row = (await campaignSummariesForOwner(prisma, { orgId: ORG, userId: REP }, { leadGenAvailable: true })).find((summary) => summary.campaign.id === unmade.id)!;
+    expect(stageLineOf(summaryFactsOf(row.input).facts)).toBe(`3 ${campaignsCopy.summaryPlays}`);
   });
 
   it("offers the tick boxes only on the campaign research ran on, before a play is chosen", async () => {

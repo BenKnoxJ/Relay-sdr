@@ -9,6 +9,7 @@ import { accountsOf, buyerRolesOf, effectiveOf, revealTallyOf, reviewCounts, rol
 import type { FindingView } from "./types";
 import { becomesLine, widenHeadings } from "./briefLines";
 import { overviewOf } from "./overview";
+import { candidateById, groupName } from "./packSelectors";
 import { deriveLeadGen, deriveResearch, deriveReveal, leadGenResultOf, storedPack, type LeadGenState } from "./derive";
 import { executablePlayCount, playFactsOf, playsOf, rankedPlays } from "./plays";
 import type { ResearchResultFacts, StageResult } from "./stage";
@@ -82,6 +83,9 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
   const revealRecord = result?.kind === "picked" ? (leadGen?.reveal ?? null) : null;
   const ledger = record.ledger ?? [];
   const facts = pack === null || pack.insufficient !== undefined ? null : playFactsOf(pack);
+  // A made campaign's play by name (Relay P1), as the list reads it.
+  const chosen = facts === null || pack === null || record.campaign.playId === null ? undefined : candidateById(pack, record.campaign.playId);
+  const play = chosen === undefined || pack === null ? undefined : groupName(pack, chosen.archetypeId);
   const researchResult: ResearchResultFacts | null =
     record.event === null
       ? null
@@ -112,7 +116,12 @@ function summaryInputOf(record: CampaignRecord, brief: ResearchBrief, options: L
         ? null
         : researchResult.outcome === "insufficient"
           ? { outcome: "insufficient", plays: 0, viablePlays: 0 }
-          : { outcome: researchResult.outcome, plays: facts === null ? 0 : rankedPlays(facts).length, viablePlays: researchResult.executablePlays },
+          : {
+              outcome: researchResult.outcome,
+              plays: facts === null ? 0 : rankedPlays(facts).length,
+              viablePlays: researchResult.executablePlays,
+              ...(play === undefined ? {} : { play }),
+            },
     confirmed:
       handoff === null
         ? null

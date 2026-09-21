@@ -579,8 +579,8 @@ export type CampaignSummaryFacts = CampaignStageAttention & {
   updatedAt: string;
   inFlight: InFlightWork | null;
   nextAction: CampaignNextAction | null;
-  /** Null until research has a readable result at this version. */
-  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number } | null;
+  /** Null until research has a readable result at this version. `play` names a made campaign's play (Relay P1). */
+  research: { outcome: "complete" | "partial" | "insufficient"; plays: number; viablePlays: number; play?: string } | null;
   /** The play Confirm froze at this version. */
   confirmed: { groupId: string; groupName: string; playId: string | null; sourceRank: number } | null;
   /** The latest search's chosen people at this version. */

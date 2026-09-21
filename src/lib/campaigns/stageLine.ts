@@ -101,6 +101,7 @@ export function stageLineOf(facts: CampaignSummaryFacts): string | null {
     case "plan_ready": {
       const research = facts.research;
       if (research === null) return null;
+      if (research.play !== undefined) return `${c.summaryPlayFor} ${research.play}`;
       const plays = research.viablePlays > 0 ? plural(research.viablePlays, c.summaryPlay, c.summaryPlays) : null;
       return [plays].filter((part) => part !== null).join(c.noteJoin) || null;
     }

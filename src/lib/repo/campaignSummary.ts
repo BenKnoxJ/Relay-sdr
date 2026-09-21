@@ -87,7 +87,8 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
                'widenings', e.after->'pack'->'insufficient'->'widenings',
                'archetypeIds', jsonb_path_query_array(e.after, '$.pack.modules.m03 ? (@.status == "complete").archetypes[*].id'),
                'recipeArchetypeIds', jsonb_path_query_array(e.after, '$.pack.modules.m04 ? (@.status == "complete").perArchetype[*] ? (exists(@.recipe)).archetypeId'),
-               'candidates', jsonb_path_query_array(e.after, '$.pack.modules.m16 ? (@.status == "complete").candidates[*]')
+               'candidates', jsonb_path_query_array(e.after, '$.pack.modules.m16 ? (@.status == "complete").candidates[*]'),
+               'archetypeNames', jsonb_path_query_array(e.after, '$.pack.modules.m03 ? (@.status == "complete").archetypes[*] ? (exists(@.id) && exists(@.name))')
              )
              WHEN 'campaign.confirmed' THEN jsonb_build_object(
                'buyerGroup', e.after->'handoff'->'buyerGroup',
@@ -299,5 +300,14 @@ function researchFactsOf(event: EventRow | null, campaign: Campaign): { stage: R
   const facts = playFactsOfProjection(projection);
   const viablePlays = executablePlayCount(facts);
   const outcome = projection.partial === true ? "partial" : "complete";
-  return { stage: { readable: true, outcome, executablePlays: viablePlays }, summary: { outcome, plays: rankedPlays(facts).length, viablePlays } };
+  const play = playNameOfProjection(projection, facts, campaign.playId);
+  return { stage: { readable: true, outcome, executablePlays: viablePlays }, summary: { outcome, plays: rankedPlays(facts).length, viablePlays, ...(play === undefined ? {} : { play }) } };
+}
+
+/** The kind of buyer a made campaign's play is for, by name (Relay P1). */
+function playNameOfProjection(projection: Record<string, unknown>, facts: PlayFacts, playId: string | null): string | undefined {
+  if (playId === null) return undefined;
+  const archetypeId = facts.candidates.find((candidate) => candidate.id === playId)?.archetypeId;
+  const named = (Array.isArray(projection.archetypeNames) ? projection.archetypeNames : []).map(record).find((group) => group.id === archetypeId);
+  return typeof named?.name === "string" ? named.name : undefined;
 }

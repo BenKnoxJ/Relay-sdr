@@ -53,6 +53,7 @@ export function CampaignPage({
   onWiden,
   onRetry,
   onConfirm,
+  onCreatePlays,
   onRetryPeople,
   onChooseIndustry,
   onReview,
@@ -67,6 +68,8 @@ export function CampaignPage({
   onRetry?: (submission: RetrySubmission) => Promise<StartResult>;
   /** Confirm plan: the first spend gate (lead gen v2.1 §6), naming the play the rep chose (v2.3). */
   onConfirm?: (submission: RetrySubmission & { candidateId?: string }) => Promise<StartResult>;
+  /** Create campaigns (Relay P1): each ticked play as its own campaign on this research. */
+  onCreatePlays?: (submission: RetrySubmission & { playIds: string[] }) => Promise<StartResult>;
   onRetryPeople?: (submission: RetrySubmission) => Promise<StartResult>;
   /** Try again on a reveal that stopped before any request left Relay (a server action). */
   onRetryReveal?: (submission: RetrySubmission) => Promise<StartResult>;
@@ -92,9 +95,12 @@ export function CampaignPage({
   const stage = facts?.stage ?? null;
   const revealNeedsYou = stage === "reveal_needs_you";
   // The play Confirm names: research's recommended one until the rep picks another that can be searched (lead gen v2.3).
+  // A campaign made for one play (Relay P1) has that play only, and Confirm names it.
   const plays = campaign.plays ?? [];
-  const recommendedId = plays.find((play) => play.recommended)?.id ?? null;
+  const recommendedId = campaign.playId ?? plays.find((play) => play.recommended)?.id ?? null;
   const [candidateId, setCandidateId] = useState<string | null>(recommendedId);
+  const [ticked, setTicked] = useState<string[]>([]);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [revealOpen, setRevealOpen] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
@@ -205,6 +211,36 @@ export function CampaignPage({
     setPending(false);
   };
 
+  const createPlays = () => {
+    if (onCreatePlays === undefined || pending || ticked.length === 0) return;
+    setPending(true);
+    setCreateError(null);
+    void onCreatePlays({ ...target, requestId, playIds: ticked })
+      .then((result) => {
+        if ("id" in result) {
+          router.push("/campaigns");
+          router.refresh();
+          return;
+        }
+        setCreateError(result.error);
+        setPending(false);
+      })
+      .catch(() => {
+        setCreateError(campaignsCopy.cannotChange);
+        setPending(false);
+      });
+  };
+  const pick =
+    live && campaign.canCreatePlays === true && onCreatePlays !== undefined
+      ? {
+          ticked,
+          onTick: (id: string) => setTicked((now) => (now.includes(id) ? now.filter((each) => each !== id) : [...now, id])),
+          onCreate: createPlays,
+          pending,
+          error: createError,
+        }
+      : null;
+
   const confirmWithPlay = () => submit((submission) => onConfirm!({ ...submission, ...(candidateId === null ? {} : { candidateId }) }), confirmed);
 
   const review =
@@ -254,7 +290,7 @@ export function CampaignPage({
   } else if (state === "stopped" && campaign.pack?.insufficient !== undefined) {
     main.push(<WidenCard key="widen" reason={campaign.pack.insufficient.reason} found={campaign.pack.stopEvidence ?? []} choices={campaign.widenings ?? []} onWiden={widen} />);
   } else if (state === "planReady" && campaign.overview !== null && live) {
-    main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={campaign.confirmPlan ?? null} selectedId={candidateId} onSelect={setCandidateId} />);
+    main.push(<PlanDecision key="plan" plays={plays} overview={campaign.overview} confirmPlan={campaign.confirmPlan ?? null} selectedId={candidateId} onSelect={setCandidateId} pick={pick} />);
   } else if (state === "findingPeople") {
     main.push(<FindingCard key="finding" inFlight={facts?.inFlight} finding={campaign.finding ?? null} groupName={facts?.confirmed?.groupName ?? campaign.overview?.startWith?.groupName ?? null} spend={facts?.spend.search ?? campaign.spend?.search ?? null} />);
   } else if (state === "peopleNeedsYou" && campaign.peopleNeedsYou) {

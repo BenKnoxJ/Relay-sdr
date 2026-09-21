@@ -226,6 +226,39 @@ describe("a real campaign", () => {
     }
   });
 
+  it("ticks the plays that can be searched, and Create campaigns sends them once and goes to the list (Relay P1)", async () => {
+    const live = liveCampaign("complete");
+    expect(live.canCreatePlays).toBe(true);
+    const onCreatePlays = vi.fn<(submission: RetrySubmission & { playIds: string[] }) => Promise<StartResult>>().mockResolvedValue({ id: live.id });
+    render(<CampaignPage campaign={live} onConfirm={vi.fn()} onCreatePlays={onCreatePlays} />);
+
+    const executable = (live.plays ?? []).filter((play) => play.executable);
+    const ticks = screen.getAllByTestId("play-tick");
+    expect(ticks).toHaveLength(executable.length);
+    const create = screen.getByRole("button", { name: campaignsCopy.playsCreate });
+    expect(create.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(ticks[1]!);
+    fireEvent.click(ticks[0]!);
+    fireEvent.click(create);
+    fireEvent.click(create);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns"));
+    expect(onCreatePlays).toHaveBeenCalledTimes(1);
+    expect(onCreatePlays.mock.calls[0]?.[0]).toMatchObject({ campaignId: live.id, briefVersion: live.briefVersion, playIds: [executable[1]?.id, executable[0]?.id] });
+    expect(onCreatePlays.mock.calls[0]?.[0].requestId).toMatch(UUID);
+  });
+
+  it("shows a campaign made for one play that play only, with no tick boxes, and Confirm names it (Relay P1)", async () => {
+    const live = liveCampaign("complete");
+    const mine = (live.plays ?? []).filter((play) => play.executable)[1]!;
+    const made = { ...live, plays: [mine], playId: mine.id, canCreatePlays: false };
+    const onConfirm = vi.fn<(submission: RetrySubmission & { candidateId?: string }) => Promise<StartResult>>().mockResolvedValue({ id: live.id });
+    render(<CampaignPage campaign={made} onConfirm={onConfirm} onCreatePlays={vi.fn()} />);
+
+    expect(screen.queryAllByTestId("play-tick")).toHaveLength(0);
+    expect(screen.queryByTestId("plays-create")).toBeNull();
+    expect(screen.getByTestId("confirm-starts-with").textContent).toContain(mine.group.name);
+  });
+
   it("keeps the whole research one tab away, and offers Edit brief", () => {
     const live = liveCampaign("complete");
     render(<CampaignPage campaign={live} />);

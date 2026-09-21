@@ -239,22 +239,33 @@ model Event {
 /// takes it from the row `apply` wrote (`mutate`'s `campaignId` can be read
 /// off `apply`'s result), so nothing has to be minted ahead of the row.
 model Campaign {
-  id             String   @id @default(cuid())
-  orgId          String   @map("org_id")
-  ownerUserId    String   @map("owner_user_id")
-  name           String
-  briefVersion   Int      @default(1) @map("brief_version")
-  brief          Json
-  startRequestId String   @map("start_request_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                       String   @id @default(cuid())
+  orgId                    String   @map("org_id")
+  ownerUserId              String   @map("owner_user_id")
+  name                     String
+  briefVersion             Int      @default(1) @map("brief_version")
+  brief                    Json
+  startRequestId           String   @map("start_request_id")
+  /// Set on a campaign made from one play of another campaign's research
+  /// (Relay P1): that campaign, and the brief version whose research this one
+  /// reads at its own version 1. Both or neither (a CHECK in the migration);
+  /// the repo checks the source is this org's and this rep's.
+  researchFromCampaignId   String?  @map("research_from_campaign_id")
+  researchFromBriefVersion Int?     @map("research_from_brief_version")
+  /// The play (an m16 candidate id) this campaign is for, once the rep chose
+  /// plays on Plan ready. Confirm names it; null is research's own choice.
+  playId                   String?  @map("play_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  org       Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
-  ownerUser User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
-  jobs      Job[]
-  people    CampaignPerson[]
-  credits   CreditLedgerEntry[]
-  drafts    OutreachDraft[]
+  org          Org                 @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  ownerUser    User                @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  researchFrom Campaign?           @relation("CampaignResearchFrom", fields: [researchFromCampaignId], references: [id], onDelete: Restrict)
+  researchFor  Campaign[]          @relation("CampaignResearchFrom")
+  jobs         Job[]
+  people       CampaignPerson[]
+  credits      CreditLedgerEntry[]
+  drafts       OutreachDraft[]
 
   @@unique([orgId, startRequestId])
   @@index([orgId, ownerUserId, createdAt])

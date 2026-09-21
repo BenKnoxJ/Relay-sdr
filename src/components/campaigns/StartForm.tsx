@@ -287,6 +287,7 @@ export function StartForm({
    * Left out reads as none activated.
    */
   facts?: ActiveFactsVersion | null;
+  /** Start never waits on it (Relay P1): without one, a quiet line says Outlook is needed before sending. */
   mailboxConnected: boolean;
   /** Makes the campaign and asks for its research; comes back with where to go or a line to show. */
   onStart: (submission: StartSubmission) => Promise<StartResult>;
@@ -702,7 +703,7 @@ export function StartForm({
           <PillButton
             disabled={
               // The sentence is Who: while its box is open, the card still holds the last one read.
-              (edit === undefined && (!mailboxConnected || editing)) || pending || sizeBackwards || draft.who.trim() === ""
+              (edit === undefined && editing) || pending || sizeBackwards || draft.who.trim() === ""
             }
             onClick={() => void start()}
           >
@@ -724,14 +725,6 @@ export function StartForm({
                 {startCopy.editCancel}
               </Link>
             </>
-          ) : !mailboxConnected ? (
-            // Why Start is off, then where to go about it.
-            <span data-testid="connect-first" className="type-small text-muted">
-              <span data-testid="start-blocked">{startCopy.startBlockedMailbox}</span> {startCopy.connectFirst}{" "}
-              <Link href="/settings" className="text-action underline">
-                {startCopy.connectLink}
-              </Link>
-            </span>
           ) : editing ? (
             <span data-testid="start-blocked" className="type-small text-muted">
               {startCopy.startBlockedSentence}
@@ -739,6 +732,15 @@ export function StartForm({
           ) : (
             <span className="type-small text-muted">{startCopy.startNote}</span>
           )}
+          {edit === undefined && !mailboxConnected ? (
+            // Research needs no mailbox; sending does. One quiet line, and where to connect it.
+            <span data-testid="connect-later" className="type-small basis-full text-muted">
+              {startCopy.connectBeforeSending}{" "}
+              <Link href="/settings" className="text-action underline">
+                {startCopy.connectLink}
+              </Link>
+            </span>
+          ) : null}
         </div>
         {error === null ? null : (
           <p role="alert" data-testid="start-error" className="type-small mt-3 text-warn">

@@ -167,9 +167,31 @@ describe("campaigns", () => {
       "name",
       "org_id",
       "owner_user_id",
+      "play_id",
+      "research_from_brief_version",
+      "research_from_campaign_id",
       "start_request_id",
       "updated_at",
     ]);
+  });
+
+  it("reads another campaign's research at one version of it, or its own: both or neither (Relay P1)", async () => {
+    // Its own org, so it does not depend on the rows the tests above wrote.
+    await prisma.$executeRaw`INSERT INTO orgs (id, name, updated_at) VALUES ('org_p', 'org_p', now())`;
+    await prisma.$executeRaw`INSERT INTO users (id, org_id, email, updated_at) VALUES ('user_p', 'org_p', 'p@example.test', now())`;
+    await prisma.$executeRaw`
+      INSERT INTO campaigns (id, org_id, owner_user_id, name, brief, start_request_id, updated_at)
+      VALUES ('camp_p', 'org_p', 'user_p', 'Vets', '{}'::jsonb, 'req_p', now())`;
+    const insertFrom = (id: string, from: string | null, version: number | null) =>
+      prisma.$executeRaw`
+        INSERT INTO campaigns (id, org_id, owner_user_id, name, brief, start_request_id, research_from_campaign_id, research_from_brief_version, play_id, updated_at)
+        VALUES (${id}, 'org_p', 'user_p', 'Play', '{}'::jsonb, ${id}, ${from}, ${version}::integer, 'candidate-a', now())`;
+
+    await expect(insertFrom("both", "camp_p", 1)).resolves.toBe(1);
+    await expect(insertFrom("campaign-only", "camp_p", null)).rejects.toThrow(/campaigns_research_from_together/);
+    await expect(insertFrom("version-only", null, 1)).rejects.toThrow(/campaigns_research_from_together/);
+    await expect(insertFrom("version-zero", "camp_p", 0)).rejects.toThrow(/campaigns_research_from_version_positive/);
+    await expect(insertFrom("no-such-source", "camp_missing", 1)).rejects.toThrow(/campaigns_research_from_campaign_id_fkey/);
   });
 });
 

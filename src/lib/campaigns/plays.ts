@@ -16,6 +16,23 @@ import type { ResearchPlayView } from "./types";
  * out of the pack: the pack stays the one record of what research wrote.
  */
 
+/**
+ * Whose research a campaign reads, and at which brief version (Relay P1). A
+ * campaign made from one play of another campaign's plan reads that plan at
+ * its own version 1, and no research cost is spent on it; once its brief is
+ * edited it has research of its own, like any other campaign.
+ */
+export function researchSourceOf(campaign: {
+  id: string;
+  briefVersion: number;
+  researchFromCampaignId: string | null;
+  researchFromBriefVersion: number | null;
+}): { campaignId: string; briefVersion: number } {
+  return campaign.researchFromCampaignId !== null && campaign.researchFromBriefVersion !== null && campaign.briefVersion === 1
+    ? { campaignId: campaign.researchFromCampaignId, briefVersion: campaign.researchFromBriefVersion }
+    : { campaignId: campaign.id, briefVersion: campaign.briefVersion };
+}
+
 /** The three facts ranking and confirming need, from a whole pack or from the few paths a summary reads. */
 export type PlayFacts = {
   archetypeIds: readonly string[];

@@ -97,13 +97,18 @@ export async function findLeadGenResult(db: Db, where: { orgId: string; jobId: s
 const EMAIL_TYPES = new Set<KnownPerson["emailType"]>(["work", "personal", "unknown"]);
 
 export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowledge> {
-  const [people, identities, suppressions, enrolled] = await Promise.all([
+  const [people, identities, suppressions, enrolled, elsewhere] = await Promise.all([
     db.person.findMany({ where: { orgId: where.orgId }, select: { id: true, email: true, emailType: true, grade: true } }),
     db.providerIdentity.findMany({ where: { orgId: where.orgId, provider: "lusha" }, select: { providerId: true, personId: true, status: true } }),
     db.contactSuppression.findMany({ where: { orgId: where.orgId }, select: { kind: true, value: true, reason: true } }),
     db.campaignPerson.findMany({
       where: { orgId: where.orgId, campaignId: where.campaignId, briefVersion: where.briefVersion, personId: { not: null } },
       select: { personId: true },
+    }),
+    // Kept or revealed in the org's other campaigns (Relay P1): lead gen does not pick them again.
+    db.campaignPerson.findMany({
+      where: { orgId: where.orgId, campaignId: { not: where.campaignId }, OR: [{ review: "kept" }, { reveal: { in: ["revealed", "known"] } }] },
+      select: { providerId: true, personId: true, reveal: true },
     }),
   ]);
   return {
@@ -116,6 +121,7 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
     providerIdentities: identities.map((identity) => ({ provider: "lusha" as const, ...identity })),
     suppressions,
     enrolledPersonIds: enrolled.map((row) => row.personId).filter((id): id is string => id !== null),
+    inOtherCampaigns: elsewhere.map((row) => ({ providerId: row.providerId, personId: row.personId, revealed: row.reveal === "revealed" || row.reveal === "known" })),
   };
 }
 

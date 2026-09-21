@@ -94,6 +94,11 @@ export function planReveal(kept: readonly RevealCandidate[], knowledge: Knowledg
     }
     // Reuse only through this provider record, or the Person the search already linked: never by name.
     const personId = identity?.personId ?? candidate.personId;
+    // Revealed in another of the org's campaigns since it was picked here (Relay P1): not bought or used twice.
+    if (knowledge.inOtherCampaign(candidate.providerId, personId, true)) {
+      entries.set(candidate.id, { kind: "skip", reveal: "held", hold: "in_other_campaign" });
+      continue;
+    }
     const person = personId === null ? undefined : knowledge.person(personId);
     if (person !== undefined) {
       if (attached.has(person.id)) {

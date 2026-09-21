@@ -177,6 +177,10 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     live: true,
   };
   const pack = record.event === null ? null : storedPack(record.event.after);
+  // A campaign made for one play (Relay P1) shows and confirms that play only.
+  const playId = record.campaign.playId;
+  const allPlays = pack === null || pack.insufficient !== undefined ? null : playsOf(pack);
+  const plays = allPlays === null || playId === null ? allPlays : allPlays.filter((play) => play.id === playId);
 
   const confirmPlan: ConfirmPlanView | null =
     state === "planReady"
@@ -202,6 +206,7 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
           roles: handoff.version === 2,
           review: reviewCounts(leadGen?.people ?? []),
           onHold: found.holdsApplied.reduce((total, hold) => total + hold.count, 0),
+          inOtherCampaign: found.holdsApplied.find((hold) => hold.reason === "in_other_campaign")?.count ?? 0,
           spare: spareCount(leadGen?.people ?? []),
           rolesMissing: rolesMissingFrom(buyerRolesOf(handoff), leadGen?.people ?? []),
           spend: { charged: spend?.charged ?? 0, reserved: spend?.reserved ?? 0, cap },
@@ -266,7 +271,11 @@ export function toCampaign(record: CampaignRecord, options: LeadGenOptions = NO_
     peopleFound,
     peopleNeedsYou,
     spentAtThisVersion: spend !== null && spend.charged + spend.reserved > 0,
-    plays: pack === null || pack.insufficient !== undefined ? null : playsOf(pack),
+    plays: plays,
+    playId,
+    // Only on the campaign research ran on, before a play was chosen, and when there is more than one to choose.
+    canCreatePlays:
+      state === "planReady" && playId === null && record.campaign.researchFromCampaignId === null && (plays ?? []).filter((play) => play.executable).length > 1,
     spend: facts.spend,
     finding: findingOf(derived.stage, handoff, leadGen?.job ?? null, facts.spend),
   };

@@ -3,7 +3,7 @@ import type { Campaign, JobStatus, Prisma, PrismaClient } from "@prisma/client";
 import { HALT_REASONS, type Halt } from "../../../agents/leadgen/output.schema";
 import { researchBriefSchema } from "../../../agents/research/input.schema";
 import { widenedBrief } from "@/lib/campaigns/brief";
-import { executablePlayCount, rankedPlays, type PlayFacts } from "@/lib/campaigns/plays";
+import { executablePlayCount, rankedPlays, researchSourceOf, type PlayFacts } from "@/lib/campaigns/plays";
 import type { LeadGenResult, OutreachFacts, ResearchResultFacts } from "@/lib/campaigns/stage";
 import { revealLedgerOf, spendOf, type LedgerGroup, type PeopleGroup, type ResearchCost, type SummaryInput } from "@/lib/campaigns/summary";
 
@@ -127,11 +127,12 @@ function playFactsOfProjection(projection: Record<string, unknown>): PlayFacts {
   return { archetypeIds: strings(projection.archetypeIds), recipeArchetypeIds: strings(projection.recipeArchetypeIds), candidates };
 }
 
-/** The latest job of one kind at the campaign's current version. */
+/** The latest job of one kind at the campaign's current version; research through the campaign it reads it from (`researchSourceOf`). */
 function latest(jobs: readonly JobRow[], campaign: Campaign, kind: string): JobRow | null {
+  const at = kind === "research" ? researchSourceOf(campaign) : { campaignId: campaign.id, briefVersion: campaign.briefVersion };
   return (
     jobs
-      .filter((job) => job.campaignId === campaign.id && job.briefVersion === campaign.briefVersion && job.kind === kind)
+      .filter((job) => job.campaignId === at.campaignId && job.briefVersion === at.briefVersion && job.kind === kind)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))[0] ?? null
   );
 }
@@ -142,15 +143,17 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
   const campaigns = await db.campaign.findMany({ where: { orgId: owner.orgId, ownerUserId: owner.userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   if (campaigns.length === 0) return [];
   const ids = campaigns.map((campaign) => campaign.id);
+  // A campaign made from one play of another's plan reads that campaign's research (Relay P1).
+  const withSources = [...new Set([...ids, ...campaigns.flatMap((campaign) => (campaign.researchFromCampaignId === null ? [] : [campaign.researchFromCampaignId]))])];
 
   const [jobs, ledger, costs, events] = await Promise.all([
     db.job.findMany({
-      where: { orgId: owner.orgId, campaignId: { in: ids }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB, OUTREACH_DRAFT_JOB] } },
+      where: { orgId: owner.orgId, campaignId: { in: withSources }, kind: { in: ["research", LEAD_GEN_JOB, REVEAL_JOB, OUTREACH_DRAFT_JOB] } },
       select: { id: true, campaignId: true, briefVersion: true, kind: true, status: true, error: true, createdAt: true },
     }),
     ledgerGroupsFor(db, owner.orgId, ids),
     researchCostsFor(db, owner.orgId, ids),
-    resultEventsFor(db, owner.orgId, ids),
+    resultEventsFor(db, owner.orgId, withSources),
   ]);
 
   // The first Event of a kind for a job is its result, as the campaign page reads it.

@@ -38,6 +38,9 @@ export function liveCampaign(kind: LiveKind): Campaign {
     briefVersion: 1,
     brief,
     startRequestId: `req-${kind}`,
+    researchFromCampaignId: null,
+    researchFromBriefVersion: null,
+    playId: null,
     createdAt: AT,
     updatedAt: AT,
   };

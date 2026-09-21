@@ -57,6 +57,10 @@ export type EventKind =
   /// says which, and the research job for the new version is enqueued in the
   /// same transaction.
   | "campaign.brief_changed"
+  /// A rep ticked plays on Plan ready (Relay P1): the first stays on this
+  /// campaign and each other becomes a new campaign reading this one's
+  /// research, each with its own `campaign.created`, in the same transaction.
+  | "campaign.plays_chosen"
   /// A rep pressed Try again on research that failed: the failed job went
   /// back on the queue, at the same brief version with the same input.
   | "campaign.research_retried"

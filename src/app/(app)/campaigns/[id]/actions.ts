@@ -102,6 +102,18 @@ export async function confirmPlan(submission: RetrySubmission & { candidateId?: 
   );
 }
 
+/** Create campaigns (Relay P1): each ticked play as its own campaign on this research. */
+export async function createPlayCampaigns(submission: RetrySubmission & { playIds: string[] }): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.createPlays({
+      campaignId: submission.campaignId,
+      fromBriefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+      playIds: submission.playIds,
+    }),
+  );
+}
+
 /** Try again on Reveal emails, where nothing can have been charged. */
 export async function retryRevealEmails(submission: RetrySubmission): Promise<StartResult> {
   return answered(async () =>

@@ -378,20 +378,11 @@ describe("reuse, never twice, and suppression", () => {
     expect(first.provider.calls.map((call) => call.providerIds)).toEqual([["l-002"]]);
     expect(await prisma.campaignPerson.findUniqueOrThrow({ where: { id: one.byProvider.get("l-001")!.id } })).toMatchObject({ reveal: "known", personId: owned.id, source: "reused" });
 
-    // A second campaign finds both again: both are Relay's already, so nothing is bought.
+    // A second campaign does not pick them again: both are in the first campaign already (Relay P1), so nothing is bought.
     const two = await found();
-    expect(two.byProvider.get("l-002")).toMatchObject({ source: "reused" });
-    await decide(two.campaign, two.byProvider.get("l-001")!.id);
-    await decide(two.campaign, two.byProvider.get("l-002")!.id);
-    expect((await view(two.campaign)).peopleFound?.revealPlan).toMatchObject({ kept: 2, known: 2, toReveal: 0, maxCredits: 0 });
-    await approve(two.campaign);
-    const second = await reveal(await revealJob(two.campaign.id), []);
-    expect(second.provider.calls).toHaveLength(0);
-    const emails = (await view(two.campaign)).peopleFound!.accounts.flatMap((account) => account.people).map((person) => [person.reveal, person.email]);
-    expect(emails).toEqual([
-      ["known", "owned@firm1.co.uk"],
-      ["known", "person2@firm2.co.uk"],
-    ]);
+    expect(two.byProvider.has("l-001")).toBe(false);
+    expect(two.byProvider.has("l-002")).toBe(false);
+    expect((await view(two.campaign)).peopleFound?.inOtherCampaign).toBe(2);
     expect((await revealCredits()).reduce((total, entry) => total + (entry.charged ?? 0), 0)).toBe(1);
   });
 

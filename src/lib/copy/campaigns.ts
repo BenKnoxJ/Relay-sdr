@@ -183,6 +183,7 @@ export const campaignsCopy = {
   shortfallNoMore: "The search ran out of people who fit the plan.",
   peopleReusedChip: "Already known",
   peopleHeldBack: "held back by your rules.",
+  peopleInOtherCampaign: "already in another campaign, so not picked again.",
   spendUsed: "Search used",
   spendOf: "of",
   spendCredits: "credits.",
@@ -317,6 +318,7 @@ export const campaignsCopy = {
     not_work_email: "Only a personal email was found, so Relay won't use it.",
     grade: "The email found is low confidence, so Relay won't use it.",
     duplicate_in_campaign: "Already in this campaign through another record.",
+    in_other_campaign: "Already in another campaign.",
     wrong_person: "The details returned didn't match this person, so the email wasn't used.",
     invalid_id: "This person's record is no longer available.",
     provider_unusable: "This person's email can't be revealed.",
@@ -459,6 +461,11 @@ export const campaignsCopy = {
   playsNo: "No",
   playsDetailLabel: "The play Confirm starts with",
   playsSelectedRank: "Play",
+  /** Relay P1: tick plays on Plan ready, and each becomes its own campaign. */
+  playsTick: "Make a campaign for",
+  playsCreate: "Create campaigns",
+  playsCreating: "Creating…",
+  playsCreateNote: "Each ticked play becomes its own campaign on this research, confirmed on its own. Nothing is searched or spent yet.",
   /** Revealing emails stopped and needs the rep (product-truth foundation). */
   revealNeedsYouLabel: "Revealing emails needs you",
   stepRevealNeedsYou: "Revealing emails · needs you",
@@ -860,7 +867,6 @@ export const startCopy = {
   howManyHint:
     "Relay finds the strongest-fit accounts first, then the people who run, champion and sign off the problem at each. You review them all before any email is bought.",
   /** Why Start cannot be pressed, said beside it rather than left to be guessed. */
-  startBlockedMailbox: "Start is off until your mailbox is connected.",
   startBlockedSentence: "Start is off until the sentence is read.",
 
   motionDirect: "Direct",
@@ -915,6 +921,6 @@ export const startCopy = {
   editSubmitting: "Asking",
   editNote: "Usually 20 to 45 minutes. Nothing is bought or sent.",
   editCancel: "Cancel",
-  connectFirst: "Connect your mailbox first",
+  connectBeforeSending: "Outlook needs connecting before anything is sent, not to start research.",
   connectLink: "Settings",
 } as const;

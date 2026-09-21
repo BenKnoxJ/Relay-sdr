@@ -144,7 +144,7 @@ function campaign(stage: Stage | null, options: LeadGenOptions = AVAILABLE): Cam
               ]),
         ];
   const record = {
-    campaign: { id: "camp-people", orgId: "org_ui", ownerUserId: "user_ui", name: "Claims people", briefVersion: 1, brief, startRequestId: "req", createdAt: AT, updatedAt: AT },
+    campaign: { id: "camp-people", orgId: "org_ui", ownerUserId: "user_ui", name: "Claims people", briefVersion: 1, brief, startRequestId: "req", researchFromCampaignId: null, researchFromBriefVersion: null, playId: null, createdAt: AT, updatedAt: AT },
     job: { id: "job-research", status: "done", error: null },
     event: { id: "event-research", after: { jobId: "job-research", pack: JSON.parse(JSON.stringify(completePack())) } },
     ledger,
@@ -235,6 +235,19 @@ describe("Plan ready keeps the notes for a plan not yet confirmed", () => {
 });
 
 describe("People found", () => {
+  it("says how many were already in another campaign on their own line, and does not count them under the rules too (Relay P1)", () => {
+    const held = { ...full, holdsApplied: [{ reason: "in_other_campaign" as const, count: 2 }, { reason: "excluded_title" as const, count: 1 }] };
+    const { unmount } = render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: held }, people: rows(full), spend: { charged: 12, reserved: 0 } })} />);
+    expect(screen.getByTestId("in-other-campaign").textContent).toBe(`2 ${campaignsCopy.peopleInOtherCampaign}`);
+    expect(screen.getByTestId("on-hold").textContent).toBe(`1 ${campaignsCopy.peopleHeldBack}`);
+    unmount();
+
+    const onlyOther = { ...full, holdsApplied: [{ reason: "in_other_campaign" as const, count: 2 }] };
+    render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: onlyOther }, people: rows(full), spend: { charged: 12, reserved: 0 } })} />);
+    expect(screen.getByTestId("in-other-campaign")).toBeDefined();
+    expect(screen.queryByTestId("on-hold")).toBeNull();
+  });
+
   it("lists the people found, N of N, with the spend from the ledger, and Reveal emails not pressable while nobody is kept", () => {
     render(<CampaignPage campaign={campaign({ result: { kind: "leadgen.picked", output: full }, people: rows(full), spend: { charged: 12, reserved: 0 } })} />);
     expect(screen.getByTestId("found-count").textContent).toBe(`10 ${campaignsCopy.peopleFoundOf} 10`);

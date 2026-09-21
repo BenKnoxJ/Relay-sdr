@@ -378,9 +378,13 @@ describe("reuse, identity and one enrolment per person", () => {
 
   it("@proof reuses a usable owned person: nothing to buy, linked to the Person, and again in another campaign", async () => {
     const personId = await owned(ORG, "l-001");
-    for (const campaign of [await planned(), await planned()]) {
+    const campaigns = [await planned(), await planned()];
+    // Both find people before either keeps anyone: once kept in one, a person is held in the other (Relay P1).
+    for (const campaign of campaigns) {
       await confirm(campaign);
       await run(await latestJob(campaign.id), [page(range(1, 12))]);
+    }
+    for (const campaign of campaigns) {
       const row = await prisma.campaignPerson.findFirstOrThrow({ where: { campaignId: campaign.id, providerId: "l-001" } });
       expect(row).toMatchObject({ source: "reused", personId, status: "chosen" });
       // Nothing is kept yet, so nothing would be revealed: pending is not kept (v2.2 §9a).

@@ -13,8 +13,9 @@ import { startCampaign } from "./actions";
  * Start (master doc §23.1d, mock 3d).
  *
  * The page resolves one thing on the server: whether the rep's mailbox is
- * connected, read from the connections router, so "Start research" is enabled
- * for real. Calls start off: there is no saved Calls preference yet, and a
+ * connected, read from the connections router. Start does not wait on it
+ * (Relay P1): research sends nothing, so without a mailbox the card says only
+ * that Outlook is needed before sending. Calls start off: there is no saved Calls preference yet, and a
  * default read from a fixture would put a channel in the brief the rep never
  * chose.
  *

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/Card";
+import { PillButton } from "@/components/PillButton";
 import { TextButton } from "@/components/TextButton";
 import type { CampaignOverview, ConfirmPlanView, ResearchPlayView } from "@/lib/campaigns/types";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
@@ -16,6 +17,10 @@ import { PackItem } from "./PackItem";
  * under the table reads the selected play in full. Confirm freezes the one
  * the rep names (`candidateId`, lead gen v2.3). A play research gave no
  * search for can be read but not confirmed, and says so.
+ *
+ * On the campaign research ran on, each play that can be searched also has
+ * a tick box: the ticked plays become a campaign each (Relay P1), and each is
+ * then confirmed on its own.
  *
  * The full research is not here. It is one press away in the support rail
  * and on its own page; this card is what the rep decides on.
@@ -50,7 +55,28 @@ function whoShort(play: ResearchPlayView, group: GroupDetail): string {
   return parts.join(c.noteJoin);
 }
 
-function Compare({ plays, groupOf, selectedId, onSelect }: { plays: readonly ResearchPlayView[]; groupOf: (play: ResearchPlayView) => GroupDetail; selectedId: string | null; onSelect: (id: string) => void }) {
+/** Ticking plays to make a campaign each (Relay P1); null where plays cannot be ticked. */
+export type PlayPick = {
+  ticked: readonly string[];
+  onTick: (id: string) => void;
+  onCreate: () => void;
+  pending: boolean;
+  error: string | null;
+};
+
+function Compare({
+  plays,
+  groupOf,
+  selectedId,
+  onSelect,
+  pick,
+}: {
+  plays: readonly ResearchPlayView[];
+  groupOf: (play: ResearchPlayView) => GroupDetail;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  pick: PlayPick | null;
+}) {
   const c = campaignsCopy;
   return (
     <section data-testid="plays-compare" aria-label={c.playsCompareLabel} className="min-w-0">
@@ -78,6 +104,17 @@ function Compare({ plays, groupOf, selectedId, onSelect }: { plays: readonly Res
                   className={cn("border-b border-line align-top last:border-b-0", selected ? "bg-soft/40" : "")}
                 >
                   <td className="w-[28%] min-w-[160px] py-2 pr-3">
+                    {pick !== null && play.executable ? (
+                      <input
+                        type="checkbox"
+                        data-testid="play-tick"
+                        aria-label={`${c.playsTick} ${play.group.name}`}
+                        checked={pick.ticked.includes(play.id)}
+                        disabled={pick.pending}
+                        onChange={() => pick.onTick(play.id)}
+                        className="mr-2 align-middle"
+                      />
+                    ) : null}
                     {play.executable ? (
                       <button
                         type="button"
@@ -167,6 +204,7 @@ export function PlanDecision({
   confirmPlan,
   selectedId,
   onSelect,
+  pick = null,
 }: {
   plays: readonly ResearchPlayView[];
   overview: CampaignOverview;
@@ -174,6 +212,7 @@ export function PlanDecision({
   /** The play Confirm will name: the rep's pick, or the recommended one. */
   selectedId: string | null;
   onSelect: (candidateId: string) => void;
+  pick?: PlayPick | null;
 }) {
   const c = campaignsCopy;
   const recommended = plays.find((play) => play.recommended) ?? null;
@@ -198,7 +237,21 @@ export function PlanDecision({
           </p>
         </div>
 
-        {plays.length > 1 ? <Compare plays={plays} groupOf={groupOf} selectedId={selected?.id ?? null} onSelect={onSelect} /> : null}
+        {plays.length > 1 ? <Compare plays={plays} groupOf={groupOf} selectedId={selected?.id ?? null} onSelect={onSelect} pick={pick} /> : null}
+
+        {pick === null ? null : (
+          <div data-testid="plays-create" className="-mt-2 flex flex-wrap items-center gap-3">
+            <PillButton variant="outline" disabled={pick.ticked.length === 0 || pick.pending} onClick={pick.onCreate}>
+              {pick.pending ? c.playsCreating : c.playsCreate}
+            </PillButton>
+            <span className="type-small max-w-measure text-muted">{c.playsCreateNote}</span>
+            {pick.error === null ? null : (
+              <p role="alert" data-testid="plays-create-error" className="type-small basis-full text-warn">
+                {pick.error}
+              </p>
+            )}
+          </div>
+        )}
 
         {selected === null ? null : <Detail play={selected} group={groupOf(selected)} pain={overview.pain} />}
         {offRecommended && recommended !== null ? (

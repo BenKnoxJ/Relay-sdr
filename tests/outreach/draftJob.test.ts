@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SEQUENCE, type OutreachInput } from "../../agents/outreach/input.schema";
+import type { OutreachOutput } from "../../agents/outreach/output.schema";
 import type { HumanTouches, HumanizeInput } from "../../agents/outreach/sequence.schema";
 import { stubModel } from "@/lib/agents/stubModel";
 import { enqueue } from "@/lib/jobs/queue";
@@ -27,7 +28,7 @@ import { loadStandard } from "@/lib/outreach/standard";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
-import { fixtureWriter, outreachDraftHandler, type ModelCall } from "@/worker/handlers/outreachDraft";
+import { fixtureWriter, isCleanCut, outreachDraftHandler, type ModelCall } from "@/worker/handlers/outreachDraft";
 import { revealHandler } from "@/worker/handlers/reveal";
 import { TerminalError } from "@/worker/errors";
 import { appRouter } from "@/server/api/root";
@@ -594,13 +595,13 @@ describe("the draft job", () => {
     expect(given.facts.facts.find((fact) => fact.id === "i360.product.results-lag-up-to-about-an-hour")?.notes).toMatch(/same day/);
   });
 
-  it("clears a touch's claims when the humanizer cuts its product sentence, and records that it did", async () => {
+  it("clears a touch's claims when the humanizer cleanly cuts its product sentence, and records that it did", async () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
     const ask = "Would that timing matter to your team?";
     const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
-    const cut = `Another angle on the same problem, and it is about timing. ${ask}`;
+    const cut = `Another angle on the same problem. ${ask}`;
     await runDraft(
       job!,
       ["good"],
@@ -615,23 +616,28 @@ describe("the draft job", () => {
     expect(logged.breakup!.droppedProduct).toBeUndefined();
   });
 
-  it("keeps the claims when the humanizer says it cut the product sentence but the product is still in the words", async () => {
+  it.each([
+    ["the product is still named", "Another angle on this. Insights360 scores every analysed call against a team's own QA rules."],
+    // Critic, PR #50: a paraphrase `mentionsProduct` does not catch is still a pitch; it must not ship uncited.
+    ["a paraphrase the product check misses", "Another angle on the same problem. It marks each of a team's calls against the team's own QA rules."],
+  ])("keeps the drafted touch and its claims when the humanizer says it cut the product sentence but %s", async (_case, words) => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
     const ask = "Would that timing matter to your team?";
     const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
-    const reworded = `Another angle on this. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
+    const offered = `${words} ${ask}`;
     await runDraft(
       job!,
       ["good"],
-      (touches) => ({ ...touches, email2: { body: reworded, ask, droppedProduct: true } }),
+      (touches) => ({ ...touches, email2: { body: offered, ask, droppedProduct: true } }),
       (ref) => ({ email2: { kind: "message", body: pitched, ask, opener: { ref, kind: "role_pain" }, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] } }),
     );
     const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
-    expect(email2).toMatchObject({ body: reworded, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] });
+    expect(email2).toMatchObject({ body: pitched, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] });
     const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    expect((event.after as { humanizer: { touches: Record<string, { droppedProduct?: boolean }> } }).humanizer.touches.email2!.droppedProduct).toBeUndefined();
+    const logged = (event.after as { humanizer: { touches: Record<string, { kept: string; reason?: string; droppedProduct?: boolean }> } }).humanizer.touches;
+    expect(logged.email2).toMatchObject({ kept: "drafted", droppedProduct: true, reason: expect.stringMatching(/cut the product sentence/) });
   });
 
   it("@proof sends a touch back to its drafted words when the humanizer adds a number or a name", async () => {
@@ -782,6 +788,25 @@ describe("the draft job", () => {
     expect(email1.state).toBe("needs_you");
     expect((email1.findings as { rule: string }[]).map((finding) => finding.rule)).toEqual(expect.arrayContaining(["cost-cap", "time-ask"]));
     expect(await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } })).toMatchObject({ state: "to_review" });
+  });
+});
+
+describe("a clean cut of the product sentence", () => {
+  const ask = "Would that timing matter?";
+  const message = (body: string, extra: { subject?: string; ask?: string } = {}) =>
+    ({ kind: "message", body, ask: extra.ask ?? ask, opener: { ref: "r", kind: "role_pain" }, claims: [], ...(extra.subject === undefined ? {} : { subject: extra.subject }) }) as Extract<OutreachOutput, { kind: "message" }>;
+  const drafted = message(`One angle.\n\nInsights360 scores every call. ${ask}`, { subject: "timing" });
+
+  it.each([
+    ["the sentence taken out, paragraphs joined", message(`One angle. ${ask}`, { subject: "timing" }), true],
+    ["nothing taken out", message(`One angle.\n\nInsights360 scores every call. ${ask}`, { subject: "timing" }), false],
+    ["a sentence reworded", message(`One angle, briefly. ${ask}`, { subject: "timing" }), false],
+    ["the pitch paraphrased", message(`One angle. Each call gets a mark. ${ask}`, { subject: "timing" }), false],
+    ["a sentence said twice", message(`One angle. One angle.`, { subject: "timing" }), false],
+    ["the subject changed", message(`One angle. ${ask}`, { subject: "a new subject" }), false],
+    ["the ask changed", message(`One angle. Is timing a worry?`, { subject: "timing", ask: "Is timing a worry?" }), false],
+  ])("%s", (_case, offered, clean) => {
+    expect(isCleanCut(drafted, offered, "insights360")).toBe(clean);
   });
 });
 

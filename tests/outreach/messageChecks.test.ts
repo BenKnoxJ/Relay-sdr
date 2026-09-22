@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   changePct,
@@ -139,6 +139,20 @@ describe("an earlier cohort report, read back", () => {
     // Kept as drafted: the rep saw the draft, pronoun and all.
     expect(ada!.touches[1]!.body).toMatch(/His team/);
     expect(ada!.touches[1]!.changePct).toBeGreaterThan(0);
+  });
+
+  it("warns when a person's section reads back with no touches, rather than passing as nothing written", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const [ada] = parseCohortMarkdown("# Cohort\n\n## Ada Lane · Head of Claims, Elmstead · role: runs\n\nEmail 1, hand-edited, no fences\n");
+      expect(ada!.touches).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("no touches read for Ada Lane"));
+      warn.mockClear();
+      parseCohortMarkdown(EARLIER);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("measures it and renders the comparison and the checks", () => {

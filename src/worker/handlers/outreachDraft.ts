@@ -290,6 +290,29 @@ function limitText(kind: TouchKind): string {
   return parts.filter((part) => part !== "").join("; ");
 }
 
+const sentencesOf = (text: string) => (text.match(/[^.?!]+[.?!]*/g) ?? []).map((sentence) => sentence.replace(/\s+/g, " ").trim()).filter((sentence) => sentence !== "");
+const sameWords = (a: string | undefined, b: string | undefined) => (a ?? "").replace(/\s+/g, " ").trim() === (b ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * A humanized message that cut its product sentence, cut cleanly: the drafted sentences with some taken
+ * out, not one reworded or added, the subject and the ask as drafted, and nothing left naming the product.
+ * Only then are the drafted claims cleared; a heuristic over reworded text can miss a paraphrased pitch.
+ */
+export function isCleanCut(drafted: Extract<OutreachOutput, { kind: "message" }>, offered: Extract<OutreachOutput, { kind: "message" }>, product: string): boolean {
+  if (!sameWords(drafted.subject, offered.subject) || !sameWords(drafted.ask, offered.ask)) return false;
+  const left = new Map<string, number>();
+  const before = sentencesOf(drafted.body);
+  for (const sentence of before) left.set(sentence, (left.get(sentence) ?? 0) + 1);
+  const after = sentencesOf(offered.body);
+  for (const sentence of after) {
+    const count = left.get(sentence) ?? 0;
+    if (count === 0) return false;
+    left.set(sentence, count - 1);
+  }
+  if (after.length >= before.length) return false;
+  return !mentionsProduct({ kind: "message", body: offered.body, ask: offered.ask, claims: [], ...(offered.subject === undefined ? {} : { subject: offered.subject }) }, product);
+}
+
 /** The words a person has already been given at this version, for a redraft of a later touch: each earlier touch's latest draft. */
 async function threadFor(
   db: Parameters<Handler>[0]["db"],
@@ -319,7 +342,7 @@ type HumanizerTouchLog = {
   reason?: string;
   /** The share of the touch's characters the humanizer changed, whether or not its version was kept; null when it returned nothing for the touch. */
   changePct: number | null;
-  /** The humanizer cut the product sentence, and the touch's claims with it. */
+  /** The humanizer said it cut the product sentence; `kept` says whether its version, without the claims, was used. */
   droppedProduct?: true;
 };
 
@@ -535,16 +558,15 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       for (const kind of SEQUENCE.filter((candidate) => candidates.includes(candidate))) {
         const entry = settled.get(kind)!;
         const drafted = entry.output!;
-        const offered = withProse(drafted, outcome.object[kind]);
-        // "I cut the product sentence" is believed only when the words bear it out: a product line still in
-        // the text keeps the drafted claims, so the gates check it against its facts.
-        const rewritten =
-          offered !== null && offered.kind === "message" && drafted.claims.length > 0 && offered.claims.length === 0 && mentionsProduct({ kind, body: offered.body, ask: offered.ask, claims: [], ...(offered.subject === undefined ? {} : { subject: offered.subject }) }, modelInput.facts.product)
-            ? { ...offered, claims: drafted.claims }
-            : offered;
+        const rewritten = withProse(drafted, outcome.object[kind]);
+        const dropped = rewritten !== null && drafted.claims.length > 0 && rewritten.claims.length === 0;
         let reason: string | undefined;
         let accepted: { output: OutreachOutput; tierA: Finding[]; tierB: Finding[] } | undefined;
         if (rewritten === null) reason = "no humanized text came back for this touch";
+        // "I cut the product sentence" clears the claims only when the cut is certain (`isCleanCut`);
+        // otherwise the drafted touch stands, claims and all.
+        else if (dropped && !(drafted.kind === "message" && rewritten.kind === "message" && isCleanCut(drafted, rewritten, modelInput.facts.product)))
+          reason = "said it cut the product sentence, but the words were reworded or still name the product: the drafted touch and its claims are kept";
         else {
           const shaped = outputSchemaFor(kind).safeParse(rewritten);
           const added = shaped.success ? addedFacts(drafted, shaped.data) : [];
@@ -560,7 +582,6 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
             else accepted = { output, tierA: gates.tierA, tierB: gates.tierB };
           }
         }
-        const dropped = rewritten !== null && drafted.claims.length > 0 && rewritten.claims.length === 0;
         log.touches[kind] = {
           drafted: proseOf(drafted),
           humanized: rewritten === null ? null : proseOf(rewritten),

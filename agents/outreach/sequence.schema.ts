@@ -20,7 +20,8 @@ import { MAX_OBJECTIONS, callDraftSchema, messageDraftSchema, outputSchemaFor, t
  * puts the humanized words back on the drafted touch. Messaging v2 (22 Sep
  * 2026) lets it cut a message's product sentence; it says so with
  * `droppedProduct`, and code then clears that touch's claims, so no fact id
- * points at words that are gone. It can drop claims, never add or change one.
+ * points at words that are gone. It can drop claims, never add or change one;
+ * the job keeps the cleared version only for a clean cut (`isCleanCut`).
  */
 
 const objectionSchema = z.object({ objection: z.string().min(1).max(200), answer: z.string().min(1).max(400) }).strict();

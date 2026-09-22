@@ -347,6 +347,8 @@ export function parseCohortMarkdown(markdown: string): CheckedSequence[] {
         const changed = humanized === undefined || /^\((?:none|no humanizer pass)/.test(humanized) ? null : changePct(drafted, humanized);
         return [{ kind, ...(subject === undefined ? {} : { subject }), body, ask, claims, changePct: changed }];
       });
+    // A person with no touch read back is a report this parser does not understand, not a person with nothing written.
+    if (touches.length === 0) console.warn(`cohort --compare: no touches read for ${name}; is the earlier report in the expected shape?`);
     return { name, touches };
   });
 }

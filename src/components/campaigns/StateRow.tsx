@@ -30,7 +30,22 @@ const LABELS: Record<CampaignStep, string> = {
   done: campaignsCopy.stepDone,
 };
 
-export function StateRow({ state, stuck = false, stage }: { state: CampaignState; /** A reveal that stopped and needs the rep (`facts.stage === "reveal_needs_you"`). */ stuck?: boolean; /** The backend's stage, where the drafting step has more than one word for it. */ stage?: string | null }) {
+export function StateRow({
+  state: given,
+  stuck = false,
+  stage,
+  outreach = null,
+}: {
+  state: CampaignState;
+  /** A reveal that stopped and needs the rep (`facts.stage === "reveal_needs_you"`). */
+  stuck?: boolean;
+  /** The backend's stage, where the drafting step has more than one word for it. */
+  stage?: string | null;
+  /** Outreach (P3): once someone has started, the campaign is Running, or Paused while it is held (P5c). */
+  outreach?: { started: boolean; paused: boolean } | null;
+}) {
+  // Drafts are still reviewed after outreach starts, but the rep's question is now whether it is running.
+  const state: CampaignState = given === "drafting" && outreach?.started === true ? (outreach.paused ? "paused" : "running") : given;
   const current = stepIndexFor(state);
   // `stuck`: a state that is otherwise fine but stopped before it finished (a reveal that did not complete).
   const warn = state === "stopped" || state === "failed" || state === "peopleNeedsYou" || stuck;
@@ -58,7 +73,9 @@ export function StateRow({ state, stuck = false, stage }: { state: CampaignState
                         ? campaignsCopy.stepDraftsReady
                         : step === "drafting" && stage === "ready_to_send"
                           ? campaignsCopy.stepReadyToSend
-                          : LABELS[step];
+                          : step === "running" && state === "paused"
+                            ? campaignsCopy.stepPaused
+                            : LABELS[step];
         return (
           <li
             key={step}

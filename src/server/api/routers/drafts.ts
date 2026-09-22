@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { draftItemOf } from "@/lib/outreach/view";
-import { DraftRefused, MAX_VOICE_SAMPLES, REJECT_REASONS, approveDraft, rejectDraft, reviewQueue, saveVoice, voiceFor, voiceSampleSchema } from "@/lib/repo/outreach";
+import { DraftRefused, MAX_VOICE_SAMPLES, REJECT_REASONS, approveDraft, rejectDraft, retryDraft, reviewQueue, saveVoice, voiceFor, voiceSampleSchema } from "@/lib/repo/outreach";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
 /**
@@ -56,6 +56,16 @@ export const draftsRouter = createTRPCRouter({
         refused(error);
       }
     }),
+
+  /** Try again on a draft that failed or is held (P5c): one more attempt, with no reason recorded. */
+  retry: repProcedure.input(z.object({ draftId, requestId: z.string().uuid() }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      const { draft, redraftJobId } = await retryDraft(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input });
+      return { id: draft.id, redrafting: redraftJobId !== null };
+    } catch (error) {
+      refused(error);
+    }
+  }),
 
   /** The rep's voice (master §15 v0): samples and "how I write". */
   voice: repProcedure.query(({ ctx }) => voiceFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })),

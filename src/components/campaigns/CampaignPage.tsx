@@ -396,7 +396,12 @@ export function CampaignPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <PageHeader title={campaign.name} className="mb-1.5" />
-            <StateRow state={state} stage={facts?.stage ?? null} stuck={revealNeedsYou || (state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true)} />
+            <StateRow
+              state={state}
+              stage={facts?.stage ?? null}
+              stuck={revealNeedsYou || (state === "revealing" && campaign.peopleFound?.revealResult?.stopped === true)}
+              outreach={campaign.outreach ? { started: live && campaign.outreach.batches.length > 0, paused: campaign.outreach.paused } : null}
+            />
           </div>
           {action === null ? null : (
             <div className="flex flex-col items-end gap-1.5">

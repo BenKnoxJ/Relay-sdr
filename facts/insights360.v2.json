@@ -27,14 +27,14 @@
     {
       "id": "i360.product.every-ingested-call-analysed",
       "area": "product",
-      "claim": "Every call the pipeline ingests is transcribed and scored, not a sampled subset.",
+      "claim": "Every call that comes in is transcribed and scored, not a sample.",
       "status": "live",
       "source": {
         "path": "insights360:docs/ARCHITECTURE.md",
         "section": "2. Data flow: ingestion -> analysis -> sync -> UI",
         "lastVerified": "2026-09-07"
       },
-      "notes": "Say 'every call we ingest', not 'every call you make'. The vault roadmap step 0.10 records that the pipeline can lose calls silently on failure paths; do not promise literal 100% completeness in writing."
+      "notes": "Say 'every call, not a sample', never 'every call you make'. The roadmap (step 0.10) records that calls can be lost silently when a step fails; do not promise literal 100% completeness in writing."
     },
     {
       "id": "i360.product.roles-admin-supervisor-viewer",
@@ -46,12 +46,12 @@
         "section": "lines 13 and 102",
         "lastVerified": "2026-09-07"
       },
-      "notes": "A finer-grained role model (team lead, QA evaluator, risk officer, agent) exists in the schema but is switched off by the RBAC_ENFORCED flag. Do not sell those roles."
+      "notes": "A finer-grained role model (team lead, QA evaluator, risk officer, agent) exists in the schema but is switched off. Do not sell those roles."
     },
     {
       "id": "i360.product.hosted-eu-frankfurt",
       "area": "compliance",
-      "claim": "The application runs in Vercel's Frankfurt region and the analysis pipeline, storage and database run in AWS eu-central-1 (Frankfurt); call data is processed and stored in the EU.",
+      "claim": "The application runs in Vercel's Frankfurt region and the call analysis, storage and database run in AWS eu-central-1 (Frankfurt); call data is processed and stored in the EU.",
       "status": "live",
       "source": {
         "path": "insights360:frontend/vercel.json",
@@ -63,7 +63,7 @@
     {
       "id": "i360.product.analysis-model-bedrock-claude-haiku",
       "area": "product",
-      "claim": "Scoring, summaries, sentiment and risk flags are produced by a Claude Haiku 4.5 model run through Amazon Bedrock inside the customer's EU pipeline; the web app itself runs no AI.",
+      "claim": "Scoring, summaries, sentiment and risk flags are produced by a Claude Haiku 4.5 model run through Amazon Bedrock in the EU; the web app itself runs no AI.",
       "status": "live",
       "source": {
         "path": "insights360:infra/cci-lite/cci-lite-analyser.yaml",
@@ -75,14 +75,14 @@
     {
       "id": "i360.product.results-lag-up-to-about-an-hour",
       "area": "product",
-      "claim": "Analysed calls appear in the dashboard within roughly an hour of the pipeline finishing them, because the database sync runs hourly.",
+      "claim": "Analysed calls appear in the dashboard within roughly an hour of their analysis finishing, because the dashboard is refreshed hourly.",
       "status": "live",
       "source": {
         "path": "insights360:docs/ARCHITECTURE.md",
         "section": "9. Known limitations (sync latency) and 2.4 Sync to PostgreSQL",
         "lastVerified": "2026-09-07"
       },
-      "notes": "The wiki overview says 'typically within minutes'. Ingestion itself polls every ~15 minutes, then transcription, then hourly sync. Say 'same day' or 'within a couple of hours', never 'minutes'."
+      "notes": "The wiki overview says 'typically within minutes'. New recordings are collected about every 15 minutes, then transcribed, then refreshed into the dashboard hourly. Say 'same day' or 'within a couple of hours', never 'minutes'."
     },
     {
       "id": "i360.feature.dashboard-kpis-with-period-comparison",
@@ -118,7 +118,7 @@
         "section": "lines 162 (transcript), 589-647 (coaching and actions)",
         "lastVerified": "2026-09-07"
       },
-      "notes": "Summary and resolution status are pipeline output (docs/ARCHITECTURE.md 2.3)."
+      "notes": "Summary and resolution status come from the call analysis (docs/ARCHITECTURE.md 2.3)."
     },
     {
       "id": "i360.feature.auto-qa-scoring-against-tenant-rules",
@@ -130,7 +130,7 @@
         "section": "2.3 Analysis",
         "lastVerified": "2026-09-07"
       },
-      "notes": "One scorecard per tenant. Per-team scorecards are not built (vault master doc section 6 gap list). Scores map to grades A-E around the tenant's pass threshold (frontend/src/lib/grade-bands.ts). A per-tenant 'not applicable' gate exists in the schema but is off by default for most tenants; do not claim it."
+      "notes": "One scorecard per customer. Per-team scorecards are not built (vault master doc section 6 gap list). Scores map to grades A-E around the customer's pass threshold (frontend/src/lib/grade-bands.ts). A per-customer 'not applicable' option exists in the schema but is off by default for most customers; do not claim it."
     },
     {
       "id": "i360.feature.qa-rules-self-serve-editor",
@@ -183,7 +183,7 @@
     {
       "id": "i360.feature.coaching-points-read-only",
       "area": "feature",
-      "claim": "Each call shows coaching points and training opportunities generated by the pipeline, which a team leader can copy out.",
+      "claim": "Each call shows coaching points and training opportunities from the call analysis, which a team leader can copy out.",
       "status": "live",
       "source": {
         "path": "insights360:frontend/src/app/(dashboard)/call/[callId]/page.tsx",
@@ -202,7 +202,7 @@
         "section": "route exists on main (also agents/page.tsx)",
         "lastVerified": "2026-09-07"
       },
-      "notes": "Agent identity comes from the provider's display name unless agent seeding has been run for the tenant (vault master doc section 6, 2026-07-14 note)."
+      "notes": "Agent identity comes from the provider's display name unless agent names have been loaded for the customer (vault master doc section 6, 2026-07-14 note)."
     },
     {
       "id": "i360.feature.needs-review-list",
@@ -279,7 +279,7 @@
     {
       "id": "i360.integration.ringcentral-ingestion-in-code",
       "area": "integration",
-      "claim": "A RingCentral ingestion connector (RingCX and RingEX) ships in the pipeline and is working in production.",
+      "claim": "A RingCentral connector (RingCX and RingEX) ships in the product and is working in production.",
       "status": "live",
       "source": {
         "path": "insights360:docs/ARCHITECTURE.md",
@@ -327,7 +327,7 @@
     {
       "id": "i360.price.setup-and-config-review-fees",
       "area": "price",
-      "claim": "There is a one-off setup fee of GBP 1,280 for tenant provisioning and telephony wiring, and a one-off GBP 640 configuration review around month one.",
+      "claim": "There is a one-off setup fee of GBP 1,280 for setting up the account and connecting the phone system, and a one-off GBP 640 configuration review around month one.",
       "status": "live",
       "source": {
         "path": "product-wiki:insights360/articles/overview.md",
@@ -363,7 +363,7 @@
     {
       "id": "i360.proof.tenant-isolation-internally-audited",
       "area": "proof",
-      "claim": "Tenant data scoping across all API routes was internally audited on 12 July 2026 with no cross-tenant leaks found.",
+      "claim": "The separation of each customer's data across the whole application was internally audited on 12 July 2026, with no data found crossing between customers.",
       "status": "live",
       "source": {
         "path": "insights360:docs/SECURITY.md",
@@ -406,7 +406,7 @@
         "section": "Architecture (No real-time features) and Product",
         "lastVerified": "2026-05-07"
       },
-      "notes": "Confirmed by code: no websockets or SSE, request/response only. A real-time capstone is a long-range plan in the vault master doc, not a roadmap date."
+      "notes": "Confirmed by code: nothing is streamed live. A real-time capstone is a long-range plan in the vault master doc, not a roadmap date."
     },
     {
       "id": "i360.boundary.no-audio-playback-in-app",

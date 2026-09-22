@@ -118,6 +118,10 @@ export type EventKind =
   /// The rep rejected a draft with a reason (§9); a redraft, when the reason
   /// asks for one, is enqueued in the same transaction.
   | "draft.rejected"
+  /// A rep pressed Try again on a draft that failed or was held (P5c): one
+  /// more attempt at the touch, with no reason recorded; the job is enqueued
+  /// in the same transaction. A press that finds it already queued writes none.
+  | "draft.retried"
   /// A rep saved their voice samples and "how I write" note (master §15 v0).
   | "rep.voice_saved"
   /// A run reached drafts ready: there is something for a rep to approve, and

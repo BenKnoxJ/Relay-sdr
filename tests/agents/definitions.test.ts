@@ -346,7 +346,7 @@ describe("outreach: the gates that need the touch", () => {
     const draft = JSON.parse(JSON.stringify(fixture("outreach", "output.good.json"))) as { body: string };
     // `MACHINE_WORDS` refuses every one of these; in an email they are a firm's
     // name or plain English, and refusing them cost the 18 Sep audit's redrafts.
-    for (const line of ["Atlas reviews its calls by hand.", "Vector Capital samples a few calls a week.", "Complaints sit in the pipeline for weeks.", "Happy to touch base on it."]) {
+    for (const line of ["Atlas reviews its calls by hand.", "Vector Capital samples a few calls a week.", "Complaints sit in the queue for weeks.", "Happy to touch base on it."]) {
       const result = outreachOutputSchema.safeParse({ ...draft, body: `${line} ${draft.body}` });
       expect(result.success, line).toBe(true);
     }
@@ -356,6 +356,30 @@ describe("outreach: the gates that need the touch", () => {
       if (result.success) continue;
       expect(result.error.issues.some((issue) => /machine word/.test(issue.message)), word).toBe(true);
     }
+  });
+
+  it("refuses a draft that names Relay or says pipeline, in a message or a call script (P5c)", () => {
+    const draft = JSON.parse(JSON.stringify(fixture("outreach", "output.good.json"))) as { body: string; ask: string };
+    for (const line of ["Sam from Relay here.", "I work at relay.", "Every call your pipeline ingests is scored.", "Most pipelines sample calls."]) {
+      const result = outreachOutputSchema.safeParse({ ...draft, body: `${line} ${draft.body}` });
+      expect(result.success, line).toBe(false);
+      if (result.success) continue;
+      expect(result.error.issues.some((issue) => /machine word/.test(issue.message) && issue.path.join(".") === "body"), line).toBe(true);
+    }
+    // A word that only starts the same way is not the word.
+    expect(outreachOutputSchema.safeParse({ ...draft, body: `We relayed it to the team. ${draft.body}` }).success).toBe(true);
+    const call = {
+      kind: "call",
+      talkingPoint: { openingLine: "Hi, it's Sam from Relay, calling about complaint reviews.", oneQuestion: "Who owns that review?", listenFor: "who owns it", numberSource: "find_a_number" },
+      opener: { ref: "pain-1", kind: "role_pain" },
+      claims: [],
+    };
+    const result = outreachOutputSchema.safeParse(call);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((issue) => issue.path.join(".") === "talkingPoint.openingLine")).toBe(true);
+    // The same script introducing the rep and their company passes.
+    expect(outreachOutputSchema.safeParse({ ...call, talkingPoint: { ...call.talkingPoint, openingLine: "Hi, it's Ben from Conversant, calling about complaint reviews." } }).success).toBe(true);
   });
 
   it("keeps the em-dash rule on the prose, where the prose is", () => {

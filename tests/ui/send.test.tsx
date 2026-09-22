@@ -93,8 +93,23 @@ describe("the drawer's Send", () => {
       fireEvent.click(within(item).getByRole("button", { name: sendCopy.send }));
     });
     expect(actions.sendEmail).toHaveBeenCalledWith({ personId: expect.any(String), step: "email1" });
-    expect(screen.getByTestId("drawer-send-note").textContent).toBe(sendCopy.replied);
+    // Beside the step's Send, where the rep is, and read out from the drawer's status line.
+    expect(within(item).getByTestId("drawer-send-note").textContent).toBe(sendCopy.replied);
+    expect(screen.getByTestId("drawer-send-status").textContent).toBe(sendCopy.replied);
     expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a refused send beside its step, not only at the top of the drawer", async () => {
+    const actions = actionsMock();
+    actions.sendEmail.mockResolvedValue({ error: sendCopy.refused.cap });
+    render(<PersonDrawer person={{ ...approved(), sendOffers: { email1: { kind: "send" } } }} closeHref="/c" actions={actions} onChanged={vi.fn()} />);
+    const item = screen.getAllByTestId("drawer-step").find((row) => row.dataset.step === "email1")!;
+    if (within(item).getByTestId("drawer-step-toggle").getAttribute("aria-expanded") === "false") fireEvent.click(within(item).getByTestId("drawer-step-toggle"));
+    await act(async () => {
+      fireEvent.click(within(item).getByRole("button", { name: sendCopy.send }));
+    });
+    expect(within(item).getByTestId("drawer-send-note").textContent).toBe(sendCopy.refused.cap);
+    expect(screen.getByTestId("drawer-alert").textContent).toBe("");
   });
 
   it("keeps Copy on an approved email, with the card's greeting and sign-off around the body", async () => {

@@ -1,3 +1,4 @@
+import { SEND_DAILY_CAP } from "@/lib/outreach/send";
 import { addCalendarDays, addWorkingDays, isIsoDate, SEQUENCE_TEMPLATE, type IsoDate, type StepId } from "@/lib/outreach/sequence";
 import { channelOf, type TrackedStepState } from "@/lib/outreach/track";
 
@@ -14,10 +15,10 @@ import { channelOf, type TrackedStepState } from "@/lib/outreach/track";
  */
 
 /**
- * The most emails a day should carry. P7's send cap; until P7 sends from the
- * mailbox, the calendar only flags a day over it.
+ * The most emails a day should carry: P7's send cap, one number for both. The
+ * calendar flags a day due to carry more; Send refuses past it.
  */
-export const EMAIL_DAY_CAP = 30;
+export const EMAIL_DAY_CAP = SEND_DAILY_CAP;
 
 /** The calendar's three channels: the connect note and both messages are all LinkedIn. */
 export const CALENDAR_CHANNELS = ["email", "linkedin", "call"] as const;

@@ -331,7 +331,11 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       continue;
     }
     const numbers = fact.text.match(/\d[\d,.]*/g) ?? [];
-    const body = draft.kind === "message" ? draft.body : `${draft.talkingPoint.openingLine} ${draft.talkingPoint.oneQuestion}`;
+    // A call's facts can sit in any line the rep reads: messaging v2 puts price only in an objection answer.
+    const body =
+      draft.kind === "message"
+        ? draft.body
+        : [draft.talkingPoint.openingLine, draft.talkingPoint.oneQuestion, draft.talkingPoint.voicemail ?? "", ...(draft.talkingPoint.objections ?? []).map((pair) => pair.answer)].join(" ");
     if (numbers.length > 0 && !numbers.some((number) => body.includes(number))) {
       findings.push({ rule: "claim-number", text: `The claim ${claim} carries a number that is not in the message.` });
     }

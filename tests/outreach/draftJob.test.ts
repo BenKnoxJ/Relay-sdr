@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import type { Campaign as CampaignRow, Job, Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
@@ -19,10 +22,12 @@ import { DOCUMENTED_UNVERIFIED_PRICING } from "@/lib/leadgen/spend";
 import { confirmCampaign, confirmReveal, createCampaign, getCampaignForOwner, reviewPeople } from "@/lib/repo/campaigns";
 import { LEAD_GEN_JOB, REVEAL_JOB } from "@/lib/repo/leadgen";
 import { OUTREACH_DRAFT_JOB, OUTREACH_LOOKUP, PERSON_DRAFT_COST_CAP_USD, recordDraft, saveVoice } from "@/lib/repo/outreach";
+import { checkedSequenceOf, renderChecks } from "@/lib/outreach/messageChecks";
+import { loadStandard } from "@/lib/outreach/standard";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
-import { outreachDraftHandler, type ModelCall } from "@/worker/handlers/outreachDraft";
+import { fixtureWriter, outreachDraftHandler, type ModelCall } from "@/worker/handlers/outreachDraft";
 import { revealHandler } from "@/worker/handlers/reveal";
 import { TerminalError } from "@/worker/errors";
 import { appRouter } from "@/server/api/root";
@@ -216,7 +221,7 @@ function restOfSequence(ref: string): Record<string, unknown> {
     breakup: message("I won't keep writing about this. If call quality sits with someone else on your side, who would be the right person to ask?", "If call quality sits with someone else on your side, who would be the right person to ask?", "Right person for call quality"),
     li_connect: message("Your role came up while I was reading about complaint handling. Would you be open to connecting?", "Would you be open to connecting?"),
     li_dm: message(
-      "Thanks for connecting. Something that comes up a lot in claims teams is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. Is that something your team is looking at this year, or is it settled for now?",
+      "In claims teams, something that comes up a lot is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. Is that something your team is looking at this year, or is it settled for now?",
       "Is that something your team is looking at this year, or is it settled for now?",
     ),
     li_dm2: message(
@@ -564,6 +569,69 @@ describe("the draft job", () => {
     expect(humanizer.touches.email2).toMatchObject({ kept: "humanized", humanized: { body: shorter } });
     expect(humanizer.touches.email2!.drafted.body).toMatch(/^Another angle on the same problem\./);
     expect((event.after as { cost: { draftUsd: number; humanizerUsd: number } }).cost.humanizerUsd).toBeGreaterThan(0);
+    // Messaging v2: each touch's change size, as a share of its characters. Untouched is 0.
+    const sizes = (event.after as { humanizer: { touches: Record<string, { changePct: number | null }> } }).humanizer.touches;
+    expect(sizes.email2!.changePct).toBeGreaterThan(5);
+    expect(sizes.email2!.changePct).toBeLessThan(100);
+    expect(sizes.breakup!.changePct).toBe(0);
+    expect(Object.keys(sizes).sort()).toEqual([...SEQUENCE].sort());
+  });
+
+  it("@proof gives the humanizer the standard's rules, who is writing, and the live facts with their notes", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const { model } = await runDraft(job!);
+    const given = model.humanized[0]!;
+    expect(given.rules).toEqual(loadStandard().rules);
+    expect(given.sender).toEqual({ firstName: "Sam", company: "Conversant" });
+    expect(given.facts.product).toBe("insights360");
+    expect(given.facts.facts.length).toBeGreaterThan(0);
+    expect(given.facts.facts.every((fact) => fact.status === "live")).toBe(true);
+    // The notes travel with the facts, so the pass can keep a claim inside them: the price notes as the product owner set them.
+    const fees = given.facts.facts.find((fact) => fact.id === "i360.price.setup-and-config-review-fees");
+    expect(fees?.notes).toMatch(/only in answer to a price question in a call/i);
+    expect(given.facts.facts.find((fact) => fact.id === "i360.product.results-lag-up-to-about-an-hour")?.notes).toMatch(/same day/);
+  });
+
+  it("clears a touch's claims when the humanizer cuts its product sentence, and records that it did", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const ask = "Would that timing matter to your team?";
+    const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
+    const cut = `Another angle on the same problem, and it is about timing. ${ask}`;
+    await runDraft(
+      job!,
+      ["good"],
+      (touches) => ({ ...touches, email2: { body: cut, ask, droppedProduct: true } }),
+      (ref) => ({ email2: { kind: "message", body: pitched, ask, opener: { ref, kind: "role_pain" }, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] } }),
+    );
+    const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
+    expect(email2).toMatchObject({ body: cut, claims: [], state: "to_review" });
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
+    const logged = (event.after as { humanizer: { touches: Record<string, { kept: string; droppedProduct?: boolean }> } }).humanizer.touches;
+    expect(logged.email2).toMatchObject({ kept: "humanized", droppedProduct: true });
+    expect(logged.breakup!.droppedProduct).toBeUndefined();
+  });
+
+  it("keeps the claims when the humanizer says it cut the product sentence but the product is still in the words", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const ask = "Would that timing matter to your team?";
+    const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
+    const reworded = `Another angle on this. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
+    await runDraft(
+      job!,
+      ["good"],
+      (touches) => ({ ...touches, email2: { body: reworded, ask, droppedProduct: true } }),
+      (ref) => ({ email2: { kind: "message", body: pitched, ask, opener: { ref, kind: "role_pain" }, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] } }),
+    );
+    const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
+    expect(email2).toMatchObject({ body: reworded, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] });
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
+    expect((event.after as { humanizer: { touches: Record<string, { droppedProduct?: boolean }> } }).humanizer.touches.email2!.droppedProduct).toBeUndefined();
   });
 
   it("@proof sends a touch back to its drafted words when the humanizer adds a number or a name", async () => {
@@ -772,7 +840,7 @@ describe("the rep's review", () => {
     ]);
   });
 
-  it("@proof redrafts one touch in one call, given the earlier emails' words, with no humanizer pass", async () => {
+  it("@proof redrafts one touch in one call, given the earlier emails' words, then humanizes that touch", async () => {
     const { campaign } = await written(1);
     const { items } = await caller(rep()).drafts.queue();
     const followUp = items[1]!;
@@ -783,10 +851,20 @@ describe("the rep's review", () => {
     expect(job.input).toMatchObject({ attempt: 2, touch: "email2", avoid: { reason: "wrong_angle" } });
     expect(job.idempotencyKey).toMatch(/:email2:a2$/);
 
-    const { model } = await runDraft(job);
+    const reworded = "A different angle, on timing. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Would that timing matter to your team?";
+    const { model } = await runDraft(job, ["good"], (touches) => ({ email2: { ...touches.email2!, body: reworded } }));
     expect(model.inputs).toHaveLength(1);
-    expect(model.humanized).toHaveLength(0);
-    expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(1);
+    // Messaging v2: every message goes through the humanizer, a redraft too: one draft call and one humanizer call.
+    expect(model.humanized).toHaveLength(1);
+    expect(Object.keys(model.humanized[0]!.touches)).toEqual(["email2"]);
+    expect(model.humanized[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
+    expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(2);
+    const event = (await prisma.event.findMany({ where: { kind: "outreach.drafted", campaignId: campaign.id } })).find((candidate) => (candidate.after as { jobId?: string }).jobId === job.id)!;
+    const after = event.after as { cost: { humanizerUsd: number }; humanizer: { ran: boolean; touches: Record<string, { kept: string; changePct: number | null }> } };
+    expect(after.humanizer.ran).toBe(true);
+    expect(after.humanizer.touches.email2).toMatchObject({ kept: "humanized" });
+    expect(after.humanizer.touches.email2!.changePct).toBeGreaterThan(0);
+    expect(after.cost.humanizerUsd).toBeGreaterThan(0);
     const input = model.inputs[0]!;
     expect(input.sequence).toBeUndefined();
     expect(input.touch).toMatchObject({ kind: "email2", ordinal: 2 });
@@ -795,7 +873,7 @@ describe("the rep's review", () => {
     expect(input.thread[0]!.body).toBe(email1.body);
     const redrafted = await prisma.outreachDraft.findMany({ where: { jobId: job.id } });
     expect(redrafted).toHaveLength(1);
-    expect(redrafted[0]).toMatchObject({ touch: "email2", attempt: 2, state: "to_review" });
+    expect(redrafted[0]).toMatchObject({ touch: "email2", attempt: 2, state: "to_review", body: reworded });
   });
 
   it("@proof keeps drafts to their owner: another org sees none and cannot decide one", async () => {
@@ -805,6 +883,42 @@ describe("the rep's review", () => {
     expect((await caller(stranger()).drafts.queue()).items).toEqual([]);
     expect(await codeOf(caller(stranger()).drafts.approve({ draftId: items[0]!.id }))).toBe("NOT_FOUND");
     expect(await codeOf(caller(stranger()).drafts.reject({ draftId: items[0]!.id, reason: "not_now", requestId: randomUUID() }))).toBe("NOT_FOUND");
+  });
+});
+
+describe("the cohort report's messaging v2 checks", () => {
+  it("@proof shows the new columns for a sequence the fixture writer drafted, with each touch's change size from the Event", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const person = await prisma.campaignPerson.findFirstOrThrow({ where: { id: (job!.input as { campaignPersonId: string }).campaignPersonId }, include: { person: true } });
+    const qa = JSON.parse(readFileSync(path.join(process.cwd(), "fixtures", "outreach", "qa-drafts.json"), "utf8")) as { touches: Record<string, unknown> };
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "relay-cohort-")), "drafts.json");
+    const first = { subject: "delay as the top complaint theme", ...GOOD[0]!, opener: { ref: "$role", kind: "role_pain" }, claims: [] };
+    writeFileSync(file, JSON.stringify({ drafts: { [person.person!.email!.toLowerCase()]: [first] }, touches: qa.touches }));
+    const lookup = nothingFound();
+    await outreachDraftHandler({ makeModel: fixtureWriter(file), search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z") })({
+      db: prisma,
+      job: { ...job!, attempts: 1 },
+      signal: new AbortController().signal,
+    });
+
+    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
+    const order = [...SEQUENCE] as string[];
+    drafts.sort((a, b) => order.indexOf(a.touch) - order.indexOf(b.touch));
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
+    const humanizer = (event.after as { humanizer: { touches: Record<string, { changePct: number | null }> } }).humanizer.touches;
+    const report = renderChecks([checkedSequenceOf("Person 1", drafts, humanizer)], "Insights360");
+
+    expect(report).toContain('| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight | Humanizer change (median) |');
+    expect(report).toContain('| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight | Humanizer change (median) |');
+    // The fixture's first email names what the product does ("Reading every call" is not a product sentence), and its
+    // LinkedIn message and follow-up end "X, or Y?": two in one sequence, over the bar.
+    expect(report).toContain('| "X, or Y?" asks in any one sequence | at most 1 | at most 2 (2 in total) | **no** |');
+    expect(report).toContain("| Price in a cold touch | 0 | 0 of 6 | yes |");
+    // The fixture writer hands every touch back untouched: 0% on all seven, and the bar says so.
+    expect(report).toContain("| Humanizer change, median | at least 10% | 0.0% over 7 touches | **no** |");
+    expect(report).toMatch(/\| Person 1 \| no \| \d \| 0 \| 2 \| none \| none \| \d of 5 \| 0\.0% \|/);
   });
 });
 

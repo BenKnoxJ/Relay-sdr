@@ -58,7 +58,9 @@ describe("the recorded cohort (15 Sep 2026)", () => {
 
   it.each(["Marlo Holloway", "Orla Bellamy"])("%s: the opener's ref listed as a claim no longer holds the draft", (name) => {
     const result = gate(name);
-    expect(result.tierA).toEqual([]);
+    expect(rules(result.tierA)).not.toContain("claim-id");
+    // Messaging v2's tell list holds Marlo's presumptive "…, or is that already sorted?" ask; nothing else holds either draft.
+    expect(result.tierA).toEqual(name === "Marlo Holloway" ? [{ rule: "tells", text: expect.stringContaining('"or is that"') }] : []);
   });
 
   it("Blair Kendrick: one product sentence citing two facts passes (D-1)", () => {

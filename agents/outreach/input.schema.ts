@@ -5,6 +5,7 @@ import { ROLE_PARTS } from "../leadgen/input.schema";
 import { productFactsSchema } from "../research/input.schema";
 import { hookSchema, planArchetypeSchema as archetypeSchema } from "../research/output.schema";
 import { angleSchema } from "../research/output/modules";
+import { callDraftSchema, messageDraftSchema } from "./output.schema";
 
 /**
  * What one draft job is given — `outreach.v2.signed.md` §3 and §4, as amended
@@ -126,12 +127,26 @@ export const voiceSchema = z
   })
   .strict();
 
+/**
+ * Messaging v2 (22 Sep 2026): one worked touch, in the shape the writer answers
+ * in, with what it shows (the role, the opener, the give and the ask). The
+ * exemplars teach shape; their words, facts and ids are another person's.
+ */
+export const exemplarSchema = z
+  .object({
+    touch: z.enum(TOUCH_KINDS),
+    shows: z.string().min(1).max(400),
+    draft: z.discriminatedUnion("kind", [messageDraftSchema, callDraftSchema]),
+  })
+  .strict()
+  .refine((exemplar) => (exemplar.touch === "call") === (exemplar.draft.kind === "call"), { message: "a call exemplar is a call script, and every other touch is a message" });
+
 export const standardSchema = z
   .object({
     version: z.number().int().positive(),
-    /** §6: the eight rules, and v2.1's ninth. */
+    /** Messaging v2: the eight rules of the writing standard. */
     rules: z.array(z.string().min(1).max(1000)).min(8).max(12),
-    exemplars: z.array(z.string().min(1).max(5000)).max(20),
+    exemplars: z.array(exemplarSchema).max(20),
     /** v2.1 §6: the short, high-precision tell list, injected as a list and gated in code. */
     bannedLexicon: z.array(z.string().min(1).max(80)).max(500),
   })
@@ -217,4 +232,5 @@ export type Sender = z.infer<typeof senderSchema>;
 export type LookupItem = z.infer<typeof lookupItemSchema>;
 export type LookupResult = z.infer<typeof lookupResultSchema>;
 export type RecentDraft = z.infer<typeof recentDraftSchema>;
+export type Exemplar = z.infer<typeof exemplarSchema>;
 export { factIdSchema, idSchema };

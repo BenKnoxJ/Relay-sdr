@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Chip } from "@/components/Chip";
@@ -16,6 +16,7 @@ import type { PersonTrackingView, StepDraft } from "@/lib/repo/outreachTracking"
 
 import { CallScript } from "./CallScript";
 import { CopyButton } from "./CopyButton";
+import { UnsavedContext, useUnsaved } from "./unsaved";
 
 /** One person as the drawer draws them: P4's read, with each email step's draft as the Inbox card. */
 export type PersonView = PersonTrackingView & { emailCards: Record<string, DraftItem> };
@@ -43,7 +44,8 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
  *
  * It slides in from the right over the People list, and the URL says who is
  * open (`?person=`), so it can be linked. Esc, the ✕ and the backdrop close
- * it. It is a modal dialog: focus moves into it, Tab stays inside, and
+ * it; with an edited email or a note not yet saved, each of the three asks
+ * first (P5c). It is a modal dialog: focus moves into it, Tab stays inside, and
  * closing it puts focus back on the row that opened it. At 390px it is the
  * full width of the screen.
  *
@@ -74,6 +76,34 @@ export function PersonDrawer({
   const personId = person?.campaignPersonId ?? null;
   const close = () => router.push(closeHref, { scroll: false });
 
+  // Unsaved words (P5c): the fields report in, and closing over any of them asks first.
+  const unsaved = useRef(new Set<string>());
+  const report = useCallback((key: string, isUnsaved: boolean) => {
+    if (isUnsaved) unsaved.current.add(key);
+    // eslint-disable-next-line no-restricted-syntax -- a Set of field keys, not a Prisma delegate
+    else unsaved.current.delete(key);
+  }, []);
+  const [confirming, setConfirming] = useState(false);
+  // Where the rep was when the question came up: Keep editing puts them back there.
+  const editingAt = useRef<HTMLElement | null>(null);
+  const requestClose = useCallback(() => {
+    if (unsaved.current.size === 0) {
+      router.push(closeHref, { scroll: false });
+      return;
+    }
+    editingAt.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setConfirming(true);
+  }, [router, closeHref]);
+  const keepEditing = useCallback(() => {
+    setConfirming(false);
+    const back = editingAt.current;
+    // The ✕ or the backdrop had focus rather than a field: the close button is the place to come back to.
+    (back !== null && back.isConnected && dialog.current?.contains(back) ? back : closeButton.current)?.focus();
+  }, []);
+  useEffect(() => {
+    if (confirming) dialog.current?.querySelector<HTMLElement>('[data-testid="drawer-keep-editing"]')?.focus();
+  }, [confirming]);
+
   // Focus in on open; back to the row that opened it (or what had it) on close.
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -90,7 +120,9 @@ export function PersonDrawer({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        router.push(closeHref, { scroll: false });
+        // Esc on the question is "keep editing"; otherwise it closes, asking first over unsaved words.
+        if (confirming) keepEditing();
+        else requestClose();
         return;
       }
       if (event.key !== "Tab" || dialog.current === null) return;
@@ -109,11 +141,11 @@ export function PersonDrawer({
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [router, closeHref]);
+  }, [confirming, requestClose, keepEditing]);
 
   return (
     <div data-testid="person-drawer-layer" className="fixed inset-0 z-40">
-      <div data-testid="person-drawer-backdrop" aria-hidden="true" onClick={close} className="absolute inset-0 bg-ink opacity-40" />
+      <div data-testid="person-drawer-backdrop" aria-hidden="true" onClick={requestClose} className="absolute inset-0 bg-ink opacity-40" />
       <div
         ref={dialog}
         role="dialog"
@@ -131,18 +163,33 @@ export function PersonDrawer({
             type="button"
             data-testid="person-drawer-close"
             aria-label={c.close}
-            onClick={close}
+            onClick={requestClose}
             className="rounded-pill px-2 text-16 leading-none text-muted outline-none hover:text-ink focus-visible:ring-2"
           >
             <span aria-hidden="true">✕</span>
           </button>
         </div>
+        {confirming ? (
+          <div role="alert" data-testid="drawer-unsaved" className="mx-card mt-3 grid gap-2 rounded-input bg-warn-bg px-3 py-2">
+            <p className="type-small text-warn">{c.unsavedPrompt}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <PillButton variant="outline" data-testid="drawer-keep-editing" onClick={keepEditing}>
+                {c.keepEditing}
+              </PillButton>
+              <PillButton variant="text" data-testid="drawer-close-anyway" onClick={close}>
+                {c.closeAnyway}
+              </PillButton>
+            </div>
+          </div>
+        ) : null}
         {person === null ? (
           <p data-testid="person-drawer-missing" className="type-body px-card py-5 text-muted">
             {c.notFound}
           </p>
         ) : (
-          <DrawerBody key={person.campaignPersonId} person={person} actions={actions} onChanged={onChanged} />
+          <UnsavedContext.Provider value={report}>
+            <DrawerBody key={person.campaignPersonId} person={person} actions={actions} onChanged={onChanged} />
+          </UnsavedContext.Provider>
         )}
       </div>
     </div>
@@ -527,6 +574,7 @@ function Paragraphs({ text, testId }: { text: string; testId?: string }) {
 function CallDoneForm({ busy, onSave }: { busy: boolean; onSave: (result: CallResult, note: string) => Promise<boolean> }) {
   const [result, setResult] = useState<CallResult | null>(null);
   const [note, setNote] = useState("");
+  useUnsaved("call-note", note.trim() !== "");
   const noteId = useId();
   const legendId = useId();
   return (
@@ -570,6 +618,7 @@ function CallDoneForm({ busy, onSave }: { busy: boolean; onSave: (result: CallRe
 
 function Notes({ notes, busy, onAdd }: { notes: PersonView["notes"]; busy: boolean; onAdd: (text: string) => Promise<boolean> }) {
   const [text, setText] = useState("");
+  useUnsaved("note", text.trim() !== "");
   const fieldId = useId();
   const headingId = useId();
   return (

@@ -8,21 +8,21 @@
       "pattern": "\\bindependently[- ](?:audited|tested|verified|assessed)\\b|\\bpen[- ]?test(?:ed|ing)?\\b|\\bpenetration[- ]test(?:ed|ing|s)?\\b|\\bthird[- ]party (?:audit(?:ed)?|security (?:audit|assessment)|pen(?:etration)? test)\\b",
       "sayInstead": "internally audited",
       "factId": "i360.proof.tenant-isolation-internally-audited",
-      "why": "the tenant-isolation audit was internal, not a third-party penetration test"
+      "why": "the audit of how customer data is kept separate was internal, not a third-party penetration test"
     },
     {
       "id": "real-time-results",
       "pattern": "\\b(?:results?|scores?|scoring|insights?|analysis|analytics|dashboards?|alerts?|flags?|transcripts?)\\b[^.;]{0,40}\\b(?:in )?real[- ]?time\\b|\\breal[- ]?time\\b[^.;]{0,20}\\b(?:results?|scor\\w*|analysis|analytics|insights?|monitoring|dashboards?|alerts?|assist\\w*|coaching)\\b|\\b(?:insights ?360|the product|the platform|it) (?:works|runs|scores|analyses|analyzes) (?:calls )?(?:in )?real[- ]?time\\b",
       "sayInstead": "post-call; results the same day or within a couple of hours",
       "factId": "i360.boundary.not-real-time",
-      "why": "post-call only: no websockets or streaming; results lag up to about an hour"
+      "why": "post-call only: nothing is streamed live; results lag up to about an hour"
     },
     {
       "id": "within-minutes",
       "pattern": "\\b(?:typically |usually )?within (?:a few |few )?minutes\\b|\\b(?:in|within) (?:seconds|minutes) of (?:the|a) call\\b|\\bminutes after the call\\b",
       "sayInstead": "same day, or within a couple of hours",
       "factId": "i360.product.results-lag-up-to-about-an-hour",
-      "why": "ingestion polls about every 15 minutes, then transcription, then an hourly sync"
+      "why": "new recordings are collected about every 15 minutes, then transcribed, then refreshed into the dashboard hourly"
     },
     {
       "id": "uk-data-residency",
@@ -34,9 +34,9 @@
     {
       "id": "every-call-absolute",
       "pattern": "\\b100 ?% of (?:your |their |all )?calls\\b|\\bevery call (?:you|they|your team|the firm) (?:make|makes|take|takes|handle|handles)\\b|\\bevery single call\\b|\\bevery call, (?:without|no) exception\\b|\\bnever misses a call\\b",
-      "sayInstead": "every call we ingest",
+      "sayInstead": "every call, not a sample",
       "factId": "i360.product.every-ingested-call-analysed",
-      "why": "the pipeline can lose calls on failure paths; literal 100% completeness is not promised"
+      "why": "calls can be lost when a step fails; literal 100% completeness is not promised"
     },
     {
       "id": "unwired-integrations",
@@ -109,7 +109,7 @@
       "pattern": "\\bper[- ]team scorecards?\\b|\\bteam[- ]level (?:scorecards?|comparisons?|reporting)\\b|\\bcompare teams\\b|\\bdifferent scorecards? (?:for|per) (?:each )?(?:team|department)s?\\b",
       "sayInstead": "one scorecard per firm",
       "factId": "i360.feature.auto-qa-scoring-against-tenant-rules",
-      "why": "one scorecard per tenant; team entities do not ship in the UI"
+      "why": "one scorecard per customer; teams do not ship in the UI"
     },
     {
       "id": "agent-side-sentiment",
@@ -186,7 +186,7 @@
       "pattern": "\\b(?:insights ?360|the product|the platform|it)\\b[^.;]{0,40}\\b(?:group|cross[- ]tenant|multi[- ]tenant|multi[- ]entity|multi[- ]site|cross[- ]office) (?:dashboards?|views?|reporting)\\b",
       "sayInstead": "one dashboard per firm",
       "factId": "i360.boundary.no-group-or-cross-tenant-dashboard",
-      "why": "there is no group or cross-tenant dashboard, and none is on the roadmap"
+      "why": "there is no group or cross-customer dashboard, and none is on the roadmap"
     },
     {
       "id": "sso-redaction-crm",

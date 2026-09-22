@@ -1,7 +1,7 @@
 import type { CampaignPerson } from "@prisma/client";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
-import { SEQUENCE, type LookupResult, type OutreachInput, type RecentDraft, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, type LookupResult, type OutreachInput, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { completeModule, deriveArchetype, deriveHook, type PackShape } from "../../../agents/research/output.schema";
 import { isSeedFirm } from "@/lib/leadgen/rank";
@@ -22,6 +22,8 @@ export type AdapterFacts = {
   row: Pick<CampaignPerson, "id" | "providerId" | "preview" | "rolePart" | "roleTitle" | "companyKey">;
   /** Their usable work email, from the Person. */
   email: string;
+  /** Who is writing: the rep and their company (`senderOf`). */
+  sender: Sender;
   handoff: LeadGenHandoff;
   pack: PackShape;
   facts: ProductFacts;
@@ -55,6 +57,29 @@ export function previewFields(value: unknown): Preview {
 
 export function firstNameOf(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name;
+}
+
+/** The company a rep writes from when their org has no display name of its own. */
+export const DEFAULT_SENDER_COMPANY = "Conversant";
+
+/**
+ * Who is writing (P5c): the rep's first name, from their user record (their
+ * name, else their email's local part), and their company. An org's name is
+ * its email domain until someone gives it a display name, and a domain is not
+ * a company a prospect is introduced to, so it reads as `Conversant`.
+ */
+export function senderOf(input: { userName: string | null; email: string; orgName: string | null }): Sender {
+  const named = firstNameOf(input.userName?.trim() ?? "");
+  const localPart = input.email.split("@")[0] ?? "";
+  // The first word of the local part (`ben.knox-johnston` is Ben), or all of it when it has no word to split out.
+  const local = localPart.split(/[._+-]/).find((part) => part !== "") ?? localPart;
+  const fromEmail = local === "" ? "" : local.charAt(0).toUpperCase() + local.slice(1).toLowerCase();
+  const orgName = input.orgName?.trim() ?? "";
+  const isDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(orgName);
+  return {
+    firstName: (named !== "" ? named : fromEmail).slice(0, 100),
+    company: (orgName === "" || isDomain ? DEFAULT_SENDER_COMPANY : orgName).slice(0, 200),
+  };
 }
 
 /** The person's role, with its needs as research wrote them; none for a Related role. */
@@ -109,6 +134,7 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
       email: input.email,
       ...(preview.city === undefined ? {} : { city: preview.city }),
     },
+    sender: input.sender,
     ...(buyerRole === undefined ? {} : { buyerRole }),
     account: {
       company: preview.company,

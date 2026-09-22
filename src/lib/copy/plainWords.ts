@@ -133,6 +133,23 @@ export function assertPlainProse(value: unknown): void {
   }
 }
 
+/**
+ * The prose list plus what a prospect must never read (P5c): the name of the
+ * tool that drafts the message, and "pipeline", which a product fact once
+ * carried into drafts as "every call your pipeline ingests". Outreach only:
+ * in a research paragraph about a market "pipeline" is ordinary English.
+ */
+export const OUTREACH_PROSE_WORDS = new RegExp(`${PROSE_MACHINE_WORDS.source}|\\b(relay|pipelines?)\\b`, "i");
+
+/** `assertPlainProse` for words a prospect reads, with the outreach list. */
+export function assertOutreachProse(value: unknown): void {
+  for (const [path, text] of readableStrings(value)) {
+    if (OUTREACH_PROSE_WORDS.test(text)) {
+      throw new Error(`machine word in a rep-facing string at ${path}: ${text.slice(0, 400)}`);
+    }
+  }
+}
+
 /** Refuse an em dash, or an en dash standing in for punctuation. */
 export function assertPlainDashes(value: unknown): void {
   for (const [path, text] of readableStrings(value)) {

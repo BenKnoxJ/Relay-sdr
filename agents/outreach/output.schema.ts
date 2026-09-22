@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { assertPlainDashes, assertPlainProse } from "@/lib/copy/plainWords";
+import { assertOutreachProse, assertPlainDashes } from "@/lib/copy/plainWords";
 
 import { factIdSchema, idSchema } from "../_shared/item.schema";
 import type { OutreachInput, TouchKind } from "./input.schema";
@@ -127,10 +127,11 @@ function refineDraft(draft: z.infer<typeof messageDraftSchema> | z.infer<typeof 
     }
     // §12 rubric row 12: plain words on the body, the reasons and the talking
     // points, against the prose list. `MACHINE_WORDS` is the list for Relay's
-    // own copy, and in an email "pipeline" and "touch" are English and Atlas
-    // and Vector are firms a rep writes to.
+    // own copy, and in an email "touch" is English and Atlas and Vector are
+    // firms a rep writes to. The outreach list adds what a prospect must never
+    // read: "Relay" and "pipeline" (P5c).
     try {
-      assertPlainProse(text);
+      assertOutreachProse(text);
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -24,8 +24,11 @@ type Recorded = (typeof recorded.people)[number];
 const facts = liveFacts(loadFacts("insights360", 2).facts);
 const context: GateContext = { productNames: [facts.product], repName: "", cohort: [] };
 
+/** The 15 Sep cohort was recorded before the drafter was told who is writing (P5c). */
+const RECORDED_SENDER = { firstName: "Ben", company: "Conversant" };
+
 function inputOf(person: Recorded): OutreachInput {
-  return outreachInputSchema.parse({ ...person.input, pack: recorded.pack, facts, standard: loadStandard() });
+  return outreachInputSchema.parse({ sender: RECORDED_SENDER, ...person.input, pack: recorded.pack, facts, standard: loadStandard() });
 }
 
 function person(name: string): { input: OutreachInput; draft: OutreachOutput } {

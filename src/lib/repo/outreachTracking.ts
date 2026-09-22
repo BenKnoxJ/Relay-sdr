@@ -1,7 +1,7 @@
 import type { OutreachDraftState, Prisma, PrismaClient } from "@prisma/client";
 
 import type { CalendarItem } from "@/lib/outreach/calendar";
-import { webUrlOf } from "@/lib/outreach/peopleList";
+import { linkedinUrlOf } from "@/lib/outreach/peopleList";
 import { fromDbDate, isIsoDate, londonDay, toDbDate, type IsoDate, type StepId } from "@/lib/outreach/sequence";
 import {
   NOTE_MAX,
@@ -258,7 +258,7 @@ export async function setPhone(db: PrismaClient, input: PersonRef & { phone: str
 function previewOf(value: unknown): { title: string; company: string; linkedinUrl: string | null } {
   const preview = value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const text = (key: string) => (typeof preview[key] === "string" ? (preview[key] as string).trim() : "");
-  return { title: text("title"), company: text("company"), linkedinUrl: webUrlOf(preview.linkedinUrl) };
+  return { title: text("title"), company: text("company"), linkedinUrl: linkedinUrlOf(preview.linkedinUrl) };
 }
 
 /** A tracked person on a campaign: kept, revealed, chosen. */
@@ -343,8 +343,9 @@ export type PersonTrackingView = TrackingRow & {
   paused: boolean;
   tracking: PersonTracking;
   /**
-   * The stored draft for each step's touch: an approved attempt if there is
-   * one, else the latest. Both calls read the one call script.
+   * The stored draft for each step's touch: the latest usable attempt
+   * (approved, then to review, then needs you), else the latest. Both calls
+   * read the one call script.
    */
   drafts: Record<string, StepDraft | null>;
   /** Every row, oldest first, each saying whether an undo reversed it. */
@@ -376,17 +377,19 @@ export async function personTracking(db: Db, input: Owner & { campaignPersonId: 
   // A redraft on its way: the next attempt's job, by the key the reject that asked for it used.
   const inFlight = await redraftsInFlight(db, input.orgId, drafts.map((draft) => ({ ...draft, campaignPersonId: person.id })));
   const nextKey = (draft: (typeof drafts)[number]) => nextAttemptKey({ ...draft, campaignPersonId: person.id });
-  // Latest attempt first; an approved one wins, so a later redraft that failed cannot hide it (P4 review).
+  // Latest attempt first; a usable one wins over a later one that is not, so a redraft that failed
+  // cannot hide the draft the rep can still use (P4 and P5 reviews).
   const latest = new Map<string, StepDraft>();
   for (const draft of drafts) {
     const held = latest.get(draft.touch);
-    if (held !== undefined && (held.state === "approved" || draft.state !== "approved")) continue;
+    if (held !== undefined && usableRank(held.state) >= usableRank(draft.state)) continue;
     const attemptLeft = draft.attempt < MAX_DRAFT_ATTEMPTS;
     latest.set(draft.touch, {
       id: draft.id,
       state: draft.state,
       attempt: draft.attempt,
-      subject: draft.subject,
+      // A subject belongs to an email: a LinkedIn or call row stored before P5 still shows none.
+      subject: (EMAIL_TOUCHES as readonly string[]).includes(draft.touch) ? draft.subject : null,
       body: draft.editedBody ?? draft.body,
       canTryAgain: (draft.state === "failed" || draft.state === "needs_you") && attemptLeft && !inFlight.has(nextKey(draft)),
       redrafting: inFlight.has(nextKey(draft)),
@@ -414,6 +417,11 @@ export async function personTracking(db: Db, input: Owner & { campaignPersonId: 
       .reverse()
       .map((event) => ({ eventId: event.id, kind: event.kind, step: event.step, note: event.note!, happenedOn: event.happenedOn })),
   };
+}
+
+/** How usable a draft is to the rep: approved, then to review, then needs you; anything else not at all. */
+function usableRank(state: OutreachDraftState): number {
+  return state === "approved" ? 3 : state === "to_review" ? 2 : state === "needs_you" ? 1 : 0;
 }
 
 export type DueItem = CalendarItem & { touch: string };

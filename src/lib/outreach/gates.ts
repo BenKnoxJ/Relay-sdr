@@ -114,7 +114,7 @@ function shapeFindings(draft: MessageDraft, input: OutreachInput, lexicon: reado
   const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(body);
   const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(body);
   if (/^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(body) || opensWithName || signsOff) {
-    found.push({ rule: "envelope", text: "Relay adds the greeting and the sign-off; the body starts with the first sentence and ends with the question." });
+    found.push({ rule: "envelope", text: "The greeting and the sign-off are added for you; the body starts with the first sentence and ends with the question." });
   }
   return found;
 }
@@ -457,7 +457,7 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
     const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(draft.body);
     const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(draft.body);
     if (/^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(draft.body) || opensWithName || signsOff) {
-      found.push({ rule: "envelope", text: "Relay adds the greeting and the sign-off; the message starts with the first sentence and ends with the question." });
+      found.push({ rule: "envelope", text: "The greeting and the sign-off are added for you; the message starts with the first sentence and ends with the question." });
     }
   } else if (draft.talkingPoint.voicemail === undefined) {
     found.push({ rule: "voicemail", text: "The call script has no voicemail." });

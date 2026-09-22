@@ -23,6 +23,7 @@ const EXPECTED_TABLES = [
   "orgs",
   "outreach_drafts",
   "outreach_events",
+  "outreach_sends",
   "people",
   "product_facts_versions",
   "provider_identities",
@@ -259,6 +260,31 @@ describe("tracking events (Relay P4)", () => {
 
   it("undoes a row at most once", async () => {
     expect((await listUniqueIndexes("outreach_events")).map((unique) => unique.columns)).toContainEqual(["undoes_event_id"]);
+  });
+});
+
+describe("sending from Outlook (Relay P7)", () => {
+  it("adds the look to users with defaults, a send per person and step, and changes no existing column", async () => {
+    const look = await prisma.$queryRaw<Array<{ column_name: string; data_type: string; is_nullable: string; column_default: string | null }>>`
+      SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name LIKE 'email\\_%' ORDER BY column_name`;
+    expect(look).toEqual([
+      { column_name: "email_font", data_type: "text", is_nullable: "NO", column_default: "'Aptos'::text" },
+      { column_name: "email_font_size", data_type: "integer", is_nullable: "NO", column_default: "11" },
+      { column_name: "email_signature", data_type: "text", is_nullable: "NO", column_default: "''::text" },
+    ]);
+    expect((await listUniqueIndexes("outreach_sends")).map((unique) => unique.columns)).toContainEqual(["org_id", "campaign_person_id", "step"]);
+    // Additive: nothing dropped, renamed or rewritten, and the only statements on an existing table add the look.
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync("prisma/migrations/20260922090000_outlook_send/migration.sql", "utf8").replace(/--.*$/gm, "");
+    expect(sql).not.toMatch(/\b(DROP|RENAME|TRUNCATE)\b|\bUPDATE\s+"|\bDELETE\s+FROM\b/i);
+    expect(sql.match(/^ALTER TABLE "(\w+)"/gm)?.filter((line) => !line.includes('"outreach_sends"'))).toEqual(['ALTER TABLE "users"']);
+    expect(sql.match(/^(ADD|ALTER|DROP) (COLUMN|CONSTRAINT)\s+"?(\w+)/gm)).toEqual([
+      'ADD COLUMN     "email_font_size',
+      'ADD COLUMN     "email_signature',
+      'ADD CONSTRAINT "users_email_font_size',
+      'ADD CONSTRAINT "users_email_signature_length',
+    ]);
   });
 });
 

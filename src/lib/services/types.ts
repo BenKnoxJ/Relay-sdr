@@ -72,11 +72,30 @@ export type MailState =
       sentDateTime?: string;
     };
 
+/**
+ * A new message's draft. `html` is sent as HTML (Relay P7): the caller builds
+ * it with `emailHtml` (`src/lib/outreach/emailHtml.ts`), which escapes the
+ * text and sanitises the signature, so nothing reaches here unescaped.
+ */
+export type NewMail = { to: string; subject: string; html: string };
+
 export interface GraphMailService {
-  createDraft(
-    account: ConnectedAccountRef,
-    msg: { to: string; subject: string; body: string },
-  ): Promise<{ id: string }>;
+  createDraft(account: ConnectedAccountRef, msg: NewMail): Promise<{ id: string }>;
+  /**
+   * A reply draft to a message this mailbox sent, in the same conversation:
+   * Graph keeps the thread and the "RE:" subject. Addressed to `to`
+   * explicitly, because a reply to one's own sent item would otherwise go
+   * back to the sender. Returns the draft's id; `send` sends it.
+   */
+  createReply(account: ConnectedAccountRef, messageId: string, reply: { to: string; html: string }): Promise<{ id: string }>;
+  /**
+   * Whether anybody but the mailbox's owner has written in this conversation:
+   * a reply from the prospect (or anyone on the thread). Reads every folder,
+   * with paging, not only the Inbox, so a reply a rule filed elsewhere still
+   * counts. `sinceMessageId` is the message Relay sent that opened the thread;
+   * it and any draft are never counted.
+   */
+  conversationHasReply(account: ConnectedAccountRef, conversationId: string, sinceMessageId: string): Promise<boolean>;
   send(
     account: ConnectedAccountRef,
     draftId: string,

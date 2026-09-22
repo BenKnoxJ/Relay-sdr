@@ -12,6 +12,7 @@ import {
   type MailMeta,
   type MailState,
   type MailTokens,
+  type NewMail,
 } from "../types";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
@@ -21,6 +22,12 @@ const TIMEOUT_MS = 20_000;
 const EXPIRY_SKEW_MS = 60_000;
 /** Mailbox poll reads at most this many pages per account per run. */
 const MAX_PAGES = 2;
+/**
+ * The reply check reads at most this many pages of one conversation (50 a
+ * page). A thread longer than that is not one Relay started with a stranger,
+ * and the check says it could not read it rather than guessing.
+ */
+const MAX_CONVERSATION_PAGES = 10;
 /**
  * How many token chains stay cached for ONE account.
  *
@@ -108,15 +115,70 @@ export class LiveGraphMailService implements GraphMailService {
     this.onRefreshFailed = deps.onRefreshFailed;
   }
 
-  async createDraft(account: ConnectedAccountRef, msg: { to: string; subject: string; body: string }) {
+  /**
+   * The owner's own address per account, for the reply check: read once from
+   * `/me`, because who owns a mailbox does not change while it is connected.
+   */
+  private readonly owners = new Map<string, string>();
+
+  async createDraft(account: ConnectedAccountRef, msg: NewMail) {
     const json = await this.request(account, "POST", "/me/messages", {
       subject: msg.subject,
-      body: { contentType: "Text", content: msg.body },
+      body: { contentType: "HTML", content: msg.html },
       toRecipients: [{ emailAddress: { address: msg.to } }],
     });
     const id = str(json.id);
     if (!id) throw new ServiceError({ service: "graph", status: 200, code: "malformed_response" });
     return { id };
+  }
+
+  async createReply(account: ConnectedAccountRef, messageId: string, reply: { to: string; html: string }) {
+    // `message.body` and not `comment`: Graph refuses both together, and a
+    // `comment` is plain text. The recipient is named, because a reply to a
+    // message in Sent Items would otherwise be addressed to its sender, the rep.
+    const json = await this.request(account, "POST", `/me/messages/${encodeURIComponent(messageId)}/createReply`, {
+      message: {
+        toRecipients: [{ emailAddress: { address: reply.to } }],
+        body: { contentType: "HTML", content: reply.html },
+      },
+    });
+    const id = str(json.id);
+    if (!id) throw new ServiceError({ service: "graph", status: 200, code: "malformed_response" });
+    return { id };
+  }
+
+  async conversationHasReply(account: ConnectedAccountRef, conversationId: string, sinceMessageId: string): Promise<boolean> {
+    const owner = await this.ownerAddress(account);
+    // `/me/messages` is every folder, where `listSince` reads only the Inbox.
+    // An OData string literal: quoted, with any quote inside doubled.
+    const filter = "conversationId eq " + "'" + conversationId.replaceAll("'", "''") + "'";
+    let path: string | undefined =
+      `/me/messages?$filter=${encodeURIComponent(filter)}` + `&$select=${encodeURIComponent("id,from,isDraft")}&$top=50`;
+    for (let page = 0; page < MAX_CONVERSATION_PAGES && path; page += 1) {
+      const json: Json = await this.request(account, "GET", path);
+      for (const row of Array.isArray(json.value) ? json.value : []) {
+        const message = (row ?? {}) as Json;
+        if (message.isDraft === true || str(message.id) === sinceMessageId) continue;
+        const from = str(((((message.from ?? {}) as Json).emailAddress ?? {}) as Json).address).toLowerCase();
+        // A message with no sender we can read is counted: the check exists to
+        // stop a follow-up, and a false "they replied" costs one email not sent.
+        if (from !== owner) return true;
+      }
+      const next = json["@odata.nextLink"];
+      path = typeof next === "string" ? next : undefined;
+    }
+    if (path) throw new ServiceError({ service: "graph", status: 200, code: "conversation_too_long" });
+    return false;
+  }
+
+  private async ownerAddress(account: ConnectedAccountRef): Promise<string> {
+    const known = this.owners.get(account.id);
+    if (known !== undefined) return known;
+    const json = await this.request(account, "GET", "/me?$select=mail,userPrincipalName");
+    const address = (str(json.mail) || str(json.userPrincipalName)).toLowerCase();
+    if (!address) throw new ServiceError({ service: "graph", status: 200, code: "malformed_response" });
+    this.owners.set(account.id, address);
+    return address;
   }
 
   async send(account: ConnectedAccountRef, draftId: string) {

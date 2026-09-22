@@ -19,7 +19,7 @@ const account: ConnectedAccountRef = {
   encTokens: "x.y.z",
 };
 
-const draft = { to: "a@example.com", subject: "s", body: "b" };
+const draft = { to: "a@example.com", subject: "s", html: "b" };
 
 describe("Graph mail mock", () => {
   it("numbers draft, message, internet-message and conversation ids", async () => {
@@ -73,6 +73,28 @@ describe("Graph mail mock", () => {
     const created = await graph.createDraft(account, draft);
     await graph.deleteDraft(account, created.id);
     await expect(graph.send(account, created.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("drafts a reply only on a message it has, into that message's conversation, and sends a draft once (P7)", async () => {
+    const graph = new MockGraphMailService();
+    const first = await graph.createDraft(account, draft);
+    const sent = await graph.send(account, first.id);
+    const reply = await graph.createReply(account, sent.id, { to: "a@example.com", html: "<p>again</p>" });
+    expect(reply.id).toBe("AAMk-mock-2");
+    expect(await graph.send(account, reply.id)).toMatchObject({ conversationId: sent.conversationId });
+    await expect(graph.send(account, reply.id)).rejects.toMatchObject({ status: 404 });
+    await expect(graph.createReply(account, "AAMk-mock-99", { to: "a@example.com", html: "x" })).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("finds a reply only where one was put, and answers for a +replied address (P7)", async () => {
+    const graph = new MockGraphMailService();
+    const sent = await graph.send(account, (await graph.createDraft(account, draft)).id);
+    expect(await graph.conversationHasReply(account, sent.conversationId, sent.id)).toBe(false);
+    graph.injectReply(sent.conversationId);
+    expect(await graph.conversationHasReply(account, sent.conversationId, sent.id)).toBe(true);
+    const other = await graph.send(account, (await graph.createDraft(account, { ...draft, to: "someone+replied@example.com" })).id);
+    expect(await graph.conversationHasReply(account, other.conversationId, other.id)).toBe(true);
+    expect(graph.calls.filter((call) => call.method === "conversationHasReply")).toHaveLength(3);
   });
 
   it("lists fixture inbox messages received since the cursor", async () => {

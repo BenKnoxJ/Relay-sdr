@@ -60,7 +60,7 @@ export class TrackingRefused extends Error {
 type Db = PrismaClient | Prisma.TransactionClient;
 type Tx = Prisma.TransactionClient;
 type Owner = { orgId: string; userId: string };
-type PersonRef = Owner & { campaignPersonId: string; now?: () => Date };
+export type PersonRef = Owner & { campaignPersonId: string; now?: () => Date };
 
 /** The longest phone number kept, and what it may hold. */
 export const PHONE_MAX = 40;
@@ -69,13 +69,13 @@ const PHONE = /^\+?[0-9 ()\-.]{3,40}$/;
 /** The longest range `dueBetween` answers, in days. */
 export const DUE_RANGE_MAX_DAYS = 92;
 
-type Locked = { id: string; campaignId: string; personId: string | null; startOn: IsoDate | null };
+export type Locked = { id: string; campaignId: string; personId: string | null; startOn: IsoDate | null };
 
 /**
  * Lock one of the rep's tracked people for the rest of the transaction: a
  * kept, revealed person on a campaign the rep owns. Null when there is none.
  */
-async function lockPerson(tx: Tx, ref: PersonRef): Promise<Locked | null> {
+export async function lockPerson(tx: Tx, ref: PersonRef): Promise<Locked | null> {
   const rows = await tx.$queryRaw<Array<{ id: string; campaign_id: string; person_id: string | null; outreach_start_on: Date | null }>>`
     SELECT cp.id, cp.campaign_id, cp.person_id, cp.outreach_start_on
       FROM campaign_people cp
@@ -94,7 +94,7 @@ type TrackRow = { id: string; step: string | null; kind: TrackEvent["kind"]; out
 
 const toTrackEvent = (row: TrackRow): TrackEvent => ({ ...row, step: row.step as StepId | null, happenedOn: fromDbDate(row.happenedOn) });
 
-async function historyOf(db: Db, orgId: string, campaignPersonId: string): Promise<TrackEvent[]> {
+export async function historyOf(db: Db, orgId: string, campaignPersonId: string): Promise<TrackEvent[]> {
   const rows = await db.outreachEvent.findMany({ where: { orgId, campaignPersonId }, select: TRACK_SELECT, orderBy: { seq: "asc" } });
   return rows.map(toTrackEvent);
 }

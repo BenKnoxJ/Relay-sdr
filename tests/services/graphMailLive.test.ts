@@ -26,7 +26,7 @@ const now = () => NOW;
 const fresh = () => account("2026-09-02T10:00:00.000Z");
 const expired = () => account("2026-09-02T08:00:00.000Z");
 
-const draft = { to: "priya@example.com", subject: "Quick question", body: "Hello" };
+const draft = { to: "priya@example.com", subject: "Quick question", html: "<p>Hello</p>" };
 
 function client(responders: Parameters<typeof stubFetch>[0], deps = {}) {
   const fetchStub = stubFetch(responders);
@@ -49,9 +49,56 @@ describe("LiveGraphMailService — request shaping", () => {
     expect(call?.headers.Authorization).toBe("Bearer access-1");
     expect(JSON.parse(call?.body ?? "{}")).toEqual({
       subject: "Quick question",
-      body: { contentType: "Text", content: "Hello" },
+      body: { contentType: "HTML", content: "<p>Hello</p>" },
       toRecipients: [{ emailAddress: { address: "priya@example.com" } }],
     });
+  });
+
+  it("drafts a reply in the same conversation, addressed to the prospect, as HTML (P7)", async () => {
+    const { graph, calls } = client([() => json({ id: "AAMk-reply-1" })]);
+    expect(await graph.createReply(fresh(), "AAMk sent/1", { to: "priya@example.com", html: "<p>Following up</p>" })).toEqual({ id: "AAMk-reply-1" });
+    expect(calls[0]?.url).toBe("https://graph.microsoft.com/v1.0/me/messages/AAMk%20sent%2F1/createReply");
+    expect(calls[0]?.method).toBe("POST");
+    expect(calls[0]?.headers.Prefer).toBe('IdType="ImmutableId"');
+    // `message.body`, never `comment` as well: Graph refuses both together.
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
+      message: { toRecipients: [{ emailAddress: { address: "priya@example.com" } }], body: { contentType: "HTML", content: "<p>Following up</p>" } },
+    });
+  });
+
+  it("reads every folder of the conversation, page by page, for a message not from the owner (P7)", async () => {
+    const { graph, calls } = client([
+      () => json({ mail: "Sam@Conversant.example", userPrincipalName: "sam@conversant.example" }),
+      () =>
+        json({
+          value: [
+            { id: "sent-1", from: { emailAddress: { address: "sam@conversant.example" } }, isDraft: false },
+            { id: "draft-2", from: { emailAddress: { address: "priya@example.com" } }, isDraft: true },
+          ],
+          "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skiptoken=2",
+        }),
+      () => json({ value: [{ id: "in-3", from: { emailAddress: { address: "Priya@Example.com" } }, isDraft: false }] }),
+    ]);
+    expect(await graph.conversationHasReply(fresh(), "conv'1", "sent-1")).toBe(true);
+    expect(calls[0]?.url).toBe("https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName");
+    const first = new URL(calls[1]!.url);
+    expect(first.pathname).toBe("/v1.0/me/messages");
+    expect(first.searchParams.get("$filter")).toBe("conversationId eq 'conv''1'");
+    expect(calls[2]?.url).toBe("https://graph.microsoft.com/v1.0/me/messages?$skiptoken=2");
+  });
+
+  it("finds no reply when only the owner has written, and does not re-read who the owner is (P7)", async () => {
+    const own = { value: [{ id: "sent-1", from: { emailAddress: { address: "sam@conversant.example" } }, isDraft: false }, { id: "sent-2", from: { emailAddress: { address: "SAM@conversant.example" } }, isDraft: false }] };
+    const { graph, calls } = client([() => json({ mail: null, userPrincipalName: "sam@conversant.example" }), () => json(own), () => json(own)]);
+    expect(await graph.conversationHasReply(fresh(), "conv-1", "sent-1")).toBe(false);
+    expect(await graph.conversationHasReply(fresh(), "conv-1", "sent-1")).toBe(false);
+    expect(calls.filter((call) => call.url.includes("/me?"))).toHaveLength(1);
+  });
+
+  it("says it could not read a conversation longer than it will page through, rather than guess (P7)", async () => {
+    const page = () => json({ value: [], "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?$skiptoken=n" });
+    const { graph } = client([() => json({ mail: "sam@conversant.example" }), ...Array.from({ length: 10 }, () => page)]);
+    await expect(graph.conversationHasReply(fresh(), "conv-1", "sent-1")).rejects.toMatchObject({ code: "conversation_too_long" });
   });
 
   it("rejects a 2xx that carries no draft id rather than returning an empty one", async () => {

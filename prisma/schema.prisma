@@ -78,6 +78,7 @@ model Org {
   outreachDrafts      OutreachDraft[]
   repVoices           RepVoice[]
   outreachEvents      OutreachEvent[]
+  outreachSends       OutreachSend[]
 
   @@map("orgs")
 }
@@ -86,15 +87,21 @@ model Org {
 /// bypass (`DEV_USER_EMAIL`) signs in a user that Clerk has never seen.
 /// Deactivation is a timestamp, not a delete (§25, rule 1).
 model User {
-  id            String    @id @default(cuid())
-  orgId         String    @map("org_id")
-  clerkId       String?   @unique @map("clerk_id")
-  email         String
-  name          String?
-  role          Role      @default(rep)
-  deactivatedAt DateTime? @map("deactivated_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  orgId          String    @map("org_id")
+  clerkId        String?   @unique @map("clerk_id")
+  email          String
+  name           String?
+  role           Role      @default(rep)
+  deactivatedAt  DateTime? @map("deactivated_at")
+  /// How the rep's sent emails look (Relay P7): a font from the fixed list in
+  /// `src/lib/outreach/emailHtml.ts`, a size in points, and the signature they
+  /// pasted, stored already sanitised. Empty signature means none.
+  emailFont      String    @default("Aptos") @map("email_font")
+  emailFontSize  Int       @default(11) @map("email_font_size")
+  emailSignature String    @default("") @map("email_signature")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   org               Org                @relation(fields: [orgId], references: [id], onDelete: Restrict)
   connectedAccounts ConnectedAccount[]
@@ -106,6 +113,7 @@ model User {
   outreachDrafts    OutreachDraft[]    @relation("OutreachDraftOwner")
   decidedDrafts     OutreachDraft[]    @relation("OutreachDraftDecider")
   outreachEvents    OutreachEvent[]
+  outreachSends     OutreachSend[]
   repVoice          RepVoice?
 
   @@unique([orgId, email])
@@ -272,6 +280,7 @@ model Campaign {
   credits        CreditLedgerEntry[]
   drafts         OutreachDraft[]
   outreachEvents OutreachEvent[]
+  outreachSends  OutreachSend[]
 
   @@unique([orgId, startRequestId])
   @@index([orgId, ownerUserId, createdAt])
@@ -674,6 +683,7 @@ model CampaignPerson {
   person     Person?         @relation(fields: [personId], references: [id], onDelete: Restrict)
   drafts     OutreachDraft[]
   events     OutreachEvent[]
+  sends      OutreachSend[]
   reviewedBy User?           @relation("CampaignPersonReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([orgId, campaignId, briefVersion, provider, providerId])
@@ -897,4 +907,52 @@ model OutreachEvent {
   @@index([orgId, campaignPersonId, seq])
   @@index([orgId, campaignId])
   @@map("outreach_events")
+}
+
+enum OutreachSendState {
+  sending
+  sent
+  unverified
+  failed
+
+  @@map("outreach_send_state")
+}
+
+/// One email step sent from the rep's mailbox (Relay P7). The row is written
+/// BEFORE Microsoft is called, and its unique key is what makes a double
+/// press send once: the second press finds the row and does not send. It
+/// carries the mailbox's draft id as soon as there is one, so a send whose
+/// outcome is unclear is checked by reading that message back, never by
+/// sending again; and, once sent, the message and conversation ids Emails 2
+/// and 3 reply to.
+model OutreachSend {
+  id                String            @id @default(cuid())
+  orgId             String            @map("org_id")
+  campaignId        String            @map("campaign_id")
+  campaignPersonId  String            @map("campaign_person_id")
+  /// An email step id from the sequence template.
+  step              String
+  byUserId          String            @map("by_user_id")
+  state             OutreachSendState
+  graphDraftId      String?           @map("graph_draft_id")
+  messageId         String?           @map("message_id")
+  internetMessageId String?           @map("internet_message_id")
+  conversationId    String?           @map("conversation_id")
+  /// When a press last claimed it: the day an unsettled send counts against the cap.
+  claimedAt         DateTime          @default(now()) @map("claimed_at")
+  /// Why the last attempt did not go, in a short code; null otherwise.
+  failure           String?
+  sentAt            DateTime?         @map("sent_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  org            Org            @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  campaign       Campaign       @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  campaignPerson CampaignPerson @relation(fields: [campaignPersonId], references: [id], onDelete: Restrict)
+  byUser         User           @relation(fields: [byUserId], references: [id], onDelete: Restrict)
+
+  /// One send per person and step: the double-press guard.
+  @@unique([orgId, campaignPersonId, step])
+  @@index([orgId, byUserId, createdAt])
+  @@map("outreach_sends")
 }

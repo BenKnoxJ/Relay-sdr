@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SettingsPage from "@/app/(app)/settings/page";
 import { MailboxCard, type MailboxState } from "@/components/MailboxCard";
+import { emailLookCopy } from "@/lib/copy/send";
 import { linkedinCopy, mailboxCopy, settingsCopy, voiceCopy } from "@/lib/copy/settings";
 
 /**
@@ -19,7 +20,7 @@ const card = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/settings", redirect: () => undefined }));
 
 vi.mock("@/server/api/caller", () => ({
-  serverCaller: async () => ({ connections: { get: async () => card() }, drafts: { voice: async () => ({ samples: [], howIWrite: "" }) } }),
+  serverCaller: async () => ({ connections: { get: async () => card() }, drafts: { voice: async () => ({ samples: [], howIWrite: "" }) }, send: { look: async () => ({ look: { font: "Aptos", fontSize: 11, signature: "" }, preview: "" }) } }),
   isRefusal: () => false,
 }));
 
@@ -65,7 +66,7 @@ describe("Settings", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(settingsCopy.title);
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual([settingsCopy.mailbox, settingsCopy.linkedin, settingsCopy.voice]);
+    ).toEqual([settingsCopy.mailbox, emailLookCopy.title, settingsCopy.linkedin, settingsCopy.voice]);
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 

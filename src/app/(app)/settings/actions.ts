@@ -4,7 +4,9 @@ import { TRPCError } from "@trpc/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { emailLookCopy } from "@/lib/copy/send";
 import { mailboxCopy, voiceCopy } from "@/lib/copy/settings";
+import type { EmailFont, EmailLook } from "@/lib/outreach/emailLook";
 import { ORG_DEFAULT_DAILY_CAP } from "@/lib/repo/connections";
 import { isGone, isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -115,6 +117,38 @@ export async function saveDailyCap(_previous: string | null, form: FormData): Pr
     // than Next's error screen, which is what rethrowing gets, because there is
     // no error boundary under `(app)`.
     if (isGone(error)) return error.message;
+    throw error;
+  }
+}
+
+export type LookInput = { font: EmailFont; fontSize: number; signature: string };
+export type LookAnswer = { look: EmailLook; preview: string } | { error: string };
+
+/** Save the rep's email font, size and signature (Relay P7); the server sanitises the signature. */
+export async function saveEmailLook(input: LookInput): Promise<LookAnswer> {
+  try {
+    return await (await serverCaller()).send.saveLook(input);
+  } catch (error) {
+    if (error instanceof TRPCError && error.code === "BAD_REQUEST") {
+      const lines: ReadonlySet<string> = new Set(Object.values(emailLookCopy.refused));
+      return { error: lines.has(error.message) ? error.message : emailLookCopy.refused.bad_font };
+    }
+    throw error;
+  }
+}
+
+/**
+ * The live preview for a look not saved yet, and the signature as the server
+ * sanitised it: a paste into the signature box is replaced by this, so the box
+ * only ever holds what would be stored.
+ */
+export async function previewEmailLook(input: LookInput): Promise<{ preview: string; signature: string } | { error: string }> {
+  try {
+    const caller = await serverCaller();
+    const [{ preview }, cleaned] = await Promise.all([caller.send.preview(input), caller.send.cleanSignature({ signature: input.signature })]);
+    return { preview, signature: cleaned.signature };
+  } catch (error) {
+    if (error instanceof TRPCError && error.code === "BAD_REQUEST") return { error: emailLookCopy.refused.long_signature };
     throw error;
   }
 }

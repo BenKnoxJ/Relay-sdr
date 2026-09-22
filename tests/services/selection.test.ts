@@ -97,7 +97,7 @@ describe("the token hooks cannot break a request that worked", () => {
     return graph.createDraft(account("2026-09-02T08:00:00.000Z"), {
       to: "a@example.com",
       subject: "s",
-      body: "b",
+      html: "b",
     });
   }
 
@@ -129,7 +129,7 @@ describe("the token hooks cannot break a request that worked", () => {
     });
     // The hook's failure is swallowed; the ServiceError it was told about is not.
     await expect(
-      graph.createDraft(account("2026-09-02T08:00:00.000Z"), { to: "a@example.com", subject: "s", body: "b" }),
+      graph.createDraft(account("2026-09-02T08:00:00.000Z"), { to: "a@example.com", subject: "s", html: "b" }),
     ).rejects.toMatchObject({ status: 400 });
     expect(onRefreshFailed).toHaveBeenCalledTimes(1);
   });

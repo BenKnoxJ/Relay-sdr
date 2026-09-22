@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SettingsPage from "@/app/(app)/settings/page";
+import { emailLookCopy } from "@/lib/copy/send";
 import { linkedinCopy, mailboxCopy, settingsCopy, voiceCopy } from "@/lib/copy/settings";
 import { resetProfile } from "@/lib/fixtures/repProfile";
 
@@ -32,6 +33,8 @@ vi.mock("@/server/api/caller", () => ({
         return { samples: profile.voiceSamples.map(({ text, addedAt }) => ({ text, addedAt })), howIWrite: profile.voiceNote };
       },
     },
+    // Your email look (Relay P7): nothing set, so the defaults.
+    send: { look: async () => ({ look: { font: "Aptos", fontSize: 11, signature: "" }, preview: "" }) },
   }),
   isRefusal: () => false,
 }));
@@ -41,18 +44,18 @@ beforeEach(() => {
 });
 
 describe("Settings, in full", () => {
-  it("renders three cards, in the signed order, in one column, with nothing filled in", async () => {
+  it("renders four cards, in the signed order, in one column, with nothing filled in", async () => {
     const { container } = render(await SettingsPage({ searchParams: Promise.resolve({}) }));
 
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual([settingsCopy.mailbox, settingsCopy.linkedin, settingsCopy.voice]);
+    ).toEqual([settingsCopy.mailbox, emailLookCopy.title, settingsCopy.linkedin, settingsCopy.voice]);
     expect(screen.queryByText(settingsCopy.calls)).toBeNull();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
 
     const column = container.querySelector(".max-w-\\[720px\\]");
     expect(column).not.toBeNull();
-    expect(column?.querySelectorAll(":scope > section")).toHaveLength(3);
+    expect(column?.querySelectorAll(":scope > section")).toHaveLength(4);
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
 
     // Empty, with the shape of a link as the placeholder and nobody's link as the value.

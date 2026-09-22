@@ -1,12 +1,13 @@
 import { MailboxCard } from "@/components/MailboxCard";
 import { PageHeader } from "@/components/PageHeader";
+import { EmailLookCard } from "@/components/settings/EmailLookCard";
 import { LinkedInCard } from "@/components/settings/LinkedInCard";
 import { VoiceCard } from "@/components/settings/VoiceCard";
 import { mailboxCopy, settingsCopy } from "@/lib/copy/settings";
 import { getProfile, type RepProfile } from "@/lib/fixtures/repProfile";
 import { serverCaller } from "@/server/api/caller";
 
-import { connectMailbox, disconnectMailbox, saveDailyCap, saveVoice } from "./actions";
+import { connectMailbox, disconnectMailbox, previewEmailLook, saveDailyCap, saveEmailLook, saveVoice } from "./actions";
 
 /**
  * Settings (master doc §23.1f).
@@ -51,6 +52,8 @@ export default async function SettingsPage({
   // Your voice is saved (outreach v2.1): the first emails are written from it.
   // LinkedIn and Calls still read the profile fixture.
   const voice = await caller.drafts.voice();
+  // Your email look (Relay P7): the font, size and signature sent emails carry.
+  const look = await caller.send.look();
   const profile: RepProfile = {
     ...getProfile(),
     voiceSamples: voice.samples.map((sample, index) => ({ id: `voice-${index}`, text: sample.text, addedAt: sample.addedAt })),
@@ -69,6 +72,7 @@ export default async function SettingsPage({
           disconnect={disconnectMailbox}
           saveCap={saveDailyCap}
         />
+        <EmailLookCard initial={look.look} initialPreview={look.preview} save={saveEmailLook} preview={previewEmailLook} />
         <LinkedInCard />
         <VoiceCard initial={profile} onPersist={saveVoice} />
       </div>

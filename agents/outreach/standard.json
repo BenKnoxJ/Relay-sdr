@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "note": "The message standard (master §15), version 1, for outreach v2.1. The product owner owns it. The rules are the prompt's spine; the tell list is short and high-precision on purpose (v2.1 §6), and each entry is gated in code. Exemplars are bodies only: the greeting and the sign-off are added by Relay. Every touch has the same voice (the product owner, 21 Sep 2026): short, simple, sweet; written like a human; not salesy; a soft touch; friendly. The goal is to open a conversation, not to pitch.",
+  "note": "The message standard (master §15), version 1, for outreach v2.1. The product owner owns it. The rules are the prompt's spine; the tell list is short and high-precision on purpose (v2.1 §6), and each entry is gated in code. Exemplars are bodies only: the greeting and the sign-off are added for the rep. Every touch has the same voice (the product owner, 21 Sep 2026): short, simple, sweet; written like a human; not salesy; a soft touch; friendly. The goal is to open a conversation, not to pitch.",
   "rules": [
     "State the reason for writing in the first sentence, from the opener's item or the role problem, in plain words. No preamble, no pleasantry.",
     "One problem, from the lookup item, the role's needs or the archetype. Never two.",
     "At most one product claim in a first email, by fact id, honouring that fact's notes. No social proof, customer names, prices or ROI unless a live allowed proof item or fact supports it. No claims about your own experience, your conversations or other customers.",
     "One question. It is the last sentence and it is the ask: an interest or relevance question. Never a specific time, a meeting length or a calendar link. No links.",
     "British English. No em dashes, no exclamation marks, no bullets. Nothing from the tell list appears.",
-    "Voice from the rep's samples for this register: their sentence length and warmth. Never a sample's content. Write neither the greeting nor the sign-off; Relay adds both.",
+    "Voice from the rep's samples for this register: their sentence length and warmth. Never a sample's content. Write neither the greeting nor the sign-off; both are added for you.",
     "A follow-up anchors on this person's own earlier touch, not on the campaign template, and is shorter than the one before it.",
     "No reused phrasing. You have the campaign's recent drafts: do not echo their openings, their asks or their sentences.",
     "Write to this role's needs. Runs it: the working problem. Champions it: the evidence they lack. Signs it off: the outcome and the risk, in the fewest words. Never mention a colleague."
@@ -76,6 +76,9 @@
     "no pressure",
     "in today's",
     "fast-paced",
-    "ever-evolving"
+    "ever-evolving",
+    "relay",
+    "pipeline",
+    "pipelines"
   ]
 }

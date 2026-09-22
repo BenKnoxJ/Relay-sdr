@@ -174,14 +174,15 @@ function refusalFor(replay: Replay, event: Proposed, startOn: IsoDate | null): R
 
 /**
  * The earliest day a step row may carry: a send on or after the start day
- * (the follow-up message on or after the first), and an accept, decline,
- * reply or bounce on or after the send it answers.
+ * (the LinkedIn message on or after the connect's accept, when one is
+ * recorded, and the follow-up message on or after the first), and an accept,
+ * decline, reply or bounce on or after the send it answers.
  */
 function earliest(replay: Replay, step: StepId, kind: OutreachEventKind, startOn: IsoDate): IsoDate {
   const record = replay.steps[step];
   if (kind !== "sent" && kind !== "done") return record.sentOn ?? startOn;
-  if (step === "li_dm2" && replay.steps.li_dm.sentOn !== null && replay.steps.li_dm.sentOn > startOn) return replay.steps.li_dm.sentOn;
-  return startOn;
+  const after = step === "li_dm" ? replay.steps.li_connect.acceptedOn : step === "li_dm2" ? replay.steps.li_dm.sentOn : null;
+  return after !== null && after > startOn ? after : startOn;
 }
 
 function apply(replay: Replay, event: TrackEvent): void {

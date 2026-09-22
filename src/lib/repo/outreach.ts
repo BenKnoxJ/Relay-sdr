@@ -19,6 +19,7 @@ export const OUTREACH_LOOKUP = "outreach.lookup" as const;
 export const OUTREACH_DRAFTED = "outreach.drafted" as const;
 export const DRAFT_APPROVED = "draft.approved" as const;
 export const DRAFT_REJECTED = "draft.rejected" as const;
+export const DRAFT_RETRIED = "draft.retried" as const;
 export const VOICE_SAVED = "rep.voice_saved" as const;
 
 /** A person's touch is written at most three times: the first, and two the rep asks for with a reason. */
@@ -400,6 +401,8 @@ export async function approveDraft(db: PrismaClient, input: { orgId: string; use
 }
 
 export const REJECT_REASONS = ["wrong_angle", "wrong_person", "wrong_fact", "not_now"] as const;
+/** What a held draft set aside by Try again records in place of a reason (P5c): the action, not a why. */
+export const TRY_AGAIN = "try_again" as const;
 export type RejectReason = (typeof REJECT_REASONS)[number];
 
 /**
@@ -413,44 +416,108 @@ export async function rejectDraft(
   input: { orgId: string; userId: string; draftId: string; reason: RejectReason; requestId: string; now?: () => Date },
 ): Promise<{ draft: OutreachDraft; redraftJobId: string | null }> {
   const at = (input.now ?? (() => new Date()))();
-  return mutate(db, {
-    orgId: input.orgId,
-    actor: { kind: "user", userId: input.userId },
-    kind: DRAFT_REJECTED,
-    apply: async (tx) => {
-      const draft = await ownDraft(tx, input, "reject");
-      const redraft = input.reason === "wrong_angle" || input.reason === "wrong_fact";
-      // A draft that failed has nothing written to reject, and the table keeps it failed: only asking again
-      // changes anything (Try again, P5), and a repeat of that is the same queued attempt (the job key).
-      if (draft.state === "failed" && (!redraft || draft.attempt >= MAX_DRAFT_ATTEMPTS)) throw new DraftRefused("not_written");
-      const updated =
-        draft.state === "failed" ? draft : await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: input.reason, decidedByUserId: input.userId, decidedAt: at } });
-      let redraftJobId: string | null = null;
-      if (redraft && draft.attempt < MAX_DRAFT_ATTEMPTS) {
-        const attempt = draft.attempt + 1;
-        const opener = draft.opener as { ref?: string } | null;
-        const { job } = await enqueue(tx, {
-          orgId: draft.orgId,
-          ownerUserId: draft.ownerUserId,
-          kind: OUTREACH_DRAFT_JOB,
-          idempotencyKey: draftJobKey(draft.campaignId, draft.briefVersion, draft.campaignPersonId, attempt, draft.touch as TouchKind),
-          input: {
-            requestId: input.requestId,
-            campaignPersonId: draft.campaignPersonId,
-            attempt,
-            touch: draft.touch,
-            avoid: { reason: input.reason, previousBody: draft.body ?? "", ...(typeof opener?.ref === "string" ? { previousOpenerRef: opener.ref } : {}) },
-          },
-          campaignId: draft.campaignId,
-          briefVersion: draft.briefVersion,
-        });
-        redraftJobId = job.id;
-      }
-      return { draft: updated, redraftJobId };
-    },
-    campaignId: (result: { draft: OutreachDraft }) => result.draft.campaignId,
-    after: (result: { draft: OutreachDraft; redraftJobId: string | null }) => ({ draftId: result.draft.id, campaignPersonId: result.draft.campaignPersonId, reason: input.reason, redraftJobId: result.redraftJobId }),
+  return askedOnce(() =>
+    mutate(db, {
+      orgId: input.orgId,
+      actor: { kind: "user", userId: input.userId },
+      kind: DRAFT_REJECTED,
+      apply: async (tx) => {
+        const draft = await ownDraft(tx, input, "reject");
+        const redraftReason = input.reason === "wrong_angle" || input.reason === "wrong_fact" ? input.reason : null;
+        const redraft = redraftReason !== null;
+        // A draft that failed has nothing written to reject, and the table keeps it failed: only asking again
+        // changes anything (Try again, P5), and a repeat of that is the same queued attempt (the job key).
+        if (draft.state === "failed" && (!redraft || draft.attempt >= MAX_DRAFT_ATTEMPTS)) throw new DraftRefused("not_written");
+        const updated =
+          draft.state === "failed" ? draft : await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: input.reason, decidedByUserId: input.userId, decidedAt: at } });
+        let redraftJobId: string | null = null;
+        if (redraftReason !== null && draft.attempt < MAX_DRAFT_ATTEMPTS) {
+          const opener = draft.opener as { ref?: string } | null;
+          const { job, deduped } = await enqueueNextAttempt(tx, draft, input.requestId, {
+            reason: redraftReason,
+            previousBody: draft.body ?? "",
+            ...(typeof opener?.ref === "string" ? { previousOpenerRef: opener.ref } : {}),
+          });
+          // A failed draft asked for again when that attempt is already queued changed nothing: no Event (P5c).
+          if (deduped && draft.state === "failed") throw new AlreadyAsked(updated, job.id);
+          redraftJobId = job.id;
+        }
+        return { draft: updated, redraftJobId };
+      },
+      campaignId: (result: { draft: OutreachDraft }) => result.draft.campaignId,
+      after: (result: { draft: OutreachDraft; redraftJobId: string | null }) => ({ draftId: result.draft.id, campaignPersonId: result.draft.campaignPersonId, reason: input.reason, redraftJobId: result.redraftJobId }),
+    }),
+  );
+}
+
+/**
+ * Try again (P5, P5c) on a draft that failed or is held as Needs you: one
+ * more attempt at the same touch, written afresh. Unlike a reject it gives no
+ * reason and steers the next attempt nowhere, because the rep gave none. A
+ * held draft steps aside so the new attempt is the one waiting: the table
+ * requires a reason on a rejected row, so it records `try_again`, which is
+ * what the rep did, not why. A failed one stays failed. Pressed again while
+ * that attempt is queued, it changes nothing and writes no Event.
+ */
+export async function retryDraft(
+  db: PrismaClient,
+  input: { orgId: string; userId: string; draftId: string; requestId: string; now?: () => Date },
+): Promise<{ draft: OutreachDraft; redraftJobId: string }> {
+  const at = (input.now ?? (() => new Date()))();
+  return askedOnce(() =>
+    mutate(db, {
+      orgId: input.orgId,
+      actor: { kind: "user", userId: input.userId },
+      kind: DRAFT_RETRIED,
+      apply: async (tx) => {
+        const draft = await ownDraft(tx, input, "reject");
+        if ((draft.state !== "failed" && draft.state !== "needs_you") || draft.attempt >= MAX_DRAFT_ATTEMPTS) throw new DraftRefused("not_written");
+        const updated =
+          draft.state === "failed" ? draft : await tx.outreachDraft.update({ where: { id: draft.id }, data: { state: "rejected", rejectReason: TRY_AGAIN, decidedByUserId: input.userId, decidedAt: at } });
+        const { job, deduped } = await enqueueNextAttempt(tx, draft, input.requestId);
+        if (deduped) throw new AlreadyAsked(updated, job.id);
+        return { draft: updated, redraftJobId: job.id };
+      },
+      campaignId: (result: { draft: OutreachDraft }) => result.draft.campaignId,
+      after: (result: { draft: OutreachDraft; redraftJobId: string }) => ({ draftId: result.draft.id, campaignPersonId: result.draft.campaignPersonId, redraftJobId: result.redraftJobId }),
+    }),
+  ) as Promise<{ draft: OutreachDraft; redraftJobId: string }>;
+}
+
+/** The next attempt at a draft's touch, queued under the key that makes a repeat the same job. */
+function enqueueNextAttempt(tx: Prisma.TransactionClient, draft: OutreachDraft, requestId: string, avoid?: DraftJobInput["avoid"]) {
+  const attempt = draft.attempt + 1;
+  return enqueue(tx, {
+    orgId: draft.orgId,
+    ownerUserId: draft.ownerUserId,
+    kind: OUTREACH_DRAFT_JOB,
+    idempotencyKey: draftJobKey(draft.campaignId, draft.briefVersion, draft.campaignPersonId, attempt, draft.touch as TouchKind),
+    input: { requestId, campaignPersonId: draft.campaignPersonId, attempt, touch: draft.touch, ...(avoid === undefined ? {} : { avoid }) },
+    campaignId: draft.campaignId,
+    briefVersion: draft.briefVersion,
   });
+}
+
+/**
+ * Thrown inside a transaction to roll it back, Event and all, when asking
+ * again found the attempt already queued: the answer is the job already there.
+ */
+class AlreadyAsked extends Error {
+  constructor(
+    readonly draft: OutreachDraft,
+    readonly jobId: string,
+  ) {
+    super("the next attempt is already asked for");
+  }
+}
+
+async function askedOnce(work: () => Promise<{ draft: OutreachDraft; redraftJobId: string | null }>): Promise<{ draft: OutreachDraft; redraftJobId: string | null }> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof AlreadyAsked) return { draft: error.draft, redraftJobId: error.jobId };
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------

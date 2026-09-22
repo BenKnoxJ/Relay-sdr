@@ -16,23 +16,25 @@ import { cn } from "@/lib/utils";
  * what it is told.
  *
  * The ORDER of `AREAS` is the signed order and is load-bearing:
- * Home, Inbox, Campaigns, Content, Settings. `tests/ui/nav.test.tsx` asserts
+ * Home, Inbox, Calendar, Campaigns, Content, Settings (Calendar since Relay
+ * P6, between Inbox and Campaigns). `tests/ui/nav.test.tsx` asserts
  * it, so reordering this array fails rather than quietly reshuffling the app.
  *
  * Inbox and Content are example surfaces until their rows exist, so they are
  * in the nav only when the layout says so (`RELAY_DEMO_SURFACES=show`); the
- * three that remain keep their order. Both routes still answer by URL.
+ * ones that remain keep their order. Both routes still answer by URL.
  *
  * There is no Admin item. The Admin area lands in slice 3, and the dashed
  * "you only" pill the signed mock drew for it was a label on a door that did
  * not exist; it comes back as a link when there is somewhere for it to go.
  */
 
-export type NavArea = "home" | "inbox" | "campaigns" | "content" | "settings";
+export type NavArea = "home" | "inbox" | "calendar" | "campaigns" | "content" | "settings";
 
 const AREAS: { area: NavArea; href: string; label: string; demo?: true }[] = [
   { area: "home", href: "/", label: navCopy.home },
   { area: "inbox", href: "/inbox", label: navCopy.inbox },
+  { area: "calendar", href: "/calendar", label: navCopy.calendar },
   { area: "campaigns", href: "/campaigns", label: navCopy.campaigns },
   { area: "content", href: "/content", label: navCopy.content, demo: true },
   { area: "settings", href: "/settings", label: navCopy.settings },

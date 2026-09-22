@@ -73,9 +73,9 @@ export async function rejectDraftAction(input: { draftId: string; reason: "wrong
 }
 
 /**
- * Try again on a draft that failed or is held as Needs you: the existing
- * single-draft redraft, which is a reject that asks for another attempt.
+ * Try again on a draft that failed or is held as Needs you: one more attempt
+ * at that draft, with no reason recorded because the rep gave none (P5c).
  */
 export async function tryAgainAction(input: { draftId: string }): Promise<PeopleActionResult> {
-  return answered(async () => (await serverCaller()).drafts.reject({ draftId: input.draftId, reason: "wrong_angle", requestId: randomUUID() }));
+  return answered(async () => (await serverCaller()).drafts.retry({ draftId: input.draftId, requestId: randomUUID() }));
 }

@@ -18,13 +18,14 @@ describe("refusalOf", () => {
       [{ path: ["body"], message: "machine word in a rep-facing string at $: Atlas reviews" }],
     );
     const { fixes, previous } = refusalOf(error);
-    expect(fixes).toEqual([`Relay refuses these words in an email, even in their everyday sense: "orchestrator", "llm", "prompt". Say each another way.`]);
+    // "pipeline" is refused in outreach since P5c: a prospect never reads it.
+    expect(fixes).toEqual([`These words are refused in an email, even in their everyday sense: "pipeline", "orchestrator", "llm", "prompt". Say each another way.`]);
     expect(previous?.body).toContain("Our orchestrator reads every call");
   });
 
   it("names no words when the answer uses only plain English and firm names", () => {
     const error = refused(
-      { body: "Vector Capital samples a few calls in its pipeline. Worth a touch base?", ask: "Is the current review doing the job?" },
+      { body: "Vector Capital samples a few calls in its queue. Worth a touch base?", ask: "Is the current review doing the job?" },
       [{ path: ["body"], message: "banned dash in a rep-facing string at $: x" }],
     );
     expect(refusalOf(error).fixes).toEqual(["No em dashes, and no en dash with a space beside it."]);
@@ -41,7 +42,7 @@ describe("refusalOf", () => {
       issues: [{ path: ["talkingPoint", "openingLine"], message: "machine word in a rep-facing string at $: Calling about" }],
     });
     const { fixes, previous } = refusalOf(error);
-    expect(fixes).toEqual([`Relay refuses these words in a talking point, even in their everyday sense: "llm". Say each another way.`]);
+    expect(fixes).toEqual([`These words are refused in a talking point, even in their everyday sense: "llm", "pipeline". Say each another way.`]);
     expect(previous).toBeUndefined();
   });
 

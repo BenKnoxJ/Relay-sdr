@@ -12,12 +12,18 @@ import { channelOf, type PersonStatus, type StepAction, type TrackedStep } from 
  * is approved, which the server checks too (`markStep`).
  */
 
-/** A link that is a web address, or nothing: a profile link is drawn as an `href`. */
-export function webUrlOf(value: unknown): string | null {
+/**
+ * A LinkedIn profile link, or nothing: it is drawn as an `href` labelled
+ * LinkedIn, so any other address (another site, or not a web address at all)
+ * draws no link (P5c).
+ */
+export function linkedinUrlOf(value: unknown): string | null {
   if (typeof value !== "string" || value.trim() === "") return null;
   try {
     const url = new URL(value.trim());
-    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    const host = url.hostname.toLowerCase();
+    return host === "linkedin.com" || host.endsWith(".linkedin.com") ? url.toString() : null;
   } catch {
     return null;
   }

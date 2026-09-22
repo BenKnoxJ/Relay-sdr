@@ -68,6 +68,18 @@ export const outreachPersonSchema = z
   })
   .strict();
 
+/**
+ * Who is writing (P5c): the rep's first name and their company, so a call
+ * opener, a voicemail or a connection note can say "<first name> from
+ * <company>" rather than inventing a sender.
+ */
+export const senderSchema = z
+  .object({
+    firstName: z.string().min(1).max(100),
+    company: z.string().min(1).max(200),
+  })
+  .strict();
+
 /** v2.1 §2: the confirmed group's role this person plays, and what research says it needs. */
 export const buyerRoleSchema = z
   .object({
@@ -164,6 +176,7 @@ export const redraftSchema = z
 export const outreachInputSchema = z
   .object({
     person: outreachPersonSchema,
+    sender: senderSchema,
     /** Absent for a Related role. */
     buyerRole: buyerRoleSchema.optional(),
     account: accountSchema,
@@ -200,6 +213,7 @@ export const outreachInputSchema = z
 
 export type OutreachInput = z.infer<typeof outreachInputSchema>;
 export type OutreachPerson = z.infer<typeof outreachPersonSchema>;
+export type Sender = z.infer<typeof senderSchema>;
 export type LookupItem = z.infer<typeof lookupItemSchema>;
 export type LookupResult = z.infer<typeof lookupResultSchema>;
 export type RecentDraft = z.infer<typeof recentDraftSchema>;

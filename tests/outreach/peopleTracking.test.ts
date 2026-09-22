@@ -120,6 +120,7 @@ async function personWith(actor: Actor, drafts: DraftSpec[], preview: Record<str
         subject: spec.subject ?? null,
         ...(body === null ? {} : { opener: { ref: "x", kind: "role_pain" } }),
         ...(state === "approved" || state === "rejected" ? { decidedAt: new Date(), decidedByUserId: actor.userId } : {}),
+        ...(state === "rejected" ? { rejectReason: "wrong_angle" } : {}),
         findings: [],
         advice: [],
         lookup: {},
@@ -140,6 +141,14 @@ describe("the list's rows", () => {
     expect(row).toMatchObject({ title: "Head of Claims", company: "Ardent Motor", linkedinUrl: "https://www.linkedin.com/in/someone" });
     const [bad] = (await caller(rep()).tracking.campaignPeopleTracking({ campaignId: other })).rows;
     expect(bad).toMatchObject({ company: "Bramble", linkedinUrl: null });
+  });
+
+  it("show no link for a web address that is not LinkedIn's (P5c), in the list and the drawer", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { campaignId, personId } = await personWith(actor, [{ touch: "email1" }], { linkedinUrl: "https://example.com/in/someone" });
+    const [row] = (await caller(rep()).tracking.campaignPeopleTracking({ campaignId })).rows;
+    expect(row).toMatchObject({ linkedinUrl: null });
+    expect(await caller(rep()).tracking.personTracking({ personId })).toMatchObject({ linkedinUrl: null });
   });
 });
 
@@ -218,9 +227,10 @@ describe("Try again", () => {
     // It stays failed (nothing was written to reject); the drawer says the next one is coming and offers no second press.
     expect((await api.tracking.personTracking({ personId })).drafts.li_dm).toMatchObject({ state: "failed", redrafting: true, canTryAgain: false });
 
-    // A second press is the same queued attempt.
-    await api.drafts.reject({ draftId: draft.id, reason: "wrong_angle", requestId: randomUUID() });
+    // A second press is the same queued attempt, and records nothing more (P5c).
+    await expect(api.drafts.reject({ draftId: draft.id, reason: "wrong_angle", requestId: randomUUID() })).resolves.toMatchObject({ redrafting: true });
     expect(await prisma.job.count({ where: { kind: "outreach_draft", status: "queued" } })).toBe(1);
+    expect(await prisma.event.count({ where: { kind: "draft.rejected" } })).toBe(1);
   });
 
   it("a failed email leaves the Inbox once another attempt is on its way or written, so one email never has two cards", async () => {
@@ -277,6 +287,66 @@ describe("Try again", () => {
   });
 });
 
+describe("Try again records no reason (P5c)", () => {
+  it("on a draft held as Needs you: the next attempt is asked for with no reason and nothing to steer away from", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { personId } = await personWith(actor, [{ touch: "email2", state: "needs_you" }]);
+    const api = caller(rep());
+    const draft = (await api.tracking.personTracking({ personId })).drafts.email2!;
+
+    await expect(api.drafts.retry({ draftId: draft.id, requestId: randomUUID() })).resolves.toMatchObject({ id: draft.id, redrafting: true });
+    // The held draft steps aside naming what the rep did, not a reason they never gave, and the drawer says the next one is coming.
+    expect(await prisma.outreachDraft.findUniqueOrThrow({ where: { id: draft.id } })).toMatchObject({ state: "rejected", rejectReason: "try_again", decidedByUserId: actor.userId });
+    expect((await api.tracking.personTracking({ personId })).drafts.email2).toMatchObject({ state: "rejected", redrafting: true, canTryAgain: false });
+    const job = await prisma.job.findFirstOrThrow({ where: { kind: "outreach_draft", status: "queued" } });
+    expect(job.input).toEqual({ requestId: expect.any(String), campaignPersonId: personId, attempt: 2, touch: "email2" });
+    // One Event, and it is not a rejection with an invented reason.
+    const events = await prisma.event.findMany({ where: { kind: { in: ["draft.retried", "draft.rejected"] } } });
+    expect(events.map((event) => [event.kind, event.after])).toEqual([["draft.retried", { draftId: draft.id, campaignPersonId: personId, redraftJobId: job.id }]]);
+  });
+
+  it("on a draft that failed: it stays failed, and a second press while that attempt is queued records nothing", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { personId } = await personWith(actor, [{ touch: "li_dm", state: "failed" }]);
+    const api = caller(rep());
+    const draft = (await api.tracking.personTracking({ personId })).drafts.li_dm!;
+
+    await api.drafts.retry({ draftId: draft.id, requestId: randomUUID() });
+    await expect(api.drafts.retry({ draftId: draft.id, requestId: randomUUID() })).resolves.toMatchObject({ redrafting: true });
+    expect(await prisma.outreachDraft.findUniqueOrThrow({ where: { id: draft.id } })).toMatchObject({ state: "failed", rejectReason: null });
+    expect(await prisma.job.count({ where: { kind: "outreach_draft", status: "queued" } })).toBe(1);
+    expect(await prisma.event.count({ where: { kind: "draft.retried" } })).toBe(1);
+    expect(await prisma.event.count({ where: { kind: "draft.rejected" } })).toBe(0);
+  });
+
+  it("is refused on a draft to review, on the last attempt, and on someone else's draft", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { personId } = await personWith(actor, [{ touch: "email1" }, { touch: "li_dm", attempt: 3, state: "failed" }]);
+    const api = caller(rep());
+    const view = await api.tracking.personTracking({ personId });
+    expect(await refusal(api.drafts.retry({ draftId: view.drafts.email1!.id, requestId: randomUUID() }))).toMatchObject({ code: "BAD_REQUEST" });
+    expect(await refusal(api.drafts.retry({ draftId: view.drafts.li_dm!.id, requestId: randomUUID() }))).toMatchObject({ code: "BAD_REQUEST" });
+    expect(await refusal(caller(stranger()).drafts.retry({ draftId: view.drafts.email1!.id, requestId: randomUUID() }))).toMatchObject({ code: "NOT_FOUND" });
+    expect(await prisma.event.count({ where: { kind: "draft.retried" } })).toBe(0);
+  });
+});
+
+describe("the drawer's draft is the latest usable attempt (P5c)", () => {
+  const cases: Array<[string, DraftSpec[], { attempt: number; state: OutreachDraftState }]> = [
+    ["to review over a later attempt that failed", [{ touch: "email1", attempt: 1, state: "to_review" }, { touch: "email1", attempt: 2, state: "failed" }], { attempt: 1, state: "to_review" }],
+    ["needs you over a later attempt that failed", [{ touch: "email1", attempt: 1, state: "needs_you" }, { touch: "email1", attempt: 2, state: "failed" }], { attempt: 1, state: "needs_you" }],
+    ["approved over a later attempt to review", [{ touch: "email1", attempt: 1, state: "approved" }, { touch: "email1", attempt: 2, state: "to_review" }], { attempt: 1, state: "approved" }],
+    ["to review over an earlier one that needs you", [{ touch: "email1", attempt: 1, state: "needs_you" }, { touch: "email1", attempt: 2, state: "to_review" }], { attempt: 2, state: "to_review" }],
+    ["the later of two to review", [{ touch: "email1", attempt: 1, state: "rejected" }, { touch: "email1", attempt: 2, state: "to_review" }, { touch: "email1", attempt: 3, state: "to_review" }], { attempt: 3, state: "to_review" }],
+    ["the latest when none is usable", [{ touch: "email1", attempt: 1, state: "rejected" }, { touch: "email1", attempt: 2, state: "failed" }], { attempt: 2, state: "failed" }],
+  ];
+  it.each(cases)("%s", async (_name, drafts, expected) => {
+    const actor = await ensureUser(prisma, rep());
+    const { personId } = await personWith(actor, drafts);
+    expect((await caller(rep()).tracking.personTracking({ personId })).drafts.email1).toMatchObject(expected);
+  });
+});
+
 describe("outcomes", () => {
   it("Not interested closes the person and skips every step not yet done", async () => {
     const actor = await ensureUser(prisma, rep());
@@ -316,6 +386,29 @@ describe("a LinkedIn or call draft is stored with no subject", () => {
     });
     const stored = Object.fromEntries((await prisma.outreachDraft.findMany({ where: { campaignPersonId: personId } })).map((draft) => [draft.touch, draft.subject]));
     expect(stored).toEqual({ email1: "connecting", email2: "connecting", breakup: "connecting", li_connect: null, li_dm: null, li_dm2: null, call: null });
+    // And the drawer shows no subject on a LinkedIn or call step.
+    const drafts = (await caller(rep()).tracking.personTracking({ personId })).drafts;
+    expect(Object.fromEntries(Object.entries(drafts).map(([step, draft]) => [step, draft?.subject ?? null]))).toEqual({
+      email1: "connecting",
+      li_connect: null,
+      call1: null,
+      email2: "connecting",
+      li_dm: null,
+      call2: null,
+      li_dm2: null,
+      breakup: "connecting",
+    });
+  });
+
+  it("shows no subject on a LinkedIn or call row stored with one before P5 (P5c)", async () => {
+    const actor = await ensureUser(prisma, rep());
+    const { personId } = await personWith(actor, [
+      { touch: "email1", subject: "Calls behind complaints" },
+      { touch: "li_connect", subject: "connecting" },
+      { touch: "call", subject: "call" },
+    ]);
+    const drafts = (await caller(rep()).tracking.personTracking({ personId })).drafts;
+    expect([drafts.email1?.subject, drafts.li_connect?.subject, drafts.call1?.subject]).toEqual(["Calls behind complaints", null, null]);
   });
 });
 

@@ -17,7 +17,7 @@ Short, simple, sweet; written like a human; not salesy; a soft touch; friendly. 
 2. **Keep every fact that is there.** Each number, name and product statement survives with its meaning unchanged. Reword around it; do not drop the one product sentence a touch makes, and never change a figure.
 3. **One question per message, last, and it is the `ask`.** The `ask` appears in the `body` word for word, once, as the final sentence. If you reword the question, write the same words into both. No other question marks.
 4. **No em dashes, no en dashes, no double hyphens.** Use a full stop, a comma, a colon or brackets. No exclamation marks, no bullets, no links.
-5. **No greeting and no sign-off.** Relay adds "Hi [name]," and the rep's name. The body starts on its first real sentence.
+5. **No greeting and no sign-off.** "Hi [name]," and the rep's name are added for you. The body starts on its first real sentence. Keep the rep's introduction ("<name> from <company>") where a call opener, a voicemail or a connection note has one.
 6. **No negated contrast.** Remove "it isn't X, it's Y", "not just X, but Y", "X, not Y", "no longer X". Say the point directly.
 7. **Nothing from `bannedLexicon`.** Also none of: delve, intricate, meticulous, elevate, foster, navigate, landscape, pivotal, resonate, testament, underscore, compelling, paramount, alignment, utilize, harness, streamline, facilitate, empower, bolster, unpack, holistic, leverage, seamless, robust, "it's worth noting", "at its core", "when it comes to", "serves as", "in today's", "here's the thing", "sound familiar?", "I'd be happy to".
 8. **Targeted edits.** The smallest change that removes a tell is the right change. A touch that already reads like a person wrote it comes back as it was.

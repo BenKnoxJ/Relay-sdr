@@ -335,7 +335,9 @@ export function RenderFixture({
     }
     case "outreach": {
       const draft = outreachOutputSchema.safeParse(output);
-      const parsedInput = outreachInputSchema.safeParse(input);
+      // A run recorded before P5c carries no sender; this card never draws one, so a placeholder lets it render.
+      const recorded = input !== null && typeof input === "object" && !("sender" in input) ? { ...input, sender: { firstName: "Rep", company: "Conversant" } } : input;
+      const parsedInput = outreachInputSchema.safeParse(recorded);
       // A call draft has no card of its own yet — the call card is slice 1 —
       // and without the input there is no person and no opener to draw, which
       // is most of the screen.

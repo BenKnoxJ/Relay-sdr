@@ -38,6 +38,9 @@ export const outreachPeopleCopy = {
 
   drawerLabel: "Person",
   close: "Close",
+  unsavedPrompt: "You have words here you haven't saved. Close and lose them?",
+  keepEditing: "Keep editing",
+  closeAnyway: "Close without saving",
   noEmail: "No email",
   phone: "Phone",
   addPhone: "Add phone",

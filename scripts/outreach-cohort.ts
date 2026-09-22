@@ -6,7 +6,7 @@
  * every touch's drafted and humanized text side by side.
  *
  *   node --import tsx scripts/outreach-cohort.ts [--source relay_outreach_cohort_dev] \
- *       [--out <dir>] [--cap 5] [--keep]
+ *       [--out <dir>] [--cap 5] [--people <n>] [--keep]
  *   node --import tsx scripts/outreach-cohort.ts --export-fixture fixtures/outreach/cohort-2026-09-15.json
  *
  * What it does, in order:
@@ -39,9 +39,9 @@ import path from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 
-type Args = { source: string; out: string; cap: number; keep: boolean; exportFixture?: string };
+type Args = { source: string; out: string; cap: number; keep: boolean; people?: number; exportFixture?: string };
 
-const USAGE = "usage: outreach-cohort.ts [--source <db>] [--out <dir>] [--cap <usd>] [--keep] [--export-fixture <file>]";
+const USAGE = "usage: outreach-cohort.ts [--source <db>] [--out <dir>] [--cap <usd>] [--people <n>] [--keep] [--export-fixture <file>]";
 
 /** What one more draft may cost at most, for the cap check: the dearest draft seen so far with headroom, never under this. */
 const MIN_RESERVE_USD = 0.75;
@@ -63,12 +63,14 @@ function parseArgs(argv: string[]): Args {
     if (flag === "--source") args.source = value;
     else if (flag === "--out") args.out = path.resolve(value);
     else if (flag === "--cap") args.cap = Number(value);
+    else if (flag === "--people") args.people = Number(value);
     else if (flag === "--export-fixture") args.exportFixture = path.resolve(value);
     else throw new Error(`unknown flag ${flag}\n${USAGE}`);
     i += 1;
   }
   if (!/^[a-z0-9_]+$/.test(args.source)) throw new Error("--source is a plain database name");
   if (!(args.cap > 0 && args.cap <= 20)) throw new Error("--cap is a dollar amount above 0 and at most 20");
+  if (args.people !== undefined && !(Number.isInteger(args.people) && args.people > 0)) throw new Error("--people is a whole number above 0");
   return args;
 }
 
@@ -179,7 +181,10 @@ async function earlierCohort(db: Db) {
 async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
   const { enqueue } = await import("@/lib/jobs/queue");
   const { outreachDraftHandler, defaultOutreachDeps } = await import("@/worker/handlers/outreachDraft");
-  const { people, template } = await earlierCohort(db);
+  const earlier = await earlierCohort(db);
+  // `--people n`: the first n of the earlier cohort, for a cheaper check.
+  const people = args.people === undefined ? earlier.people : earlier.people.slice(0, args.people);
+  const { template } = earlier;
   const campaignId = template.campaignId!;
   // The earlier drafts go, so the repetition checks read this run's drafts only (a throwaway copy).
   await db.outreachDraft.deleteMany({ where: { campaignId } });
@@ -252,9 +257,12 @@ const TOUCH_NAME: Record<string, string> = {
   call: "Call script",
 };
 
-function proseLines(prose: Prose | null | undefined): string {
+/** The emails with a subject line; a LinkedIn message, the follow-up in Email 1's thread and a call have none. */
+const WITH_SUBJECT = new Set(["email1", "breakup"]);
+
+function proseLines(prose: Prose | null | undefined, touch: string): string {
   if (prose === null || prose === undefined) return "(none)";
-  if (prose.body !== undefined) return [prose.subject === undefined ? null : `Subject: ${prose.subject}`, prose.body].filter((line) => line !== null).join("\n\n");
+  if (prose.body !== undefined) return [prose.subject === undefined || !WITH_SUBJECT.has(touch) ? null : `Subject: ${prose.subject}`, prose.body].filter((line) => line !== null).join("\n\n");
   return [
     `Open with: ${prose.openingLine ?? ""}`,
     `Ask: ${prose.oneQuestion ?? ""}`,
@@ -310,13 +318,13 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
         "**Drafted:**",
         "",
         "```",
-        log === undefined ? (draft.body ?? "(not written)") : proseLines(log.drafted),
+        log === undefined ? (draft.body ?? "(not written)") : proseLines(log.drafted, draft.touch),
         "```",
         "",
         "**Humanized:**",
         "",
         "```",
-        log === undefined ? `(no humanizer pass: ${humanizer.skipped ?? humanizer.error ?? "not run"})` : proseLines(log.humanized),
+        log === undefined ? `(no humanizer pass: ${humanizer.skipped ?? humanizer.error ?? "not run"})` : proseLines(log.humanized, draft.touch),
         "```",
         "",
         ...(log?.reason === undefined ? [] : [`**Humanized version not kept:** ${log.reason}  `]),
@@ -382,7 +390,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
 
 /** The source's recorded drafts and the inputs they were written from, as a test fixture. */
 async function exportFixture(db: Db, file: string, source: string): Promise<void> {
-  const { buildOutreachInput } = await import("@/lib/outreach/adapter");
+  const { buildOutreachInput, senderOf } = await import("@/lib/outreach/adapter");
   const { storedPack } = await import("@/lib/campaigns/derive");
   const { findConfirmEvent, handoffOf } = await import("@/lib/repo/leadgen");
   const { findResearchCompletedForJob } = await import("@/lib/repo/research");
@@ -401,11 +409,14 @@ async function exportFixture(db: Db, file: string, source: string): Promise<void
   const pack = storedPack((await findResearchCompletedForJob(db, { orgId: campaign.orgId, jobId: researchJob!.id }))!.after)!;
   const facts = loadFacts("insights360", 2).facts;
   const voice = await voiceFor(db, { orgId: campaign.orgId, userId: first.ownerUserId });
+  const owner = await db.user.findFirstOrThrow({ where: { id: first.ownerUserId, orgId: campaign.orgId }, select: { name: true, email: true, org: { select: { name: true } } } });
+  const sender = senderOf({ userName: owner.name, email: owner.email, orgName: owner.org.name });
 
   const people = drafts.map((draft) => {
     const input = buildOutreachInput({
       row: draft.campaignPerson,
       email: draft.campaignPerson.person!.email!,
+      sender,
       handoff,
       pack,
       facts,
@@ -428,7 +439,7 @@ async function exportFixture(db: Db, file: string, source: string): Promise<void
           : { kind: "message", ...(draft.subject === null ? {} : { subject: draft.subject }), body: draft.body, ask: draft.ask, opener: { ref: opener.ref, kind: opener.kind }, claims: draft.claims },
     };
   });
-  const slice = buildOutreachInput({ row: first.campaignPerson, email: "x@example.com", handoff, pack, facts, voice, standard: loadStandard(), lookup: { items: [], usable: false, searches: 0, fetches: 0 }, recentDrafts: [], now: first.createdAt }).pack;
+  const slice = buildOutreachInput({ row: first.campaignPerson, email: "x@example.com", sender, handoff, pack, facts, voice, standard: loadStandard(), lookup: { items: [], usable: false, searches: 0, fetches: 0 }, recentDrafts: [], now: first.createdAt }).pack;
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ source, facts: { product: "insights360", version: 2 }, pack: slice, people }, null, 2)}\n`);
   console.log(`cohort: wrote ${file} (${people.length} people)`);

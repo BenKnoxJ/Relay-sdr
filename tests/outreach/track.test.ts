@@ -87,6 +87,10 @@ describe("the server's check refuses what is not a valid next action", () => {
     ["a send before the start day", [], propose("sent", "email1", { happenedOn: "2026-09-18" }), "too_early"],
     ["a reply dated before its send", [ev("sent", "email1", "2026-09-23")], propose("replied", "email1", { happenedOn: "2026-09-22" }), "too_early"],
     ["the follow-up message dated before the first", [ev("sent", "li_dm", "2026-09-24")], propose("sent", "li_dm2", { happenedOn: "2026-09-23" }), "too_early"],
+    // P5c: a LinkedIn message follows the accept it needs.
+    ["the LinkedIn message dated before the connect's accept", [ev("sent", "li_connect", "2026-09-21"), ev("accepted", "li_connect", "2026-09-24")], propose("sent", "li_dm", { happenedOn: "2026-09-23" }), "too_early"],
+    ["the LinkedIn message on the day of the accept", [ev("sent", "li_connect", "2026-09-21"), ev("accepted", "li_connect", "2026-09-24")], propose("sent", "li_dm", { happenedOn: "2026-09-24" }), null],
+    ["the LinkedIn message with no accept recorded (a message implies one)", [ev("sent", "li_connect", "2026-09-21")], propose("sent", "li_dm", { happenedOn: "2026-09-22" }), null],
     ["a reply on the day of its send", [ev("sent", "email1", "2026-09-23")], propose("replied", "email1", { happenedOn: "2026-09-23" }), null],
     ["a note, always", [sent, ev("outcome", null, "2026-09-22", { outcome: "closed" })], propose("note", null, { note: "left a message" }), null],
   ])("%s", (_name, events, proposed, expected) => {

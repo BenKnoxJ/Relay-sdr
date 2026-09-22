@@ -7,6 +7,8 @@ import { TRPCError } from "@trpc/server";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { outreachPeopleCopy } from "@/lib/copy/outreachPeople";
 import { outreachTrackingCopy } from "@/lib/copy/outreachTracking";
+import { sendCopy } from "@/lib/copy/send";
+import { sendNoteOf, type SendNote } from "@/lib/outreach/sendResult";
 import type { CallResult, OutreachOutcome, StepAction } from "@/lib/outreach/track";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -23,7 +25,7 @@ import { isRefusal, serverCaller } from "@/server/api/caller";
 
 export type PeopleActionResult = { ok: true } | { error: string };
 
-const LINES: ReadonlySet<string> = new Set<string>([...Object.values(outreachTrackingCopy), campaignsCopy.changedSince, campaignsCopy.cannotChange]);
+const LINES: ReadonlySet<string> = new Set<string>([...Object.values(outreachTrackingCopy).filter((line) => typeof line === "string"), ...Object.values(sendCopy.refused), campaignsCopy.changedSince, campaignsCopy.cannotChange]);
 
 async function answered(change: () => Promise<unknown>): Promise<PeopleActionResult> {
   try {
@@ -78,4 +80,17 @@ export async function rejectDraftAction(input: { draftId: string; reason: "wrong
  */
 export async function tryAgainAction(input: { draftId: string }): Promise<PeopleActionResult> {
   return answered(async () => (await serverCaller()).drafts.retry({ draftId: input.draftId, requestId: randomUUID() }));
+}
+
+/**
+ * Send an approved, due email from the rep's mailbox (Relay P7). Whatever
+ * happened at Microsoft comes back as a line for the drawer, and the page
+ * re-reads either way, so the step and its button show where it got to.
+ */
+export async function sendEmailAction(input: { personId: string; step: string }): Promise<({ ok: true } & SendNote) | { error: string }> {
+  let note: SendNote | undefined;
+  const result = await answered(async () => {
+    note = sendNoteOf(await (await serverCaller()).send.email(input));
+  });
+  return "error" in result || note === undefined ? (result as { error: string }) : { ok: true, ...note };
 }

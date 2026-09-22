@@ -11,7 +11,9 @@ import { outreachPeopleCopy as c } from "@/lib/copy/outreachPeople";
 import type { DraftItem } from "@/lib/fixtures/inbox";
 import { activityInDateOrder, copyTextOf, markButtonsFor, undoableId } from "@/lib/outreach/peopleList";
 import { dayLabel, type StepId } from "@/lib/outreach/sequence";
+import type { SendOffer } from "@/lib/outreach/send";
 import { CALL_RESULTS, channelOf, type CallResult, type OutreachOutcome, type StepAction, type TrackedStep } from "@/lib/outreach/track";
+import { SendControl } from "@/components/outreach/SendControl";
 import type { PersonTrackingView, StepDraft } from "@/lib/repo/outreachTracking";
 
 import { CallScript } from "./CallScript";
@@ -19,9 +21,14 @@ import { CopyButton } from "./CopyButton";
 import { UnsavedContext, useUnsaved } from "./unsaved";
 
 /** One person as the drawer draws them: P4's read, with each email step's draft as the Inbox card. */
-export type PersonView = PersonTrackingView & { emailCards: Record<string, DraftItem> };
+export type PersonView = PersonTrackingView & {
+  emailCards: Record<string, DraftItem>;
+  /** What each email step's Send button says (P7); absent where the page has no mailbox to offer. */
+  sendOffers?: Partial<Record<StepId, SendOffer>>;
+};
 
-type Result = Promise<{ ok: true } | { error: string }>;
+/** A write's answer: done (with a line to show, for a send) or a line saying why not. */
+type Result = Promise<{ ok: true; note?: string; warn?: boolean } | { error: string }>;
 
 /** The server's writes the drawer calls: P4's tracking procedures and the Inbox's approve and reject. */
 export type PeopleActions = {
@@ -34,6 +41,8 @@ export type PeopleActions = {
   approveDraft: (input: { draftId: string; body?: string }) => Result;
   rejectDraft: (input: { draftId: string; reason: RejectReason }) => Result;
   tryAgain: (input: { draftId: string }) => Result;
+  /** Send an approved, due email from the rep's mailbox (P7). */
+  sendEmail: (input: { personId: string; step: string }) => Result;
 };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -199,6 +208,8 @@ export function PersonDrawer({
 function DrawerBody({ person, actions, onChanged }: { person: PersonView; actions: PeopleActions; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // What a send just did ("Sent from your mailbox.", "They replied, so this wasn't sent."): read politely, or as a warning.
+  const [note, setNote] = useState<{ note: string; warn: boolean } | null>(null);
   const t = person.tracking;
   const nextStep = t.nextDue?.step ?? null;
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(nextStep === null ? [] : [nextStep]));
@@ -208,12 +219,14 @@ function DrawerBody({ person, actions, onChanged }: { person: PersonView; action
     if (busy !== null) return false;
     setBusy(key);
     setError(null);
+    setNote(null);
     try {
       const result = await work();
       if ("error" in result) {
         setError(result.error);
         return false;
       }
+      if (result.note !== undefined) setNote({ note: result.note, warn: result.warn === true });
       onChanged();
       return true;
     } catch {
@@ -232,6 +245,9 @@ function DrawerBody({ person, actions, onChanged }: { person: PersonView; action
     <div className="grid gap-5 px-card py-4">
       <p role="alert" data-testid="drawer-alert" className={error === null ? "sr-only" : "type-small rounded-input bg-warn-bg px-3 py-2 text-warn"}>
         {error}
+      </p>
+      <p role="status" data-testid="drawer-send-note" className={note === null ? "sr-only" : `type-small rounded-input px-3 py-2 ${note.warn ? "bg-warn-bg text-warn" : "bg-soft text-ink"}`}>
+        {note?.note}
       </p>
 
       <section data-testid="drawer-header" className="grid gap-2">
@@ -297,6 +313,7 @@ function DrawerBody({ person, actions, onChanged }: { person: PersonView; action
               onToggle={() => toggle(step.id)}
               draft={person.drafts[step.id] ?? null}
               card={person.emailCards[step.id] ?? null}
+              offer={person.sendOffers?.[step.id as StepId] ?? null}
               busy={busy}
               run={run}
               personId={personId}
@@ -389,6 +406,7 @@ function StepItem({
   onToggle,
   draft,
   card,
+  offer,
   busy,
   run,
   personId,
@@ -400,6 +418,7 @@ function StepItem({
   onToggle: () => void;
   draft: StepDraft | null;
   card: DraftItem | null;
+  offer: SendOffer | null;
   busy: string | null;
   run: (key: string, work: () => Result) => Promise<boolean>;
   personId: string;
@@ -438,6 +457,12 @@ function StepItem({
       {open ? (
         <div id={panelId} data-testid="drawer-step-panel" className="grid gap-3 border-t border-line px-3 py-3">
           <StepDraftView channel={channel} draft={draft} card={card} busy={busy} run={run} actions={actions} />
+
+          {channel === "email" && offer !== null ? (
+            <div data-testid="drawer-send" className="flex flex-wrap items-center gap-2">
+              <SendControl offer={offer} busy={busy === `send:${step.id}`} onSend={() => void run(`send:${step.id}`, () => actions.sendEmail({ personId, step: step.id }))} />
+            </div>
+          ) : null}
 
           {buttons.length === 0 && !waitingApproval ? null : (
             <div data-testid="drawer-step-marks" className="flex flex-wrap items-center gap-2">
@@ -525,6 +550,8 @@ function StepDraftView({
         </Chip>
         {draft.subject === null ? null : <p className="text-15 font-semibold text-ink">{draft.subject}</p>}
         <Paragraphs text={draft.body ?? ""} />
+        {/* Unsent, it can still go by hand (P7): the words to paste, greeting and sign-off included. */}
+        {draft.body === null ? null : <CopyButton text={emailCopyText(draft.body, card)} />}
       </div>
     );
   }
@@ -544,6 +571,12 @@ function StepDraftView({
       </div>
     </div>
   );
+}
+
+/** An approved email as the rep would paste it: the card's greeting, the body, the card's sign-off. */
+function emailCopyText(body: string, card: DraftItem | null): string {
+  const envelope = card?.envelope;
+  return [envelope?.greeting ?? "", body.trim(), envelope?.signOff ?? ""].filter((part) => part.trim() !== "").join("\n\n");
 }
 
 function TryAgain({ draft, busy, onTry }: { draft: StepDraft; busy: string | null; onTry: () => void }) {

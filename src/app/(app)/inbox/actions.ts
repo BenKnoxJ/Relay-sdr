@@ -5,6 +5,9 @@ import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 
 import { inboxCopy, type RejectReason } from "@/lib/copy/inbox";
+import { sendCopy } from "@/lib/copy/send";
+import { sendNoteOf } from "@/lib/outreach/sendResult";
+import type { Ready, SendFromInbox } from "@/components/inbox/ReadyToSend";
 import type { Queue } from "@/lib/fixtures/inbox";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -39,3 +42,22 @@ export async function approveDraft(id: string, body?: string): Promise<Queue | {
 export async function rejectDraft(id: string, reason: RejectReason): Promise<Queue | { error: string }> {
   return answered(async () => (await serverCaller()).drafts.reject({ draftId: id, reason, requestId: randomUUID() }));
 }
+
+/** Approved emails not sent yet, due first, with each one's Send offer (Relay P7). */
+export async function readyToSend(): Promise<Ready> {
+  return (await serverCaller()).send.ready();
+}
+
+/** Send one from the Inbox's ready list, and hand back the list as it now stands. */
+export const sendFromInbox: SendFromInbox = async (input) => {
+  const refusals: ReadonlySet<string> = new Set(Object.values(sendCopy.refused));
+  try {
+    const note = sendNoteOf(await (await serverCaller()).send.email(input));
+    return { ready: await readyToSend(), ...note };
+  } catch (error) {
+    if (error instanceof TRPCError && (error.code === "BAD_REQUEST" || error.code === "NOT_FOUND")) {
+      return { error: refusals.has(error.message) ? error.message : sendCopy.refused.none };
+    }
+    throw error;
+  }
+};

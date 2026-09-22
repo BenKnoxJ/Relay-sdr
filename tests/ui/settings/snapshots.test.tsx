@@ -38,6 +38,8 @@ vi.mock("@/server/api/caller", () => ({
         return { samples: profile.voiceSamples.map(({ text, addedAt }) => ({ text, addedAt })), howIWrite: profile.voiceNote };
       },
     },
+    // Your email look (Relay P7): nothing set, so the defaults.
+    send: { look: async () => ({ look: { font: "Aptos", fontSize: 11, signature: "" }, preview: "" }) },
   }),
   isRefusal: () => false,
 }));

@@ -115,6 +115,20 @@ export type EventKind =
   | "outreach.undone"
   /// A rep set or cleared a person's phone number; `before` and `after` carry it.
   | "outreach.phone_set"
+  /// A rep pressed Send on an approved, due email (Relay P7): the
+  /// `outreach_sends` row is written, or a half-done one taken over, before
+  /// Microsoft is called. `after` names the person and step.
+  | "outreach.send_claimed"
+  /// The mailbox drafted that send; the row now carries the draft id.
+  | "outreach.send_drafted"
+  /// It went: the row carries the message and conversation ids, and the step
+  /// its `sent` event, in the same transaction.
+  | "outreach.email_sent"
+  /// It did not go, or Relay cannot tell whether it did; `after.state` says which.
+  | "outreach.send_not_sent"
+  /// A rep saved their email font, size and signature; `after` has the font,
+  /// the size and the signature's length, not its words.
+  | "rep.email_look_saved"
   /// The rep rejected a draft with a reason (§9); a redraft, when the reason
   /// asks for one, is enqueued in the same transaction.
   | "draft.rejected"

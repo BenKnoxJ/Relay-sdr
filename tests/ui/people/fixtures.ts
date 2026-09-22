@@ -97,5 +97,5 @@ export function listRow(name: string, over: Partial<TrackingRow> = {}): Tracking
 /** Every action, answering `ok` unless told otherwise. */
 export function actionsMock(answer: { ok: true } | { error: string } = { ok: true }): { [K in keyof PeopleActions]: ReturnType<typeof vi.fn> } & PeopleActions {
   const fn = () => vi.fn(async () => answer);
-  return { markStep: fn(), undo: fn(), addNote: fn(), setOutcome: fn(), meetingBooked: fn(), setPhone: fn(), approveDraft: fn(), rejectDraft: fn(), tryAgain: fn() } as never;
+  return { markStep: fn(), undo: fn(), addNote: fn(), setOutcome: fn(), meetingBooked: fn(), setPhone: fn(), approveDraft: fn(), rejectDraft: fn(), tryAgain: fn(), sendEmail: fn() } as never;
 }

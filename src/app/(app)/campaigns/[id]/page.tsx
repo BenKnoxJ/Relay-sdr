@@ -19,6 +19,7 @@ import {
   setOutcomeAction,
   setPhoneAction,
   tryAgainAction,
+  sendEmailAction,
   undoAction,
 } from "./peopleActions";
 import { chooseIndustry, confirmPlan, createPlayCampaigns, pauseOutreach, retryPeople, retryResearch, retryRevealEmails, revealEmails, reviewPeople, startOutreach, widenResearch, writeEmails } from "./actions";
@@ -125,6 +126,7 @@ async function peopleView(campaignId: string, query: Record<string, string | str
           approveDraft: approveDraftAction,
           rejectDraft: rejectDraftAction,
           tryAgain: tryAgainAction,
+          sendEmail: sendEmailAction,
         }}
       />
     ),

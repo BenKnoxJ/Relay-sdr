@@ -2,13 +2,15 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { outreachTrackingCopy } from "@/lib/copy/outreachTracking";
-import { londonDay } from "@/lib/outreach/sequence";
+import { weekDays, weekStartOf } from "@/lib/outreach/calendar";
+import { isIsoDate, londonDay } from "@/lib/outreach/sequence";
 import { draftItemOf } from "@/lib/outreach/view";
 import { draftsForCard } from "@/lib/repo/outreach";
 import { CALL_RESULTS, NOTE_MAX, OUTREACH_OUTCOMES, STEP_ACTIONS, channelOf, isStepId } from "@/lib/outreach/track";
 import {
   TrackingRefused,
   addNote,
+  calendarItems,
   campaignPeopleTracking,
   dueBetween,
   markStep,
@@ -129,4 +131,19 @@ export const trackingRouter = createTRPCRouter({
   dueBetween: repProcedure
     .input(z.object({ from: day, to: day }).strict())
     .query(({ ctx, input }) => refusing(dueBetween(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ...input, today: today() }).then((items) => ({ items })))),
+
+  /**
+   * The calendar's week (P6): the Monday of the week `week` falls in, every
+   * open step due up to its Friday or today, whichever is later (overdue ones
+   * however old), and which of the rep's campaigns are running or paused.
+   */
+  calendarWeek: repProcedure.input(z.object({ week: day }).strict()).query(async ({ ctx, input }) => {
+    if (!isIsoDate(input.week)) refused(new TrackingRefused("bad_range"));
+    const monday = weekStartOf(input.week);
+    // Up to the later of Friday and today: Overdue holds everything overdue, whichever week is open.
+    const friday = weekDays(monday)[4]!;
+    const now = today();
+    const view = await refusing(calendarItems(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, to: friday > now ? friday : now, today: now }));
+    return { week: monday, ...view };
+  }),
 });

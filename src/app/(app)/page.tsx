@@ -1,7 +1,9 @@
 import { Home } from "@/components/Home";
 import { HomeDayOne } from "@/components/HomeDayOne";
+import { dueToday } from "@/lib/outreach/calendar";
+import { londonDay } from "@/lib/outreach/sequence";
 import { dateLabel, firstNameFor } from "@/lib/shell";
-import { me } from "@/server/api/caller";
+import { me, serverCaller } from "@/server/api/caller";
 import { listCampaigns } from "@/server/campaigns";
 
 import { startBrief } from "./actions";
@@ -27,5 +29,10 @@ export default async function HomePage() {
     return <HomeDayOne firstName={firstName} today={today} connections={who.connections} startBrief={startBrief} />;
   }
 
-  return <Home firstName={firstName} today={today} connections={who.connections} campaigns={campaigns} startBrief={startBrief} />;
+  // Today's outreach (Relay P6), from the calendar's own read; only once outreach is running somewhere.
+  const day = londonDay(new Date());
+  const week = await (await serverCaller()).tracking.calendarWeek({ week: day });
+  const due = week.campaigns.length === 0 ? undefined : dueToday(week.items, day);
+
+  return <Home firstName={firstName} today={today} connections={who.connections} campaigns={campaigns} startBrief={startBrief} {...(due === undefined ? {} : { dueToday: due })} />;
 }

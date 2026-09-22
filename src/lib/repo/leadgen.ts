@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { leadGenHandoffSchema, type LeadGenHandoff } from "../../../agents/leadgen/input.schema";
 import type { Person as FoundPerson } from "../../../agents/leadgen/output.schema";
+import { batchOfInput } from "@/lib/campaigns/batches";
 import type { FindPeopleResult } from "@/lib/leadgen/findPeople";
 import { Knowledge, type KnownPerson, type OrgKnowledge } from "@/lib/leadgen/holds";
 import { planReveal, revealTally, type RevealCandidate, type RevealCounts, type RevealOutcome, type RevealPlan } from "@/lib/leadgen/reveal";
@@ -25,6 +26,8 @@ export const CAMPAIGN_CONFIRMED = "campaign.confirmed" as const;
 export const LEADGEN_PICKED = "leadgen.picked" as const;
 export const LEADGEN_HALTED = "leadgen.halted" as const;
 export const LEADGEN_RERUN = "leadgen.rerun" as const;
+/** Find more people (P5b): the next batch asked for, and its credit approval when it needed a new one. */
+export const CAMPAIGN_MORE_PEOPLE = "campaign.more_people" as const;
 
 /** The job kind lead gen runs as. */
 export const LEAD_GEN_JOB = "lead_gen" as const;
@@ -47,9 +50,20 @@ export const leadGenJobInputSchema = z
     run: z.number().int().positive(),
     /** Normalised Research term to the plain-words label the rep chose (v2.1 §5). */
     industryChoices: z.record(z.string().min(1).max(200)).optional(),
+    /** Which batch this run finds (P5b). Absent: batch 1, the search Confirm started. */
+    batch: z.number().int().min(2).max(1000).optional(),
+    /** How many people this batch asks for, in place of the handoff's (P5b). */
+    howMany: z.union([z.literal(10), z.literal(20), z.literal(30)]).optional(),
+    /** The Find more people press whose new credit cap this run spends against (P5b). Absent: the Confirm's. */
+    capRequestId: z.string().min(1).max(200).optional(),
   })
   .strict();
 export type LeadGenJobInput = z.infer<typeof leadGenJobInputSchema>;
+
+/** The batch a lead gen job finds: 1 unless Find more people asked for a later one. */
+export function batchOf(job: Pick<Job, "input">): number {
+  return batchOfInput(job.input);
+}
 
 type Db = PrismaClient | Prisma.TransactionClient;
 type Scope = { orgId: string; campaignId: string; briefVersion: number };
@@ -119,7 +133,7 @@ async function inOtherLiveCampaigns(db: Db, where: Scope) {
 }
 
 export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowledge> {
-  const [people, identities, suppressions, enrolled, elsewhere] = await Promise.all([
+  const [people, identities, suppressions, enrolled, elsewhere, here] = await Promise.all([
     db.person.findMany({ where: { orgId: where.orgId }, select: { id: true, email: true, emailType: true, grade: true } }),
     db.providerIdentity.findMany({ where: { orgId: where.orgId, provider: "lusha" }, select: { providerId: true, personId: true, status: true } }),
     db.contactSuppression.findMany({ where: { orgId: where.orgId }, select: { kind: true, value: true, reason: true } }),
@@ -128,6 +142,8 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
       select: { personId: true },
     }),
     inOtherLiveCampaigns(db, where),
+    // Everyone an earlier batch of this campaign found (P5b), chosen or spare.
+    db.campaignPerson.findMany({ where: { orgId: where.orgId, campaignId: where.campaignId, briefVersion: where.briefVersion }, select: { providerId: true } }),
   ]);
   return {
     people: people.map((person) => ({
@@ -140,6 +156,7 @@ export async function loadOrgKnowledge(db: Db, where: Scope): Promise<OrgKnowled
     suppressions,
     enrolledPersonIds: enrolled.map((row) => row.personId).filter((id): id is string => id !== null),
     inOtherCampaigns: elsewhere.map((row) => ({ providerId: row.providerId, personId: row.personId, revealed: row.reveal === "revealed" || row.reveal === "known" })),
+    inThisCampaign: here.map((row) => row.providerId),
   };
 }
 
@@ -177,7 +194,7 @@ export type LedgerScope = Scope & {
   kind?: CreditKind;
 };
 
-async function remainingIn(db: Db, scope: LedgerScope): Promise<number> {
+async function remainingIn(db: Db, scope: Pick<LedgerScope, "orgId" | "confirmEventId" | "cap" | "balance" | "kind">): Promise<number> {
   const kind = scope.kind ?? "search";
   const [forConfirm, sinceSnapshot] = await Promise.all([
     // The cap: only this kind's spend under this approval. A reveal never uses up the search limit, nor a search the reveal's.
@@ -269,11 +286,92 @@ export async function markStaleReservations(db: PrismaClient, where: { orgId: st
 }
 
 // ---------------------------------------------------------------------------
+// Find more people (P5b): which search approval a later batch spends against.
+
+const snapshotSchema = z
+  .object({ remaining: z.number().int().nonnegative(), used: z.number().int().nonnegative().optional(), total: z.number().int().nonnegative().optional(), readAt: z.string().min(1) })
+  .strict();
+
+/** The `campaign.more_people` Event's `after`, read defensively. */
+export const morePeopleSchema = z.object({
+  requestId: z.string().min(1),
+  briefVersion: z.number().int().positive(),
+  batch: z.number().int().min(2),
+  howMany: z.union([z.literal(10), z.literal(20), z.literal(30)]),
+  jobId: z.string().min(1),
+  /** The press whose new cap this batch spends: this one when it approved a cap, an earlier one, or absent for the Confirm's. */
+  capRequestId: z.string().min(1).optional(),
+  /** Set when this press approved a new search cap: the cap and the balance read for it, as Confirm freezes them. */
+  cap: z.object({ searchCreditCap: z.number().int().positive(), balanceSnapshot: snapshotSchema, balanceSource: z.enum(["sample", "live"]) }).optional(),
+});
+export type MorePeople = z.infer<typeof morePeopleSchema>;
+
+/** A Find more people press, by the request id that made it. */
+export async function findMorePeopleByRequest(db: Db, where: { orgId: string; campaignId: string; requestId: string }): Promise<Event | null> {
+  return db.event.findFirst({ where: { orgId: where.orgId, campaignId: where.campaignId, kind: CAMPAIGN_MORE_PEOPLE, after: { path: ["requestId"], equals: where.requestId } } });
+}
+
+/** What a search spends against: the Event whose cap counts it, the cap, and the balance read with it. */
+export type SearchApproval = {
+  eventId: string;
+  /** The Find more press that approved it; null for the Confirm. */
+  capRequestId: string | null;
+  cap: number;
+  balanceSnapshot: { remaining: number; used?: number; total?: number; readAt: string };
+};
+
+/** The search approval a Confirm froze. */
+export function confirmApproval(confirm: Event): SearchApproval {
+  const { spend } = handoffOf(confirm);
+  return { eventId: confirm.id, capRequestId: null, cap: spend.searchCreditCap, balanceSnapshot: spend.balanceSnapshot };
+}
+
+/** A Find more press's own approval, when it approved a new cap. */
+export function moreApproval(event: Event): SearchApproval | null {
+  const parsed = morePeopleSchema.safeParse(event.after);
+  if (!parsed.success || parsed.data.cap === undefined) return null;
+  return { eventId: event.id, capRequestId: parsed.data.requestId, cap: parsed.data.cap.searchCreditCap, balanceSnapshot: parsed.data.cap.balanceSnapshot };
+}
+
+/** The approval the next batch spends against: the newest Find more press that approved a cap at this version, else the Confirm. */
+export async function currentSearchApproval(db: Db, scope: Scope, confirm: Event): Promise<SearchApproval> {
+  const presses = await db.event.findMany({
+    where: { orgId: scope.orgId, campaignId: scope.campaignId, kind: CAMPAIGN_MORE_PEOPLE, after: { path: ["briefVersion"], equals: scope.briefVersion } },
+    orderBy: [{ at: "desc" }, { id: "desc" }],
+  });
+  for (const press of presses) {
+    const approval = moreApproval(press);
+    if (approval !== null) return approval;
+  }
+  return confirmApproval(confirm);
+}
+
+/** What is left of an approval's search cap: the tighter of the cap less its spend and the balance less everything spent since it was read. */
+export async function searchRemaining(db: Db, orgId: string, approval: SearchApproval): Promise<number> {
+  return remainingIn(db, {
+    orgId,
+    confirmEventId: approval.eventId,
+    cap: approval.cap,
+    balance: { remaining: approval.balanceSnapshot.remaining, readAt: new Date(approval.balanceSnapshot.readAt) },
+    kind: "search",
+  });
+}
+
+/** Search credits used at this version so far, and the people chosen for them: what a batch's estimate is scaled from. */
+export async function searchHistory(db: Db, scope: Scope): Promise<{ credits: number; people: number }> {
+  const [entries, people] = await Promise.all([
+    db.creditLedgerEntry.findMany({ where: { orgId: scope.orgId, campaignId: scope.campaignId, briefVersion: scope.briefVersion, kind: "search" }, select: { state: true, charged: true, worstCase: true } }),
+    db.campaignPerson.count({ where: { ...scope, status: "chosen" } }),
+  ]);
+  return { credits: committed(entries), people };
+}
+
+// ---------------------------------------------------------------------------
 // A run's result.
 
 export type RecordLeadGenResultInput = {
   orgId: string;
-  job: Pick<Job, "id"> & { campaignId: string; briefVersion: number };
+  job: Pick<Job, "id"> & { campaignId: string; briefVersion: number; batch?: number };
   confirmEventId: string;
   result: FindPeopleResult;
   knowledge: OrgKnowledge;
@@ -295,6 +393,7 @@ export async function recordLeadGenResult(db: PrismaClient, input: RecordLeadGen
     campaignId: input.job.campaignId,
     briefVersion: input.job.briefVersion,
     jobId: input.job.id,
+    batch: input.job.batch ?? 1,
     provider: "lusha",
     providerId: person.lushaId,
     personId: person.source === "reused" ? (personOf.get(person.lushaId) ?? null) : null,
@@ -363,9 +462,10 @@ export const LEADGEN_REVEALED = "leadgen.revealed" as const;
 /** The job kind Reveal emails runs as. */
 export const REVEAL_JOB = "reveal" as const;
 
-/** One version's reveal job: one reveal per People found. */
-export function revealJobKey(campaignId: string, briefVersion: number): string {
-  return `campaign:${campaignId}:reveal:v${briefVersion}`;
+/** One batch's reveal job: one reveal per People found. Batch 1 keeps the key it always had. */
+export function revealJobKey(campaignId: string, briefVersion: number, batch = 1): string {
+  const base = `campaign:${campaignId}:reveal:v${briefVersion}`;
+  return batch === 1 ? base : `${base}:b${batch}`;
 }
 
 /** The guard that makes a reveal's result one Event across retries. */
@@ -568,6 +668,10 @@ export type LeadGenRecord = {
   result: Event | null;
   people: StoredCandidate[];
   spend: { charged: number; reserved: number; exceededDocumentedWorstCase: boolean } | null;
+  /** The search cap `spend` counts against: the Confirm's, or the new one a later batch was approved with (P5b). */
+  searchCap?: number | null;
+  /** The approval the latest search spent against: the newest a Find more press made, else the Confirm (P5b). */
+  searchApprovalId?: string;
   /** Once Reveal emails is pressed for this People found. */
   reveal?: RevealRecord | null;
   /** Before it is pressed: what it would do for the kept people. */
@@ -588,8 +692,14 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
   const people = found
     ? await db.campaignPerson.findMany({ where: { ...scope, jobId: job.id }, orderBy: [{ status: "asc" }, { rank: "asc" }], include: { person: { select: { email: true } } } })
     : [];
-  const spend = await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: confirm.id });
-  if (!found) return { confirm, job, result, people, spend, reveal: null, revealPlan: null };
+  // The approval the latest search spent against: a later batch may have been approved with a new cap (P5b).
+  const capRequestId = job === null ? undefined : leadGenJobInputSchema.safeParse(job.input).data?.capRequestId;
+  const press = capRequestId === undefined ? null : await findMorePeopleByRequest(db, { orgId: campaign.orgId, campaignId: campaign.id, requestId: capRequestId });
+  const approval = (press === null ? null : moreApproval(press)) ?? null;
+  const spend = await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: approval?.eventId ?? confirm.id });
+  const searchCap = approval?.cap ?? null;
+  const searchApprovalId = approval?.eventId ?? confirm.id;
+  if (!found) return { confirm, job, result, people, spend, searchCap, searchApprovalId, reveal: null, revealPlan: null };
 
   const revealConfirm = await findRevealConfirm(db, { orgId: campaign.orgId, campaignId: campaign.id, leadGenJobId: job.id });
   if (revealConfirm === null) {
@@ -600,7 +710,7 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
       pricing = null;
     }
     const plan = pricing === null ? null : (await revealPlanFor(db, { ...scope, jobId: job.id }, pricing)).plan.counts;
-    return { confirm, job, result, people, spend, reveal: null, revealPlan: plan };
+    return { confirm, job, result, people, spend, searchCap, searchApprovalId, reveal: null, revealPlan: plan };
   }
   const parsed = revealConfirmedSchema.safeParse(revealConfirm.after);
   const revealJob = parsed.success ? await db.job.findFirst({ where: { orgId: campaign.orgId, id: parsed.data.jobId, kind: REVEAL_JOB } }) : null;
@@ -611,6 +721,8 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
     result,
     people,
     spend,
+    searchCap,
+    searchApprovalId,
     reveal: {
       confirm: revealConfirm,
       after: parsed.success ? parsed.data : null,
@@ -619,29 +731,48 @@ export async function leadGenRecordFor(db: Db, campaign: { id: string; orgId: st
       spend: await confirmSpend(db, { orgId: campaign.orgId, confirmEventId: revealConfirm.id, kind: "reveal" }),
     },
     revealPlan: null,
-    outreach: revealResult === null ? null : await outreachFor(db, scope),
+    outreach: revealResult === null ? null : await outreachFor(db, scope, job.id),
   };
 }
 
-/** Write emails at this version: whether it was pressed, each person's latest draft state (or `writing`), and the counts the stage reads. */
+/** Write emails for one batch: whether it was pressed, each person's latest draft state (or `writing`), and the counts the stage reads. */
 export type OutreachRecord = { requested: boolean; byPerson: Record<string, string>; jobs: { queued: number; running: number } };
 
-/** Write emails, at this version: whether it was pressed, and each person's latest draft state (or `writing`). */
-async function outreachFor(db: Db, scope: Scope): Promise<OutreachRecord> {
-  const requested = await db.event.findFirst({ where: { orgId: scope.orgId, campaignId: scope.campaignId, kind: "outreach.requested", after: { path: ["briefVersion"], equals: scope.briefVersion } } });
+/**
+ * Whether Write emails was pressed for one search's people (P5b: once per
+ * batch, so per lead gen job). Every `outreach.requested` Event names the
+ * search it drafted for.
+ */
+export async function findOutreachRequested(db: Db, where: { orgId: string; campaignId: string; leadGenJobId: string }): Promise<Event | null> {
+  return db.event.findFirst({ where: { orgId: where.orgId, campaignId: where.campaignId, kind: "outreach.requested", after: { path: ["leadGenJobId"], equals: where.leadGenJobId } } });
+}
+
+/** Write emails, for one search's people: whether it was pressed, and each person's latest draft state (or `writing`). */
+async function outreachFor(db: Db, scope: Scope, leadGenJobId: string): Promise<OutreachRecord> {
+  const requested = await findOutreachRequested(db, { orgId: scope.orgId, campaignId: scope.campaignId, leadGenJobId });
   if (requested === null) return { requested: false, byPerson: {}, jobs: { queued: 0, running: 0 } };
   const byPerson: Record<string, string> = {};
+  // This batch's people only: an earlier batch's drafts are its own (P5b).
+  const mine = new Set((await db.campaignPerson.findMany({ where: { ...scope, jobId: leadGenJobId }, select: { id: true } })).map((row) => row.id));
   // Each person's latest attempt, then anyone whose next draft is still being written.
   // A person's first email is where their outreach is: the rest of the sequence follows it (P2).
-  const drafts = await db.outreachDraft.findMany({ where: { ...scope, touch: "email1" }, orderBy: [{ attempt: "asc" }, { createdAt: "asc" }], select: { campaignPersonId: true, state: true, jobId: true } });
+  const drafts = await db.outreachDraft.findMany({
+    where: { ...scope, touch: "email1", campaignPerson: { jobId: leadGenJobId } },
+    orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
+    select: { campaignPersonId: true, state: true, jobId: true },
+  });
   for (const draft of drafts) byPerson[draft.campaignPersonId] = draft.state;
   const drafted = new Set(drafts.map((draft) => draft.jobId));
-  const jobs = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running", "failed"] } }, select: { id: true, input: true, status: true } });
+  const all = await db.job.findMany({ where: { ...scope, kind: "outreach_draft", status: { in: ["queued", "running", "failed"] } }, select: { id: true, input: true, status: true } });
   // A job writing a later touch again leaves the person's first email where it is.
   const personOf = (job: { input: unknown }) => {
     const value = job.input as { campaignPersonId?: unknown; touch?: unknown } | null;
     return value?.touch === undefined || value.touch === "email1" ? value?.campaignPersonId : undefined;
   };
+  const jobs = all.filter((job) => {
+    const id = (job.input as { campaignPersonId?: unknown } | null)?.campaignPersonId;
+    return typeof id === "string" && mine.has(id);
+  });
   // A job that failed without recording a draft still failed for that person: never "not asked".
   for (const job of jobs) {
     const id = personOf(job);

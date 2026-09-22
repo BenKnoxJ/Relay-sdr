@@ -94,18 +94,19 @@ export function revealLedgerOf(groups: readonly LedgerGroup[], revealConfirmEven
 export function spendOf(
   groups: readonly LedgerGroup[],
   costs: readonly ResearchCost[],
-  current: { briefVersion: number; searchCap: number | null; revealMax: number | null },
+  /** `searchApprovalId`: the approval the search cap is, so its spend is what counts against it (P5b); absent, all of this version's. */
+  current: { briefVersion: number; searchCap: number | null; searchApprovalId?: string | null; revealMax: number | null },
 ): CampaignSpendView {
-  const sum = (kind: LedgerGroup["kind"], field: "charged" | "held", version?: number) =>
+  const sum = (kind: LedgerGroup["kind"], field: "charged" | "held", version?: number, approvalId?: string | null) =>
     groups
-      .filter((group) => group.kind === kind && (version === undefined || group.briefVersion === version))
+      .filter((group) => group.kind === kind && (version === undefined || group.briefVersion === version) && (approvalId == null || group.confirmEventId === approvalId))
       .reduce((total, group) => total + (field === "charged" ? (group.state === "reconciled" ? group.charged : 0) : group.state === "reserved" || group.state === "unreconciled" ? group.worstCase : 0), 0);
   const usd = (version?: number) => {
     const rows = costs.filter((cost) => version === undefined || cost.briefVersion === version);
     return rows.length === 0 ? null : Math.round(rows.reduce((total, cost) => total + cost.usd, 0) * 1_000_000) / 1_000_000;
   };
   return {
-    search: { cap: current.searchCap, charged: sum("search", "charged", current.briefVersion), held: sum("search", "held", current.briefVersion) },
+    search: { cap: current.searchCap, charged: sum("search", "charged", current.briefVersion, current.searchApprovalId), held: sum("search", "held", current.briefVersion, current.searchApprovalId) },
     reveal: { max: current.revealMax, charged: sum("reveal", "charged", current.briefVersion), held: sum("reveal", "held", current.briefVersion) },
     allVersions: { searchCharged: sum("search", "charged"), searchHeld: sum("search", "held"), revealCharged: sum("reveal", "charged"), revealHeld: sum("reveal", "held") },
     research: { usd: usd(), usdThisVersion: usd(current.briefVersion) },

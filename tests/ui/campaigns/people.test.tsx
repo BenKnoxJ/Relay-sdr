@@ -828,3 +828,69 @@ describe("People ready: Write emails (outreach v2.1)", () => {
     expect(screen.queryByTestId("outreach-next")).toBeNull();
   });
 });
+
+describe("Find more people from the page (P5b)", () => {
+  const readyRows = () => rows(full).map((row) => ({ ...row, review: "kept", reveal: "no_email", revealHold: "no_email", person: null }) as unknown as CampaignPerson);
+  const withMore = (batch = 2): Campaign => ({
+    ...campaign({ result: { kind: "leadgen.picked", output: full }, people: readyRows(), reveal: { status: "done", done: true, maxCredits: 0, charged: 0, reserved: 0 } }),
+    findMore: {
+      batch,
+      cap: 40,
+      remaining: 28,
+      newCap: 40,
+      options: [
+        { howMany: 10, estimate: 12, needsNewCap: false },
+        { howMany: 20, estimate: 24, needsNewCap: false },
+        { howMany: 30, estimate: 36, needsNewCap: true },
+      ],
+      sample: true,
+    },
+  });
+  type Submission = { campaignId: string; briefVersion: number; requestId: string; howMany: 10 | 20 | 30; newCap: boolean };
+
+  it("a double click is one request; each press that lands after it is a new one", async () => {
+    let settle: (value: { id: string }) => void = () => undefined;
+    const onFindMore = vi.fn<(submission: Submission) => Promise<{ id: string }>>(() => new Promise((resolve) => (settle = resolve)));
+    const drawn = render(<CampaignPage campaign={withMore()} onReview={vi.fn()} onReveal={vi.fn()} onFindMore={onFindMore} />);
+
+    fireEvent.click(screen.getByTestId("find-more-open"));
+    fireEvent.click(screen.getByTestId("find-more-10"));
+    fireEvent.click(screen.getByTestId("find-more-confirm"));
+    fireEvent.click(screen.getByTestId("find-more-confirm"));
+    expect(onFindMore).toHaveBeenCalledTimes(1);
+    settle({ id: "camp-people" });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/campaigns/camp-people?more=1"));
+    // Landed: the buttons stay down until the page offers the next batch.
+    expect(screen.getByTestId("find-more-confirm").hasAttribute("disabled")).toBe(true);
+
+    // Batch 3 from the same page instance: a fresh request, not the one that made batch 2.
+    drawn.rerender(<CampaignPage campaign={withMore(3)} onReview={vi.fn()} onReveal={vi.fn()} onFindMore={onFindMore} />);
+    expect(screen.getByTestId("find-more-confirm").hasAttribute("disabled")).toBe(false);
+    fireEvent.click(screen.getByTestId("find-more-confirm"));
+    expect(onFindMore).toHaveBeenCalledTimes(2);
+    const [first, second] = onFindMore.mock.calls.map(([submission]) => submission.requestId);
+    expect(second).not.toBe(first);
+  });
+
+  it("while batch 2 is in review, batch 1's drafted people waiting to start keep their Start outreach", () => {
+    const later: Campaign = {
+      ...withMore(),
+      batch: 2,
+      findMore: null,
+      outreach: { startable: 2, drafted: 2, batches: [], paused: false, today: "2026-09-21", defaultStartOn: "2026-09-22", latestStartOn: "2026-10-21" },
+    };
+    render(<CampaignPage campaign={later} onReview={vi.fn()} onReveal={vi.fn()} onStartOutreach={vi.fn()} onPauseOutreach={vi.fn()} />);
+    expect(screen.getByTestId("outreach-start").textContent).toBe("Start outreach for 2 people");
+  });
+
+  it("a refused press keeps its request id, so pressing again is the same request", async () => {
+    const onFindMore = vi.fn<(submission: Submission) => Promise<{ error: string }>>(async () => ({ error: "refused" }));
+    render(<CampaignPage campaign={withMore()} onReview={vi.fn()} onReveal={vi.fn()} onFindMore={onFindMore} />);
+    fireEvent.click(screen.getByTestId("find-more-open"));
+    fireEvent.click(screen.getByTestId("find-more-confirm"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("refused"));
+    fireEvent.click(screen.getByTestId("find-more-confirm"));
+    await waitFor(() => expect(onFindMore).toHaveBeenCalledTimes(2));
+    expect(onFindMore.mock.calls[1]![0].requestId).toBe(onFindMore.mock.calls[0]![0].requestId);
+  });
+});

@@ -11,7 +11,7 @@ import { outreachStartCopy as c } from "@/lib/copy/outreachStart";
  * Resume, with a clear Paused state.
  */
 
-const view = (over: Partial<OutreachStartView> = {}): OutreachStartView => ({ startable: 18, batches: [], paused: false, today: "2026-09-21", defaultStartOn: "2026-09-22", latestStartOn: "2026-10-21", ...over });
+const view = (over: Partial<OutreachStartView> = {}): OutreachStartView => ({ startable: 18, drafted: 18, batches: [], paused: false, today: "2026-09-21", defaultStartOn: "2026-09-22", latestStartOn: "2026-10-21", ...over });
 
 function draw(v: OutreachStartView, error: string | null = null) {
   const onStart = vi.fn();

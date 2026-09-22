@@ -98,14 +98,21 @@ async function resultEventsFor(db: Db, orgId: string, campaignIds: readonly stri
              WHEN 'leadgen.picked' THEN jsonb_build_object('phase', e.after->'output'->'phase')
              WHEN 'leadgen.halted' THEN jsonb_build_object('reason', e.after->'output'->'reason', 'choices', e.after->'output'->'choices')
              WHEN 'campaign.reveal_confirmed' THEN jsonb_build_object('leadGenJobId', e.after->'leadGenJobId', 'maxCredits', e.after->'maxCredits')
-             WHEN 'outreach.requested' THEN jsonb_build_object('requested', true)
+             WHEN 'outreach.requested' THEN jsonb_build_object('requested', true, 'leadGenJobId', e.after->'leadGenJobId')
+             WHEN 'campaign.more_people' THEN jsonb_build_object('cap', e.after->'cap'->'searchCreditCap')
            END AS projection
       FROM events e
      WHERE e.org_id = ${orgId}
        AND e.campaign_id = ANY(${[...campaignIds]}::text[])
-       AND e.kind IN ('research.completed', 'campaign.confirmed', 'leadgen.picked', 'leadgen.halted', 'campaign.reveal_confirmed', 'leadgen.revealed', 'outreach.requested')
+       AND e.kind IN ('research.completed', 'campaign.confirmed', 'leadgen.picked', 'leadgen.halted', 'campaign.reveal_confirmed', 'leadgen.revealed', 'outreach.requested', 'campaign.more_people')
      ORDER BY e.at ASC, e.id ASC
   `;
+}
+
+/** The search limit spent against now: the newest Find more people press that approved one (events run oldest first), else the Confirm's. */
+function currentSearchCap(confirm: EventRow, confirmCap: number | null, presses: readonly EventRow[]): { cap: number | null; approvalId: string } {
+  const press = [...presses].reverse().find((event) => numberOr(record(event.projection).cap, null) !== null);
+  return press === undefined ? { cap: confirmCap, approvalId: confirm.id } : { cap: numberOr(record(press.projection).cap, null), approvalId: press.id };
 }
 
 const record = (value: unknown): Record<string, unknown> => (value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
@@ -173,7 +180,9 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
         : null;
     const revealJob = revealConfirm?.jobId === null || revealConfirm === null ? null : (jobs.find((job) => job.id === revealConfirm.jobId && job.kind === REVEAL_JOB) ?? null);
     const revealResult = firstFor(["leadgen.revealed"], revealJob?.id);
-    const outreachRequested = revealResult !== null && events.some((event) => event.kind === "outreach.requested" && event.campaignId === campaign.id && event.briefVersion === campaign.briefVersion);
+    // Once per batch (P5b): Write emails for the latest search's people, not an earlier batch's.
+    const outreachRequested =
+      revealResult !== null && leadGenJob !== null && events.some((event) => event.kind === "outreach.requested" && event.campaignId === campaign.id && record(event.projection).leadGenJobId === leadGenJob.id);
     return { campaign, researchJob, leadGenJob, researchEvent, confirm, leadGenEvent, picked, revealConfirm, revealJob, revealResult, outreachRequested };
   });
 
@@ -189,22 +198,33 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
 
   // Once Write emails was pressed: each campaign's latest draft per person, by state, and the draft jobs that
   // failed (7th and 8th queries, only for those campaigns).
-  const draftedCampaigns = partial.filter((row) => row.outreachRequested).map((row) => row.campaign.id);
-  const [draftRows, failedDraftJobs] =
+  const drafted = partial.filter((row) => row.outreachRequested && row.leadGenJob !== null);
+  const draftedCampaigns = drafted.map((row) => row.campaign.id);
+  // The latest batch's searches: an earlier batch's drafts are its own, as the campaign page counts them (P5b).
+  const draftedSearches = drafted.map((row) => row.leadGenJob!.id);
+  const [draftRows, draftJobs, batchPeople] =
     draftedCampaigns.length === 0
-      ? [[], []]
+      ? [[], [], []]
       : await Promise.all([
           db.outreachDraft.findMany({
             // A person's first email is where their outreach is: the rest of the sequence follows it (P2).
-            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, touch: "email1" },
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, touch: "email1", campaignPerson: { jobId: { in: draftedSearches } } },
             select: { campaignId: true, briefVersion: true, campaignPersonId: true, state: true, attempt: true, jobId: true },
             orderBy: [{ attempt: "asc" }, { createdAt: "asc" }],
           }),
           db.job.findMany({
-            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, kind: OUTREACH_DRAFT_JOB, status: "failed" },
-            select: { id: true, campaignId: true, briefVersion: true, input: true },
+            where: { orgId: owner.orgId, campaignId: { in: draftedCampaigns }, kind: OUTREACH_DRAFT_JOB, status: { in: ["queued", "running", "failed"] } },
+            select: { id: true, campaignId: true, briefVersion: true, input: true, status: true },
           }),
+          db.campaignPerson.findMany({ where: { orgId: owner.orgId, jobId: { in: draftedSearches } }, select: { id: true } }),
         ]);
+  const inBatch = new Set(batchPeople.map((row) => row.id));
+  const batchDraftJobs = draftJobs.filter((job) => {
+    const id = record(job.input).campaignPersonId;
+    return typeof id === "string" && inBatch.has(id);
+  });
+  const failedDraftJobs = batchDraftJobs.filter((job) => job.status === "failed");
+  const liveDraftJobs = new Set(batchDraftJobs.filter((job) => job.status !== "failed").map((job) => job.id));
 
   return partial.map((row): CampaignSummaryRecord => {
     const { campaign } = row;
@@ -223,6 +243,8 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
             : { kind: "unreadable" };
     const campaignLedger = ledger.filter((group) => group.campaignId === campaign.id);
     const confirmProjection = record(row.confirm?.projection);
+    const presses = events.filter((event) => event.kind === "campaign.more_people" && event.campaignId === campaign.id && event.briefVersion === campaign.briefVersion);
+    const search = row.confirm === null ? null : currentSearchCap(row.confirm, numberOr(confirmProjection.cap, null), presses);
     const buyerGroup = record(confirmProjection.buyerGroup);
     const play = record(confirmProjection.play);
     const groups: PeopleGroup[] =
@@ -242,7 +264,7 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
           reveal: row.revealConfirm === null ? null : { job: row.revealJob, hasResult: row.revealResult !== null, ledger: revealLedgerOf(campaignLedger, row.revealConfirm.id) },
           revealPlan: null,
           leadGenAvailable: options.leadGenAvailable,
-          outreach: row.revealResult === null ? null : outreachFactsOfList(campaign, groups, jobs, draftRows, failedDraftJobs, row.outreachRequested),
+          outreach: row.revealResult === null ? null : outreachFactsOfList(campaign, groups, jobs.filter((job) => job.kind !== OUTREACH_DRAFT_JOB || liveDraftJobs.has(job.id)), draftRows, failedDraftJobs, row.outreachRequested),
         },
         research: research.summary,
         confirmed:
@@ -253,7 +275,11 @@ export async function campaignSummariesForOwner(db: PrismaClient, owner: Owner, 
         spend: spendOf(
           campaignLedger,
           costs.filter((cost) => cost.campaignId === campaign.id),
-          { briefVersion: campaign.briefVersion, searchCap: row.confirm === null ? null : numberOr(confirmProjection.cap, null), revealMax: row.revealConfirm === null ? null : numberOr(record(row.revealConfirm.projection).maxCredits, null) },
+          {
+            briefVersion: campaign.briefVersion,
+            searchCap: search?.cap ?? null,
+            searchApprovalId: search?.approvalId ?? null,
+            revealMax: row.revealConfirm === null ? null : numberOr(record(row.revealConfirm.projection).maxCredits, null) },
         ),
       },
     };

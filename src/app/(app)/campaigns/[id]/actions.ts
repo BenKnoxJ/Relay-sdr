@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 
 import type { ChangeTarget, ChooseIndustrySubmission, RetrySubmission, RevealSubmission, ReviewSubmission, StartResult, StartSubmission, WidenSubmission } from "@/lib/campaigns/start";
 import { campaignsCopy, startCopy } from "@/lib/copy/campaigns";
+import { findMoreCopy } from "@/lib/copy/findMore";
 import { outreachStartCopy } from "@/lib/copy/outreachStart";
 import { isRefusal, serverCaller } from "@/server/api/caller";
 
@@ -35,6 +36,7 @@ const LINES: readonly string[] = [
   outreachStartCopy.nothingToStart,
   outreachStartCopy.badDate,
   outreachStartCopy.tooFar,
+  findMoreCopy.capUsedRefused,
 ];
 
 async function answered(change: () => Promise<{ id: string }>): Promise<StartResult> {
@@ -197,6 +199,19 @@ export async function startOutreach(submission: { campaignId: string; requestId:
       campaignId: submission.campaignId,
       requestId: submission.requestId,
       startOn: submission.startOn,
+    }),
+  );
+}
+
+/** Find more people (P5b): the next batch, for the number the rep chose, approving a new search limit when the page asked. */
+export async function findMorePeople(submission: RetrySubmission & { howMany: 10 | 20 | 30; newCap: boolean }): Promise<StartResult> {
+  return answered(async () =>
+    (await serverCaller()).campaigns.findMore({
+      campaignId: submission.campaignId,
+      briefVersion: submission.briefVersion,
+      requestId: submission.requestId,
+      howMany: submission.howMany,
+      newCap: submission.newCap,
     }),
   );
 }

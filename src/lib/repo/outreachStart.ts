@@ -161,12 +161,13 @@ export async function setOutreachPaused(db: PrismaClient, input: PauseInput): Pr
   }
 }
 
-/** Where a campaign's outreach is: who is waiting to start, each start day with how many people, and whether it is paused. */
-export type OutreachStatus = { startable: number; batches: Array<{ startOn: IsoDate; people: number }>; pausedAt: Date | null };
+/** Where a campaign's outreach is: who is waiting to start, who has any draft, each start day with how many people, and whether it is paused. */
+export type OutreachStatus = { startable: number; drafted: number; batches: Array<{ startOn: IsoDate; people: number }>; pausedAt: Date | null };
 
 export async function outreachStatusFor(db: PrismaClient | Tx, input: { orgId: string; campaignId: string }): Promise<OutreachStatus> {
   const campaign = await db.campaign.findFirst({ where: { id: input.campaignId, orgId: input.orgId }, select: { outreachPausedAt: true } });
   const startable = await db.campaignPerson.count({ where: startableWhere(input) });
+  const drafted = await db.campaignPerson.count({ where: { orgId: input.orgId, campaignId: input.campaignId, drafts: { some: { orgId: input.orgId } } } });
   const grouped = await db.campaignPerson.groupBy({
     by: ["outreachStartOn"],
     where: { orgId: input.orgId, campaignId: input.campaignId, outreachStartOn: { not: null } },
@@ -174,5 +175,5 @@ export async function outreachStatusFor(db: PrismaClient | Tx, input: { orgId: s
     orderBy: { outreachStartOn: "asc" },
   });
   const batches = grouped.flatMap((row) => (row.outreachStartOn === null ? [] : [{ startOn: fromDbDate(row.outreachStartOn), people: row._count._all }]));
-  return { startable, batches, pausedAt: campaign?.outreachPausedAt ?? null };
+  return { startable, drafted, batches, pausedAt: campaign?.outreachPausedAt ?? null };
 }

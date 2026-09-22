@@ -31,8 +31,8 @@ export function linkedinUrlOf(value: unknown): string | null {
 
 export const PERSON_STATUSES = ["not_started", "in_sequence", "replied", "meeting", "closed"] as const satisfies readonly PersonStatus[];
 
-/** What the list shows: a status, "due today or overdue" only, and a name or company search. */
-export type PeopleFilter = { status: PersonStatus | null; due: boolean; q: string };
+/** What the list shows: a status, "due today or overdue" only, a name or company search, and one batch (P5b). */
+export type PeopleFilter = { status: PersonStatus | null; due: boolean; q: string; batch?: number | null };
 
 type Params = Record<string, string | string[] | undefined>;
 
@@ -41,10 +41,12 @@ const first = (value: string | string[] | undefined): string => (Array.isArray(v
 /** The filter from the page's search params; anything unknown reads as no filter. */
 export function parsePeopleFilter(params: Params): PeopleFilter {
   const status = first(params.status);
+  const batch = first(params.batch);
   return {
     status: (PERSON_STATUSES as readonly string[]).includes(status) ? (status as PersonStatus) : null,
     due: first(params.due) === "1",
     q: first(params.q).trim().slice(0, 100),
+    ...(/^[1-9]\d{0,2}$/.test(batch) ? { batch: Number(batch) } : {}),
   };
 }
 
@@ -54,12 +56,13 @@ export function peopleHref(campaignId: string, filter: PeopleFilter, personId: s
   if (filter.status !== null) params.set("status", filter.status);
   if (filter.due) params.set("due", "1");
   if (filter.q !== "") params.set("q", filter.q);
+  if (filter.batch !== undefined && filter.batch !== null) params.set("batch", String(filter.batch));
   if (personId !== null) params.set("person", personId);
   return `/campaigns/${campaignId}?${params.toString()}`;
 }
 
 /** The parts of a list row these functions read. */
-export type ListRow = { campaignPersonId: string; name: string; company: string; status: PersonStatus; nextDue: { due: IsoDate } | null };
+export type ListRow = { campaignPersonId: string; name: string; company: string; status: PersonStatus; nextDue: { due: IsoDate } | null; batch?: number };
 
 /** Due today or before, and still open. */
 export const isDueNow = (row: Pick<ListRow, "nextDue">, today: IsoDate): boolean => row.nextDue !== null && row.nextDue.due <= today;
@@ -70,6 +73,7 @@ export function filterPeople<T extends ListRow>(rows: readonly T[], filter: Peop
     (row) =>
       (filter.status === null || row.status === filter.status) &&
       (!filter.due || isDueNow(row, today)) &&
+      (filter.batch === undefined || filter.batch === null || (row.batch ?? 1) === filter.batch) &&
       (q === "" || row.name.toLowerCase().includes(q) || row.company.toLowerCase().includes(q)),
   );
 }

@@ -114,7 +114,7 @@ describe("the drawer's Send", () => {
   });
 
   it("keeps Copy on an approved email, with the greeting, sign-off, signature and opt-out around the body (M2)", async () => {
-    const writeText = vi.fn(async () => undefined);
+    const writeText = vi.fn<(text: string) => Promise<undefined>>(async () => undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     render(<PersonDrawer person={{ ...approved(), sendOffers: { email1: { kind: "not_due", from: "2026-10-12" } } }} closeHref="/c" actions={actionsMock()} onChanged={vi.fn()} />);
     const item = screen.getAllByTestId("drawer-step").find((row) => row.dataset.step === "email1")!;

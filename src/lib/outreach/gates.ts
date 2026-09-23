@@ -116,12 +116,25 @@ const US_SPELLINGS = [
   "modeling", "traveling", "canceled", "fulfill", "enroll", "judgment",
 ];
 
+/**
+ * The paragraphs finding, as an instruction the corrective call can follow to the letter (M2 fix 1): which
+ * paragraph, and the sentence the new one starts at. "Break it up" left the redraft guessing, and in the
+ * 23 Sep cohort a four-sentence Email 1 came back as one block anyway.
+ */
+function splitParagraphText(paragraph: string): string {
+  const list = sentences(paragraph);
+  const at = list[Math.ceil(list.length / 2)] ?? "";
+  const opening = at.split(/\s+/).slice(0, 8).join(" ");
+  return `A paragraph runs to ${list.length} sentences; a phone screen wants three at most. Split this paragraph: start a new paragraph at "${opening}${opening === at ? "" : "…"}".`;
+}
+
 function shapeFindings(draft: MessageDraft, input: OutreachInput, lexicon: readonly string[]): Finding[] {
   const found: Finding[] = [];
   const body = draft.body;
   const count = sentences(body).length;
   if (count < 3 || count > 5) found.push({ rule: "sentences", text: `This is ${count} sentence${count === 1 ? "" : "s"}; a first email is 3 to 5.` });
-  if (paragraphs(body).some((p) => sentences(p).length > 3)) found.push({ rule: "paragraphs", text: "A paragraph runs past three sentences; break it up for a phone screen." });
+  const long = paragraphs(body).find((p) => sentences(p).length > 3);
+  if (long !== undefined) found.push({ rule: "paragraphs", text: splitParagraphText(long) });
   if (/https?:\/\/|www\.[a-z]/i.test(body)) found.push({ rule: "link", text: "A first email carries no link." });
   if (body.includes("!") || (draft.subject ?? "").includes("!")) found.push({ rule: "exclamation", text: "No exclamation marks." });
   const askLike = `${draft.ask} ${body}`;
@@ -164,9 +177,25 @@ const CALENDAR = new Set(
   "january february march april may june july august september october november december spring summer autumn winter uk british britain england scotland wales ireland london".split(" "),
 );
 
+/**
+ * Where a touch is sent and how the rep and the prospect talk: never a claim about anyone (M2 fix 1). A call
+ * script says "I sent a note on LinkedIn", and holding that as an unsourced name parked Emlyn's call in the
+ * 23 Sep cohort. Multi-word names are read before single words, so "Microsoft Teams" goes whole.
+ */
+export const CHANNEL_WORDS = ["microsoft teams", "microsoft outlook", "google meet", "linkedin", "inmail", "outlook", "teams", "zoom", "whatsapp", "slack", "gmail", "email", "e-mail"] as const;
+
+function withoutChannels(entity: string): string {
+  let out = entity.toLowerCase();
+  for (const channel of CHANNEL_WORDS) out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(channel)}($|[^a-z0-9])`, "g"), "$1 $2");
+  return out;
+}
+
 /** The words the input already carries, which a body may always use. */
 function allowedWords(input: OutreachInput, context: GateContext): Set<string> {
   const values = [
+    // The rep's own name and company: the call opener and the voicemail say who is ringing.
+    input.sender.firstName,
+    input.sender.company,
     input.person.name,
     input.person.firstName,
     input.person.title,
@@ -201,6 +230,8 @@ function evidenceRaw(input: OutreachInput): string {
     ...pack.angles.map((angle) => angle.text),
     ...pack.doDont.flatMap((line) => [line.use, line.avoid]),
     ...pack.verbatim.flatMap((item) => [item.text, item.quote ?? ""]),
+    // The approved quotes and who said them: "the FCA" is sourced when the evidence list names it.
+    ...pack.evidence.flatMap((item) => [item.quote, item.sourceName]),
     ...pack.proof.map((proof) => proof.text),
     ...input.facts.facts.map((fact) => fact.text),
     input.buyerRole?.needs ?? "",
@@ -267,7 +298,7 @@ function provenanceFindings(body: string, input: OutreachInput, context: GateCon
   const lowerCorpus = [body, evidenceRaw(input)].join("\n").match(/\b[a-z][a-z0-9'’-]*\b/g)?.join(" ") ?? "";
 
   const unsourced = (entity: string) => {
-    const tokens = words(entity).filter((token) => !ORDINARY.has(token) && !CALENDAR.has(token) && !allowed.has(token));
+    const tokens = words(withoutChannels(entity)).filter((token) => !ORDINARY.has(token) && !CALENDAR.has(token) && !allowed.has(token));
     if (tokens.length === 0) return false;
     // Resolved when the remaining words appear together in the evidence.
     return !hasPhrase(evidence, tokens.join(" ")) && !tokens.every((token) => hasPhrase(evidence, token));
@@ -514,15 +545,52 @@ export function evidenceUsedIn(text: string, evidence: readonly EvidenceQuote[])
   return evidence.filter((quote) => presentRuns(text, quoteRuns([quote])).size > 0).map((quote) => quote.id);
 }
 
+/** Words too common to say which quote a sentence was reaching for. */
+const QUOTE_STOP = new Set(
+  "the a an and or of to in on for by with at as is are was were be been it its it's this that these those their they them from not but have has had can could would should will may might more most some any each every all no firms firm".split(" "),
+);
+
+/**
+ * The approved quote a held sentence was paraphrasing: the evidence item sharing the most distinctive words
+ * with it, its source's name included, when it shares at least three. Null when nothing is close, and then the fix is to drop the source.
+ */
+export function closestQuote(sentence: string, evidence: readonly EvidenceQuote[]): EvidenceQuote | null {
+  const distinct = (text: string) => quoteWords(text).map((word) => word.replace(/'s$/, "")).filter((word) => !QUOTE_STOP.has(word));
+  const mine = new Set(distinct(sentence));
+  let best: { quote: EvidenceQuote; shared: number } | null = null;
+  for (const quote of evidence) {
+    // Who said it counts as much as what was said: a paraphrase keeps the attribution ("the FCA's review of
+    // 40 firms") and loses the wording, which is the whole fault.
+    const shared = new Set(distinct(`${quote.sourceName} ${quote.quote}`).filter((word) => mine.has(word))).size;
+    if (shared >= 3 && (best === null || shared > best.shared)) best = { quote, shared };
+  }
+  return best?.quote ?? null;
+}
+
+const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
+
+/**
+ * One finding per held sentence, each saying exactly what to do (M2 fix 1): the approved quote to use word for
+ * word, or remove the source reference. "Use an approved quote exactly, or leave the point out" left the
+ * corrective call to guess which quote, and it guessed a paraphrase again.
+ */
 function evidenceFindings(parts: readonly string[], input: OutreachInput): Finding[] {
   const held = unsupportedSourceClaims(parts, input.pack.evidence, [input.person.company, input.account.company, input.person.name]);
-  if (held.length === 0) return [];
-  return [
-    {
-      rule: "unsupported-source-claim",
-      text: `This says something about a regulator, an ombudsman or a publication in its own words rather than the source's: ${held.map((sentence) => `"${sentence}"`).join(" ")}. Use an approved quote exactly, or leave the point out.`,
-    },
-  ];
+  return held.map((sentence) => ({ rule: "unsupported-source-claim", text: sourceClaimFix(sentence, closestQuote(sentence, input.pack.evidence)) }));
+}
+
+/**
+ * The longest a finding may be and still reach the corrective call whole: the redraft carries each at most
+ * 500 characters, with the touch's name in front. A quote cut short is not a quote, so a long one is named by
+ * its id in the evidence list instead of being clipped.
+ */
+export const SOURCE_FIX_MAX_CHARS = 470;
+
+export function sourceClaimFix(sentence: string, quote: EvidenceQuote | null): string {
+  const said = `"${clip(sentence, 90)}" puts a source's finding in its own words.`;
+  if (quote === null) return `${said} No approved quote says this: remove the source reference and make the point in plain words.`;
+  const whole = `${said} Use this approved quote exactly: "${quote.quote}" (${quote.sourceName}). Or remove the source reference.`;
+  return whole.length <= SOURCE_FIX_MAX_CHARS ? whole : `${said} Use approved quote ${quote.id} from the evidence list exactly, word for word. Or remove the source reference.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -732,10 +800,6 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
   if (text.includes("!")) found.push({ rule: "exclamation", text: "No exclamation marks." });
   if (draft.kind === "message") {
     if ((kind === "email2" || kind === "breakup") && /https?:\/\/|www\.[a-z]/i.test(draft.body)) found.push({ rule: "link", text: "A follow-up email carries no link." });
-    // M2: the last email is a reply in Email 1's thread, like the follow-up. A new subject breaks the thread.
-    if (kind === "breakup" && (draft.subject ?? "").trim() !== "") {
-      found.push({ rule: "thread-subject", text: "The last email is a reply in the first email's thread, so it carries no subject of its own." });
-    }
     if (TIME_ASK.some((pattern) => pattern.test(`${draft.ask} ${draft.body}`))) {
       found.push({ rule: "time-ask", text: "It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead." });
     }
@@ -782,6 +846,20 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
     tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input), ...standard.tierA, ...cohort.tierA],
     tierB: [...advice, ...provenance.tierB, ...standard.tierB, ...cohort.tierB],
   };
+}
+
+/**
+ * A touch without a subject it will never be sent with (M2 fix 1). Only Email 1 opens a thread: the follow-up
+ * and the last email are replies in it, and LinkedIn and a call have no subject line. A subject the model
+ * wrote for one of those anyway is dropped here, before the gates, rather than holding the touch for words the
+ * rep never sees; in the 23 Sep cohort that held Emlyn's last email, and a discarded LinkedIn subject was the
+ * only sentence behind the hold on one of her LinkedIn messages.
+ */
+export function withoutThreadSubject<T extends OutreachOutput>(draft: T, kind: string): T {
+  if (kind === "email1" || draft.kind !== "message" || draft.subject === undefined) return draft;
+  const rest: MessageDraft = { ...draft };
+  delete rest.subject;
+  return rest as T;
 }
 
 /** The gate for a touch, chosen by its kind: Email 1 keeps its own. */

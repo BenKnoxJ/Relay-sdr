@@ -793,6 +793,133 @@ describe("the draft job", () => {
   });
 });
 
+describe("M2 fix 1: time, thread subjects and the corrective call", () => {
+  /** A model that never answers: it waits for the run's own wall clock to abort it. */
+  const silent = (id: string) => ({
+    transport: "stub" as const,
+    model: {
+      ...stubModel({ modelId: id, calls: [], whenExhausted: "throw" }),
+      doGenerate: (options: { abortSignal?: AbortSignal }) =>
+        new Promise<never>((_, reject) => options.abortSignal?.addEventListener("abort", () => reject(options.abortSignal!.reason), { once: true })),
+    },
+  });
+
+  it("@proof records a sequence call that ran out of time as a timeout, not a shape fault, and redrafts without blaming any words", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const model = writer(["good", "good"]);
+    const lookup = nothingFound();
+    let draftCalls = 0;
+    const makeModel = (id: string, input: OutreachInput, at: ModelCall) => {
+      if (at.pass === "draft" && (draftCalls += 1) <= 2) return silent(id);
+      return model.makeModel(id, input, at);
+    };
+    await outreachDraftHandler({ makeModel: makeModel as never, search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z"), maxSeconds: { sequence: 1 } })({
+      db: prisma,
+      job: { ...job!, attempts: 1 },
+      signal: new AbortController().signal,
+    });
+    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
+    expect(drafts).toHaveLength(SEQUENCE.length);
+    for (const draft of drafts) {
+      expect(draft.state, draft.touch).toBe("failed");
+      expect(draft.findings, draft.touch).toEqual([{ rule: "timeout", text: expect.stringMatching(/ran out of time/) }]);
+    }
+    const runs = await prisma.agentRun.findMany({ where: { jobId: job!.id }, orderBy: { startedAt: "asc" } });
+    expect(runs.slice(0, 2).map((run) => run.error)).toEqual([expect.stringMatching(/^cap: stopped at the 1-second cap/), expect.stringMatching(/^cap: stopped at the 1-second cap/)]);
+  }, 30_000);
+
+  it("tells the corrective call a timeout was a timeout, and takes its answer", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const model = writer(["good"]);
+    const lookup = nothingFound();
+    const findings: string[][] = [];
+    let draftCalls = 0;
+    const makeModel = (id: string, input: OutreachInput, at: ModelCall) => {
+      if (at.pass === "draft" && (draftCalls += 1) === 1) return silent(id);
+      if (at.pass === "draft") findings.push(input.redraft?.findings ?? []);
+      return model.makeModel(id, input, at);
+    };
+    await outreachDraftHandler({ makeModel: makeModel as never, search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z"), maxSeconds: { sequence: 1 } })({
+      db: prisma,
+      job: { ...job!, attempts: 1 },
+      signal: new AbortController().signal,
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.every((finding) => /ran out of time before it came back\. Write it again/.test(finding))).toBe(true);
+    expect(findings[0]!.join(" ")).not.toMatch(/right shape|Ask for it again/);
+    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
+    expect(drafts.map((draft) => draft.state)).toEqual(drafts.map(() => "to_review"));
+  }, 30_000);
+
+  it("drops a subject on the last email and a LinkedIn touch in code, rather than holding the touch", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    await runDraft(job!, ["good"], undefined, (ref) => {
+      const own = restOfSequence(ref);
+      return { breakup: { ...(own.breakup as object), subject: "one more on disputes" }, li_dm2: { ...(own.li_dm2 as object), subject: "what the fca publishes" } };
+    });
+    for (const kind of ["breakup", "li_dm2"]) {
+      const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: kind } });
+      expect(draft, kind).toMatchObject({ state: "to_review", subject: null, findings: [] });
+    }
+  });
+
+  it("@proof gives the corrective call exact fixes for a paraphrased source and a long paragraph, and following them to the letter passes", async () => {
+    const { campaign } = await revealed(rep(), 1);
+    await writeEmails(rep(), campaign);
+    const [job] = await draftJobs(campaign);
+    const person = await prisma.campaignPerson.findFirstOrThrow({ where: { id: (job!.input as { campaignPersonId: string }).campaignPersonId }, include: { person: true } });
+    const fca = loadStandard().gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
+    const ask = "When a script changes, how do you check the calls it touched?";
+    const paraphrase = "The FCA's review of 40 firms found firms weren't checking their changes.";
+    const bad = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls. ${paraphrase} Without a way to search every call by theme, each fix is judged on a guess. ${ask}`;
+    // What the corrective call should come back with: the two instructions, followed and nothing else.
+    const fixed = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls. ${fca.quote}\n\nWithout a way to search every call by theme, each fix is judged on a guess. ${ask}`;
+    const email = (body: string) => ({ subject: "Checking a script change", body, ask, opener: { ref: "$role", kind: "role_pain" }, claims: [] });
+    const dir = mkdtempSync(path.join(tmpdir(), "relay-fix1-"));
+    const file = path.join(dir, "drafts.json");
+    writeFileSync(file, JSON.stringify({ drafts: { [person.person!.email!.toLowerCase()]: [email(bad), email(fixed)] }, touches: restOfSequence("$role") }));
+
+    const scripted = fixtureWriter(file);
+    const inputs: OutreachInput[] = [];
+    const lookup = nothingFound();
+    await outreachDraftHandler({
+      makeModel: (id, input, at) => {
+        if (at.pass === "draft") inputs.push(input);
+        return scripted(id, input, at);
+      },
+      search: lookup.search,
+      fetch: lookup.fetch,
+      now: () => new Date("2026-09-15T09:00:00Z"),
+    })({ db: prisma, job: { ...job!, attempts: 1 }, signal: new AbortController().signal });
+
+    expect(inputs).toHaveLength(2);
+    const told = inputs[1]!.redraft!.findings.filter((finding) => finding.startsWith("email1: "));
+    expect(told).toHaveLength(2);
+    expect(told).toContain(`email1: "${paraphrase}" puts a source's finding in its own words. Use this approved quote exactly: "${fca.quote}" (${fca.sourceName}). Or remove the source reference.`);
+    expect(told).toContain('email1: A paragraph runs to 4 sentences; a phone screen wants three at most. Split this paragraph: start a new paragraph at "Without a way to search every call by…".');
+
+    // The instructions are exact enough to follow mechanically, and following them gives the email that passed.
+    const follow = (body: string, fixes: readonly string[]) =>
+      fixes.reduce((text, fix) => {
+        const quote = fix.match(/^email1: "(.+?)" puts a source's finding in its own words\. Use this approved quote exactly: "(.+)" \(/);
+        if (quote !== null) return text.replace(quote[1]!, quote[2]!);
+        const split = fix.match(/start a new paragraph at "(.+?)…?"\.$/);
+        if (split !== null) return text.replace(` ${split[1]!}`, `\n\n${split[1]!}`);
+        return text;
+      }, body);
+    expect(follow(bad, told)).toBe(fixed);
+
+    const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
+    expect(draft).toMatchObject({ state: "to_review", generations: 2, findings: [], body: fixed });
+  });
+});
+
 describe("a clean cut of the product sentence", () => {
   const ask = "Would that timing matter?";
   const message = (body: string, extra: { subject?: string; ask?: string } = {}) =>

@@ -287,6 +287,11 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
   const events = await db.event.findMany({ where: { kind: "outreach.drafted" } });
   const afterOf = (jobId: string): DraftedAfter => (events.find((event) => (event.after as { jobId?: string } | null)?.jobId === jobId)?.after ?? {}) as DraftedAfter;
   const runs = await db.agentRun.findMany({ where: { jobId: { in: jobIds }, kind: "outreach" }, select: { jobId: true, status: true, error: true } });
+  const { renderM2Report } = await import("@/lib/outreach/cohortReport");
+  const evidenceOf = await evidenceReader(db);
+  const reportTouches: Parameters<typeof renderM2Report>[0]["touches"][number][] = [];
+  const reportHumanizer: Parameters<typeof renderM2Report>[0]["humanizer"][number][] = [];
+  const evidence = new Map<string, Parameters<typeof renderM2Report>[0]["evidence"][number]>();
   const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
   const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim() !== "";
   const sha = dirty ? `${head}, with uncommitted changes` : head;
@@ -314,6 +319,17 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     const humanizer = after.humanizer ?? {};
     const lookup = first.lookup as { usable?: boolean; items?: unknown[] } | null;
     checked.push(checkedSequenceOf(preview.name, own, humanizer.touches ?? {}));
+    for (const draft of own) reportTouches.push({ person: preview.name, touch: draft.touch, state: draft.state, findings: findingsOf(draft.findings) });
+    const logs = Object.values(humanizer.touches ?? {});
+    reportHumanizer.push({
+      person: preview.name,
+      ran: humanizer.ran === true,
+      ...(humanizer.error === undefined && humanizer.skipped === undefined ? {} : { error: humanizer.error ?? `skipped: ${humanizer.skipped}` }),
+      returned: logs.filter((log) => log.humanized !== null && log.humanized !== undefined).length,
+      kept: logs.filter((log) => log.kept === "humanized").length,
+      touches: own.length,
+    });
+    for (const quote of evidenceOf(first.campaignPerson, first.lookup)) evidence.set(quote.id, quote);
     personRows.push(
       `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} | $${humanizerUsd.toFixed(3)} | $${(draftUsd + humanizerUsd).toFixed(3)} |`,
     );
@@ -397,6 +413,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     `- **Cost in total:** $${spent.toFixed(3)} (draft $${sum(draftCosts).toFixed(3)}, humanizer $${sum(humanCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
     "",
     renderChecks(checked, product),
+    renderM2Report({ touches: reportTouches, humanizer: reportHumanizer, sequences: checked, evidence: [...evidence.values()], timeouts: runs.filter((run) => /-second cap/.test(run.error ?? "")).length, modelRuns: runs.length }),
     ...comparison,
     "## Per person",
     "",
@@ -406,6 +423,44 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     "",
     ...sections,
   ].join("\n");
+}
+
+/**
+ * The evidence list a person's job drafted from, as the handler builds it: the campaign's pack slice, the
+ * person's lookup quotes and the standard's approved gives. The report matches each source reference to it.
+ */
+async function evidenceReader(db: Db) {
+  const { packSliceOf, withApprovedGives, withLookupEvidence } = await import("@/lib/outreach/adapter");
+  const { storedPack } = await import("@/lib/campaigns/derive");
+  const { findConfirmEvent, handoffOf } = await import("@/lib/repo/leadgen");
+  const { findResearchCompletedForJob } = await import("@/lib/repo/research");
+  const { latestResearchJob } = await import("@/lib/repo/campaigns");
+  const { loadFacts } = await import("@/lib/facts/load");
+  const { liveFacts } = await import("@/lib/outreach/adapter");
+  const { loadStandard } = await import("@/lib/outreach/standard");
+  const standard = loadStandard();
+  const slices = new Map<string, Awaited<ReturnType<typeof packSliceOf>> | null>();
+  const sliceOf = async (row: { orgId: string; campaignId: string; briefVersion: number }) => {
+    const key = `${row.campaignId}:${row.briefVersion}`;
+    if (!slices.has(key)) {
+      const campaign = await db.campaign.findUniqueOrThrow({ where: { id: row.campaignId } });
+      const confirm = await findConfirmEvent(db, { orgId: row.orgId, campaignId: row.campaignId, briefVersion: row.briefVersion });
+      const researchJob = await latestResearchJob(db, campaign);
+      const researched = researchJob === null ? null : await findResearchCompletedForJob(db, { orgId: row.orgId, jobId: researchJob.id });
+      const pack = researched === null ? null : storedPack(researched.after);
+      slices.set(key, confirm === null || pack === null ? null : packSliceOf(pack, handoffOf(confirm), liveFacts(loadFacts("insights360", 2).facts)));
+    }
+    return slices.get(key) ?? null;
+  };
+  // Read ahead of the report loop: the report is written once, so this is at most one research read per campaign.
+  const rows = await db.campaignPerson.findMany({ select: { orgId: true, campaignId: true, briefVersion: true }, distinct: ["campaignId", "briefVersion"] });
+  for (const row of rows) await sliceOf(row);
+  return (row: { campaignId: string; briefVersion: number }, lookup: unknown) => {
+    const slice = slices.get(`${row.campaignId}:${row.briefVersion}`) ?? null;
+    if (slice === null) return standard.gives.map(({ scope: _scope, ...quote }) => quote);
+    const found = (lookup ?? { items: [], usable: false, searches: 0, fetches: 0 }) as Parameters<typeof withLookupEvidence>[1];
+    return withApprovedGives(withLookupEvidence(slice, found), standard).evidence;
+  };
 }
 
 /** The source's recorded drafts and the inputs they were written from, as a test fixture. */

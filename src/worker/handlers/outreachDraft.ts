@@ -4,7 +4,7 @@ import path from "node:path";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 
-import { SEQUENCE, type OutreachInput, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, TOUCH_KINDS, type OutreachInput, type TouchKind } from "../../../agents/outreach/input.schema";
 import { LIMITS, outputSchemaFor, type OutreachOutput } from "../../../agents/outreach/output.schema";
 import {
   humanizeInputSchema,
@@ -29,8 +29,9 @@ import { draftCopy } from "@/lib/copy/draft";
 import { OUTREACH_PROSE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
-import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf } from "@/lib/outreach/adapter";
-import { addedFacts, gateFor, normaliseClaims, proseText, type Finding, type GateContext } from "@/lib/outreach/gates";
+import { loadNeverSay } from "@/lib/facts/neverSay";
+import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf, withApprovedGives, withLookupEvidence } from "@/lib/outreach/adapter";
+import { addedFacts, evidenceUsedIn, gateFor, humanizerLoss, normaliseClaims, proseText, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { changePct, mentionsProduct, proseString } from "@/lib/outreach/messageChecks";
 import { loadStandard } from "@/lib/outreach/standard";
@@ -86,6 +87,21 @@ const FACTS_PRODUCT = "insights360";
 const FACTS_VERSION = 2;
 /** At most two model generations per draft (v2.1 §6). */
 export const MAX_GENERATIONS = 2;
+
+/**
+ * The humanizer's own wall clock (M2, 23 Sep 2026).
+ *
+ * It shared the drafter's 300 seconds, and in the 22 Sep cohort that was not
+ * enough twice: Nell's pass never ran ("refused: cap") so 7 of her touches
+ * reached the rep unhumanized, and Blair's draft hit the same ceiling. The
+ * pass is doing more work than a draft call — it reads a 649-line prompt, the
+ * facts file and seven touches — so it gets a ceiling of its own rather than
+ * borrowing one sized for a different job.
+ */
+export const HUMANIZER_MAX_SECONDS = 600;
+
+/** One retry, for a pass that ran out of time or came back refused. */
+export const HUMANIZER_ATTEMPTS = 2;
 
 /** Which call a model is made for: a draft generation or the humanizer pass. */
 export type ModelCall = { attempt: number; generation: number; pass: "draft" | "humanize"; humanize?: HumanizeInput };
@@ -246,6 +262,9 @@ export function callScriptText(point: Extract<OutreachOutput, { kind: "call" }>[
   return [
     `${copy.open} ${point.openingLine}`,
     `${copy.ask} ${point.oneQuestion}`,
+    // M2: the second call's own words, labelled, so the rep reads a different script the second time.
+    ...(point.openingLine2 === undefined ? [] : [`${copy.open2} ${point.openingLine2}`]),
+    ...(point.oneQuestion2 === undefined ? [] : [`${copy.ask2} ${point.oneQuestion2}`]),
     `${copy.listen} ${point.listenFor}`,
     ...(point.voicemail === undefined ? [] : [`${copy.voicemail} ${point.voicemail}`]),
     ...(point.objections ?? []).map((pair) => `${copy.ifTheySay} ${pair.objection}\n${copy.say} ${pair.answer}`),
@@ -266,7 +285,11 @@ export function storedDraftOf(
 ): NonNullable<TouchRecord["draft"]> {
   const opener = resolveOpener(output.opener, lookup, slice, buyerRole);
   if (output.kind === "call") return { body: callScriptText(output.talkingPoint), ask: output.talkingPoint.oneQuestion, opener, claims: output.claims };
-  const subject = kind === "email1" || kind === "breakup" ? output.subject : undefined;
+  // M2: only Email 1 opens a thread. The follow-up and the last email are
+  // replies in it, so neither carries a subject — six of six last emails in
+  // the 22 Sep cohort started a new thread, three of them with a lower-case
+  // company name, and a rep reading the inbox lost the conversation.
+  const subject = kind === "email1" ? output.subject : undefined;
   return { ...(subject === undefined ? {} : { subject }), body: output.body, ask: output.ask, opener, claims: output.claims };
 }
 
@@ -348,9 +371,14 @@ type HumanizerTouchLog = {
 
 type HumanizerLog = { ran: boolean; skipped?: string; error?: string; touches: Partial<Record<TouchKind, HumanizerTouchLog>> };
 
+/** Tier B advice on a touch the humanizer never reached (M2, item 3). */
+export const NOT_HUMANIZED: Finding = { rule: "not-humanized", text: "The humanizer did not run on this one, so these are the drafted words. Read it more closely than usual." };
+
 function resultOf(drafts: { id: string }[]): { draftId: string; draftIds: string[] } {
   return { draftId: drafts[0]!.id, draftIds: drafts.map((draft) => draft.id) };
 }
+
+const isTouchKind = (value: string): value is TouchKind => (TOUCH_KINDS as readonly string[]).includes(value);
 
 export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreachDeps()): Handler {
   return async ({ db, job, signal }) => {
@@ -438,6 +466,9 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const lookupUsed = lookup;
 
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
+    // The quotable sources behind this person's slice, read once: the recent drafts are scanned against them.
+    const standard = loadStandard();
+    const evidence = withApprovedGives(withLookupEvidence(slice, lookupUsed), standard).evidence;
     const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true, org: { select: { name: true } } } });
     if (owner === null) throw new TerminalError("outreach: the campaign's owner is not in this org");
     const repName = owner.name ?? owner.email.split("@")[0] ?? "";
@@ -449,12 +480,32 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       pack,
       facts,
       voice: await voiceFor(db, { orgId: job.orgId, userId: ownerUserId }),
-      standard: loadStandard(),
+      standard,
       lookup: lookupUsed,
-      recentDrafts: cohort.filter((entry) => entry.opening.trim() !== "" && entry.ask.trim() !== "").slice(0, 20).map((entry) => ({ opening: entry.opening, ask: entry.ask, ...(entry.subject === undefined ? {} : { subject: entry.subject }), sameAccount: entry.sameAccount })),
+      // M2: what a colleague at the same firm has already been sent, and not
+      // only their opening and ask — the angle they opened on and the source
+      // they quoted, so the drafter can take a different one rather than
+      // finding out from the gate that it took the same.
+      recentDrafts: cohort
+        .filter((entry) => entry.opening.trim() !== "" && entry.ask.trim() !== "")
+        .slice(0, 20)
+        .map((entry) => {
+          const evidenceIds = entry.sameAccount ? evidenceUsedIn(entry.body, evidence) : [];
+          return {
+            opening: entry.opening,
+            ask: entry.ask,
+            ...(entry.subject === undefined ? {} : { subject: entry.subject }),
+            sameAccount: entry.sameAccount,
+            ...(isTouchKind(entry.touch) ? { touch: entry.touch } : {}),
+            ...(entry.openerRef === undefined ? {} : { openerRef: entry.openerRef }),
+            ...(evidenceIds.length === 0 ? {} : { evidenceIds: evidenceIds.slice(0, 6) }),
+          };
+        }),
       now,
     };
-    const context: GateContext = { productNames: [facts.product], repName, cohort };
+    // The facts file's never-say list: research has been linted against it since brief E, and outreach
+    // writes to the same prospects about the same product, so it is held to the same list (M2).
+    const context: GateContext = { productNames: [facts.product], repName, cohort, neverSay: loadNeverSay(FACTS_PRODUCT, FACTS_VERSION) };
     // A rep's "wrong angle" or "wrong fact" (§9): the new draft moves away from the rejected one.
     const repRedraft =
       input.avoid === undefined
@@ -547,13 +598,34 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         touches: Object.fromEntries(candidates.map((kind) => [kind, proseOf(settled.get(kind)!.output!)])),
         limits: Object.fromEntries(candidates.map((kind) => [kind, limitText(kind)])),
       };
-      const outcome = await call({ ...signed, prompt: loadHumanizer(), input: humanizeInputSchema, output: humanizeOutputSchema }, humanizeInput, modelInput, {
-        attempt: input.attempt,
-        generation: 0,
-        pass: "humanize",
-        humanize: humanizeInput,
-      });
-      if (!outcome.ok) return { ...log, error: outcome.refused ? `refused: ${outcome.error.reason}` : safeError(outcome.error) };
+      const humanizerDefinition = {
+        ...signed,
+        prompt: loadHumanizer(),
+        input: humanizeInputSchema,
+        output: humanizeOutputSchema,
+        budget: { ...signed.budget, maxSeconds: HUMANIZER_MAX_SECONDS },
+      };
+      // One retry. A pass that ran out of time or came back out of shape is
+      // worth asking for again; the cost cap is the thing that stops it, and
+      // it is re-checked before the second attempt like any other model call.
+      let outcome = await call(humanizerDefinition, humanizeInput, modelInput, { attempt: input.attempt, generation: 0, pass: "humanize", humanize: humanizeInput });
+      let firstError: string | undefined;
+      for (let retry = 1; retry < HUMANIZER_ATTEMPTS && !outcome.ok; retry += 1) {
+        firstError ??= outcome.refused ? `refused: ${outcome.error.reason}` : safeError(outcome.error);
+        if (capped()) break;
+        outcome = await call(humanizerDefinition, humanizeInput, modelInput, { attempt: input.attempt, generation: retry, pass: "humanize", humanize: humanizeInput });
+      }
+      if (!outcome.ok) {
+        // Nothing was humanized. The rep is told so on every touch, because a
+        // touch that never went through the pass is not the same as one that
+        // went through and came back unchanged, and only the rep can tell.
+        const error = firstError ?? (outcome.refused ? `refused: ${outcome.error.reason}` : safeError(outcome.error));
+        for (const kind of candidates) {
+          const entry = settled.get(kind)!;
+          settled.set(kind, { ...entry, record: { ...entry.record, advice: [...entry.record.advice, NOT_HUMANIZED] } });
+        }
+        return { ...log, error };
+      }
       log.ran = true;
       for (const kind of SEQUENCE.filter((candidate) => candidates.includes(candidate))) {
         const entry = settled.get(kind)!;
@@ -562,16 +634,19 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         const dropped = rewritten !== null && drafted.claims.length > 0 && rewritten.claims.length === 0;
         let reason: string | undefined;
         let accepted: { output: OutreachOutput; tierA: Finding[]; tierB: Finding[] } | undefined;
+        const cleanProductCut = dropped && drafted.kind === "message" && rewritten !== null && rewritten.kind === "message" && isCleanCut(drafted, rewritten, modelInput.facts.product);
         if (rewritten === null) reason = "no humanized text came back for this touch";
         // "I cut the product sentence" clears the claims only when the cut is certain (`isCleanCut`);
         // otherwise the drafted touch stands, claims and all.
-        else if (dropped && !(drafted.kind === "message" && rewritten.kind === "message" && isCleanCut(drafted, rewritten, modelInput.facts.product)))
+        else if (dropped && !cleanProductCut)
           reason = "said it cut the product sentence, but the words were reworded or still name the product: the drafted touch and its claims are kept";
         else {
           const shaped = outputSchemaFor(kind).safeParse(rewritten);
           const added = shaped.success ? addedFacts(drafted, shaped.data) : [];
+          const lost = shaped.success ? humanizerLoss(drafted, shaped.data, modelInput.pack.evidence, cleanProductCut) : null;
           if (!shaped.success) reason = `out of shape: ${shaped.error.issues.map((issue) => issue.message).join("; ").slice(0, 300)}`;
           else if (added.length > 0) reason = `added what the draft did not say: ${added.join(", ")}`;
+          else if (lost !== null) reason = `lost what the draft said: ${lost}`;
           else {
             const gateInput = gateInputOf(kind);
             const output = normaliseClaims(shaped.data, gateInput);

@@ -1,3 +1,4 @@
+import type { Envelope } from "@/lib/outreach/envelope";
 import {
   outreachOutputSchema,
   type OutreachOutput,
@@ -84,8 +85,8 @@ export type DraftItem = {
   findings?: string[];
   /** Advice beside the draft; never blocks. */
   advice?: string[];
-  /** The greeting and sign-off Relay puts around the body (v2.1 §4). */
-  envelope?: { greeting: string; signOff: string };
+  /** What Relay puts around the body: the greeting, the sign-off, the rep's signature and the opt-out (v2.1 §4, M2). */
+  envelope?: Envelope;
   /** The campaign it belongs to. */
   campaignName?: string;
   /** False for a draft that could not be written: there is nothing to approve. */

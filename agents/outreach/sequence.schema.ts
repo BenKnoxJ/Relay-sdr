@@ -36,6 +36,9 @@ const sequenceCallSchema = callDraftSchema.extend({
       numberSource: z.enum(["zoho", "switchboard", "find_a_number"]),
       voicemail: z.string().min(1).max(400),
       objections: z.array(objectionSchema).max(MAX_OBJECTIONS),
+      /** M2: the second call's own opener and question. Required here; the sequence asks for both calls. */
+      openingLine2: z.string().min(1).max(300),
+      oneQuestion2: z.string().min(1).max(300),
     })
     .strict(),
 });
@@ -83,6 +86,8 @@ const humanCallSchema = z
   .object({
     openingLine: z.string().min(1).max(300),
     oneQuestion: z.string().min(1).max(300),
+    openingLine2: z.string().min(1).max(300).optional(),
+    oneQuestion2: z.string().min(1).max(300).optional(),
     listenFor: z.string().min(1).max(600),
     voicemail: z.string().min(1).max(400).optional(),
     objections: z.array(objectionSchema).max(MAX_OBJECTIONS).optional(),
@@ -134,6 +139,8 @@ export function proseOf(output: OutreachOutput): NonNullable<HumanTouches[keyof 
   return {
     openingLine: point.openingLine,
     oneQuestion: point.oneQuestion,
+    ...(point.openingLine2 === undefined ? {} : { openingLine2: point.openingLine2 }),
+    ...(point.oneQuestion2 === undefined ? {} : { oneQuestion2: point.oneQuestion2 }),
     listenFor: point.listenFor,
     ...(point.voicemail === undefined ? {} : { voicemail: point.voicemail }),
     ...(point.objections === undefined ? {} : { objections: point.objections }),

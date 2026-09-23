@@ -155,7 +155,7 @@ describe("cohort: template repetition only (v2.1 §6, as corrected)", () => {
   it("treats generic word overlap as advice, never a failure", () => {
     // Two of this draft's sentences again, at another account, once: similar, and not a template.
     const similar = other(
-      "Tom, quality checking at Ardent covers one call in fifty. When quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started. We read every recorded call, so the pattern shows up in the first week rather than the next quarter.",
+      "Tom, quality checking at Ardent covers one call in fifty. When quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started. The calls that led to those complaints sit outside that sample, so the habit stays out of sight.",
       "Is that something you are looking at?",
     );
     const result = gateEmail1(draft(), input(), context([similar]));

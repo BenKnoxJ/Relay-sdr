@@ -34,6 +34,8 @@ export const draftCopy = {
   callScript: {
     open: "Open with:",
     ask: "Ask:",
+    open2: "Call 2, open with:",
+    ask2: "Call 2, ask:",
     listen: "Listen for:",
     voicemail: "Voicemail:",
     ifTheySay: "If they say:",

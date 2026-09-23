@@ -1,15 +1,15 @@
 {
   "version": 2,
-  "note": "The message standard (master §15), version 2 (messaging v2, 22 Sep 2026), for outreach v2.1. The product owner owns it. The rules are the prompt's spine. The exemplars show the shape of each touch for one sequence (Avery Dunmore, head of claims at Ardent) and four first emails by role and opener; they teach shape, the give and the ask, never content: their words, facts and ids belong to the people they were written for. The tell list is injected as a list and gated in code (v2.1 §6); version 2 adds the fleet humanizer's banned lexicon and the stock outreach openers. Decisions (product owner, 22 Sep 2026): the product is never in Email 1 and at most once per sequence; price only in a call objection answer, always complete; the opt-out line is added at send, never in a draft.",
+  "note": "The message standard (master §15), version 2 (messaging v2, 22 Sep 2026), for outreach v2.1. The product owner owns it. The rules are the prompt's spine. The exemplars show the shape of each touch for one sequence (Avery Dunmore, head of claims at Ardent) and four first emails by role and opener; they teach shape, the give and the ask, never content: their words, facts and ids belong to the people they were written for. The tell list is injected as a list and gated in code (v2.1 §6); version 2 adds the fleet humanizer's banned lexicon and the stock outreach openers. Decisions (product owner, 22 Sep 2026): the product is never in Email 1 and at most once per sequence; price only in a call objection answer, always complete; the opt-out line is added at send, never in a draft.  M2 (23 Sep 2026): `gives` is the approved list of source sentences. A touch that attributes anything to a regulator, an ombudsman or a publication must use one of them word for word; `unsupported-source-claim` holds it otherwise. Each quote is the source's own sentence, taken from a recorded scrape, with its scope beside it so nobody widens it.",
   "rules": [
     "Lead with their problem, in their words. Pick one problem for the whole sequence, from the opener, and follow it through: each later touch takes a new angle on the same problem, never a new problem. State the reason for writing in the first sentence, in plain words. Write to the role: runs it, the working problem they live with; champions it, the evidence they lack; signs it off, the outcome and the risk, in the fewest words. Never mention a colleague.",
-    "Give before you ask. Each email and LinkedIn message carries one useful, true thing the reader may not have: a point from the lookup, a finding from a regulator or the ombudsman, or a pattern from the plan. Use it only where the lookup or the plan supports it, keep its figures and wording exactly as the source gives them, and say where it comes from in plain words (\"the ombudsman's quarterly figures\", \"the FCA's review of 40 firms\"). Never force a number, never stretch what a source says, and never imply that a regulator faults call sampling. Where nothing supports it, a plain and specific point about the problem is enough.",
+    "Give before you ask. Each email and LinkedIn message carries one useful, true thing the reader may not have: a point from the lookup, an approved source sentence, or a pattern from the plan in plain words with no attribution. Anything you attribute to a regulator, an ombudsman, a publication, a survey or a published figure must come from `pack.evidence`, used word for word, and named in plain words (\"the ombudsman's quarterly figures\", \"the FCA's review of 40 firms\"). Never quote a pain, an angle or a proof line as if it were the source: those are the plan's paraphrases. Never harden what a source said (\"might need to be\" stays \"might\"), never add a frequency the source does not give (\"always\", \"most\", \"almost always\"), and never imply that a regulator faults call sampling. Where no approved quote fits, a plain and specific point about the problem, with nothing attributed to anyone, is enough. Use each evidence item at most once per sequence.",
     "No pitch in Email 1. Email 1 neither names nor describes the product and cites no fact. Across the whole sequence the product appears at most once in writing, in one plain sentence, in Email 2 or a LinkedIn message, citing at most two live fact ids and honouring their notes. The call script may describe it in an objection answer. No social proof, customer names or results unless a live allowed proof item or fact supports them.",
     "Price only when asked. No price, fee, plan, seat or contract term appears in any email or LinkedIn message. Price belongs only in the call script, as the answer to a price question, and there it is always complete: the one-off setup fee of £1,280, the one-off £640 configuration review and the per-seat monthly plans, from the live price facts.",
     "Soft, varied asks. Every message ends on one easy question, which is its ask, and the ask changes shape across the sequence: an open question about how they handle it today; who owns it; a useful offer of something public the rep can send; and, in the last email, who the right person is. At most one \"X, or Y?\" question in the whole sequence. No digs and no presumptive words in an ask (\"already\", \"still\", \"too\", \"gap\", \"missing\"). Never a specific time, a meeting length or a calendar link.",
-    "Tailored, not templated. Every opener, ask and subject is written for this person. No stock channel openers (\"Thanks for connecting\", \"One more thought\", \"Just following up\") and no stock subjects (\"one last note\", \"quick question\"). Do not echo the campaign's recent drafts: their openings, their asks or their sentences. Colleagues at the same firm get different angles.",
+    "Tailored, not templated. Every opener, ask and subject is written for this person. No stock channel openers (\"Thanks for connecting\", \"One more thought\", \"Just following up\") and no stock subjects (\"one last note\", \"quick question\"). Do not echo the campaign's recent drafts: their openings, their asks or their sentences. Colleagues at the same firm get different angles. Colleagues at the same firm (`recentDrafts` with `sameAccount`) get a different angle, a different evidence quote and a different product sentence from the one their colleague was sent: `openerRef` and `evidenceIds` say what has been used. A signs-it-off touch never drops below board level: no handlers, no team leaders, no QA analysts, no coaching mechanics. The product sentence serves the sequence's own problem, never a feature on its own. Only Email 1 has a subject: the follow-up and the last email are replies in its thread. A connection note may open \"Hi <first name>,\" and need not end on a question.",
     "Human. Short sentences with a varied rhythm, British English, no em dashes, no exclamation marks, no bullets, no links, and nothing from the tell list. Take the voice from the rep's samples (their sentence length and warmth), never their content. No gender guesses: call the prospect by name or \"they\", never he, she, him or her. No invented experience, conversations, customers or familiarity (\"teams I speak to\", \"that stuck with me\", \"I know it's not top of your list\"). Write neither the greeting nor the sign-off; both are added for you.",
-    "Honest identity. The prospect only ever meets the rep and their company, never the tool that drafts these messages. The email signature and the opt-out line are added when the email is sent, so an email body carries neither. A LinkedIn note needs no name line, because LinkedIn shows who is connecting. A call opener and a voicemail say \"<first name> from <company>\"."
+    "Honest identity. The prospect only ever meets the rep and their company, never the tool that drafts these messages. The rep's signature and the opt-out line (\"If this isn't relevant, just reply and I won't follow up.\") are added below the sign-off on every email, so an email body carries neither. LinkedIn and calls carry neither. A LinkedIn note needs no name line, because LinkedIn shows who is connecting. A call opener and a voicemail say \"<first name> from <company>\"."
   ],
   "exemplars": [
     {
@@ -18,7 +18,7 @@
       "draft": {
         "kind": "message",
         "subject": "delay as the top complaint theme",
-        "body": "You told the conference this year that delay conversations had become your team's biggest complaint theme.\n\nThe ombudsman's quarterly figures show the wider picture. Car and motorcycle insurance complaints to the ombudsman rose to 4,100 in April to June 2026, from 2,800 a year earlier.\n\nWhen a delay complaint lands, how do you find the calls behind it today?",
+        "body": "You told the conference this year that delay conversations had become your team's biggest complaint theme.\n\nThe ombudsman's quarterly figures show the wider picture. Car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.\n\nWhen a delay complaint lands, how do you find the calls behind it today?",
         "ask": "When a delay complaint lands, how do you find the calls behind it today?",
         "opener": {
           "ref": "look-6eea2e4db932",
@@ -29,12 +29,12 @@
     },
     {
       "touch": "email1",
-      "shows": "Email 1 · runs it · opens on a firm fact from the lookup · gives the FCA's 40-firm finding in its own words · a useful offer of something public · no product",
+      "shows": "Email 1 · runs it · opens on a firm fact from the lookup · gives the FCA's 40-firm finding in its own words · a useful offer of something public, asked plainly · no product",
       "draft": {
         "kind": "message",
         "subject": "bramble's weekly delay review",
-        "body": "Bramble's July complaints publication showed claim delay complaints falling, and said you now review handler conversations about delay every week.\n\nWhen the FCA reviewed complaint handling at 40 firms, it found firms did not always measure the impact of the interventions they made. A weekly review is the kind of change that question lands on.\n\nWould it help if I sent over the FCA's write-up?",
-        "ask": "Would it help if I sent over the FCA's write-up?",
+        "body": "Bramble's July complaints publication showed claim delay complaints falling, and said you now review handler conversations about delay every week.\n\nWhen the FCA reviewed complaint handling at 40 firms, it found firms did not always measure the impact of the interventions they made. A weekly review is the kind of change that question lands on.\n\nWant me to send you the FCA's write-up?",
+        "ask": "Want me to send you the FCA's write-up?",
         "opener": {
           "ref": "look-83e6d8082ec4",
           "kind": "firm_fact"
@@ -47,8 +47,8 @@
       "shows": "Email 1 · champions it · opens on the role problem · gives how the FCA publishes firm-level complaint figures · who owns it · no product",
       "draft": {
         "kind": "message",
-        "subject": "the calls behind the published figures",
-        "body": "The FCA publishes each firm's complaint figures, including the share closed within eight weeks and the share upheld by the ombudsman, in tables anyone can sort.\n\nThe calls behind those figures never appear in them, so when a number moves, the reason is hard to show.\n\nWhen a complaint is upheld, who looks back at the calls that led to it?",
+        "subject": "the calls behind the numbers",
+        "body": "The FCA publishes complaints data every six months as part of its oversight of consumer outcomes and regulated financial services firms, and the data includes complaints opened, upheld, and closed.\n\nThe calls behind those figures never appear in them, so when a number moves, the reason is hard to show.\n\nWhen a complaint is upheld, who looks back at the calls that led to it?",
         "ask": "When a complaint is upheld, who looks back at the calls that led to it?",
         "opener": {
           "ref": "pn-a1-published-but-blind",
@@ -90,10 +90,9 @@
     },
     {
       "touch": "breakup",
-      "shows": "The last email · says plainly it is the last · the right-person ask · a subject written for this person, never a stock one",
+      "shows": "The last email · says plainly it is the last · the right-person ask · no subject: it is a reply in Email 1's thread",
       "draft": {
         "kind": "message",
-        "subject": "delay calls at Ardent",
         "body": "I'll leave it here so I'm not filling your inbox. If spotting delay calls early sits with someone else at Ardent, who would be the right person to ask?",
         "ask": "If spotting delay calls early sits with someone else at Ardent, who would be the right person to ask?",
         "opener": {
@@ -108,8 +107,8 @@
       "shows": "The LinkedIn connection note · no name line (LinkedIn shows who is connecting) · the same problem · no pitch · a light question",
       "draft": {
         "kind": "message",
-        "body": "I read your conference point that delay had become your team's biggest complaint theme, and I'd like to follow your thinking on it. Would you be open to connecting?",
-        "ask": "Would you be open to connecting?",
+        "body": "I read your conference point that delay had become your team's biggest complaint theme, and I'd like to follow your thinking on it. Worth a conversation?",
+        "ask": "Worth a conversation?",
         "opener": {
           "ref": "look-6eea2e4db932",
           "kind": "person_fact"
@@ -119,11 +118,11 @@
     },
     {
       "touch": "li_dm",
-      "shows": "The LinkedIn message after they accept · 50 to 80 words · opens on the point, never on thanks · a new angle on the same problem · open question",
+      "shows": "The LinkedIn message after they accept · 50 to 80 words · opens on the point, never on thanks · a new angle on the same problem · an ask no earlier touch has used",
       "draft": {
         "kind": "message",
-        "body": "Delay calls are hard to review well when each handler has a monthly review target. The calls that get picked tend to be the convenient ones, and the difficult ones, like a total-loss valuation that has dragged on, are the least likely to be heard. That leaves the part of the delay problem handlers control mostly unseen. How do your team leaders choose which calls to review?",
-        "ask": "How do your team leaders choose which calls to review?",
+        "body": "Delay calls are hard to review well when each handler has a monthly review target. The calls that get picked tend to be the convenient ones, and the difficult ones, like a total-loss valuation that has dragged on, are the least likely to be heard. That leaves the part of the delay problem handlers control mostly unseen. Who decides which calls get reviewed each week?",
+        "ask": "Who decides which calls get reviewed each week?",
         "opener": {
           "ref": "pn-a1-coaching-on-anecdote",
           "kind": "role_pain"
@@ -133,7 +132,7 @@
     },
     {
       "touch": "call",
-      "shows": "The call script · the opener names the rep and company, refers to the email and asks permission · no pronoun for the prospect · the voicemail names the rep · the price answer is complete (the rep here is Alex; use the sender you are given)",
+      "shows": "The call script · two calls, each with its own opener and question · the opener names the rep and company, refers to the email and asks permission · no pronoun for the prospect · the voicemail names the rep · the price answer is complete (the rep here is Alex; use the sender you are given)",
       "draft": {
         "kind": "call",
         "talkingPoint": {
@@ -141,7 +140,7 @@
           "oneQuestion": "When a delay complaint comes in, how do you find the calls behind it?",
           "listenFor": "Whether Avery can pull up the delay calls as a set or waits for complaints to arrive, how team leaders choose which calls to review, and who owns fixing it.",
           "numberSource": "find_a_number",
-          "voicemail": "Hi Avery, it's Alex from Conversant. I emailed about delay complaints and the calls behind them. Nothing urgent, I'll follow up by email. Thanks.",
+          "voicemail": "Hi Avery, it's Alex from Conversant. I emailed about delay complaints and the calls behind them. No need to call back, I'll follow up by email. Thanks.",
           "objections": [
             {
               "objection": "We already sample calls for QA.",
@@ -151,7 +150,9 @@
               "objection": "What does it cost?",
               "answer": "Plans are per seat, per month: £4.99, £7.99 or £9.99, each with a pooled allowance of analysed hours. There's also a one-off setup fee of £1,280 and a one-off £640 configuration review around month one."
             }
-          ]
+          ],
+          "openingLine2": "Alex again, from Conversant. I sent a note about the calls behind delay complaints. Have you got a minute?",
+          "oneQuestion2": "Who decides which of those calls somebody actually listens to?"
         },
         "opener": {
           "ref": "look-6eea2e4db932",
@@ -316,6 +317,47 @@
     "one last note",
     "just following up",
     "did you see my email",
-    "or is that"
+    "or is that",
+    "open to connecting",
+    "would it help if i sent over",
+    "would it help if i sent",
+    "nothing urgent",
+    "the calls behind those numbers",
+    "is the hard part",
+    "is the harder part"
+  ],
+  "gives": [
+    {
+      "id": "give-fos-motor-complaints-q1-2026",
+      "quote": "Car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025, and up on the 4,000 from January to March 2026, with consumers raising concerns about claim values, policy cancellations and claim delays.",
+      "sourceName": "the ombudsman's quarterly figures",
+      "url": "https://www.financial-ombudsman.org.uk/who-we-are/data-insight/news/financial-ombudsman-received-53600-cases-first-quarter-202627",
+      "date": "2026-07",
+      "scope": "Complaints brought to the ombudsman in April to June 2026, not all motor complaints. The three issues are what consumers raised, not a ranking and not a cause."
+    },
+    {
+      "id": "give-fca-interventions-not-measured",
+      "quote": "Firms did not always measure the impact of interventions they had made to ensure these were the right changes to make. This means that sometimes firms pursued actions even though they were not as effective as they might need to be.",
+      "sourceName": "the FCA's review of 40 firms",
+      "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
+      "date": "2026",
+      "scope": "A thematic review of complaints and root-cause analysis at 40 firms across banking, insurance, payments, consumer investments and consumer finance. \"Might need to be\" is the finding; \"weren't working\" is not."
+    },
+    {
+      "id": "give-fca-publishes-every-six-months",
+      "quote": "The FCA publishes complaints data every six months as part of its oversight of consumer outcomes and regulated financial services firms. The data includes complaints opened, upheld, and closed, alongside redress payments made by firms.",
+      "sourceName": "the FCA's complaints data",
+      "url": "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data",
+      "date": "2026",
+      "scope": "Firms above the FCA's reporting threshold only. Nothing here says any particular firm is in the tables."
+    },
+    {
+      "id": "give-fca-upheld-means-by-the-firm",
+      "quote": "Just so you know, 'percentage upheld' by the firm means complaints found in the customer's favour.",
+      "sourceName": "a firm's own FCA complaints disclosure",
+      "url": "https://www.ageas.co.uk/important-information/complaints-data-ageas-retail",
+      "date": "2026",
+      "scope": "The FCA table's \"upheld\" column is upheld by the firm. The ombudsman publishes its own uphold data separately, and the two are not the same number."
+    }
   ]
 }

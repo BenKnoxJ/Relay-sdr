@@ -130,6 +130,17 @@ export function DraftCard({
                 </p>
               ))}
               {item.envelope === undefined || item.envelope.signOff === "" ? null : <p data-testid="draft-signoff" className="mt-2">{item.envelope.signOff}</p>}
+              {/* The signature and the opt-out go out with every email (M2): the rep sends by hand, so they read what they will send. */}
+              {item.envelope === undefined || item.envelope.signature === "" ? null : (
+                <p data-testid="draft-signature" className="mt-2 whitespace-pre-line text-muted">
+                  {item.envelope.signature}
+                </p>
+              )}
+              {item.envelope === undefined ? null : (
+                <p data-testid="draft-optout" className="mt-2 text-muted">
+                  {item.envelope.optOut}
+                </p>
+              )}
             </div>
           )}
         </>

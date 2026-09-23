@@ -104,7 +104,17 @@ export async function recordLookup(
 // ---------------------------------------------------------------------------
 // The cohort the repetition gates read (v2.1 §6).
 
-export type CohortEntry = { body: string; ask: string; subject?: string; sameAccount: boolean; opening: string };
+export type CohortEntry = {
+  body: string;
+  ask: string;
+  subject?: string;
+  sameAccount: boolean;
+  opening: string;
+  /** Which touch it is: the cohort is every touch now, not only Email 1 (M2). */
+  touch: string;
+  /** The item this touch opened on, by id, so a colleague's draft can take a different angle. */
+  openerRef?: string;
+};
 
 export async function cohortFor(
   db: Db,
@@ -116,23 +126,32 @@ export async function cohortFor(
       campaignId: where.campaignId,
       briefVersion: where.briefVersion,
       campaignPersonId: { not: where.excludeCampaignPersonId },
-      // First emails only: the repetition gates are Email 1's.
-      touch: "email1",
+      // M2 (23 Sep 2026): every touch, not Email 1 alone.
+      //
+      // The 22 Sep cohort put the same product sentence in two colleagues'
+      // Email 2s and the same FCA give and offer in their LinkedIn touches,
+      // because the only thing a draft was ever read against was other
+      // people's *first* emails. What a colleague at the same firm has
+      // already been sent is the whole point of this read, and most of it is
+      // not Email 1.
       state: { in: ["to_review", "needs_you", "approved"] },
       body: { not: null },
     },
     include: { campaignPerson: { select: { companyKey: true } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 40,
+    take: 60,
   });
   return drafts.map((draft) => {
     const body = draft.editedBody ?? draft.body ?? "";
+    const ref = (draft.opener as { ref?: unknown } | null)?.ref;
     return {
       body,
       ask: draft.ask ?? "",
       ...(draft.subject === null ? {} : { subject: draft.subject }),
       sameAccount: draft.campaignPerson.companyKey === where.companyKey,
       opening: (body.split(/(?<=[.?!])\s+/)[0] ?? "").slice(0, 600),
+      touch: draft.touch,
+      ...(typeof ref === "string" && ref !== "" ? { openerRef: ref } : {}),
     };
   });
 }

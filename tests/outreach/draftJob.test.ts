@@ -215,15 +215,15 @@ function restOfSequence(ref: string): Record<string, unknown> {
   const message = (body: string, ask: string, subject?: string) => ({ kind: "message", ...(subject === undefined ? {} : { subject }), body, ask, opener: { ref, kind: "role_pain" }, claims: [] });
   return {
     email2: message(
-      "Another angle on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Would that timing matter to your team?",
-      "Would that timing matter to your team?",
+      "Another angle on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Who looks back at those calls today?",
+      "Who looks back at those calls today?",
       "Should be dropped: a reply has no subject",
     ),
-    breakup: message("I won't keep writing about this. If call quality sits with someone else on your side, who would be the right person to ask?", "If call quality sits with someone else on your side, who would be the right person to ask?", "Right person for call quality"),
-    li_connect: message("Your role came up while I was reading about complaint handling. Would you be open to connecting?", "Would you be open to connecting?"),
+    breakup: message("I won't keep writing about this. If call quality sits with someone else on your side, who would be the right person to ask?", "If call quality sits with someone else on your side, who would be the right person to ask?"),
+    li_connect: message("Your role came up while I was reading about complaint handling. Worth a conversation?", "Worth a conversation?"),
     li_dm: message(
-      "In claims teams, something that comes up a lot is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. Is that something your team is looking at this year, or is it settled for now?",
-      "Is that something your team is looking at this year, or is it settled for now?",
+      "In claims teams, something that comes up a lot is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. Who decides which calls get reviewed each week?",
+      "Who decides which calls get reviewed each week?",
     ),
     li_dm2: message(
       "A last thought on this. The complaints that cost the most usually trace back to a handful of calls nobody heard. Finding those early is the whole idea. Worth a conversation, or not a priority right now?",
@@ -234,6 +234,8 @@ function restOfSequence(ref: string): Record<string, unknown> {
       talkingPoint: {
         openingLine: "It's about how the calls behind complaints get found, and I will be quick.",
         oneQuestion: "Is finding those calls earlier something you own?",
+        openingLine2: "Calling again about the calls behind complaints, after the note I sent. Is now a bad time?",
+        oneQuestion2: "Who decides which calls get listened to each week?",
         listenFor: "whether sampling feels like a gap, and who owns call quality",
         numberSource: "find_a_number",
         voicemail: "Calling about how the calls behind complaints get found. I will send a short note by email, so there is nothing to call back about.",
@@ -377,10 +379,10 @@ describe("the draft job", () => {
     // The job's cost sits on its first touch.
     const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
     expect(Number(touch("email2").costUsd)).toBe(0);
-    // A follow-up is a reply in Email 1's thread; LinkedIn has no subject. The break-up keeps its own.
+    // M2: only Email 1 opens a thread. The follow-up and the last email are replies in it, and LinkedIn has no subject at all.
     expect(touch("email2").subject).toBeNull();
     expect(touch("li_dm").subject).toBeNull();
-    expect(touch("breakup").subject).toBe("Right person for call quality");
+    expect(touch("breakup").subject).toBeNull();
     // The call script is stored as the rep reads it, its question as the ask.
     expect(touch("call").body).toContain("Voicemail: Calling about how the calls behind complaints get found.");
     expect(touch("call").body).toContain("If they say: We already sample calls.");
@@ -559,7 +561,7 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const shorter = "Another angle on this. The calls behind a complaint are usually weeks old by the time anyone hears them. Reading every call shows the pattern while there is still time to coach it. Would that timing matter to your team?";
+    const shorter = "Another angle on this. The calls behind a complaint are usually weeks old by the time anyone hears them. Reading every call shows the pattern while there is still time to coach it. Who looks back at those calls today?";
     await runDraft(job!, ["good"], (touches) => ({ ...touches, email2: { ...touches.email2!, body: shorter } }));
 
     const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
@@ -599,7 +601,7 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const ask = "Would that timing matter to your team?";
+    const ask = "Who looks back at those calls today?";
     const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
     const cut = `Another angle on the same problem. ${ask}`;
     await runDraft(
@@ -624,7 +626,7 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const ask = "Would that timing matter to your team?";
+    const ask = "Who looks back at those calls today?";
     const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
     const offered = `${words} ${ask}`;
     await runDraft(
@@ -667,9 +669,9 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    await runDraft(job!, ["good"], (touches) => ({ ...touches, li_connect: { ...touches.li_connect!, body: "I wanted to reach out about complaint handling. Would you be open to connecting?", ask: "Would you be open to connecting?" } }));
+    await runDraft(job!, ["good"], (touches) => ({ ...touches, li_connect: { ...touches.li_connect!, body: "I wanted to reach out about complaint handling. Worth a chat?", ask: "Worth a chat?" } }));
     const connect = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "li_connect" } });
-    expect(connect).toMatchObject({ state: "to_review", body: "Your role came up while I was reading about complaint handling. Would you be open to connecting?" });
+    expect(connect).toMatchObject({ state: "to_review", body: "Your role came up while I was reading about complaint handling. Worth a conversation?" });
     const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
     expect((event.after as { humanizer: { touches: Record<string, { reason?: string }> } }).humanizer.touches.li_connect!.reason).toMatch(/tells/);
   });
@@ -678,7 +680,7 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const followUp = "One more thought on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern early enough to coach the habit out properly. Would that timing matter to your team?";
+    const followUp = "One more thought on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern early enough to coach the habit out properly. Who looks back at those calls today?";
     const firstEmail = "Complaints tend to arrive weeks after the call that caused them.\n\nBy then the same habit has quietly repeated on many other calls. Reading all of them shows which conversations to coach first. Would that be useful for your team?";
     const count = (text: string) => text.split(/\s+/).length;
     // Every scripted first email is longer than 40 words, so the drafted follow-up passes; the humanized first email is 40.
@@ -687,7 +689,7 @@ describe("the draft job", () => {
       job!,
       ["good"],
       (touches) => ({ ...touches, email1: { ...touches.email1!, body: firstEmail, ask: "Would that be useful for your team?" } }),
-      (ref) => ({ email2: { kind: "message", body: followUp, ask: "Would that timing matter to your team?", opener: { ref, kind: "role_pain" }, claims: [] } }),
+      (ref) => ({ email2: { kind: "message", body: followUp, ask: "Who looks back at those calls today?", opener: { ref, kind: "role_pain" }, claims: [] } }),
     );
     const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
     const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
@@ -876,7 +878,7 @@ describe("the rep's review", () => {
     expect(job.input).toMatchObject({ attempt: 2, touch: "email2", avoid: { reason: "wrong_angle" } });
     expect(job.idempotencyKey).toMatch(/:email2:a2$/);
 
-    const reworded = "A different angle, on timing. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Would that timing matter to your team?";
+    const reworded = "A different angle, on timing. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Who looks back at those calls today?";
     const { model } = await runDraft(job, ["good"], (touches) => ({ email2: { ...touches.email2!, body: reworded } }));
     expect(model.inputs).toHaveLength(1);
     // Messaging v2: every message goes through the humanizer, a redraft too: one draft call and one humanizer call.
@@ -937,13 +939,12 @@ describe("the cohort report's messaging v2 checks", () => {
 
     expect(report).toContain('| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight | Humanizer change (median) |');
     expect(report).toContain('| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight | Humanizer change (median) |');
-    // The fixture's first email names what the product does ("Reading every call" is not a product sentence), and its
-    // LinkedIn message and follow-up end "X, or Y?": two in one sequence, over the bar.
-    expect(report).toContain('| "X, or Y?" asks in any one sequence | at most 1 | at most 2 (2 in total) | **no** |');
+    // M2: the scripted sequence now keeps to one "X, or Y?" ask (the LinkedIn follow-up's), which is the bar.
+    expect(report).toMatch(/\| "X, or Y\?" asks in any one sequence \| at most 1 \| at most 1 \(1 in total\) \| yes \|/);
     expect(report).toContain("| Price in a cold touch | 0 | 0 of 6 | yes |");
     // The fixture writer hands every touch back untouched: 0% on all seven, and the bar says so.
     expect(report).toContain("| Humanizer change, median | at least 10% | 0.0% over 7 touches | **no** |");
-    expect(report).toMatch(/\| Person 1 \| no \| \d \| 0 \| 2 \| none \| none \| \d of 5 \| 0\.0% \|/);
+    expect(report).toMatch(/\| Person 1 \| no \| \d \| 0 \| 1 \| none \| none \| \d of 5 \| 0\.0% \|/);
   });
 });
 

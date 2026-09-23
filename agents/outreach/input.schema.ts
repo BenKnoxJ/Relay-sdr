@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { factIdSchema, idSchema, itemObject, itemSchema, withCeilingRule } from "../_shared/item.schema";
+import { factIdSchema, idSchema, itemObject, itemSchema, urlSchema, withCeilingRule } from "../_shared/item.schema";
 import { ROLE_PARTS } from "../leadgen/input.schema";
 import { productFactsSchema } from "../research/input.schema";
 import { hookSchema, planArchetypeSchema as archetypeSchema } from "../research/output.schema";
@@ -101,6 +101,31 @@ export const accountSchema = z
   })
   .strict();
 
+/**
+ * One quotable source sentence (M2, 23 Sep 2026): the source's own words, who
+ * said them, where, and when.
+ *
+ * `quote` is the exact stored text and nothing else — never a paraphrase of
+ * it. An item whose exact wording the pack did not store never becomes an
+ * evidence quote, because a list of approximate quotes is the problem it was
+ * built to fix rather than a fix for it. `url` is required for the same
+ * reason: a quote a reader cannot go and check is not evidence.
+ */
+export const evidenceQuoteSchema = z
+  .object({
+    id: idSchema,
+    /** The source's own sentence, character for character as the pack stored it. */
+    quote: z.string().min(1).max(2000),
+    /** Who said it, in the plain words a message would use ("the FCA", "the ombudsman"). */
+    sourceName: z.string().min(1).max(200),
+    url: urlSchema,
+    /** When the source said it, at whatever precision it gave. */
+    date: z.string().min(1).max(40).optional(),
+  })
+  .strict();
+
+export type EvidenceQuote = z.infer<typeof evidenceQuoteSchema>;
+
 /** §3, and v2.1 §2's additions: the confirmed archetype's slice of the pack at this brief version. */
 export const packSliceSchema = z
   .object({
@@ -115,6 +140,25 @@ export const packSliceSchema = z
     verbatim: z.array(itemSchema).max(8),
     /** m15 proof items marked `allowed`; nothing else may carry social proof. */
     proof: z.array(z.object({ factId: factIdSchema, text: z.string().min(1).max(2000), note: z.string().max(2000).optional() }).strict()).max(6),
+    /**
+     * M2 (23 Sep 2026): the only wording a touch may attribute to a regulator,
+     * an ombudsman or a publication — the source's own sentence, as the pack
+     * stored it.
+     *
+     * The 22 Sep re-review found seven of fourteen attributed gives misstating
+     * their source, and the cause was structural: the drafter was given the
+     * pack's *paraphrases* (a pain's `text`, an angle, a proof line) and told
+     * to "quote its figures and wording exactly", which it cannot do from a
+     * paraphrase. This list carries `quote` only — the stored verbatim text —
+     * so there is something exact to quote from, and
+     * `unsupported-source-claim` holds any attributed sentence that does not.
+     *
+     * Defaults to empty, and empty fails *closed*: with no approved quote to
+     * draw on, every attributed sentence is held. A slice that forgot to
+     * carry its evidence writes nothing about a regulator rather than writing
+     * whatever it likes about one.
+     */
+    evidence: z.array(evidenceQuoteSchema).max(12).default([]),
   })
   .strict();
 
@@ -149,6 +193,19 @@ export const standardSchema = z
     exemplars: z.array(exemplarSchema).max(20),
     /** v2.1 §6: the short, high-precision tell list, injected as a list and gated in code. */
     bannedLexicon: z.array(z.string().min(1).max(80)).max(500),
+    /**
+     * M2: the approved source sentences a touch may attribute (the 22 Sep
+     * re-review's item 1).
+     *
+     * They live here rather than in the pack because the pack does not have
+     * them: of the twelve items behind the September cohort's slice, four
+     * carry a stored quote and none of those four is the FCA or the
+     * ombudsman. The drafter was given paraphrases of the regulator material
+     * and nothing else, which is why seven of fourteen attributed gives
+     * misstated their source. `scope` is what the quote does *not* say, and
+     * is read by a person reviewing this file, never by the model.
+     */
+    gives: z.array(evidenceQuoteSchema.extend({ scope: z.string().min(1).max(1000) }).strict()).max(12).default([]),
   })
   .strict();
 
@@ -175,6 +232,12 @@ export const recentDraftSchema = z
     ask: z.string().min(1).max(300),
     subject: z.string().max(200).optional(),
     sameAccount: z.boolean(),
+    /** Which touch it was, so "a colleague's Email 2 already pitched" is visible (M2). */
+    touch: z.enum(TOUCH_KINDS).optional(),
+    /** The angle, pain or lookup item it opened on, by id: a colleague takes a different one. */
+    openerRef: idSchema.optional(),
+    /** The evidence quotes it used, by id: a colleague quotes something else. */
+    evidenceIds: z.array(idSchema).max(6).optional(),
   })
   .strict();
 

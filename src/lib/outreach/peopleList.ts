@@ -1,3 +1,4 @@
+import { draftCopy } from "@/lib/copy/draft";
 import { addWorkingDays, type IsoDate } from "@/lib/outreach/sequence";
 import { channelOf, type PersonStatus, type StepAction, type TrackedStep } from "@/lib/outreach/track";
 
@@ -117,6 +118,34 @@ export function markButtonsFor(step: Pick<TrackedStep, "id" | "nextActions">, dr
 /** The words a LinkedIn message or a call script is copied as: the text alone, never a subject line. */
 export function copyTextOf(draft: { body: string | null } | null): string {
   return draft?.body?.trim() ?? "";
+}
+
+/**
+ * One call's half of the stored script (M2, 23 Sep 2026).
+ *
+ * Both call steps read the one `call` draft, and since M2 that draft holds two
+ * openers and two questions. Call 1 reads the plain lines and never sees call
+ * 2's; call 2 reads its own opener and question in place of them, and both
+ * share what does not change: what to listen for, the voicemail and the
+ * objection answers.
+ *
+ * A script written before M2 has no second call in it. Call 2 then shows the
+ * first call's script unchanged, which is what the rep has always had.
+ */
+export function callScriptFor(step: "call1" | "call2", text: string): string {
+  const c = draftCopy.callScript;
+  const lines = text.split("\n\n");
+  const starts = (line: string, label: string) => line.startsWith(label);
+  if (step === "call1") return lines.filter((line) => !starts(line, c.open2) && !starts(line, c.ask2)).join("\n\n");
+  const second = new Map<string, string>();
+  for (const line of lines) {
+    if (starts(line, c.open2)) second.set(c.open, `${c.open} ${line.slice(c.open2.length).trim()}`);
+    if (starts(line, c.ask2)) second.set(c.ask, `${c.ask} ${line.slice(c.ask2.length).trim()}`);
+  }
+  return lines
+    .filter((line) => !starts(line, c.open2) && !starts(line, c.ask2))
+    .map((line) => (starts(line, c.open) ? (second.get(c.open) ?? line) : starts(line, c.ask) ? (second.get(c.ask) ?? line) : line))
+    .join("\n\n");
 }
 
 /** The parts of an activity row these functions read. */

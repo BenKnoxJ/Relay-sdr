@@ -10,6 +10,7 @@ import { REJECT_REASONS, inboxCopy } from "@/lib/copy/inbox";
 import { listQueue, openers, resetQueue, type DraftItem, type InboxActions, type Queue } from "@/lib/fixtures/inbox";
 
 import { outreachOutputSchema } from "../../../agents/outreach/output.schema";
+import { envelopeOf } from "@/lib/outreach/envelope";
 
 /**
  * The draft card (master doc §23.1b; mock section 2a), and the one rule that
@@ -280,10 +281,22 @@ describe("a real first email (outreach v2.1)", () => {
     needsYou: null,
     findings: [],
     advice: ["Subjects work best at 2 to 6 plain words."],
-    envelope: { greeting: "Hi Nell,", signOff: "Sam" },
+    envelope: envelopeOf({ firstName: "Nell", repName: "Sam", signature: "<p>Sam Carter<br>Conversant</p>" }),
     campaignName: "Claims people",
     written: true,
     ...over,
+  });
+
+  it("draws the signature and the opt-out below the sign-off, so the rep reads what they will send (M2)", () => {
+    render(<DraftCard item={real()} onApprove={noop} onReject={noop} />);
+    expect(screen.getByTestId("draft-signature").textContent).toContain("Sam Carter");
+    expect(screen.getByTestId("draft-optout").textContent).toBe("If this isn't relevant, just reply and I won't follow up.");
+  });
+
+  it("draws the opt-out even for a rep with no signature saved", () => {
+    render(<DraftCard item={real({ envelope: envelopeOf({ firstName: "Nell", repName: "Sam", signature: "" }) })} onApprove={noop} onReject={noop} />);
+    expect(screen.queryByTestId("draft-signature")).toBeNull();
+    expect(screen.getByTestId("draft-optout")).toBeDefined();
   });
 
   it("draws Relay's greeting and sign-off around the body, the campaign, the advice, and says nothing is sent", () => {
@@ -323,7 +336,7 @@ describe("a real first email (outreach v2.1)", () => {
 
 describe("one decision at a time (outreach v2.1)", () => {
   it("@proof sends one approval for a double press, and shows it worked", async () => {
-    const item: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: { greeting: "Hi Daniel,", signOff: "" }, written: true };
+    const item: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: envelopeOf({ firstName: "Daniel", repName: "", signature: "" }), written: true };
     const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
     let finish: (queue: Queue) => void = () => undefined;
     const approve = vi.fn<InboxActions["approve"]>(() => new Promise<Queue>((resolve) => (finish = resolve)));
@@ -340,7 +353,7 @@ describe("one decision at a time (outreach v2.1)", () => {
 describe("a decision on its way (fix round 1)", () => {
   const empty: Queue = { items: [], counts: { replies: 0, calls: 0, drafts: 0 } };
   const two = (): Queue => {
-    const base: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: { greeting: "Hi Daniel,", signOff: "" }, written: true };
+    const base: DraftItem = { ...draft("Daniel Okoro"), sends: null, envelope: envelopeOf({ firstName: "Daniel", repName: "", signature: "" }), written: true };
     return { items: [base, { ...base, id: "draft-b", person: { ...base.person, name: "Bea Moss" } }], counts: { replies: 0, calls: 0, drafts: 2 } };
   };
   const pending = () => {

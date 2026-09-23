@@ -2,6 +2,7 @@ import type { OutreachSend, Prisma, PrismaClient } from "@prisma/client";
 
 import { EMAIL_TOUCHES } from "../../../agents/outreach/input.schema";
 import { firstNameOf, previewFields } from "@/lib/outreach/adapter";
+import { OPT_OUT_LINE } from "@/lib/outreach/envelope";
 import { emailHtml, lookOf, sanitizeSignature, EMAIL_FONT_SIZE_MAX, EMAIL_FONT_SIZE_MIN, SIGNATURE_MAX, isEmailFont, type EmailLook } from "@/lib/outreach/emailHtml";
 import { FIRST_EMAIL, SEND_STALE_MS, isEmailStep, sendOffer, type SendOffer } from "@/lib/outreach/send";
 import { fromDbDate, londonDay, toDbDate, type IsoDate, type StepId } from "@/lib/outreach/sequence";
@@ -425,7 +426,7 @@ export async function sendEmail(db: PrismaClient, mail: GraphMailService, input:
   if (row.graphDraftId === null) {
     const draft = plan.draft!;
     const look = await emailLookOf(db, input);
-    const html = emailHtml({ greeting: plan.greeting, body: draft.body, signOff: plan.signOff }, look);
+    const html = emailHtml({ greeting: plan.greeting, body: draft.body, signOff: plan.signOff, optOut: OPT_OUT_LINE }, look);
     try {
       const created =
         step === FIRST_EMAIL

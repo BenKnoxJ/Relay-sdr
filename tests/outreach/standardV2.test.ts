@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { SEQUENCE, outreachInputSchema, type Exemplar, type OutreachInput, type TouchKind } from "../../agents/outreach/input.schema";
+import { SEQUENCE, outreachInputSchema, packSliceSchema, type Exemplar, type OutreachInput, type TouchKind } from "../../agents/outreach/input.schema";
 import { outputSchemaFor, type OutreachOutput } from "../../agents/outreach/output.schema";
 import recorded from "../../fixtures/outreach/cohort-2026-09-15.json";
 import { loadFacts } from "@/lib/facts/load";
-import { liveFacts } from "@/lib/outreach/adapter";
+import { liveFacts, withApprovedGives } from "@/lib/outreach/adapter";
 import { gateFor, normaliseClaims, type GateContext } from "@/lib/outreach/gates";
 import { genderedPronouns, isBinaryAsk, mentionsPrice, mentionsProduct, stockOpener, type CheckedTouch } from "@/lib/outreach/messageChecks";
 import { loadStandard } from "@/lib/outreach/standard";
@@ -39,7 +39,8 @@ function inputFor(exemplar: Exemplar, thread: OutreachInput["thread"]): Outreach
   return outreachInputSchema.parse({
     ...person.input,
     sender: SENDER,
-    pack: recorded.pack,
+    // The real input merges the standard's approved gives into the slice (M2); `buildOutreachInput` does it for a live draft.
+    pack: withApprovedGives(packSliceSchema.parse(recorded.pack), standard),
     facts,
     standard,
     touch: { kind, ordinal: SEQUENCE.indexOf(kind) + 1, dueAt: "2026-09-22T09:00:00Z" },
@@ -74,7 +75,7 @@ describe("the writing standard, version 2", () => {
     expect(rules).toMatch(/At most one "X, or Y\?" question in the whole sequence/);
     expect(rules).toMatch(/Thanks for connecting/);
     // The opt-out line is added at send (P7), never written into a draft.
-    expect(rules).toMatch(/opt-out line are added when the email is sent/);
+    expect(rules).toMatch(/opt-out line \("If this isn.t relevant, just reply and I won.t follow up."\) are added below the sign-off/);
   });
 
   it("gives four Email 1 exemplars across the three roles and the three opener kinds, each with a different ask", () => {

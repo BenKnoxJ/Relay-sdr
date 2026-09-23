@@ -200,7 +200,7 @@ describe("the gates on the rest of the sequence", () => {
   const ask = "Is that something your team is looking at this year, or is it settled for now?";
   const dm: OutreachOutput = {
     kind: "message",
-    body: `Thanks for connecting. Something that comes up a lot in claims teams is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. ${ask}`,
+    body: `In claims teams, something that comes up a lot is that the calls behind a complaint are found late, because only a small sample gets reviewed. Reading every call turns that around, so coaching can start in the same week as the call. ${ask}`,
     ask,
     opener: { ref: "role-runs", kind: "role_pain" },
     claims: [],

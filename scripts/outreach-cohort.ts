@@ -6,7 +6,7 @@
  * every touch's drafted and humanized text side by side.
  *
  *   node --import tsx scripts/outreach-cohort.ts [--source relay_outreach_cohort_dev] \
- *       [--out <dir>] [--cap 5] [--people <n>] [--keep]
+ *       [--out <dir>] [--cap 8] [--people <n>] [--compare <earlier cohort.md>] [--keep]
  *   node --import tsx scripts/outreach-cohort.ts --export-fixture fixtures/outreach/cohort-2026-09-15.json
  *
  * What it does, in order:
@@ -25,7 +25,9 @@
  *   4. stops before a draft that could take the run past `--cap` dollars;
  *   5. writes `cohort.md` to `--out`: pass, hold and fail per touch kind, cost
  *      per person split between draft and humanizer, and every touch's text
- *      grouped by person; then drops the copy unless `--keep`.
+ *      grouped by person; the messaging v2 checks per touch and per person
+ *      (`src/lib/outreach/messageChecks.ts`), and the same checks over the
+ *      `--compare` report beside this run's; then drops the copy unless `--keep`.
  *
  * `--export-fixture` does steps 1 and 5's reading only: it writes the source's
  * recorded drafts and the inputs they were written from as a test fixture, and
@@ -33,15 +35,18 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 
-type Args = { source: string; out: string; cap: number; keep: boolean; people?: number; exportFixture?: string };
+type Args = { source: string; out: string; cap: number; keep: boolean; people?: number; exportFixture?: string; compare?: string };
 
-const USAGE = "usage: outreach-cohort.ts [--source <db>] [--out <dir>] [--cap <usd>] [--people <n>] [--keep] [--export-fixture <file>]";
+const USAGE = "usage: outreach-cohort.ts [--source <db>] [--out <dir>] [--cap <usd>] [--people <n>] [--compare <cohort.md>|none] [--keep] [--export-fixture <file>]";
+
+/** The report the messaging v2 checks are compared against by default: the 21 Sep full-sequence cohort. */
+const DEFAULT_COMPARE = path.join(homedir(), "vault", "ops", "design", "qa", "2026-09-21-relay-p2-cohort", "cohort.md");
 
 /** What one more draft may cost at most, for the cap check: the dearest draft seen so far with headroom, never under this. */
 const MIN_RESERVE_USD = 0.75;
@@ -51,7 +56,7 @@ function today(): string {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { source: "relay_outreach_cohort_dev", out: path.join(homedir(), "vault", "ops", "design", "qa", `${today()}-relay-m0-cohort`), cap: 5, keep: false };
+  const args: Args = { source: "relay_outreach_cohort_dev", out: path.join(homedir(), "vault", "ops", "design", "qa", `${today()}-relay-m0-cohort`), cap: 8, keep: false, compare: DEFAULT_COMPARE };
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     if (flag === "--keep") {
@@ -65,6 +70,7 @@ function parseArgs(argv: string[]): Args {
     else if (flag === "--cap") args.cap = Number(value);
     else if (flag === "--people") args.people = Number(value);
     else if (flag === "--export-fixture") args.exportFixture = path.resolve(value);
+    else if (flag === "--compare") args.compare = value === "none" ? undefined : path.resolve(value);
     else throw new Error(`unknown flag ${flag}\n${USAGE}`);
     i += 1;
   }
@@ -244,7 +250,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
 type CohortError = { campaignPersonId: string; message: string; cost: number };
 
 type Prose = { subject?: string; body?: string; ask?: string; openingLine?: string; oneQuestion?: string; listenFor?: string; voicemail?: string; objections?: { objection: string; answer: string }[] };
-type HumanizerLog = { ran?: boolean; skipped?: string; error?: string; touches?: Record<string, { drafted?: Prose; humanized?: Prose | null; kept?: string; reason?: string }> };
+type HumanizerLog = { ran?: boolean; skipped?: string; error?: string; touches?: Record<string, { drafted?: Prose; humanized?: Prose | null; kept?: string; reason?: string; changePct?: number | null }> };
 type DraftedAfter = { cost?: { draftUsd?: number; humanizerUsd?: number }; humanizer?: HumanizerLog; redraftError?: string };
 
 const TOUCH_NAME: Record<string, string> = {
@@ -276,6 +282,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
   const { previewFields } = await import("@/lib/outreach/adapter");
   const { loadDefinition } = await import("@/lib/agents/definitions");
   const { SEQUENCE } = await import("../agents/outreach/input.schema");
+  const { checkedSequenceOf, parseCohortMarkdown, renderChecks, renderComparison } = await import("@/lib/outreach/messageChecks");
   const drafts = await db.outreachDraft.findMany({ where: { jobId: { in: jobIds } }, include: { campaignPerson: true } });
   const events = await db.event.findMany({ where: { kind: "outreach.drafted" } });
   const afterOf = (jobId: string): DraftedAfter => (events.find((event) => (event.after as { jobId?: string } | null)?.jobId === jobId)?.after ?? {}) as DraftedAfter;
@@ -287,6 +294,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
 
   const personRows: string[] = [];
   const sections: string[] = [];
+  const checked: ReturnType<typeof checkedSequenceOf>[] = [];
   const draftCosts: number[] = [];
   const humanCosts: number[] = [];
   const totals: number[] = [];
@@ -305,6 +313,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     const jobRuns = runs.filter((run) => run.jobId === jobId);
     const humanizer = after.humanizer ?? {};
     const lookup = first.lookup as { usable?: boolean; items?: unknown[] } | null;
+    checked.push(checkedSequenceOf(preview.name, own, humanizer.touches ?? {}));
     personRows.push(
       `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} | $${humanizerUsd.toFixed(3)} | $${(draftUsd + humanizerUsd).toFixed(3)} |`,
     );
@@ -313,7 +322,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
       const tierA = findingsOf(draft.findings);
       const tierB = findingsOf(draft.advice);
       return [
-        `### ${TOUCH_NAME[draft.touch] ?? draft.touch} · **${draft.state}** · generations: ${draft.generations}${log?.kept === undefined ? "" : ` · kept: ${log.kept}`}`,
+        `### ${TOUCH_NAME[draft.touch] ?? draft.touch} · **${draft.state}** · generations: ${draft.generations}${log?.kept === undefined ? "" : ` · kept: ${log.kept}`}${typeof log?.changePct === "number" ? ` · humanizer changed ${log.changePct.toFixed(1)}%` : ""}`,
         "",
         "**Drafted:**",
         "",
@@ -363,6 +372,15 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     return `| ${TOUCH_NAME[kind]} | ${count("to_review")} | ${count("needs_you")} | ${count("failed")} | ${kept} of ${own.length} | ${rules.join(", ") || "none"} |`;
   });
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+  const { liveFacts } = await import("@/lib/outreach/adapter");
+  const { loadFacts } = await import("@/lib/facts/load");
+  const product = liveFacts(loadFacts("insights360", 2).facts).product;
+  const comparison =
+    args.compare === undefined
+      ? []
+      : existsSync(args.compare)
+        ? [renderComparison(parseCohortMarkdown(readFileSync(args.compare, "utf8")), checked, product, `the earlier cohort (\`${path.basename(path.dirname(args.compare))}\`)`)]
+        : [`## Compared with an earlier cohort\n\nNot compared: ${args.compare} does not exist.\n`];
   return [
     `# Relay Outreach: full-sequence cohort, drafted and humanized (${today()})`,
     "",
@@ -378,6 +396,8 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     `- **Cost per person:** median $${median(totals).toFixed(3)} (draft $${median(draftCosts).toFixed(3)}, humanizer $${median(humanCosts).toFixed(3)})`,
     `- **Cost in total:** $${spent.toFixed(3)} (draft $${sum(draftCosts).toFixed(3)}, humanizer $${sum(humanCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
     "",
+    renderChecks(checked, product),
+    ...comparison,
     "## Per person",
     "",
     "| Person | Role | Touches | Model runs | Draft | Humanizer | Total |",

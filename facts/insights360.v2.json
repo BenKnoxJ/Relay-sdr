@@ -310,7 +310,7 @@
         "section": "Pricing",
         "lastVerified": "2026-09-10"
       },
-      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Only in answer to a price question in a call; always give the setup fee, the configuration review and the per-seat plans together (the product owner, 2026-09-22)."
     },
     {
       "id": "i360.price.overage-per-hour",
@@ -322,7 +322,7 @@
         "section": "Pricing",
         "lastVerified": "2026-09-10"
       },
-      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Only in answer to a price question in a call; always give the setup fee, the configuration review and the per-seat plans together (the product owner, 2026-09-22)."
     },
     {
       "id": "i360.price.setup-and-config-review-fees",
@@ -334,7 +334,7 @@
         "section": "Pricing",
         "lastVerified": "2026-09-10"
       },
-      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Because of the setup fee, never say 'get started in seconds' or 'free to start'."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Only in answer to a price question in a call; always give the setup fee, the configuration review and the per-seat plans together (the product owner, 2026-09-22). Because of the setup fee, never say 'get started in seconds' or 'free to start'."
     },
     {
       "id": "i360.price.no-seat-minimum-no-annual-lock-in",
@@ -346,7 +346,7 @@
         "section": "Pricing (bullets)",
         "lastVerified": "2026-09-10"
       },
-      "notes": "Confirmed as the current price list by the product owner, 2026-09-10."
+      "notes": "Confirmed as the current price list by the product owner, 2026-09-10. Only in answer to a price question in a call; always give the setup fee, the configuration review and the per-seat plans together (the product owner, 2026-09-22)."
     },
     {
       "id": "i360.proof.paying-customers-in-production",

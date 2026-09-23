@@ -249,7 +249,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
 
 type CohortError = { campaignPersonId: string; message: string; cost: number };
 
-type Prose = { subject?: string; body?: string; ask?: string; openingLine?: string; oneQuestion?: string; listenFor?: string; voicemail?: string; objections?: { objection: string; answer: string }[] };
+type Prose = { subject?: string; body?: string; ask?: string; openingLine?: string; oneQuestion?: string; openingLine2?: string; oneQuestion2?: string; listenFor?: string; voicemail?: string; objections?: { objection: string; answer: string }[] };
 type HumanizerLog = { ran?: boolean; skipped?: string; error?: string; touches?: Record<string, { drafted?: Prose; humanized?: Prose | null; kept?: string; reason?: string; changePct?: number | null }> };
 type DraftedAfter = { cost?: { draftUsd?: number; humanizerUsd?: number }; humanizer?: HumanizerLog; redraftError?: string };
 
@@ -272,6 +272,9 @@ function proseLines(prose: Prose | null | undefined, touch: string): string {
   return [
     `Open with: ${prose.openingLine ?? ""}`,
     `Ask: ${prose.oneQuestion ?? ""}`,
+    // M2 fix 2: the second call's own words, so it can be reviewed before it is used.
+    `Call 2, open with: ${prose.openingLine2 ?? "(none)"}`,
+    `Call 2, ask: ${prose.oneQuestion2 ?? "(none)"}`,
     `Listen for: ${prose.listenFor ?? ""}`,
     ...(prose.voicemail === undefined ? [] : [`Voicemail: ${prose.voicemail}`]),
     ...(prose.objections ?? []).map((pair) => `If they say: ${pair.objection}\nSay: ${pair.answer}`),
@@ -298,6 +301,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
   const definition = loadDefinition("outreach");
 
   const personRows: string[] = [];
+  const companies = new Map<string, string>();
   const sections: string[] = [];
   const checked: ReturnType<typeof checkedSequenceOf>[] = [];
   const draftCosts: number[] = [];
@@ -308,6 +312,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     const first = own[0];
     if (first === undefined) continue;
     const preview = previewFields(first.campaignPerson.preview);
+    companies.set(preview.name, preview.company);
     const role = ROLE_WORD[first.campaignPerson.rolePart ?? ""] ?? "related";
     const after = afterOf(jobId);
     const draftUsd = after.cost?.draftUsd ?? 0;
@@ -413,7 +418,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     `- **Cost in total:** $${spent.toFixed(3)} (draft $${sum(draftCosts).toFixed(3)}, humanizer $${sum(humanCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
     "",
     renderChecks(checked, product),
-    renderM2Report({ touches: reportTouches, humanizer: reportHumanizer, sequences: checked, evidence: [...evidence.values()], timeouts: runs.filter((run) => /-second cap/.test(run.error ?? "")).length, modelRuns: runs.length }),
+    renderM2Report({ touches: reportTouches, humanizer: reportHumanizer, sequences: checked, evidence: [...evidence.values()], timeouts: runs.filter((run) => /-second cap/.test(run.error ?? "")).length, modelRuns: runs.length, names: [product], companyOf: (person) => companies.get(person) ?? "" }),
     ...comparison,
     "## Per person",
     "",
@@ -457,7 +462,7 @@ async function evidenceReader(db: Db) {
   for (const row of rows) await sliceOf(row);
   return (row: { campaignId: string; briefVersion: number }, lookup: unknown) => {
     const slice = slices.get(`${row.campaignId}:${row.briefVersion}`) ?? null;
-    if (slice === null) return standard.gives.map(({ scope: _scope, ...quote }) => quote);
+    if (slice === null) return standard.gives;
     const found = (lookup ?? { items: [], usable: false, searches: 0, fetches: 0 }) as Parameters<typeof withLookupEvidence>[1];
     return withApprovedGives(withLookupEvidence(slice, found), standard).evidence;
   };

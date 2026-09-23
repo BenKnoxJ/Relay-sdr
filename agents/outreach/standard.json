@@ -18,7 +18,7 @@
       "draft": {
         "kind": "message",
         "subject": "delay as the top complaint theme",
-        "body": "You told the conference this year that delay conversations had become your team's biggest complaint theme.\n\nThe ombudsman's quarterly figures show the wider picture. Car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.\n\nWhen a delay complaint lands, how do you find the calls behind it today?",
+        "body": "You told the conference this year that delay conversations had become your team's biggest complaint theme.\n\nThe ombudsman's quarterly figures for April to June 2026 show car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.\n\nWhen a delay complaint lands, how do you find the calls behind it today?",
         "ask": "When a delay complaint lands, how do you find the calls behind it today?",
         "opener": {
           "ref": "look-6eea2e4db932",
@@ -44,11 +44,11 @@
     },
     {
       "touch": "email1",
-      "shows": "Email 1 · champions it · opens on the role problem · gives how the FCA publishes firm-level complaint figures · who owns it · no product",
+      "shows": "Email 1 · champions it · opens on the role problem · gives a plain point from the plan, with nothing attributed to anyone · who owns it · no product",
       "draft": {
         "kind": "message",
         "subject": "the calls behind the numbers",
-        "body": "The FCA publishes complaints data every six months as part of its oversight of consumer outcomes and regulated financial services firms, and the data includes complaints opened, upheld, and closed.\n\nThe calls behind those figures never appear in them, so when a number moves, the reason is hard to show.\n\nWhen a complaint is upheld, who looks back at the calls that led to it?",
+        "body": "The complaint numbers a firm reports say what moved, never which calls moved them.\n\nSo when a number shifts, the reason is hard to show, and the case for a fix rests on the few calls someone happened to hear.\n\nWhen a complaint is upheld, who looks back at the calls that led to it?",
         "ask": "When a complaint is upheld, who looks back at the calls that led to it?",
         "opener": {
           "ref": "pn-a1-published-but-blind",
@@ -330,7 +330,7 @@
     {
       "id": "give-fos-motor-complaints-q1-2026",
       "quote": "Car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025, and up on the 4,000 from January to March 2026, with consumers raising concerns about claim values, policy cancellations and claim delays.",
-      "sourceName": "the ombudsman's quarterly figures",
+      "sourceName": "the ombudsman's quarterly figures (April to June 2026)",
       "url": "https://www.financial-ombudsman.org.uk/who-we-are/data-insight/news/financial-ombudsman-received-53600-cases-first-quarter-202627",
       "date": "2026-07",
       "scope": "Complaints brought to the ombudsman in April to June 2026, not all motor complaints. The three issues are what consumers raised, not a ranking and not a cause."
@@ -342,14 +342,6 @@
       "url": "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis-good-practice-and-areas-improvement",
       "date": "2026",
       "scope": "A thematic review of complaints and root-cause analysis at 40 firms across banking, insurance, payments, consumer investments and consumer finance. \"Might need to be\" is the finding; \"weren't working\" is not."
-    },
-    {
-      "id": "give-fca-publishes-every-six-months",
-      "quote": "The FCA publishes complaints data every six months as part of its oversight of consumer outcomes and regulated financial services firms. The data includes complaints opened, upheld, and closed, alongside redress payments made by firms.",
-      "sourceName": "the FCA's complaints data",
-      "url": "https://www.itij.com/latest/news/travel-insurance-complaints-jump-nearly-20-latest-fca-data",
-      "date": "2026",
-      "scope": "Firms above the FCA's reporting threshold only. Nothing here says any particular firm is in the tables."
     },
     {
       "id": "give-fca-upheld-means-by-the-firm",

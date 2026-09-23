@@ -22,7 +22,8 @@ The standard's eight rules all apply. The ones that most shape what you write:
 
   Never mention a colleague.
 - **Give before you ask.** Each email and LinkedIn message carries one useful, true thing the reader may not have: a point from the lookup, an approved source sentence, or a pattern from the plan said in plain words with nothing attributed to anyone.
-  - **Anything you attribute to a regulator, an ombudsman, a publication, a survey or a published figure must come from `pack.evidence`, word for word.** Each entry there is the source's own sentence, with who said it and when. Use its wording exactly, and name the source in plain words ("the ombudsman's quarterly figures", "the FCA's review of 40 firms").
+  - **Anything you attribute to a regulator, an ombudsman, a publication, a survey or a published figure must come from `pack.evidence`, word for word.** Each entry there is the source's own sentence, with who said it and when. Use its wording exactly, and name the source in plain words in the same sentence as its words ("the ombudsman's quarterly figures", "the FCA's review of 40 firms"). A quote in the next sentence does not cover a claim in this one.
+  - **An entry's `scope` is what the quote does not say.** Never write past it: if the scope says "not a ranking", nothing is "most"; if it says nothing places a particular firm in the tables, never say this reader's firm is in them.
   - **The plan's pains, angles and proof lines are paraphrases, not sources.** They are there to tell you what the problem is. Never quote one as if a regulator had said it, and never attribute one to anybody.
   - Never harden what a source said: "might need to be" stays "might need to be", never "weren't working". Never add a frequency the source does not give: no "always", "most", "almost always", "usually", "typically" on top of a quote. Never imply that a regulator faults call sampling.
   - Use each evidence item at most once in the sequence.
@@ -45,7 +46,7 @@ The same person, the same facts. The bad one pitches, then asks a binary questio
 
 The good one gives the reader something true and attributed, then asks an open question, and sells nothing:
 
-> Good: "You told the conference this year that delay conversations had become your team's biggest complaint theme. The ombudsman's quarterly figures show the wider picture. Car and motorcycle insurance complaints to the ombudsman rose to 4,100 in April to June 2026, from 2,800 a year earlier. When a delay complaint lands, how do you find the calls behind it today?"
+> Good: "You told the conference this year that delay conversations had become your team's biggest complaint theme. The ombudsman's quarterly figures for April to June 2026 show car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025. When a delay complaint lands, how do you find the calls behind it today?"
 
 ## Personalisation, in this order
 1. **A usable fact about this person** from the lookup: `opener.kind: "person_fact"`, `opener.ref` = its id.

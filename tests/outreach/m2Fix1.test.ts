@@ -15,7 +15,7 @@ import { loadStandard } from "@/lib/outreach/standard";
  */
 
 const standard = loadStandard();
-const gives: EvidenceQuote[] = standard.gives.map(({ scope: _scope, ...quote }) => quote);
+const gives: EvidenceQuote[] = standard.gives;
 
 function input(kind: TouchKind): OutreachInput {
   const base = outreachInputSchema.parse(goodInput);

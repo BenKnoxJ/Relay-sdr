@@ -149,7 +149,9 @@ describe("provenance: zero invention (v2.1 §6, as corrected)", () => {
 });
 
 describe("cohort: template repetition only (v2.1 §6, as corrected)", () => {
-  const other = (text: string, ask: string, sameAccount = false): CohortDraft => ({ body: `${text} ${ask}`, ask, sameAccount });
+  // A different person each time unless one is named: the gates count people, not drafts (M2 fix 2).
+  let people = 0;
+  const other = (text: string, ask: string, sameAccount = false, personId = `person-${(people += 1)}`): CohortDraft => ({ body: `${text} ${ask}`, ask, sameAccount, personId });
   const opening = "Helen, you told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.";
 
   it("treats generic word overlap as advice, never a failure", () => {
@@ -185,6 +187,18 @@ describe("cohort: template repetition only (v2.1 §6, as corrected)", () => {
     const b = other(`Marlo, handlers at Cobalt mark their own calls. ${sentence}`, "Would that help?");
     expect(rules(gateEmail1(draft(), input(), context([a])))).not.toContain("cohort-sentence");
     expect(rules(gateEmail1(draft(), input(), context([a, b])))).toContain("cohort-sentence");
+  });
+
+  it("counts people, not drafts: one colleague's two touches are one person (M2 fix 2)", () => {
+    const sentence = "When quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started.";
+    const email2 = other(`Priya, the night desk at Bramble takes the overflow. ${sentence}`, "Is that on your list?", false, "priya");
+    const liMessage = other(`Handlers at Bramble mark their own calls. ${sentence}`, "Would that help?", false, "priya");
+    expect(rules(gateEmail1(draft(), input(), context([email2, liMessage])))).not.toContain("cohort-sentence");
+    const ask = draft().ask;
+    const askTwice = [other("One.", ask, false, "priya"), other("Two.", ask, false, "priya")];
+    expect(rules(gateEmail1(draft(), input(), context(askTwice)))).not.toContain("cohort-ask");
+    const openTwice = [other(opening, "Is that on your list?", false, "priya"), other(opening, "Would a note help?", false, "priya")];
+    expect(rules(gateEmail1(draft(), input(), context(openTwice)))).not.toContain("cohort-opening");
   });
 });
 

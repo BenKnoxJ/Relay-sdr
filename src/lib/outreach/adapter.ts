@@ -95,8 +95,13 @@ export function buyerRoleOf(row: AdapterFacts["row"], handoff: LeadGenHandoff): 
 /**
  * The plain words a message would name a source by, from its host: the FCA's
  * own site is "the FCA", the ombudsman's is "the ombudsman". Anything not in
- * the table falls back to the host itself, which is honest if plain — a
+ * the table is named by the host itself, which is honest if plain — a
  * drafter may not attribute a quote to a source Relay cannot name.
+ *
+ * Never the item's `speaker` (M2 fix 2, Sentinel CWE-345). A speaker is words
+ * research read off a web page, and the gate trusts a written source name to
+ * say which body a quote is from: a scraped page whose speaker says "the FCA"
+ * would otherwise make its words the FCA's.
  */
 const SOURCE_NAMES: readonly (readonly [RegExp, string])[] = [
   [/(^|\.)fca\.org\.uk$/, "the FCA"],
@@ -106,14 +111,11 @@ const SOURCE_NAMES: readonly (readonly [RegExp, string])[] = [
   [/(^|\.)ico\.org\.uk$/, "the ICO"],
 ];
 
-export function sourceNameOf(item: { speaker?: string; evidence: { urls: string[] } }): string | undefined {
+export function sourceNameOf(item: { evidence: { urls: string[] } }): string | undefined {
   const url = item.evidence.urls[0];
   if (url === undefined) return undefined;
   const host = hostOf(url);
-  const known = SOURCE_NAMES.find(([pattern]) => pattern.test(host))?.[1];
-  if (known !== undefined) return known;
-  const speaker = item.speaker?.trim() ?? "";
-  return speaker !== "" ? speaker : host;
+  return SOURCE_NAMES.find(([pattern]) => pattern.test(host))?.[1] ?? host;
 }
 
 /**
@@ -130,6 +132,15 @@ export function evidenceQuoteOf(item: Pick<Item, "id" | "quote" | "speaker" | "p
   const sourceName = sourceNameOf(item);
   if (quote === "" || url === undefined || sourceName === undefined) return undefined;
   return { id: item.id, quote, sourceName, url, ...(item.publishedAt === undefined ? {} : { date: item.publishedAt }) };
+}
+
+/**
+ * A research item good enough to quote to a prospect (M2 fix 2): marked strong, or from a primary source.
+ * The 23 Sep review traced six of nine rewrites to what the evidence list offered, weak items included —
+ * a vendor's LinkedIn post, and a practitioner quote that argued the opposite of the email twice.
+ */
+export function isVetted(item: Pick<Item, "confidence" | "evidence">): boolean {
+  return item.confidence === "strong" || item.evidence.primary;
 }
 
 /** The quotable evidence behind a slice, deduplicated by id, best sources first. */
@@ -166,7 +177,8 @@ export function packSliceOf(pack: PackShape, handoff: LeadGenHandoff, facts: Pro
     // they are lifted from primary sources for exactly this — then the pains
     // and buyer words, then the hook's trigger. m15's proof items carry no
     // stored quote and no url of their own, so none of them is quotable.
-    evidence: evidenceListOf([...(messaging?.verbatim ?? []), ...archetype.pains, ...archetype.language, ...(hook === undefined ? [] : [hook.whyNow])]),
+    // Fix round 2: only the vetted ones (`isVetted`); the lookup's own quotes and the approved gives are added after.
+    evidence: evidenceListOf([...(messaging?.verbatim ?? []), ...archetype.pains, ...archetype.language, ...(hook === undefined ? [] : [hook.whyNow])].filter(isVetted)),
   };
 }
 
@@ -191,12 +203,11 @@ export function withLookupEvidence(slice: OutreachInput["pack"], lookup: LookupR
  *
  * They go first: they are the curated, scope-checked sentences a person
  * signed off, and the pack's own quotes are whatever research happened to
- * store. `scope` is dropped here — it is guidance for whoever maintains the
- * list, and handing the model a note about what a quote does not say invites
- * it to write about that instead.
+ * store. Each keeps its `scope` (M2 fix 2): fix round 1 dropped it, and the
+ * drafts then widened the quotes in exactly the directions it rules out.
  */
 export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard): OutreachInput["pack"] {
-  const gives = standard.gives.map(({ scope: _scope, ...quote }) => quote).filter((quote) => !slice.evidence.some((known) => known.id === quote.id));
+  const gives = standard.gives.filter((quote) => !slice.evidence.some((known) => known.id === quote.id));
   return gives.length === 0 ? slice : { ...slice, evidence: [...gives, ...slice.evidence].slice(0, 12) };
 }
 

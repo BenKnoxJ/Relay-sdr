@@ -29,18 +29,15 @@ import { OPT_OUT_LINE, emailCopyText, envelopeOf, signatureText } from "@/lib/ou
  */
 
 const standard = loadStandard();
-const gives: EvidenceQuote[] = standard.gives.map(({ scope: _scope, ...quote }) => quote);
+const gives: EvidenceQuote[] = standard.gives;
 
 const held = (sentence: string) => unsupportedSourceClaims([sentence], gives);
 
 describe("the approved gives", () => {
-  it("carries the four source sentences the re-review asked for, each with a url and a scope", () => {
-    expect(standard.gives.map((give) => give.id)).toEqual([
-      "give-fos-motor-complaints-q1-2026",
-      "give-fca-interventions-not-measured",
-      "give-fca-publishes-every-six-months",
-      "give-fca-upheld-means-by-the-firm",
-    ]);
+  it("carries the source sentences the re-review asked for, each with a url and a scope", () => {
+    // Fix round 2 dropped "the FCA publishes complaints data every six months": every prospect here works at a
+    // firm that sends the FCA that data, so it told them about their own regulatory return.
+    expect(standard.gives.map((give) => give.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-upheld-means-by-the-firm"]);
     for (const give of standard.gives) {
       expect(give.url, give.id).toMatch(/^https:\/\//);
       expect(give.scope.length, give.id).toBeGreaterThan(20);
@@ -91,9 +88,10 @@ describe("unsupported-source-claim: what passes", () => {
     expect(held("Car and motorcycle insurance complaints to the ombudsman rose to 4,100 in April to June 2026.")).toHaveLength(1);
   });
 
-  it("takes the quote from the sentence before or after, so a framing line is not a claim", () => {
+  it("holds a framing line whose quote is in the next sentence: the source and its words go in one sentence (fix round 2)", () => {
     const give = "The ombudsman's quarterly figures show the wider picture. Car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.";
-    expect(held(give)).toEqual([]);
+    expect(held(give)).toEqual(["The ombudsman's quarterly figures show the wider picture."]);
+    expect(held("The ombudsman's quarterly figures show car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.")).toEqual([]);
   });
 
   it("does not hold a question: an offer to send a document asserts nothing", () => {
@@ -101,7 +99,7 @@ describe("unsupported-source-claim: what passes", () => {
   });
 
   it("does not hold a sentence about the reader's own firm", () => {
-    expect(unsupportedSourceClaims(["Bramble's July publication showed delay complaints falling."], gives, ["Bramble"])).toEqual([]);
+    expect(unsupportedSourceClaims(["Bramble's July publication showed delay complaints falling by 12%."], gives, ["Bramble"])).toEqual([]);
     expect(held("Your July complaints publication showed delay complaints falling.")).toEqual([]);
   });
 

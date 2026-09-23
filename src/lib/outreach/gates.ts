@@ -22,8 +22,11 @@ import { genderedPronouns, isBinaryAsk, mentionsPrice, namesProduct } from "./me
 export type Finding = { rule: string; text: string };
 export type GateResult = { tierA: Finding[]; tierB: Finding[] };
 
-/** A draft already written in this campaign, as the cohort gates read it. */
-export type CohortDraft = { body: string; ask: string; sameAccount: boolean };
+/**
+ * A draft already written in this campaign, as the cohort gates read it. `personId` is who it was written for:
+ * the repetition gates count people, not drafts (M2 fix 2), so one colleague's two touches are one person.
+ */
+export type CohortDraft = { body: string; ask: string; sameAccount: boolean; personId: string };
 
 export type GateContext = {
   /** The product's name as the rep says it; always allowed in a body. */
@@ -190,9 +193,9 @@ function withoutChannels(entity: string): string {
   return out;
 }
 
-/** The words the input already carries, which a body may always use. */
-function allowedWords(input: OutreachInput, context: GateContext): Set<string> {
-  const values = [
+/** The names and values the input already carries, which a body may always use, as written. */
+function allowedValues(input: OutreachInput, context: GateContext): string[] {
+  return [
     // The rep's own name and company: the call opener and the voicemail say who is ringing.
     input.sender.firstName,
     input.sender.company,
@@ -209,8 +212,12 @@ function allowedWords(input: OutreachInput, context: GateContext): Set<string> {
     context.repName,
     ...context.productNames,
     input.facts.product,
-  ];
-  return new Set(values.flatMap((value) => words(value)));
+  ].filter((value) => value.trim() !== "");
+}
+
+/** The words the input already carries, which a body may always use. */
+function allowedWords(input: OutreachInput, context: GateContext): Set<string> {
+  return new Set(allowedValues(input, context).flatMap((value) => words(value)));
 }
 
 /** Everything the draft may cite: lookup items, the pack slice, the facts and the role's needs. */
@@ -353,36 +360,52 @@ function frame(body: string, input: OutreachInput): string {
   return normalised(sentences(body)[0] ?? "", input).split(" ").slice(0, 5).join(" ");
 }
 
+/** How many different people a set of drafts was written for (M2 fix 2): the cohort gates count people, not drafts. */
+export function peopleIn(drafts: readonly Pick<CohortDraft, "personId">[]): number {
+  return new Set(drafts.map((draft) => draft.personId)).size;
+}
+
 function cohortFindings(draft: MessageDraft, input: OutreachInput, cohort: readonly CohortDraft[]): { tierA: Finding[]; tierB: Finding[] } {
   const tierA: Finding[] = [];
   const tierB: Finding[] = [];
   if (cohort.length === 0) return { tierA, tierB };
 
-  // Opening frame: near-identical to two or more drafts, or to any at the same account.
+  // Every rule reads "two or more people, or one colleague at the same account". A person is counted once
+  // however many of their touches match: in the 23 Sep cohort one colleague's Email 2 and LinkedIn message
+  // carrying the same quote counted as two, and that alone held another person's Email 1.
+
+  // Opening frame: near-identical to two or more people's, or to a colleague's.
   const mine = frame(draft.body, input);
   const firstSentence = normalised(sentences(draft.body)[0] ?? "", input);
   const sameFrame = cohort.filter((other) => {
     const theirs = frame(other.body, input);
     return (mine !== "" && mine === theirs) || jaccard(firstSentence, normalised(sentences(other.body)[0] ?? "", input)) >= 0.7;
   });
-  if (sameFrame.length >= 2 || sameFrame.some((other) => other.sameAccount)) {
+  if (peopleIn(sameFrame) >= 2 || sameFrame.some((other) => other.sameAccount)) {
     tierA.push({ rule: "cohort-opening", text: "It opens the same way as other emails in this campaign; open on this person's own reason." });
   }
 
-  // The ask: identical after normalising to one already used twice, or once at the same account.
+  // The ask: identical after normalising to two or more people's, or to a colleague's.
   const ask = normalised(draft.ask, input);
   const sameAsk = cohort.filter((other) => normalised(other.ask, input) === ask);
-  if (sameAsk.length >= 2 || sameAsk.some((other) => other.sameAccount)) {
+  if (peopleIn(sameAsk) >= 2 || sameAsk.some((other) => other.sameAccount)) {
     tierA.push({ rule: "cohort-ask", text: "The question at the end is the same as in other emails in this campaign; ask it this person's way." });
   }
 
-  // A distinctive sentence near-identical to one in two or more drafts, or one at the same account.
+  // A distinctive sentence near-identical to two or more people's, or to a colleague's.
+  //
+  // A sentence carrying an approved quote is exempt across firms (M2 fix 2): the quote is the same because
+  // the source's words are the same, and readers at different firms never compare notes. Never at the same
+  // account: colleagues must not be sent the same quote, and the 23 Sep cohort's one real repeat (Nell's
+  // LinkedIn message, the FCA sentence her colleague Blair had in Email 1) is exactly that.
+  const runs = quoteRuns(input.pack.evidence);
   const repeated = sentences(draft.body)
-    .map((sentence) => normalised(sentence, input))
-    .filter((sentence) => sentence.split(" ").length >= 7)
+    .filter((sentence) => normalised(sentence, input).split(" ").length >= 7)
     .find((sentence) => {
-      const hits = cohort.filter((other) => sentences(other.body).some((theirs) => jaccard(sentence, normalised(theirs, input)) >= 0.8));
-      return hits.length >= 2 || hits.some((other) => other.sameAccount);
+      const mineNormalised = normalised(sentence, input);
+      const quoted = quotesEvidence(sentence, runs);
+      const hits = cohort.filter((other) => (!quoted || other.sameAccount) && sentences(other.body).some((theirs) => jaccard(mineNormalised, normalised(theirs, input)) >= 0.8));
+      return peopleIn(hits) >= 2 || hits.some((other) => other.sameAccount);
     });
   if (repeated !== undefined) {
     tierA.push({ rule: "cohort-sentence", text: "A sentence repeats one from other emails in this campaign almost word for word." });
@@ -429,9 +452,15 @@ const SOURCE_NAMED_OUTRIGHT = /\b(?:fca|financial conduct authority|fos|ombudsma
  * figures" and carry none at all in "your July complaints publication
  * mentioned delay", which is the reader's own firm and the lookup's business.
  */
-const SOURCE_NAMED_LOOSELY = /\bpublish(?:es|ed|ing)?\b|\bpublication\b|\bfigures show\b/i;
+const PUBLISH = /\bpublish(?:es|ed|ing)?\b|\bpublication\b/i;
+const FIGURES_SHOW = /\bfigures show\b/i;
 
-const SOURCE_NAMED = new RegExp(`${SOURCE_NAMED_OUTRIGHT.source}|${SOURCE_NAMED_LOOSELY.source}`, "i");
+/**
+ * Something said to be published *about* someone, or to sit in a table: "published against Ardent's name",
+ * "the public tables". Not "published on", which is as often a date or a place ("published on your site"). That is a claim about what a third party publishes,
+ * whoever is named, and the 23 Sep cohort sent it five times with nothing behind it (M2 fix 2).
+ */
+const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sortable) tables?\b/i;
 
 /** A sentence written to the reader about themselves. */
 const SECOND_PERSON = /^\s*(?:you|your)\b/i;
@@ -443,27 +472,39 @@ const SECOND_PERSON = /^\s*(?:you|your)\b/i;
  * "figures") were here first and cost the standard's own call exemplar a
  * hold: "a one-off £640 configuration review around month one" is a price,
  * not a finding, and `review` matched it. Where those nouns do carry a source
- * claim, the source itself is named and `SOURCE_NAMED` has it already.
+ * claim, the source itself is named and `SOURCE_NAMED_OUTRIGHT` has it already.
  */
 const REPORTED =
   /\b(?:found|finds|show|shows|showed|shown|said|says|reported|reports|rose|risen|fell|fallen|up from|down from|according to|reviewed|surveyed)\b/i;
 
 const FIGURE = /\d[\d,.]*\s?%|\d[\d,]*/;
 
+/** A text with the given names taken out, so "Insights360" is a product and not the figure 360 (M2 fix 2). */
+function withoutNames(text: string, names: readonly string[]): string {
+  let out = text;
+  for (const name of [...names].sort((a, b) => b.length - a.length)) {
+    if (name.trim() === "") continue;
+    out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(name.trim())}(?=$|[^a-z0-9])`, "gi"), "$1 ");
+  }
+  return out;
+}
+
 /**
  * True when a sentence makes a claim about a source.
  *
- * Two arms, and the second is deliberately narrower than the first. A named
- * regulator or publication is always a source claim. A bare number is one
- * only when the sentence also reports something — otherwise the gate would
- * hold the call script's complete price answer ("a one-off setup fee of
- * £1,280"), which the standard requires and which is not a claim about
- * anybody's published findings. "Complaints rose to 4,100" has both and is
- * held; "£1,280" alone has neither and is not.
+ * A named regulator is always a source claim. "Publish" or "publication" is one only when it comes with a
+ * figure or says something is published about someone or sits in a table (M2 fix 2): "after a complaints
+ * publication" and "we already publish our figures" are the reader's own business, and holding them cost
+ * four false holds in the 23 Sep cohort. A bare number is one only when the sentence also reports
+ * something — otherwise the gate would hold the call script's complete price answer ("a one-off setup fee
+ * of £1,280"). `names` are the words the input already carries (the product, the firm, the person): never
+ * read as a figure, so "Insights360… so a theme can be shown" is not a report of the number 360.
  */
-export function attributesASource(sentence: string): boolean {
-  if (SOURCE_NAMED.test(sentence)) return true;
-  return FIGURE.test(sentence) && REPORTED.test(sentence);
+export function attributesASource(sentence: string, names: readonly string[] = []): boolean {
+  if (SOURCE_NAMED_OUTRIGHT.test(sentence) || FIGURES_SHOW.test(sentence)) return true;
+  const figure = FIGURE.test(withoutNames(sentence, names));
+  if (PUBLISHED_ABOUT.test(sentence) || (PUBLISH.test(sentence) && figure)) return true;
+  return figure && REPORTED.test(sentence);
 }
 
 /** The words of a text for quote matching: lower case, apostrophes folded, punctuation dropped. */
@@ -499,43 +540,73 @@ export function quotesEvidence(sentence: string, runs: ReadonlySet<string>, run:
   return false;
 }
 
+/** The bodies a sentence can credit by name, and the words that name each. */
+const SOURCE_FAMILIES: readonly (readonly [string, RegExp])[] = [
+  // "The regulator" and the Consumer Duty are the FCA's, for a UK insurer: the ombudsman's figures credited to
+  // "the regulator" are the same mix-up as crediting them to the FCA.
+  ["fca", /\b(?:fca|financial conduct authority|regulators?|regulatory body|consumer duty)\b/i],
+  ["ombudsman", /\b(?:ombudsman|fos)\b/i],
+];
+
+function familiesIn(text: string): Set<string> {
+  return new Set(SOURCE_FAMILIES.filter(([, pattern]) => pattern.test(text)).map(([family]) => family));
+}
+
 /**
- * Every sentence that attributes something to a source without quoting one.
+ * The body a quote is from, read off its `sourceName`, and only when that is a written name. The adapter
+ * writes a name only for a host it knows (fca.org.uk is "the FCA") or a give a person approved; any other
+ * source is named by its bare host, which is never read as a body, so "fca-news.example" is not the FCA.
+ */
+function familiesOfQuote(quote: EvidenceQuote): Set<string> {
+  return /\s/.test(quote.sourceName.trim()) ? familiesIn(quote.sourceName) : new Set();
+}
+
+/**
+ * Words that make a claim more general than a source said it (M2 fix 2): "mostly on valuation, cancellation
+ * and delay". "Most recent" is a date, not a frequency.
+ */
+const FREQUENCY_WORDS: readonly (readonly [string, RegExp])[] = [
+  ["mostly", /\bmostly\b/i],
+  ["most", /\bmost\b(?!\s+recent)/i],
+  ["usually", /\busually\b/i],
+  ["always", /\balways\b/i],
+];
+
+/**
+ * Every sentence that attributes something to a source without quoting that source (M2, as fix round 2
+ * tightened it). A sentence passes only on its own words: it carries a run of a quote from the body it
+ * names, and adds no frequency word that quote lacks.
  *
  * The finding names the sentence, because the rep reads this on the card and
  * "an unsupported source claim" tells them nothing about which one to look at.
+ *
+ * `about` is the reader's firm and name, as whole phrases. `names` are the words the input carries, which
+ * are never read as a figure.
  */
-export function unsupportedSourceClaims(parts: readonly string[], evidence: readonly EvidenceQuote[], about: readonly string[] = []): string[] {
-  const runs = quoteRuns(evidence);
-  const ownWords = new Set(about.flatMap((value) => words(value)));
+export function unsupportedSourceClaims(parts: readonly string[], evidence: readonly EvidenceQuote[], about: readonly string[] = [], names: readonly string[] = []): string[] {
+  const quotes = evidence.map((quote) => ({ quote, runs: quoteRuns([quote]), families: familiesOfQuote(quote) }));
   const held: string[] = [];
   for (const part of parts) {
-    const list = sentences(part);
-    list.forEach((sentence, index) => {
-      if (!attributesASource(sentence)) return;
+    for (const sentence of sentences(part)) {
+      if (!attributesASource(sentence, names)) continue;
       // A question asserts nothing. "Would it help if I sent over the FCA's
       // write-up?" offers a document; it does not say what the FCA found.
-      if (sentence.trim().endsWith("?")) return;
-      // A sentence about the reader's own firm is personalisation, not a
-      // third-party source claim, and the provenance gates already hold it
-      // against the lookup. The fault this gate exists for is what a
-      // regulator, an ombudsman or a publication is said to have found.
-      if (words(sentence).some((word) => ownWords.has(word))) return;
-      // "Your July complaints publication mentioned delay" is the lookup
-      // talking to the reader about themselves. Only the loose words matched,
-      // and the sentence is in the second person, so there is no third party
-      // being quoted; `unsourced-name` and `unsourced-number` hold it against
-      // the lookup as they always have.
-      if (!SOURCE_NAMED_OUTRIGHT.test(sentence) && SECOND_PERSON.test(sentence)) return;
-      // The quote may sit in the sentence before or after: a give is often
-      // written as a framing line and then the source's own words ("The
-      // ombudsman's quarterly figures show the wider picture. Car and
-      // motorcycle insurance complaints rose to 4,100…"), and splitting that
-      // pair in two is how the sentence reads, not how the claim works.
-      const near = [list[index - 1] ?? "", sentence, list[index + 1] ?? ""].join(" ");
-      if (quotesEvidence(near, runs)) return;
-      if (!held.includes(sentence)) held.push(sentence);
-    });
+      if (sentence.trim().endsWith("?")) continue;
+      // A sentence about the reader's own firm, or to the reader, is personalisation, and the provenance gates
+      // hold it against the lookup. Never when a regulator is named or the sentence says something is published
+      // about someone: that is a third party's finding whoever it is about. The firm is matched as a whole
+      // phrase, never a word of it — "motor" or "insurance" from Ardent Motor Insurance, or a prospect called
+      // Will, let "The FCA will name firms…" through in fix round 1.
+      const thirdParty = SOURCE_NAMED_OUTRIGHT.test(sentence) || PUBLISHED_ABOUT.test(sentence);
+      if (!thirdParty && (about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || SECOND_PERSON.test(sentence))) continue;
+      // The quote must be in this sentence: a quote beside it clears nothing (fix round 1's neighbour window
+      // passed "Those figures get published against Ardent's name" after the ombudsman's sentence). And it must
+      // be from the body the sentence credits: six words of any quote is not the FCA's word.
+      const named = familiesIn(sentence);
+      const matched = quotes.filter(({ runs, families }) => quotesEvidence(sentence, runs) && (named.size === 0 || [...named].some((family) => families.has(family))));
+      const widened = FREQUENCY_WORDS.some(([, pattern]) => pattern.test(sentence) && !matched.some(({ quote }) => pattern.test(quote.quote)));
+      if ((matched.length === 0 || widened) && !held.includes(sentence)) held.push(sentence);
+    }
   }
   return held;
 }
@@ -574,8 +645,8 @@ const clip = (text: string, max: number) => (text.length <= max ? text : `${text
  * word, or remove the source reference. "Use an approved quote exactly, or leave the point out" left the
  * corrective call to guess which quote, and it guessed a paraphrase again.
  */
-function evidenceFindings(parts: readonly string[], input: OutreachInput): Finding[] {
-  const held = unsupportedSourceClaims(parts, input.pack.evidence, [input.person.company, input.account.company, input.person.name]);
+function evidenceFindings(parts: readonly string[], input: OutreachInput, context: GateContext): Finding[] {
+  const held = unsupportedSourceClaims(parts, input.pack.evidence, [input.person.company, input.account.company, input.person.name], allowedValues(input, context));
   return held.map((sentence) => ({ rule: "unsupported-source-claim", text: sourceClaimFix(sentence, closestQuote(sentence, input.pack.evidence)) }));
 }
 
@@ -679,7 +750,7 @@ function standardFindings(draft: OutreachOutput, input: OutreachInput, context: 
   }
   // The same shape across the campaign is a template a rep sees when they approve twenty in a row,
   // but it is not this draft's fault and it must never push the writer into synonym-swapping: advice.
-  if (shape !== "" && context.cohort.filter((other) => askShapeOf(other.ask) === shape).length > 3) {
+  if (shape !== "" && peopleIn(context.cohort.filter((other) => askShapeOf(other.ask) === shape)) > 3) {
     tierB.push({ rule: "cohort-ask-shape", text: `More than three people in this campaign are being asked a "${shape}…" question.` });
   }
 
@@ -730,7 +801,7 @@ export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context:
     ...checkTouchLimits(draft, input),
     ...shapeFindings(draft, input, input.standard.bannedLexicon),
     ...provenance.tierA,
-    ...evidenceFindings([draft.subject ?? "", draft.body], input),
+    ...evidenceFindings([draft.subject ?? "", draft.body], input, context),
     ...standard.tierA,
     ...cohort.tierA,
   ];
@@ -843,7 +914,7 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
   const sameAccount = context.cohort.filter((other) => other.sameAccount);
   const cohort = draft.kind === "message" && sameAccount.length > 0 ? cohortFindings(draft, input, sameAccount) : { tierA: [], tierB: [] };
   return {
-    tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input), ...standard.tierA, ...cohort.tierA],
+    tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input, context), ...standard.tierA, ...cohort.tierA],
     tierB: [...advice, ...provenance.tierB, ...standard.tierB, ...cohort.tierB],
   };
 }
@@ -901,20 +972,57 @@ export function humanizerLoss(
   const ask = after.kind === "message" ? after.ask : after.talkingPoint.oneQuestion;
   if (ask.trim() === "") return "it left the touch with no question";
 
-  // Every run of a source's own wording the draft carried must still be there, word for word.
+  // Every run of a source's own wording the draft carried must still be there, word for word, unless the
+  // whole sentence carrying it was cut cleanly (M2 fix 2).
   const runs = quoteRuns(evidence);
   const had = presentRuns(proseText(before), runs);
   const kept = presentRuns(proseText(after), runs);
   const lost = [...had].filter((run) => !kept.has(run));
-  if (lost.length > 0) return `it reworded an approved quote ("${lost[0]!}")`;
+  if (lost.length > 0 && !quoteSentencesCut(before, after, runs)) return `it reworded an approved quote ("${lost[0]!}")`;
 
   if (cleanProductCut) return null;
+  // A clean quote cut still counts against the word loss: cutting the give and leaving "a pattern like that"
+  // pointing at nothing (Marlo's Email 2, 22 Sep) is still losing the point.
   const wasWords = words(proseText(before)).length;
   const nowWords = words(proseText(after)).length;
   if (wasWords > 0 && nowWords < wasWords * (1 - HUMANIZER_MAX_WORD_LOSS)) {
     return `it cut ${Math.round(((wasWords - nowWords) / wasWords) * 100)}% of the words, which loses the point rather than tightening it`;
   }
   return null;
+}
+
+/**
+ * True when every quote the pass lost went with its whole sentence, false when a quote was reworded instead.
+ *
+ * The humanizer may drop a whole attributed sentence, as it may drop the product sentence: in the 23 Sep
+ * cohort it cut Marlo's Gormley line and Nell's "the FCA publishes" line, and the guard kept the worse
+ * drafts because it read the cut as rewording. A cut is clean when (1) no run of the cut sentence's quote
+ * survives anywhere, so it was not trimmed or had a word slipped in ("recorded", "regulated firms"), and
+ * (2) no new sentence in the pass reads closest to the cut one, so it was not paraphrased in other words.
+ */
+function quoteSentencesCut(before: OutreachOutput, after: OutreachOutput, runs: ReadonlySet<string>): boolean {
+  const kept = presentRuns(proseText(after), runs);
+  const drafted = proseParts(before).flatMap((part) => sentences(part));
+  const rewritten = proseParts(after).flatMap((part) => sentences(part));
+  const gone = drafted.filter((sentence) => {
+    const carried = presentRuns(sentence, runs);
+    return carried.size > 0 && [...carried].some((run) => !kept.has(run));
+  });
+  // Part of the sentence's quote is still there: trimmed or reworded, not cut.
+  if (gone.some((sentence) => [...presentRuns(sentence, runs)].some((run) => kept.has(run)))) return false;
+  const bag = (text: string) => words(text).join(" ");
+  const unchanged = new Set(drafted.map(bag));
+  for (const sentence of rewritten) {
+    const mine = bag(sentence);
+    if (unchanged.has(mine)) continue;
+    let closest: { sentence: string; score: number } | null = null;
+    for (const candidate of drafted) {
+      const score = jaccard(mine, bag(candidate));
+      if (closest === null || score > closest.score) closest = { sentence: candidate, score };
+    }
+    if (closest !== null && closest.score >= 0.2 && gone.includes(closest.sentence)) return false;
+  }
+  return true;
 }
 
 /** The evidence runs a text actually carries. */

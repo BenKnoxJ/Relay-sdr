@@ -121,6 +121,12 @@ export const evidenceQuoteSchema = z
     url: urlSchema,
     /** When the source said it, at whatever precision it gave. */
     date: z.string().min(1).max(40).optional(),
+    /**
+     * What the quote does not say, in one line (M2 fix 2): "not a ranking", "nothing says any particular
+     * firm is in the tables". An approved give carries one. Fix round 1 kept it from the drafter, and the
+     * drafts widened the quotes in exactly those directions.
+     */
+    scope: z.string().min(1).max(1000).optional(),
   })
   .strict();
 

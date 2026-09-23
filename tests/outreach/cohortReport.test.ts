@@ -7,12 +7,12 @@ import { loadStandard } from "@/lib/outreach/standard";
 
 /** M2 fix 1: the cohort report's M2 items, counted from stored drafts with no model. */
 
-const gives: EvidenceQuote[] = loadStandard().gives.map(({ scope: _scope, ...quote }) => quote);
-const fca = gives.find((give) => give.id === "give-fca-publishes-every-six-months")!;
+const gives: EvidenceQuote[] = loadStandard().gives;
+const fca = gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
 
 const touch = (kind: string, body: string) => ({ kind, body, ask: "", claims: [] });
 const sequences: CheckedSequence[] = [
-  { name: "Avery Dunmore", touches: [touch("email1", `${fca.quote} Who looks at the calls behind them?`), touch("li_dm", "The calls behind a complaint are found late at Avery's firm.")] },
+  { name: "Avery Dunmore", touches: [touch("email1", `The FCA's review of 40 firms found this. ${fca.quote} Who looks at the calls behind them?`), touch("li_dm", "The calls behind a complaint are found late at Avery's firm.")] },
   { name: "Emlyn Lomax", touches: [touch("email1", "The FCA says most complaints are upheld. The calls behind a complaint are found late.")] },
 ];
 
@@ -25,10 +25,16 @@ describe("the cohort report's M2 items", () => {
     expect(rows.some((row) => row.phrase.includes("avery"))).toBe(false);
   });
 
-  it("lists every source reference with the approved quote it carries, or none", () => {
+  it("lists every source reference with the approved quote the sentence itself carries, and the gate's verdict", () => {
     const refs = sourceReferences(sequences, gives);
-    expect(refs.find((row) => row.person === "Avery Dunmore")).toMatchObject({ touch: "email1", quotes: [fca.id] });
-    expect(refs.find((row) => row.person === "Emlyn Lomax")).toEqual({ person: "Emlyn Lomax", touch: "email1", sentence: "The FCA says most complaints are upheld.", quotes: [] });
+    // The framing line carries no quote of its own: its neighbour's does not count (fix round 2).
+    expect(refs.filter((row) => row.person === "Avery Dunmore")).toEqual([{ person: "Avery Dunmore", touch: "email1", sentence: "The FCA's review of 40 firms found this.", quotes: [], held: true }]);
+    expect(refs.find((row) => row.person === "Emlyn Lomax")).toEqual({ person: "Emlyn Lomax", touch: "email1", sentence: "The FCA says most complaints are upheld.", quotes: [], held: true });
+  });
+
+  it("reads the product's name as a name, not a figure", () => {
+    const product: CheckedSequence[] = [{ name: "Orla Bellamy", touches: [touch("call", "Insights360 compares each period against the last, so a change is easy to show.")] }];
+    expect(sourceReferences(product, gives, ["Insights360"])).toEqual([]);
   });
 
   it("renders gate hits, holds with reasons, humanizer completion and timeouts", () => {
@@ -52,6 +58,6 @@ describe("the cohort report's M2 items", () => {
     expect(markdown).toContain("### Held touches, with reasons (2 of 3)");
     expect(markdown).toContain("- **Emlyn Lomax, Email 1** (needs_you): `unsupported-source-claim` Use this approved quote exactly.");
     expect(markdown).toContain("The pass ran for **1 of 2** people.");
-    expect(markdown).toContain("| Emlyn Lomax | Email 1 | The FCA says most complaints are upheld. | **none** |");
+    expect(markdown).toContain("| Emlyn Lomax | Email 1 | The FCA says most complaints are upheld. | **none** | **held** |");
   });
 });

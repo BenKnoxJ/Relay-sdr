@@ -1,6 +1,6 @@
 import type { EvidenceQuote } from "../../../agents/outreach/input.schema";
 
-import { attributesASource, evidenceUsedIn, sentences, type Finding } from "./gates";
+import { attributesASource, evidenceUsedIn, sentences, unsupportedSourceClaims, type Finding } from "./gates";
 import type { CheckedSequence } from "./messageChecks";
 
 /**
@@ -54,18 +54,29 @@ export function repeatedPhrases(sequences: readonly CheckedSequence[], top = 10)
     .slice(0, top);
 }
 
-/** Every sentence that attributes something to a source, with the approved quotes it (or a neighbour) carries. */
-export function sourceReferences(sequences: readonly CheckedSequence[], evidence: readonly EvidenceQuote[]): { person: string; touch: string; sentence: string; quotes: string[] }[] {
-  const found: { person: string; touch: string; sentence: string; quotes: string[] }[] = [];
+export type SourceReference = { person: string; touch: string; sentence: string; quotes: string[]; held: boolean };
+
+/**
+ * Every sentence that attributes something to a source, with the approved quotes it carries and whether the
+ * source-claim gate holds it. The sentence alone: a quote beside it is not what it carries (M2 fix 2).
+ * `names` are the words the input carries (the product), and `companyOf` a person's firm, as the gate reads them.
+ */
+export function sourceReferences(
+  sequences: readonly CheckedSequence[],
+  evidence: readonly EvidenceQuote[],
+  names: readonly string[] = [],
+  companyOf: (person: string) => string = () => "",
+): SourceReference[] {
+  const found: SourceReference[] = [];
   for (const sequence of sequences) {
+    const about = [sequence.name, companyOf(sequence.name)];
     for (const touch of sequence.touches) {
       for (const part of [touch.subject ?? "", ...touch.body.split(/\n+/)]) {
-        const list = sentences(part);
-        list.forEach((sentence, index) => {
-          if (!attributesASource(sentence)) return;
-          const near = [list[index - 1] ?? "", sentence, list[index + 1] ?? ""].join(" ");
-          found.push({ person: sequence.name, touch: touch.kind, sentence, quotes: evidenceUsedIn(near, evidence) });
-        });
+        for (const sentence of sentences(part)) {
+          if (!attributesASource(sentence, [...names, ...about])) continue;
+          const held = unsupportedSourceClaims([sentence], evidence, about, [...names, ...about]).length > 0;
+          found.push({ person: sequence.name, touch: touch.kind, sentence, quotes: evidenceUsedIn(sentence, evidence), held });
+        }
       }
     }
   }
@@ -79,13 +90,16 @@ export function renderM2Report(input: {
   evidence: readonly EvidenceQuote[];
   timeouts: number;
   modelRuns: number;
+  /** The product's names, never read as a figure. */
+  names?: readonly string[];
+  companyOf?: (person: string) => string;
 }): string {
   const held = input.touches.filter((touch) => touch.state !== "to_review");
   const hits = new Map<string, number>();
   for (const touch of held) for (const rule of new Set(touch.findings.map((finding) => finding.rule))) hits.set(rule, (hits.get(rule) ?? 0) + 1);
   const ran = input.humanizer.filter((person) => person.ran).length;
   const phrases = repeatedPhrases(input.sequences);
-  const references = sourceReferences(input.sequences, input.evidence);
+  const references = sourceReferences(input.sequences, input.evidence, input.names ?? [], input.companyOf);
   const byId = new Map(input.evidence.map((quote) => [quote.id, quote]));
   return [
     "## M2 report",
@@ -119,11 +133,16 @@ export function renderM2Report(input: {
     "",
     `### Every regulator or publication reference (${references.length})`,
     "",
-    "| Person | Touch | Sentence | Approved quote carried |",
-    "|---|---|---|---|",
+    "The sentence alone, as the gate reads it now. \"Gate\" is whether `unsupported-source-claim` holds that sentence; a stored touch may since have been redrafted.",
+    "",
+    "| Person | Touch | Sentence | Approved quote carried | Gate |",
+    "|---|---|---|---|---|",
     ...(references.length === 0
-      ? ["| none | | | |"]
-      : references.map((row) => `| ${row.person} | ${name(row.touch)} | ${cell(row.sentence)} | ${row.quotes.length === 0 ? "**none**" : row.quotes.map((id) => `${id} (${cell(byId.get(id)?.sourceName ?? "")})`).join(", ")} |`)),
+      ? ["| none | | | | |"]
+      : references.map(
+          (row) =>
+            `| ${row.person} | ${name(row.touch)} | ${cell(row.sentence)} | ${row.quotes.length === 0 ? "**none**" : row.quotes.map((id) => `${id} (${cell(byId.get(id)?.sourceName ?? "")})`).join(", ")} | ${row.held ? "**held**" : "passes"} |`,
+        )),
     "",
   ].join("\n");
 }

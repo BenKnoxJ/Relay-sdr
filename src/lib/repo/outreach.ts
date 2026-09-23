@@ -105,6 +105,8 @@ export async function recordLookup(
 // The cohort the repetition gates read (v2.1 §6).
 
 export type CohortEntry = {
+  /** Who it was written for: the repetition gates count people, not drafts (M2 fix 2). */
+  personId: string;
   body: string;
   ask: string;
   subject?: string;
@@ -115,6 +117,27 @@ export type CohortEntry = {
   /** The item this touch opened on, by id, so a colleague's draft can take a different angle. */
   openerRef?: string;
 };
+
+/**
+ * How many people the repetition gates read back: Email 1's window before M2 (40 first emails, one per
+ * person), kept now that every touch is read (M2 fix 2). Fix round 1 took 60 drafts, which at seven
+ * touches a person is about eight people.
+ */
+export const COHORT_PEOPLE = 40;
+
+/** Drafts read to fill that window: seven touches a person, with room for a redraft or two. */
+const COHORT_ROWS = COHORT_PEOPLE * 10;
+
+/** The drafts of the first `max` people, newest first, every draft of each kept. */
+export function peopleWindow<T extends { campaignPersonId: string }>(drafts: readonly T[], max: number): T[] {
+  const people = new Set<string>();
+  return drafts.filter((draft) => {
+    if (people.has(draft.campaignPersonId)) return true;
+    if (people.size >= max) return false;
+    people.add(draft.campaignPersonId);
+    return true;
+  });
+}
 
 export async function cohortFor(
   db: Db,
@@ -139,12 +162,13 @@ export async function cohortFor(
     },
     include: { campaignPerson: { select: { companyKey: true } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 60,
+    take: COHORT_ROWS,
   });
-  return drafts.map((draft) => {
+  return peopleWindow(drafts, COHORT_PEOPLE).map((draft) => {
     const body = draft.editedBody ?? draft.body ?? "";
     const ref = (draft.opener as { ref?: unknown } | null)?.ref;
     return {
+      personId: draft.campaignPersonId,
       body,
       ask: draft.ask ?? "",
       ...(draft.subject === null ? {} : { subject: draft.subject }),

@@ -123,15 +123,44 @@ describe("the account-led search (v2.2 §4a)", () => {
   });
 
   it("pages discovery only while short of the target and more remain, as §4a says, and never past the cap", async () => {
-    // A page of weak titles adds no lead; more remain, so the next page is asked for (§4a), not given up on.
+    // A page with one lead and some weak titles is short of the target; more remain, so the next page is asked for (§4a).
     const provider = new FakeLeadGenProvider([
-      step([at("a", "Office Manager"), at("b", "Office Manager")], true),
+      step([at("a", "Office Manager"), at("b", "Office Manager"), at("c", runs(0))], true),
       step(accounts(10).map((account, index) => at(account, runs(index)))),
       step([]),
     ]);
     const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
     expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p1:a1", "complement:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 11, ofM: 20 } });
+  });
+
+  it("moves to the next part after a page that leaves no lead, rather than paging weak results to the cap", async () => {
+    // Only weak titles and more remain: the runs pass hands over to champions instead of asking for page 2.
+    const provider = new FakeLeadGenProvider([
+      step([at("a", "Office Manager"), at("b", "Office Manager")], true),
+      step(accounts(10).map((account) => at(account, "Complaints Manager"))),
+      step([]),
+    ]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "complement:a1",
+    ]);
     expect(result.output).toMatchObject({ phase: "pick", found: { n: 10, ofM: 20 } });
+  });
+
+  it("keeps paging the last part when a page leaves no lead, since there is no part to move to", async () => {
+    const provider = new FakeLeadGenProvider([step([at("a", "Office Manager")], true), step(accounts(3).map((account, index) => at(account, runs(index))))]);
+    const result = await findPeople(
+      handoffV2((h) => {
+        h.targeting.titles = ["Head of Claims", "Claims Operations Manager"];
+        h.spend.searchCreditCap = 30;
+      }),
+      deps(provider),
+    );
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p1:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 } });
   });
 
   it("@proof stops discovery mid-way when the cap cannot cover another page and the smallest complement", async () => {
@@ -219,7 +248,8 @@ describe("the account-led search (v2.2 §4a)", () => {
     const provider = new FakeLeadGenProvider([step([], false, 10)]);
     const result = await findPeople(handoffV2(), deps(provider));
     expect(provider.calls).toHaveLength(1);
-    expect(result.output).toMatchObject({ phase: "needs_you", reason: "no_candidates" });
+    // The cap stopped the fallback, so the rep is told to raise it, not to change the recipe.
+    expect(result.output).toMatchObject({ phase: "needs_you", reason: "over_cap" });
     expect(result.ledger.reduce((total, entry) => total + entry.worstCase, 0)).toBeLessThanOrEqual(20);
   });
 

@@ -218,7 +218,8 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
   // Search 1: account discovery, one part's titles a pass. A pass that finds
   // no lead account hands over to the next part, inside the same cap.
   let discoveryPart: RolePart | null = null;
-  for (const [index, part] of (parts.length === 0 ? [null] : parts).entries()) {
+  const passes = parts.length === 0 ? [null] : parts;
+  for (const [index, part] of passes.entries()) {
     if (index > 0 && !(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
       capStopped = true;
       break;
@@ -236,7 +237,11 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
       }
       await admit(run, handoff, asked.page.candidates, eligible);
       // v2.2 §4a: page only while fewer than the target have a lead, and more remain.
-      if (allocate(eligible, options).leadAccounts.length >= target || !asked.page.hasMore) break;
+      const leads = allocate(eligible, options).leadAccounts.length;
+      if (leads >= target || !asked.page.hasMore) break;
+      // A page that leaves this pass with no lead hands over to the next part,
+      // rather than paging weak or held results to the cap.
+      if (leads === 0 && index < passes.length - 1) break;
       if (!(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
         capStopped = true;
         break;
@@ -286,7 +291,8 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
 
   const allocated = allocate(eligible, options);
   holds.push(...allocated.held);
-  if (allocated.chosen.length === 0) return run.halt({ reason: "no_candidates" }, translated);
+  // Nobody found because the cap stopped the search is the cap's doing, not the recipe's.
+  if (allocated.chosen.length === 0) return run.halt({ reason: capStopped ? "over_cap" : "no_candidates" }, translated);
   // v2.2 §8a: short is `cap_reached` when the cap stopped a search, and
   // otherwise `fewer_strong_matches`.
   const shortfall = allocated.chosen.length >= handoff.howMany ? undefined : capStopped ? ("cap_reached" as const) : ("fewer_strong_matches" as const);

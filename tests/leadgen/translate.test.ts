@@ -58,13 +58,18 @@ describe("countries and places", () => {
 describe("size", () => {
   it("keeps the provider buckets the signed band overlaps, and records the effective range", () => {
     const result = ok(translate(handoff(), VOCABULARY));
-    // 50 to 500 overlaps 11 to 50 at its edge, 51 to 200 and 201 to 500; never 501 to 1000.
+    // 50 to 500 overlaps 51 to 200 and 201 to 500; 11 to 50 only touches its edge.
     expect(result.filters.sizes).toEqual([
-      { min: 11, max: 50 },
       { min: 51, max: 200 },
       { min: 201, max: 500 },
     ]);
-    expect(result.effective.sizeBand).toEqual({ min: 11, max: 500 });
+    expect(result.effective.sizeBand).toEqual({ min: 51, max: 500 });
+  });
+
+  it("leaves out a bucket that only touches the band's edge, at either end", () => {
+    const result = ok(translate(handoff((h) => (h.targeting.sizeBand = { min: 200, max: 501 })), VOCABULARY));
+    expect(result.filters.sizes).toEqual([{ min: 201, max: 500 }]);
+    expect(result.effective.sizeBand).toEqual({ min: 201, max: 500 });
   });
 
   it("keeps every bucket that overlaps the band, not only the ones inside it: 80 to 800 is 51 to 1000", () => {

@@ -87,9 +87,10 @@ export function translate(
     sizes = [{ ...targeting.sizeBand }];
   } else {
     // Every bucket that overlaps the band: the band is Research's own range,
-    // and a bucket straddling its edge is still the rep's market.
+    // and a bucket straddling its edge is still the rep's market. A bucket
+    // that only touches the edge (11 to 50 against 50 to 500) does not count.
     sizes = vocabulary.sizes.buckets
-      .filter((bucket) => bucket.min <= targeting.sizeBand.max && bucket.max >= targeting.sizeBand.min)
+      .filter((bucket) => bucket.min < targeting.sizeBand.max && bucket.max > targeting.sizeBand.min)
       .sort((a, b) => a.min - b.min || a.max - b.max);
     if (sizes.length === 0) return { ok: false, halt: { reason: "would_widen", field: "sizeBand" } };
   }

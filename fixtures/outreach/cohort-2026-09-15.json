@@ -318,6 +318,34 @@
         "text": "Risk types are configurable by the customer; flagged calls appear on a Risks page and are counted on the dashboard.",
         "note": "This is configurable risk typing, not a purpose-built vulnerability-detection module — never claim compliance certification."
       }
+    ],
+    "evidence": [
+      {
+        "id": "v-a1-2",
+        "quote": "Larger sample sizes place unnecessary strain on QA teams without significantly improving the quality of insights.",
+        "sourceName": "Garry Gormley",
+        "url": "https://www.callcentrehelper.com/video-sample-size-quality-scoring-243445.htm"
+      },
+      {
+        "id": "pn-a1-coaching-on-anecdote",
+        "quote": "In most contact centers, QA analysts review a handful of calls per agent each month. The calls are usually selected at random.",
+        "sourceName": "linkedin.com",
+        "url": "https://www.linkedin.com/posts/chordia_contactcenters-qualityassurance-activity-7442209043978354688-ixbq"
+      },
+      {
+        "id": "ph-a1-strategic-asset",
+        "quote": "We're not just here to manage the claim. Obviously, that's really important, but we are fundamental to how you design and market your product.",
+        "sourceName": "Matt Cox",
+        "url": "https://www.clearspeed.com/news/insurance-post-the-big-interview-matt-cox-allianz-uk",
+        "date": "2026-04-28"
+      },
+      {
+        "id": "ph-a1-many-factors-delay",
+        "quote": "There are many factors that can drive claims taking longer.",
+        "sourceName": "Jon Walker",
+        "url": "https://www.insurancetimes.co.uk/analysis/in-focus-insurer-complaints-are-rising-so-what-is-being-done-to-improve-claims-service/1445969.article",
+        "date": "2023-10-27"
+      }
     ]
   },
   "people": [

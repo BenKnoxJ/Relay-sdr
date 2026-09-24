@@ -9,7 +9,8 @@ import { DraftCard } from "@/components/inbox/DraftCard";
 import type { RejectReason } from "@/lib/copy/inbox";
 import { outreachPeopleCopy as c } from "@/lib/copy/outreachPeople";
 import type { DraftItem } from "@/lib/fixtures/inbox";
-import { activityInDateOrder, copyTextOf, markButtonsFor, undoableId } from "@/lib/outreach/peopleList";
+import { emailCopyText } from "@/lib/outreach/envelope";
+import { activityInDateOrder, callScriptFor, copyTextOf, markButtonsFor, undoableId } from "@/lib/outreach/peopleList";
 import { dayLabel, type StepId } from "@/lib/outreach/sequence";
 import type { SendOffer } from "@/lib/outreach/send";
 import { CALL_RESULTS, channelOf, type CallResult, type OutreachOutcome, type StepAction, type TrackedStep } from "@/lib/outreach/track";
@@ -467,7 +468,7 @@ function StepItem({
 
       {open ? (
         <div id={panelId} data-testid="drawer-step-panel" className="grid gap-3 border-t border-line px-3 py-3">
-          <StepDraftView channel={channel} draft={draft} card={card} busy={busy} run={run} actions={actions} />
+          <StepDraftView channel={channel} stepId={step.id} draft={draft} card={card} busy={busy} run={run} actions={actions} />
 
           {channel === "email" && (offer !== null || sendNote !== null) ? (
             <div data-testid="drawer-send" className="grid gap-2">
@@ -520,6 +521,7 @@ function StepItem({
 
 function StepDraftView({
   channel,
+  stepId,
   draft,
   card,
   busy,
@@ -527,6 +529,8 @@ function StepDraftView({
   actions,
 }: {
   channel: ReturnType<typeof channelOf>;
+  /** Which step is open: both calls read one script, and call 2 reads its own half (M2). */
+  stepId: string;
   draft: StepDraft | null;
   card: DraftItem | null;
   busy: string | null;
@@ -569,12 +573,14 @@ function StepDraftView({
         {draft.subject === null ? null : <p className="text-15 font-semibold text-ink">{draft.subject}</p>}
         <Paragraphs text={draft.body ?? ""} />
         {/* Unsent, it can still go by hand (P7): the words to paste, greeting and sign-off included. */}
-        {draft.body === null ? null : <CopyButton text={emailCopyText(draft.body, card)} />}
+        {draft.body === null ? null : <CopyButton text={emailCopyText(draft.body, card?.envelope)} />}
       </div>
     );
   }
 
-  const text = copyTextOf(draft);
+  // M2: both call steps read the one script; call 2 reads its own opener and question out of it.
+  const stored = copyTextOf(draft);
+  const text = stepId === "call1" || stepId === "call2" ? callScriptFor(stepId, stored) : stored;
   return (
     <div data-testid="drawer-message" className="grid gap-2">
       {draft.state === "failed" || (draft.state === "needs_you" && draft.body === null) ? (
@@ -589,12 +595,6 @@ function StepDraftView({
       </div>
     </div>
   );
-}
-
-/** An approved email as the rep would paste it: the card's greeting, the body, the card's sign-off. */
-function emailCopyText(body: string, card: DraftItem | null): string {
-  const envelope = card?.envelope;
-  return [envelope?.greeting ?? "", body.trim(), envelope?.signOff ?? ""].filter((part) => part.trim() !== "").join("\n\n");
 }
 
 function TryAgain({ draft, busy, onTry }: { draft: StepDraft; busy: string | null; onTry: () => void }) {

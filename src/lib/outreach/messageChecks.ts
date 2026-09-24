@@ -83,12 +83,14 @@ export function proseString(prose: {
   body?: string;
   openingLine?: string;
   oneQuestion?: string;
+  openingLine2?: string;
+  oneQuestion2?: string;
   listenFor?: string;
   voicemail?: string;
   objections?: { objection: string; answer: string }[];
 }): string {
   if (prose.body !== undefined) return [prose.subject, prose.body].filter((part) => part !== undefined).join("\n\n");
-  return [prose.openingLine, prose.oneQuestion, prose.listenFor, prose.voicemail, ...(prose.objections ?? []).flatMap((pair) => [pair.objection, pair.answer])]
+  return [prose.openingLine, prose.oneQuestion, prose.openingLine2, prose.oneQuestion2, prose.listenFor, prose.voicemail, ...(prose.objections ?? []).flatMap((pair) => [pair.objection, pair.answer])]
     .filter((part) => part !== undefined)
     .join("\n\n");
 }
@@ -99,7 +101,24 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const PRODUCT_SENTENCE =
   /\b(?:we|our (?:tool|product|platform|software|system|service))\s+(?:now\s+)?(?:score|scores|check|checks|transcribe|transcribes|analyse|analyses|read|reads|review|reviews|flag|flags|build|built|help|helps|pull|pulls|search|searches)\b|\bevery (?:analysed |recorded |ingested )?call (?:that comes in|you take|gets transcribed)\b/i;
 
-/** The product named, a product sentence, or a cited fact. */
+/**
+ * The product named or a fact cited: the deterministic half of
+ * `mentionsProduct`, and the only half a gate may read (M2).
+ *
+ * `mentionsProduct` also reads `PRODUCT_SENTENCE`, a pattern over first-person
+ * prose. That is fine for a report measure that says it is a heuristic and
+ * wrong for a Tier A hold: "we score every call that comes in" is a pitch,
+ * and so, to the same regex, is a sentence a rep would be right to send.
+ * A gate holds what code can be sure of.
+ */
+export function namesProduct(touch: CheckedTouch, product: string): boolean {
+  if (touch.claims.length > 0) return true;
+  if (product.trim() === "") return false;
+  const text = `${touch.subject ?? ""}\n${touch.body}`;
+  return new RegExp(`(^|[^a-z0-9])${escape(product.toLowerCase())}($|[^a-z0-9])`).test(text.toLowerCase());
+}
+
+/** The product named, a product sentence, or a cited fact. A heuristic: the report says so. */
 export function mentionsProduct(touch: CheckedTouch, product: string): boolean {
   if (touch.claims.length > 0) return true;
   const text = `${touch.subject ?? ""}\n${touch.body}`;

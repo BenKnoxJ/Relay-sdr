@@ -127,14 +127,29 @@ describe("the call script", () => {
   it("still reads a talking point written before P2, and the gate holds one with no voicemail", () => {
     const older = outputSchemaFor("call").parse(call({}));
     expect(gateTouch(older, input("call"), context).tierA.map((finding) => finding.rule)).toContain("voicemail");
-    const current = outputSchemaFor("call").parse(call({ voicemail: "Calling about the calls behind complaints; I will send a note by email." }));
+    // M2: the script needs the second call's own words too, or the rep rings twice and says the same thing.
+    const noSecond = outputSchemaFor("call").parse(call({ voicemail: "Calling about the calls behind complaints; I will send a note by email." }));
+    expect(gateTouch(noSecond, input("call"), context).tierA.map((finding) => finding.rule)).toContain("second-call");
+    const current = outputSchemaFor("call").parse(
+      call({
+        voicemail: "Calling about the calls behind complaints; I will send a note by email.",
+        openingLine2: "Calling again after the note I sent about complaint calls. Is now a bad time?",
+        oneQuestion2: "Who decides which calls get listened to each week?",
+      }),
+    );
     expect(gateTouch(current, input("call"), context).tierA).toEqual([]);
   });
 
   it("is asked for with both in the sequence", () => {
     const shape = sequenceOutputSchema.shape.call;
     expect(shape.safeParse(call({})).success).toBe(false);
-    expect(shape.safeParse(call({ voicemail: "Calling about complaints.", objections: [] })).success).toBe(true);
+    expect(shape.safeParse(call({ voicemail: "Calling about complaints.", objections: [] })).success).toBe(false);
+    // M2: the sequence asks for both calls.
+    expect(
+      shape.safeParse(
+        call({ voicemail: "Calling about complaints.", objections: [], openingLine2: "Calling again after my note about complaint calls.", oneQuestion2: "Who decides which calls get listened to?" }),
+      ).success,
+    ).toBe(true);
   });
 });
 
@@ -148,7 +163,7 @@ describe("the sequence answer", () => {
     // An em dash: this touch's own rule.
     li_dm: message("Thanks for connecting — one thought. Is it live?", "Is it live?"),
     li_dm2: message("A last thought. Worth a chat?", "Worth a chat?"),
-    call: call({ voicemail: "Calling about complaints.", objections: [] }),
+    call: call({ voicemail: "Calling about complaints.", objections: [], openingLine2: "Calling again after my note.", oneQuestion2: "Who decides which calls get listened to?" }),
   };
 
   it("checks each touch against its own rules: one out of shape leaves the other six", () => {

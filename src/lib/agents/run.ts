@@ -154,11 +154,14 @@ export class RunCapError extends Error {
 export class AgentRunFailedError extends Error {
   readonly reason: FailureReason;
   readonly runId: string;
-  constructor(reason: FailureReason, runId: string, message: string, options?: { cause?: unknown }) {
+  /** For a `cap`, which one: `minutes` is the wall clock, so a caller can tell a run that ran out of time from one that answered badly. */
+  readonly cap?: string;
+  constructor(reason: FailureReason, runId: string, message: string, options?: { cause?: unknown; cap?: string }) {
     super(message, options);
     this.name = "AgentRunFailedError";
     this.reason = reason;
     this.runId = runId;
+    if (options?.cap !== undefined) this.cap = options.cap;
   }
 }
 
@@ -438,7 +441,7 @@ export async function runAgent<IN, OUT>({
       // timer — is an abort of this controller with a `RunCapError` reason, and
       // it is a cap, not a lost lease. Read before the generic abort branch.
       if (controller.signal.reason instanceof RunCapError && !aborted(ctx.signal)) {
-        throw await failRun(ctx, run, costMicro, "cap", controller.signal.reason.message, error, scrub);
+        throw await failRun(ctx, run, costMicro, "cap", controller.signal.reason.message, error, scrub, controller.signal.reason.field);
       }
       if (aborted(ctx.signal) || controller.signal.aborted) {
         throw await failRun(ctx, run, costMicro, "aborted", "the run was aborted", error, scrub);
@@ -570,6 +573,7 @@ async function failRun(
   summary: string,
   cause: unknown,
   scrub: (error: unknown) => string,
+  cap?: string,
 ): Promise<AgentRunFailedError> {
   const detail = scrub(cause);
   const error = `${reason}: ${summary}${detail === "" ? "" : ` (${detail})`}`;
@@ -589,7 +593,7 @@ async function failRun(
     // hide the reason the run ended. The row stays `running` and the reaper's
     // view of the job is unchanged.
   }
-  return new AgentRunFailedError(reason, run.id, error, { cause });
+  return new AgentRunFailedError(reason, run.id, error, { cause, ...(cap === undefined ? {} : { cap }) });
 }
 
 /**

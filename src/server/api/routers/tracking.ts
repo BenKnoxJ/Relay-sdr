@@ -6,7 +6,7 @@ import { weekDays, weekStartOf } from "@/lib/outreach/calendar";
 import { isIsoDate, londonDay } from "@/lib/outreach/sequence";
 import { draftItemOf } from "@/lib/outreach/view";
 import { draftsForCard } from "@/lib/repo/outreach";
-import { sendOffersFor } from "@/lib/repo/outreachSend";
+import { emailLookOf, sendOffersFor } from "@/lib/repo/outreachSend";
 import { CALL_RESULTS, NOTE_MAX, OUTREACH_OUTCOMES, STEP_ACTIONS, channelOf, isStepId } from "@/lib/outreach/track";
 import {
   TrackingRefused,
@@ -123,7 +123,8 @@ export const trackingRouter = createTRPCRouter({
     const emailDraftIds = Object.entries(view.drafts).flatMap(([step, draft]) => (draft !== null && isStepId(step) && channelOf(step) === "email" ? [draft.id] : []));
     const rows = await draftsForCard(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, ids: emailDraftIds });
     const repName = (await ctx.prisma.user.findFirst({ where: { id: ctx.userId, orgId: ctx.orgId }, select: { name: true } }))?.name?.trim() ?? "";
-    const cards = new Map(rows.map((row) => [row.id, draftItemOf(row, repName)]));
+    const look = await emailLookOf(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId });
+    const cards = new Map(rows.map((row) => [row.id, draftItemOf(row, repName, look.signature)]));
     const emailCards = Object.fromEntries(Object.entries(view.drafts).flatMap(([step, draft]) => (draft !== null && cards.has(draft.id) ? [[step, cards.get(draft.id)!]] : [])));
     // What each email step's Send button says (P7): read on the server by the same rule the send itself checks.
     const sendOffers = await sendOffersFor(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId, campaignPersonId: input.personId });

@@ -84,12 +84,33 @@ const talkingPointObject = z
      */
     voicemail: z.string().min(1).max(400).optional(),
     objections: z.array(objectionSchema).max(MAX_OBJECTIONS).optional(),
+    /**
+     * The second call's own opener and question (M2, 23 Sep 2026).
+     *
+     * One script served both calls in the 22 Sep cohort, six times out of
+     * six, so the rep rang twice and said the same words and left the same
+     * voicemail. Optional on the shape, like `voicemail`, so a script written
+     * before this still reads; the sequence asks for both and `gateTouch`
+     * holds a call that comes back without them.
+     */
+    openingLine2: z.string().min(1).max(300).optional(),
+    oneQuestion2: z.string().min(1).max(300).optional(),
   })
   .strict();
 
 function refineTalkingPoint(point: z.infer<typeof talkingPointObject>, ctx: z.RefinementCtx): void {
   if (words(point.openingLine) > 25) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["openingLine"], message: "an opening line is 25 words or fewer (§5)" });
+  }
+  if (point.openingLine2 !== undefined && words(point.openingLine2) > 25) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["openingLine2"], message: "an opening line is 25 words or fewer (§5)" });
+  }
+  // M2: the second call is a second call, not the first one read out again.
+  if (point.openingLine2 !== undefined && point.openingLine2.trim() === point.openingLine.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["openingLine2"], message: "the second call opens differently from the first" });
+  }
+  if (point.oneQuestion2 !== undefined && point.oneQuestion2.trim() === point.oneQuestion.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["oneQuestion2"], message: "the second call asks something the first call did not" });
   }
   if (point.voicemail !== undefined && words(point.voicemail) > MAX_VOICEMAIL_WORDS) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["voicemail"], message: `a voicemail is ${MAX_VOICEMAIL_WORDS} words or fewer` });
@@ -199,6 +220,8 @@ function authoredProse(
     ["talkingPoint.openingLine", point.openingLine],
     ["talkingPoint.oneQuestion", point.oneQuestion],
     ["talkingPoint.listenFor", point.listenFor],
+    ...(point.openingLine2 === undefined ? [] : ([["talkingPoint.openingLine2", point.openingLine2]] as [string, string][])),
+    ...(point.oneQuestion2 === undefined ? [] : ([["talkingPoint.oneQuestion2", point.oneQuestion2]] as [string, string][])),
     ...(point.voicemail === undefined ? [] : ([["talkingPoint.voicemail", point.voicemail]] as [string, string][])),
     ...(point.objections ?? []).flatMap((pair, index): [string, string][] => [
       [`talkingPoint.objections.${index}.objection`, pair.objection],
@@ -345,8 +368,19 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
   if (input.touch.kind === "email1" && (draft.claims.length > MAX_EMAIL1_CLAIMS || productSentences(draft, input.facts.product) > 1)) {
     findings.push({ rule: "one-claim", text: "A first email carries at most one sentence about the product, citing at most two facts." });
   }
-  if (input.touch.kind !== "email1" && draft.claims.length > MAX_TOUCH_CLAIMS) {
-    findings.push({ rule: "claim-count", text: `This cites ${draft.claims.length} facts; a touch cites at most ${MAX_TOUCH_CLAIMS}.` });
+  // M2 (23 Sep 2026): the price facts do not count against a call's cap.
+  //
+  // The standard says a call's price answer is always *complete* — the setup
+  // fee, the configuration review and the per-seat plans — which is two or
+  // three price ids before the call has said anything about the product. At a
+  // flat cap of three, obeying the standard broke the gate (the 22 Sep cohort
+  // held Blair's call on four ids for a price answer that was right). The two
+  // rules now agree: price ids are free in a call, everything else is capped
+  // as before, and no other touch is loosened — a price in a message is
+  // forbidden outright, not counted.
+  const counted = input.touch.kind === "call" ? draft.claims.filter((claim) => !isPriceFact(claim)) : draft.claims;
+  if (input.touch.kind !== "email1" && counted.length > MAX_TOUCH_CLAIMS) {
+    findings.push({ rule: "claim-count", text: `This cites ${counted.length} facts; a touch cites at most ${MAX_TOUCH_CLAIMS}.` });
   }
 
   return findings;
@@ -361,6 +395,11 @@ const MAX_EMAIL1_CLAIMS = 2;
  * v2.2 sets the per-touch limits; until then this holds the old line.
  */
 const MAX_TOUCH_CLAIMS = 3;
+
+/** A price fact id, as the facts file spells them. */
+export function isPriceFact(factId: string): boolean {
+  return /^i360\.price\./.test(factId);
+}
 
 function productSentences(draft: OutreachOutput, product: string): number {
   if (draft.kind !== "message" || product.trim() === "") return 0;

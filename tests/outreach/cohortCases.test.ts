@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { outreachInputSchema, type OutreachInput } from "../../agents/outreach/input.schema";
+import { outreachInputSchema, packSliceSchema, type OutreachInput } from "../../agents/outreach/input.schema";
 import { checkTouchLimits, messageOutputSchema, outputSchemaFor, outreachOutputSchema, type OutreachOutput } from "../../agents/outreach/output.schema";
 import recorded from "../../fixtures/outreach/cohort-2026-09-15.json";
 import goodInput from "../../agents/outreach/fixtures/input.good.json";
 import goodOutput from "../../agents/outreach/fixtures/output.good.json";
 import { objectShapedOutput } from "@/lib/agents/run";
 import { loadFacts } from "@/lib/facts/load";
-import { liveFacts } from "@/lib/outreach/adapter";
+import { liveFacts, withApprovedGives } from "@/lib/outreach/adapter";
 import { gateEmail1, normaliseClaims, type GateContext } from "@/lib/outreach/gates";
 import { loadStandard } from "@/lib/outreach/standard";
 
@@ -28,7 +28,10 @@ const context: GateContext = { productNames: [facts.product], repName: "", cohor
 const RECORDED_SENDER = { firstName: "Ben", company: "Conversant" };
 
 function inputOf(person: Recorded): OutreachInput {
-  return outreachInputSchema.parse({ sender: RECORDED_SENDER, ...person.input, pack: recorded.pack, facts, standard: loadStandard() });
+  const standard = loadStandard();
+  // As a live draft is built (M2): the standard's approved gives merged into the slice's evidence.
+  const pack = withApprovedGives(packSliceSchema.parse(recorded.pack), standard);
+  return outreachInputSchema.parse({ sender: RECORDED_SENDER, ...person.input, pack, facts, standard });
 }
 
 function person(name: string): { input: OutreachInput; draft: OutreachOutput } {
@@ -59,23 +62,35 @@ describe("the recorded cohort (15 Sep 2026)", () => {
   it.each(["Marlo Holloway", "Orla Bellamy"])("%s: the opener's ref listed as a claim no longer holds the draft", (name) => {
     const result = gate(name);
     expect(rules(result.tierA)).not.toContain("claim-id");
-    // Messaging v2's tell list holds Marlo's presumptive "…, or is that already sorted?" ask; nothing else holds either draft.
-    expect(result.tierA).toEqual(name === "Marlo Holloway" ? [{ rule: "tells", text: expect.stringContaining('"or is that"') }] : []);
+    // Messaging v2's tell list holds Marlo's presumptive "…, or is that already sorted?" ask.
+    if (name === "Marlo Holloway") expect(result.tierA).toContainEqual({ rule: "tells", text: expect.stringContaining('"or is that"') });
   });
 
-  it("Blair Kendrick: one product sentence citing two facts passes (D-1)", () => {
-    expect(gate("Blair Kendrick").tierA).toEqual([]);
+  /**
+   * M2 (23 Sep 2026): these six drafts were written on 15 Sep, before
+   * messaging v2, and every one of them pitches the product in the first
+   * email. M1 rewrote the prompt so the model would stop; M2 is what stops
+   * it. Pinning the holds here is the regression test for that — if a later
+   * change lets any of these five through again, this file says so.
+   */
+  it("holds every recorded first email for pitching the product, which messaging v2 forbids", () => {
+    for (const name of ["Blair Kendrick", "Emlyn Lomax", "Marlo Holloway", "Nell Oakley", "Orla Bellamy"]) {
+      expect(rules(gate(name).tierA), name).toContain("product-in-email1");
+    }
+  });
+
+  it("Orla Bellamy: the price in a cold email is held", () => {
+    expect(rules(gate("Orla Bellamy").tierA)).toContain("price-in-message");
   });
 
   it("Emlyn Lomax: a sentence opening on \"Finding\" is advice, not a hold", () => {
     const result = gate("Emlyn Lomax");
-    expect(result.tierA).toEqual([]);
+    expect(rules(result.tierA)).toEqual(["product-in-email1"]);
     expect(result.tierB.find((finding) => finding.rule === "sentence-start-name")?.text).toContain('"Finding"');
   });
 
   it("Nell Oakley: \"July's\" is a month, and the four-sentence paragraph still holds", () => {
-    const result = gate("Nell Oakley");
-    expect(rules(result.tierA)).toEqual(["paragraphs"]);
+    expect(rules(gate("Nell Oakley").tierA)).toContain("paragraphs");
   });
 
   it("Avery Dunmore: a first email is offered the message shape only", async () => {

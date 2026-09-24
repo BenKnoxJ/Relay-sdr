@@ -4,6 +4,7 @@ import { z } from "zod";
 import { campaignsCopy } from "@/lib/copy/campaigns";
 import { draftItemOf } from "@/lib/outreach/view";
 import { DraftRefused, MAX_VOICE_SAMPLES, REJECT_REASONS, approveDraft, rejectDraft, retryDraft, reviewQueue, saveVoice, voiceFor, voiceSampleSchema } from "@/lib/repo/outreach";
+import { emailLookOf } from "@/lib/repo/outreachSend";
 import { createTRPCRouter, repProcedure } from "@/server/api/trpc";
 
 /**
@@ -32,7 +33,9 @@ export const draftsRouter = createTRPCRouter({
   /** The rep's drafts waiting on them, needs-you first, as the Inbox draws them. */
   queue: repProcedure.query(async ({ ctx }) => {
     const name = await repName(ctx);
-    return { items: (await reviewQueue(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map((draft) => draftItemOf(draft, name)) };
+    // The card shows the email as the rep will send it, signature and opt-out included (M2).
+    const look = await emailLookOf(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId });
+    return { items: (await reviewQueue(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map((draft) => draftItemOf(draft, name, look.signature)) };
   }),
 
   /** Approve, with the rep's edit when they made one: Ready to send. */

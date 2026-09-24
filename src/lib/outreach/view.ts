@@ -6,6 +6,7 @@ import type { DraftItem, Opener } from "@/lib/fixtures/inbox";
 import type { QueuedDraft } from "@/lib/repo/outreach";
 
 import { firstNameOf, previewFields } from "./adapter";
+import { envelopeOf } from "./envelope";
 
 /**
  * A stored draft as the Inbox card draws it: the signed `DraftItem` shape, so
@@ -29,7 +30,11 @@ function findingTexts(value: OutreachDraft["findings"]): string[] {
   return Array.isArray(value) ? value.flatMap((entry) => (entry !== null && typeof entry === "object" && typeof (entry as { text?: unknown }).text === "string" ? [(entry as { text: string }).text] : [])) : [];
 }
 
-export function draftItemOf(draft: QueuedDraft, repName: string): DraftItem {
+/**
+ * `signature` is the rep's Settings signature as stored (HTML). The card
+ * shows it as plain lines, because the rep reads the card and copies from it.
+ */
+export function draftItemOf(draft: QueuedDraft, repName: string, signature = ""): DraftItem {
   const preview = previewFields(draft.campaignPerson.preview);
   // A touch parked with nothing written (the drafting limit) reads as not written, whatever its state.
   const needsYou: NeedsYouReason | null = draft.state === "failed" || (draft.state === "needs_you" && draft.body === null) ? "not_written" : draft.state === "needs_you" ? "checks" : null;
@@ -55,7 +60,7 @@ export function draftItemOf(draft: QueuedDraft, repName: string): DraftItem {
     needsYou,
     findings: findingTexts(draft.findings),
     advice: findingTexts(draft.advice),
-    envelope: { greeting: `Hi ${firstNameOf(preview.name)},`, signOff: firstNameOf(repName) },
+    envelope: envelopeOf({ firstName: firstNameOf(preview.name), repName: firstNameOf(repName), signature }),
     campaignName: draft.campaign.name,
     written: draft.state !== "failed" && draft.body !== null,
   };

@@ -1,13 +1,11 @@
 {
   "kind": "message",
   "subject": "Complaints and the calls behind them",
-  "body": "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.\n\nWhen quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started. We read every recorded call, so the pattern shows up in the first week rather than the next quarter. Would it be useful to see what a week of your own calls looks like read back?",
+  "body": "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.\n\nWhen quality checking covers one call in fifty, the habit behind a complaint is usually found weeks after it started. The calls that led to those complaints sit outside that sample, so the habit stays out of sight. Would it be useful to see what a week of your own calls looks like read back?",
   "ask": "Would it be useful to see what a week of your own calls looks like read back?",
   "opener": {
     "ref": "look-westbury-rebuild",
     "kind": "person_fact"
   },
-  "claims": [
-    "i360.read-every-call"
-  ]
+  "claims": []
 }

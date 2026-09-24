@@ -1,7 +1,8 @@
 import type { CampaignPerson } from "@prisma/client";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
-import { SEQUENCE, type LookupResult, type OutreachInput, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, type EvidenceQuote, type LookupResult, type OutreachInput, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
+import { hostOf, type Item } from "../../../agents/_shared/item.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { completeModule, deriveArchetype, deriveHook, type PackShape } from "../../../agents/research/output.schema";
 import { isSeedFirm } from "@/lib/leadgen/rank";
@@ -90,6 +91,71 @@ export function buyerRoleOf(row: AdapterFacts["row"], handoff: LeadGenHandoff): 
   return { id: `role-${role.part}`, part: role.part, title: role.title, needs: role.needs };
 }
 
+
+/**
+ * The plain words a message would name a source by, from its host: the FCA's
+ * own site is "the FCA", the ombudsman's is "the ombudsman". Anything not in
+ * the table is named by the host itself, which is honest if plain — a
+ * drafter may not attribute a quote to a source Relay cannot name.
+ *
+ * Never the item's `speaker` (M2 fix 2, Sentinel CWE-345). A speaker is words
+ * research read off a web page, and the gate trusts a written source name to
+ * say which body a quote is from: a scraped page whose speaker says "the FCA"
+ * would otherwise make its words the FCA's.
+ */
+const SOURCE_NAMES: readonly (readonly [RegExp, string])[] = [
+  [/(^|\.)fca\.org\.uk$/, "the FCA"],
+  [/(^|\.)financial-ombudsman\.org\.uk$/, "the ombudsman"],
+  [/(^|\.)handbook\.fca\.org\.uk$/, "the FCA"],
+  [/(^|\.)gov\.uk$/, "the government"],
+  [/(^|\.)ico\.org\.uk$/, "the ICO"],
+];
+
+export function sourceNameOf(item: { evidence: { urls: string[] } }): string | undefined {
+  const url = item.evidence.urls[0];
+  if (url === undefined) return undefined;
+  const host = hostOf(url);
+  return SOURCE_NAMES.find(([pattern]) => pattern.test(host))?.[1] ?? host;
+}
+
+/**
+ * An item as an evidence quote, or nothing.
+ *
+ * Nothing is the common and correct answer: an item with no stored `quote`
+ * and an item with no url are both unquotable, and passing either as
+ * quotable is exactly the drift M2 exists to stop (the 22 Sep re-review: a
+ * pain's paraphrase reached the drafter as if it were the FCA's wording).
+ */
+export function evidenceQuoteOf(item: Pick<Item, "id" | "quote" | "speaker" | "publishedAt" | "evidence">): EvidenceQuote | undefined {
+  const quote = item.quote?.trim() ?? "";
+  const url = item.evidence.urls[0];
+  const sourceName = sourceNameOf(item);
+  if (quote === "" || url === undefined || sourceName === undefined) return undefined;
+  return { id: item.id, quote, sourceName, url, ...(item.publishedAt === undefined ? {} : { date: item.publishedAt }) };
+}
+
+/**
+ * A research item good enough to quote to a prospect (M2 fix 2): marked strong, or from a primary source.
+ * The 23 Sep review traced six of nine rewrites to what the evidence list offered, weak items included —
+ * a vendor's LinkedIn post, and a practitioner quote that argued the opposite of the email twice.
+ */
+export function isVetted(item: Pick<Item, "confidence" | "evidence">): boolean {
+  return item.confidence === "strong" || item.evidence.primary;
+}
+
+/** The quotable evidence behind a slice, deduplicated by id, best sources first. */
+export function evidenceListOf(items: readonly Pick<Item, "id" | "quote" | "speaker" | "publishedAt" | "evidence">[]): EvidenceQuote[] {
+  const seen = new Set<string>();
+  const list: EvidenceQuote[] = [];
+  for (const item of items) {
+    const quote = evidenceQuoteOf(item);
+    if (quote === undefined || seen.has(quote.id)) continue;
+    seen.add(quote.id);
+    list.push(quote);
+  }
+  return list.slice(0, 12);
+}
+
 /** The confirmed archetype's slice of the pack: pains and words, hook, m09's angles and lines, m15's allowed proof. */
 export function packSliceOf(pack: PackShape, handoff: LeadGenHandoff, facts: ProductFacts): OutreachInput["pack"] {
   const archetypeId = handoff.buyerGroup.id;
@@ -107,12 +173,42 @@ export function packSliceOf(pack: PackShape, handoff: LeadGenHandoff, facts: Pro
     doDont: (messaging?.doDont ?? []).slice(0, 12),
     verbatim: (messaging?.verbatim ?? []).slice(0, 8),
     proof: proof.slice(0, 6).map((item) => ({ factId: item.factId, text: item.text, ...(item.note === undefined ? {} : { note: item.note }) })),
+    // M2: the quotable sources behind the slice. m09's verbatim phrases first —
+    // they are lifted from primary sources for exactly this — then the pains
+    // and buyer words, then the hook's trigger. m15's proof items carry no
+    // stored quote and no url of their own, so none of them is quotable.
+    // Fix round 2: only the vetted ones (`isVetted`); the lookup's own quotes and the approved gives are added after.
+    evidence: evidenceListOf([...(messaging?.verbatim ?? []), ...archetype.pains, ...archetype.language, ...(hook === undefined ? [] : [hook.whyNow])].filter(isVetted)),
   };
 }
 
 /** Only live facts reach the writer (§3). */
 export function liveFacts(facts: ProductFacts): ProductFacts {
   return { ...facts, facts: facts.facts.filter((fact) => fact.status === "live") };
+}
+
+/**
+ * The lookup's own quotes added to the slice's evidence. A lookup item is the
+ * one thing in the input that is about *this* person or firm, so its words are
+ * the most valuable quote a touch can carry, and it is held to the same bar:
+ * a stored quote and a url, or it is not quotable.
+ */
+export function withLookupEvidence(slice: OutreachInput["pack"], lookup: LookupResult): OutreachInput["pack"] {
+  const extra = evidenceListOf(lookup.items).filter((quote) => !slice.evidence.some((known) => known.id === quote.id));
+  return extra.length === 0 ? slice : { ...slice, evidence: [...extra, ...slice.evidence].slice(0, 12) };
+}
+
+/**
+ * The standard's approved gives added to the slice's evidence.
+ *
+ * They go first: they are the curated, scope-checked sentences a person
+ * signed off, and the pack's own quotes are whatever research happened to
+ * store. Each keeps its `scope` (M2 fix 2): fix round 1 dropped it, and the
+ * drafts then widened the quotes in exactly the directions it rules out.
+ */
+export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard): OutreachInput["pack"] {
+  const gives = standard.gives.filter((quote) => !slice.evidence.some((known) => known.id === quote.id));
+  return gives.length === 0 ? slice : { ...slice, evidence: [...gives, ...slice.evidence].slice(0, 12) };
 }
 
 export function buildOutreachInput(input: AdapterFacts): OutreachInput {
@@ -144,7 +240,7 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
     touch: touchOf(input.sequence === true ? "email1" : (input.touch ?? "email1"), input.now),
     ...(input.sequence === true ? { sequence: [...SEQUENCE] } : {}),
     thread: (input.thread ?? []).slice(0, 20),
-    pack: packSliceOf(input.pack, input.handoff, facts),
+    pack: withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, facts), input.lookup), input.standard),
     facts,
     // §15 resolution 1: the eight most recent email samples.
     voice: { email: input.voice.samples.slice(-8).map((sample) => sample.text), linkedin: [], howIWrite: input.voice.howIWrite.slice(0, 2000) },

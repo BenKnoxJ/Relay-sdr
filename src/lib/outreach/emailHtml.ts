@@ -138,6 +138,12 @@ export type EmailParts = {
   body: string;
   /** The rep's first name as the card signs off; empty for none. */
   signOff: string;
+  /**
+   * The soft opt-out (M2). Sent below the signature, as Benny-san's 22 Sep
+   * wording puts it. Empty only for a mail that is not a cold outreach email;
+   * `OPT_OUT_LINE` is what every draft carries.
+   */
+  optOut?: string;
 };
 
 /**
@@ -152,11 +158,14 @@ export function emailHtml(parts: EmailParts, look: EmailLook): string {
   const gap = `${size}pt`;
   const text = [paragraphs(parts.greeting, gap), paragraphs(parts.body, gap), parts.signOff.trim() === "" ? "" : paragraphs(parts.signOff, gap)].join("");
   const signature = sanitizeSignature(look.signature);
+  const optOut = (parts.optOut ?? "").trim();
   // The signature keeps its own fonts, as it does in Outlook; it only inherits the rep's where it sets none.
+  // The opt-out sits last, below the signature: it is Relay's line, not the rep's, and not part of their block.
   return (
     `<div style="font-family:${escapeHtml(font)};font-size:${size}pt">` +
     text +
     (signature === "" ? "" : `<div>${signature}</div>`) +
+    (optOut === "" ? "" : paragraphs(optOut, gap)) +
     `</div>`
   );
 }

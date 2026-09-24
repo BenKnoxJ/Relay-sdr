@@ -5,6 +5,7 @@ import type { DraftItem } from "@/lib/fixtures/inbox";
 import { SEQUENCE_TEMPLATE, type StepId } from "@/lib/outreach/sequence";
 import { liveEvents, trackPerson, type TrackEvent } from "@/lib/outreach/track";
 import type { StepDraft, TrackingRow } from "@/lib/repo/outreachTracking";
+import { envelopeOf } from "@/lib/outreach/envelope";
 
 /**
  * A person as the drawer receives them, folded by the real `trackPerson`,
@@ -38,7 +39,7 @@ export function emailCard(id: string, over: Partial<DraftItem> = {}): DraftItem 
     needsYou: null,
     findings: [],
     advice: [],
-    envelope: { greeting: "Hi Avery,", signOff: "Sam" },
+    envelope: envelopeOf({ firstName: "Avery", repName: "Sam", signature: "" }),
     campaignName: "Motor claims",
     written: true,
     ...over,

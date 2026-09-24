@@ -4,7 +4,7 @@ import path from "node:path";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 
-import { SEQUENCE, type OutreachInput, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, TOUCH_KINDS, type OutreachInput, type TouchKind } from "../../../agents/outreach/input.schema";
 import { LIMITS, outputSchemaFor, type OutreachOutput } from "../../../agents/outreach/output.schema";
 import {
   humanizeInputSchema,
@@ -29,8 +29,9 @@ import { draftCopy } from "@/lib/copy/draft";
 import { OUTREACH_PROSE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
-import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf } from "@/lib/outreach/adapter";
-import { addedFacts, gateFor, normaliseClaims, proseText, type Finding, type GateContext } from "@/lib/outreach/gates";
+import { loadNeverSay } from "@/lib/facts/neverSay";
+import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf, withApprovedGives, withLookupEvidence } from "@/lib/outreach/adapter";
+import { addedFacts, evidenceUsedIn, gateFor, humanizerLoss, normaliseClaims, proseText, withoutThreadSubject, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { changePct, mentionsProduct, proseString } from "@/lib/outreach/messageChecks";
 import { loadStandard } from "@/lib/outreach/standard";
@@ -87,6 +88,58 @@ const FACTS_VERSION = 2;
 /** At most two model generations per draft (v2.1 §6). */
 export const MAX_GENERATIONS = 2;
 
+/**
+ * The humanizer's own wall clock (M2, 23 Sep 2026).
+ *
+ * It shared the drafter's 300 seconds, and in the 22 Sep cohort that was not
+ * enough twice: Nell's pass never ran ("refused: cap") so 7 of her touches
+ * reached the rep unhumanized, and Blair's draft hit the same ceiling. The
+ * pass is doing more work than a draft call — it reads a 649-line prompt, the
+ * facts file and seven touches — so it gets a ceiling of its own rather than
+ * borrowing one sized for a different job.
+ */
+export const HUMANIZER_MAX_SECONDS = 600;
+
+/** One retry, for a pass that ran out of time or came back refused. */
+export const HUMANIZER_ATTEMPTS = 2;
+
+/**
+ * The draft calls' own wall clocks (M2 fix 1, 23 Sep 2026), set here beside the humanizer's rather than
+ * borrowed from the definition's one budget.
+ *
+ * The whole-sequence call now reads the evidence list and M2's rules as well as seven touch shapes, and in the
+ * 23 Sep partial cohort it ran out at 300 seconds three times in three people: both of Avery's generations and
+ * Emlyn's first; the third person's answer landed at 295. So it gets 600, like the humanizer. A single touch
+ * is one shape and one answer, the job the definition's 300 was sized for, so it keeps that.
+ */
+export const DRAFT_MAX_SECONDS = { sequence: 600, touch: 300 } as const;
+
+/**
+ * A generation that ran out of time (M2 fix 1). It is not a draft in the wrong shape and is not recorded as
+ * one: the rep, and the cohort report, see that the model never answered.
+ */
+export const TIMED_OUT: Finding = { rule: "timeout", text: "Writing this ran out of time before an answer came back. Ask for it again." };
+
+/** What the one corrective call is told about a generation that timed out: nothing was wrong with any words, there were none. */
+const TIMED_OUT_FIX = "The last answer ran out of time before it came back. Write it again, as briefly as the rules allow.";
+
+const SHAPE: Finding = { rule: "shape", text: "The draft did not come back in the right shape." };
+
+/** A generation the run refused: out of time, or out of shape with the reasons the redraft is told. */
+function refusedGeneration(error: AgentRunFailedError): Generation {
+  if (error.reason === "cap" && error.cap === "minutes") return { output: null, tierA: [TIMED_OUT], tierB: [], refused: { fixes: [TIMED_OUT_FIX] } };
+  return { output: null, tierA: [SHAPE], tierB: [], refused: refusalOf(error) };
+}
+
+/** Why a humanizer pass came back with nothing, for the Event and the cohort report: a timeout says so in words. */
+function humanizerError(outcome: { refused: true; error: AgentRunFailedError } | { refused: false; error: unknown }, seconds: number): string {
+  if (!outcome.refused) return safeError(outcome.error);
+  return outcome.error.reason === "cap" && outcome.error.cap === "minutes" ? `timed out at ${seconds} s` : `refused: ${outcome.error.reason}`;
+}
+
+/** A finding as the corrective call reads it: a timeout says nothing to fix, its `refused` fix says it instead. */
+const modelFindingsOf = (tierA: readonly Finding[]) => tierA.filter((finding) => finding.rule !== TIMED_OUT.rule).map((finding) => finding.text);
+
 /** Which call a model is made for: a draft generation or the humanizer pass. */
 export type ModelCall = { attempt: number; generation: number; pass: "draft" | "humanize"; humanize?: HumanizeInput };
 
@@ -97,6 +150,8 @@ export type OutreachHandlerDeps = {
   fetch: FetchService;
   facts?: ProductFacts;
   now?: () => Date;
+  /** Tests only: shorter wall clocks, so a run that never answers can be waited out in seconds. */
+  maxSeconds?: { sequence?: number; touch?: number; humanize?: number };
 };
 
 const fixtureDraftSchema = z.object({
@@ -246,6 +301,9 @@ export function callScriptText(point: Extract<OutreachOutput, { kind: "call" }>[
   return [
     `${copy.open} ${point.openingLine}`,
     `${copy.ask} ${point.oneQuestion}`,
+    // M2: the second call's own words, labelled, so the rep reads a different script the second time.
+    ...(point.openingLine2 === undefined ? [] : [`${copy.open2} ${point.openingLine2}`]),
+    ...(point.oneQuestion2 === undefined ? [] : [`${copy.ask2} ${point.oneQuestion2}`]),
     `${copy.listen} ${point.listenFor}`,
     ...(point.voicemail === undefined ? [] : [`${copy.voicemail} ${point.voicemail}`]),
     ...(point.objections ?? []).map((pair) => `${copy.ifTheySay} ${pair.objection}\n${copy.say} ${pair.answer}`),
@@ -266,7 +324,11 @@ export function storedDraftOf(
 ): NonNullable<TouchRecord["draft"]> {
   const opener = resolveOpener(output.opener, lookup, slice, buyerRole);
   if (output.kind === "call") return { body: callScriptText(output.talkingPoint), ask: output.talkingPoint.oneQuestion, opener, claims: output.claims };
-  const subject = kind === "email1" || kind === "breakup" ? output.subject : undefined;
+  // M2: only Email 1 opens a thread. The follow-up and the last email are
+  // replies in it, so neither carries a subject — six of six last emails in
+  // the 22 Sep cohort started a new thread, three of them with a lower-case
+  // company name, and a rep reading the inbox lost the conversation.
+  const subject = kind === "email1" ? output.subject : undefined;
   return { ...(subject === undefined ? {} : { subject }), body: output.body, ask: output.ask, opener, claims: output.claims };
 }
 
@@ -348,9 +410,14 @@ type HumanizerTouchLog = {
 
 type HumanizerLog = { ran: boolean; skipped?: string; error?: string; touches: Partial<Record<TouchKind, HumanizerTouchLog>> };
 
+/** Tier B advice on a touch the humanizer never reached (M2, item 3). */
+export const NOT_HUMANIZED: Finding = { rule: "not-humanized", text: "The humanizer did not run on this one, so these are the drafted words. Read it more closely than usual." };
+
 function resultOf(drafts: { id: string }[]): { draftId: string; draftIds: string[] } {
   return { draftId: drafts[0]!.id, draftIds: drafts.map((draft) => draft.id) };
 }
+
+const isTouchKind = (value: string): value is TouchKind => (TOUCH_KINDS as readonly string[]).includes(value);
 
 export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreachDeps()): Handler {
   return async ({ db, job, signal }) => {
@@ -438,6 +505,9 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const lookupUsed = lookup;
 
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
+    // The quotable sources behind this person's slice, read once: the recent drafts are scanned against them.
+    const standard = loadStandard();
+    const evidence = withApprovedGives(withLookupEvidence(slice, lookupUsed), standard).evidence;
     const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true, org: { select: { name: true } } } });
     if (owner === null) throw new TerminalError("outreach: the campaign's owner is not in this org");
     const repName = owner.name ?? owner.email.split("@")[0] ?? "";
@@ -449,12 +519,32 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       pack,
       facts,
       voice: await voiceFor(db, { orgId: job.orgId, userId: ownerUserId }),
-      standard: loadStandard(),
+      standard,
       lookup: lookupUsed,
-      recentDrafts: cohort.filter((entry) => entry.opening.trim() !== "" && entry.ask.trim() !== "").slice(0, 20).map((entry) => ({ opening: entry.opening, ask: entry.ask, ...(entry.subject === undefined ? {} : { subject: entry.subject }), sameAccount: entry.sameAccount })),
+      // M2: what a colleague at the same firm has already been sent, and not
+      // only their opening and ask — the angle they opened on and the source
+      // they quoted, so the drafter can take a different one rather than
+      // finding out from the gate that it took the same.
+      recentDrafts: cohort
+        .filter((entry) => entry.opening.trim() !== "" && entry.ask.trim() !== "")
+        .slice(0, 20)
+        .map((entry) => {
+          const evidenceIds = entry.sameAccount ? evidenceUsedIn(entry.body, evidence) : [];
+          return {
+            opening: entry.opening,
+            ask: entry.ask,
+            ...(entry.subject === undefined ? {} : { subject: entry.subject }),
+            sameAccount: entry.sameAccount,
+            ...(isTouchKind(entry.touch) ? { touch: entry.touch } : {}),
+            ...(entry.openerRef === undefined ? {} : { openerRef: entry.openerRef }),
+            ...(evidenceIds.length === 0 ? {} : { evidenceIds: evidenceIds.slice(0, 6) }),
+          };
+        }),
       now,
     };
-    const context: GateContext = { productNames: [facts.product], repName, cohort };
+    // The facts file's never-say list: research has been linted against it since brief E, and outreach
+    // writes to the same prospects about the same product, so it is held to the same list (M2).
+    const context: GateContext = { productNames: [facts.product], repName, cohort, neverSay: loadNeverSay(FACTS_PRODUCT, FACTS_VERSION) };
     // A rep's "wrong angle" or "wrong fact" (§9): the new draft moves away from the rejected one.
     const repRedraft =
       input.avoid === undefined
@@ -465,6 +555,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
           };
 
     const signed = loadDefinition("outreach");
+    const seconds = { sequence: DRAFT_MAX_SECONDS.sequence, touch: DRAFT_MAX_SECONDS.touch, humanize: HUMANIZER_MAX_SECONDS, ...deps.maxSeconds };
     const modelId = signed.model;
     if (modelId === null) throw new TerminalError("outreach: the definition names no model");
 
@@ -547,13 +638,34 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         touches: Object.fromEntries(candidates.map((kind) => [kind, proseOf(settled.get(kind)!.output!)])),
         limits: Object.fromEntries(candidates.map((kind) => [kind, limitText(kind)])),
       };
-      const outcome = await call({ ...signed, prompt: loadHumanizer(), input: humanizeInputSchema, output: humanizeOutputSchema }, humanizeInput, modelInput, {
-        attempt: input.attempt,
-        generation: 0,
-        pass: "humanize",
-        humanize: humanizeInput,
-      });
-      if (!outcome.ok) return { ...log, error: outcome.refused ? `refused: ${outcome.error.reason}` : safeError(outcome.error) };
+      const humanizerDefinition = {
+        ...signed,
+        prompt: loadHumanizer(),
+        input: humanizeInputSchema,
+        output: humanizeOutputSchema,
+        budget: { ...signed.budget, maxSeconds: seconds.humanize },
+      };
+      // One retry. A pass that ran out of time or came back out of shape is
+      // worth asking for again; the cost cap is the thing that stops it, and
+      // it is re-checked before the second attempt like any other model call.
+      let outcome = await call(humanizerDefinition, humanizeInput, modelInput, { attempt: input.attempt, generation: 0, pass: "humanize", humanize: humanizeInput });
+      let firstError: string | undefined;
+      for (let retry = 1; retry < HUMANIZER_ATTEMPTS && !outcome.ok; retry += 1) {
+        firstError ??= humanizerError(outcome, seconds.humanize);
+        if (capped()) break;
+        outcome = await call(humanizerDefinition, humanizeInput, modelInput, { attempt: input.attempt, generation: retry, pass: "humanize", humanize: humanizeInput });
+      }
+      if (!outcome.ok) {
+        // Nothing was humanized. The rep is told so on every touch, because a
+        // touch that never went through the pass is not the same as one that
+        // went through and came back unchanged, and only the rep can tell.
+        const error = firstError ?? humanizerError(outcome, seconds.humanize);
+        for (const kind of candidates) {
+          const entry = settled.get(kind)!;
+          settled.set(kind, { ...entry, record: { ...entry.record, advice: [...entry.record.advice, NOT_HUMANIZED] } });
+        }
+        return { ...log, error };
+      }
       log.ran = true;
       for (const kind of SEQUENCE.filter((candidate) => candidates.includes(candidate))) {
         const entry = settled.get(kind)!;
@@ -562,16 +674,19 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         const dropped = rewritten !== null && drafted.claims.length > 0 && rewritten.claims.length === 0;
         let reason: string | undefined;
         let accepted: { output: OutreachOutput; tierA: Finding[]; tierB: Finding[] } | undefined;
+        const cleanProductCut = dropped && drafted.kind === "message" && rewritten !== null && rewritten.kind === "message" && isCleanCut(drafted, rewritten, modelInput.facts.product);
         if (rewritten === null) reason = "no humanized text came back for this touch";
         // "I cut the product sentence" clears the claims only when the cut is certain (`isCleanCut`);
         // otherwise the drafted touch stands, claims and all.
-        else if (dropped && !(drafted.kind === "message" && rewritten.kind === "message" && isCleanCut(drafted, rewritten, modelInput.facts.product)))
+        else if (dropped && !cleanProductCut)
           reason = "said it cut the product sentence, but the words were reworded or still name the product: the drafted touch and its claims are kept";
         else {
           const shaped = outputSchemaFor(kind).safeParse(rewritten);
           const added = shaped.success ? addedFacts(drafted, shaped.data) : [];
+          const lost = shaped.success ? humanizerLoss(drafted, shaped.data, modelInput.pack.evidence, cleanProductCut) : null;
           if (!shaped.success) reason = `out of shape: ${shaped.error.issues.map((issue) => issue.message).join("; ").slice(0, 300)}`;
           else if (added.length > 0) reason = `added what the draft did not say: ${added.join(", ")}`;
+          else if (lost !== null) reason = `lost what the draft said: ${lost}`;
           else {
             const gateInput = gateInputOf(kind);
             const output = normaliseClaims(shaped.data, gateInput);
@@ -622,11 +737,16 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
         const redraft =
           previous === undefined
             ? repRedraft
-            : { findings: [...previous.tierA.map((finding) => finding.text), ...(previous.refused?.fixes ?? [])].slice(0, 20), previous: redraftPrevious(previous) };
+            : { findings: [...modelFindingsOf(previous.tierA), ...(previous.refused?.fixes ?? [])].slice(0, 20), previous: redraftPrevious(previous) };
         const generationInput = buildOutreachInput({ ...base, touch: kind, thread, ...(redraft === undefined ? {} : { redraft }) });
-        const outcome = await call({ ...signed, output: outputSchemaFor(kind) }, generationInput, generationInput, { attempt: input.attempt, generation: index, pass: "draft" });
+        const outcome = await call(
+          { ...signed, output: outputSchemaFor(kind), budget: { ...signed.budget, maxSeconds: seconds.touch } },
+          generationInput,
+          generationInput,
+          { attempt: input.attempt, generation: index, pass: "draft" },
+        );
         if (outcome.ok) {
-          const output = normaliseClaims(outcome.object, generationInput);
+          const output = normaliseClaims(withoutThreadSubject(outcome.object, kind), generationInput);
           const gates = gateFor(output, generationInput, context);
           generations.push({ output, tierA: gates.tierA, tierB: gates.tierB });
           if (gates.tierA.length === 0) break;
@@ -634,7 +754,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
           if (!unexpected(outcome.error)) throw outcome.error;
           return write(every("failed", unexpectedFinding, total(), generations.length), lookupUsed);
         } else {
-          generations.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], refused: refusalOf(outcome.error) });
+          generations.push(refusedGeneration(outcome.error));
         }
       }
       const settledOne = new Map([[kind, settle(kind, generations, stoppedByCap)]]);
@@ -647,7 +767,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     // -------------------------------------------------------------------------
     // The sequence: one call for all seven touches, then the gates per touch.
     const draftInput = buildOutreachInput({ ...base, sequence: true });
-    const sequenceDefinition = { ...signed, output: sequenceOutputSchema };
+    const sequenceDefinition = { ...signed, output: sequenceOutputSchema, budget: { ...signed.budget, maxSeconds: seconds.sequence } };
     const history = new Map<TouchKind, Generation[]>(kinds.map((kind) => [kind, []]));
     const latest = (kind: TouchKind) => [...history.get(kind)!].reverse().find((generation) => generation.output !== null)?.output ?? null;
     const threadOf = (kind: TouchKind, outputOf: (kind: TouchKind) => OutreachOutput | null) =>
@@ -660,8 +780,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     /** An answer's touches onto their histories, then each gated against the earlier touches as they now stand. */
     function take(outcome: Outcome<SequenceOutput>, which: readonly TouchKind[]): void {
       if (!outcome.ok) {
-        const refused = outcome.refused ? refusalOf(outcome.error) : undefined;
-        for (const kind of which) history.get(kind)!.push({ output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], ...(refused === undefined ? {} : { refused }) });
+        for (const kind of which) history.get(kind)!.push(outcome.refused ? refusedGeneration(outcome.error) : { output: null, tierA: [SHAPE], tierB: [] });
         return;
       }
       const parsedTouches = touchesOf(outcome.object);
@@ -671,8 +790,8 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
           .get(kind)!
           .push(
             touch.output === null
-              ? { output: null, tierA: [{ rule: "shape", text: "The draft did not come back in the right shape." }], tierB: [], refused: refusalFrom(outcome.object[kind], touch.issues) }
-              : { output: normaliseClaims(touch.output, draftInput), tierA: [], tierB: [] },
+              ? { output: null, tierA: [SHAPE], tierB: [], refused: refusalFrom(outcome.object[kind], touch.issues) }
+              : { output: normaliseClaims(withoutThreadSubject(touch.output, kind), draftInput), tierA: [], tierB: [] },
           );
       }
       for (const kind of SEQUENCE.filter((candidate) => which.includes(candidate))) {
@@ -699,7 +818,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       const findings = failing
         .flatMap((kind) => {
           const last = history.get(kind)!.at(-1)!;
-          return [...last.tierA.map((finding) => `${kind}: ${finding.text}`), ...(last.refused?.fixes ?? []).map((fix) => `${kind}: ${fix}`)];
+          return [...modelFindingsOf(last.tierA), ...(last.refused?.fixes ?? [])].map((finding) => `${kind}: ${finding}`);
         })
         .map((finding) => finding.slice(0, 500))
         .slice(0, 20);

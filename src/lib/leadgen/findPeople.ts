@@ -14,7 +14,7 @@ import { DEFAULT_EMAIL_POLICY, Knowledge, emailHold, preRevealChecks, type CrmCh
 import { domainKey, norm } from "./normalise";
 import { ProviderBusyError, ProviderNotSentError, ProviderUnknownOutcomeError, type LeadGenProvider, type ProviderCandidate, type ProviderFilters, type ProviderSearchPage, type ProviderVocabulary } from "./provider";
 import { rankCandidates, type Eligible, type Scored } from "./rank";
-import { PART_ORDER, roleTable, titlesByPart } from "./roles";
+import { PART_ORDER, roleTable, titlesByPart, type RolePart } from "./roles";
 import { DOCUMENTED_UNVERIFIED_PRICING, SearchSpend, documentedWorstCaseCharge, inMemorySpend, type SearchPricing, type SpendEntry, type SpendPort } from "./spend";
 import { INDUSTRY_ALIASES, locationNames, translate, type Translation } from "./translate";
 
@@ -190,17 +190,15 @@ async function titleLed(run: Run, handoff: LeadGenHandoff): Promise<FindPeopleRe
 
 /**
  * v2.2 §4a and §8a: accounts first, found through the confirmed group's
- * `runs` titles one person per company; then one search for the roles those
- * accounts lack, inside their domains; then the four passes.
+ * `runs` titles one person per company, falling back to the next part's
+ * titles while a pass finds no lead account; then one search for the roles
+ * those accounts lack, inside their domains; then the four passes.
  */
 async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeopleResult> {
   const { deps, pricing, spend, holds, translated } = run;
   const roles = roleTable(handoff.buyerRoles);
   const byPart = titlesByPart(handoff.targeting.titles, roles);
-  const discoveryPart = PART_ORDER.find((part) => byPart[part].length > 0) ?? null;
-  const discoveryTitles = discoveryPart === null ? handoff.targeting.titles : byPart[discoveryPart];
-  const complementParts = PART_ORDER.filter((part) => part !== discoveryPart && byPart[part].length > 0);
-  const complementTitles = complementParts.flatMap((part) => byPart[part]);
+  const parts = PART_ORDER.filter((part) => byPart[part].length > 0);
 
   const pageMin = deps.vocabulary.pageSize.min;
   const pageMax = Math.min(deps.vocabulary.pageSize.max, 50);
@@ -209,7 +207,7 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
   const target = targetAccountsFor(handoff.howMany);
   const discoveryPage = clampPage(target);
   // Room kept for the smallest complement request: discovery never spends it.
-  const complementFloor = complementTitles.length === 0 ? 0 : worst(pageMin);
+  const complementFloor = parts.length < 2 ? 0 : worst(pageMin);
   if (!(await spend.canReserve(worst(discoveryPage) + complementFloor))) return run.halt({ reason: "over_cap" }, translated);
 
   const options = { titles: handoff.targeting.titles, seedFirms: handoff.seedFirms, perCompanyMax: handoff.perCompanyMax, howMany: handoff.howMany, roles };
@@ -217,22 +215,37 @@ async function accountLed(run: Run, handoff: LeadGenHandoffV2): Promise<FindPeop
   const eligible: Eligible[] = [];
   let capStopped = false;
 
-  // Search 1: account discovery.
-  for (let page = 0; ; page += 1) {
-    const asked = await ask(run, `${base}:accounts:p${page}`, { ...translated.filters, titles: [...discoveryTitles], maxContactsPerCompany: 1 }, page, discoveryPage);
-    if (asked.kind === "halt") return run.halt({ reason: asked.reason }, translated);
-    if (asked.kind === "cap") {
+  // Search 1: account discovery, one part's titles a pass. A pass that finds
+  // no lead account hands over to the next part, inside the same cap.
+  let discoveryPart: RolePart | null = null;
+  for (const [index, part] of (parts.length === 0 ? [null] : parts).entries()) {
+    if (index > 0 && !(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
       capStopped = true;
       break;
     }
-    await admit(run, handoff, asked.page.candidates, eligible);
-    // v2.2 §4a: page only while fewer than the target have a lead, and more remain.
-    if (allocate(eligible, options).leadAccounts.length >= target || !asked.page.hasMore) break;
-    if (!(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
-      capStopped = true;
-      break;
+    discoveryPart = part;
+    const titles = part === null ? handoff.targeting.titles : byPart[part];
+    // The first pass keeps its original key, so its spend reservations match earlier runs.
+    const pass = index === 0 ? "accounts" : `accounts:${part}`;
+    for (let page = 0; ; page += 1) {
+      const asked = await ask(run, `${base}:${pass}:p${page}`, { ...translated.filters, titles: [...titles], maxContactsPerCompany: 1 }, page, discoveryPage);
+      if (asked.kind === "halt") return run.halt({ reason: asked.reason }, translated);
+      if (asked.kind === "cap") {
+        capStopped = true;
+        break;
+      }
+      await admit(run, handoff, asked.page.candidates, eligible);
+      // v2.2 §4a: page only while fewer than the target have a lead, and more remain.
+      if (allocate(eligible, options).leadAccounts.length >= target || !asked.page.hasMore) break;
+      if (!(await spend.canReserve(worst(discoveryPage) + complementFloor))) {
+        capStopped = true;
+        break;
+      }
     }
+    if (capStopped || allocate(eligible, options).leadAccounts.length > 0) break;
   }
+  const complementParts = parts.filter((part) => part !== discoveryPart);
+  const complementTitles = complementParts.flatMap((part) => byPart[part]);
 
   // Search 2: the roles the lead accounts lack, inside those accounts only.
   const first = allocate(eligible, options);

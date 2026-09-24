@@ -6,8 +6,9 @@ import type { ProviderFilters, ProviderVocabulary } from "./provider";
 /**
  * The handoff's targeting in the provider's terms, leadgen v2.1 §5.
  *
- * Pure: the vocabulary is handed in. Nothing here widens a required term. A
- * term that cannot be represented without widening halts before any search.
+ * Pure: the vocabulary is handed in. Nothing here widens a required term,
+ * except that a size band takes every provider bucket it overlaps. A term that
+ * cannot be represented halts before any search.
  * Provider ids stay inside `filters`; nothing the rep reads carries one.
  */
 
@@ -85,9 +86,10 @@ export function translate(
   if (vocabulary.sizes.kind === "range") {
     sizes = [{ ...targeting.sizeBand }];
   } else {
-    // Only buckets wholly inside the band: that narrows, and never widens.
+    // Every bucket that overlaps the band: the band is Research's own range,
+    // and a bucket straddling its edge is still the rep's market.
     sizes = vocabulary.sizes.buckets
-      .filter((bucket) => bucket.min >= targeting.sizeBand.min && bucket.max <= targeting.sizeBand.max)
+      .filter((bucket) => bucket.min <= targeting.sizeBand.max && bucket.max >= targeting.sizeBand.min)
       .sort((a, b) => a.min - b.min || a.max - b.max);
     if (sizes.length === 0) return { ok: false, halt: { reason: "would_widen", field: "sizeBand" } };
   }
@@ -172,7 +174,10 @@ function resolveIndustry(term: string, handoff: LeadGenHandoff, vocabulary: Prov
   }
 
   const choices = industryChoices(term, vocabulary, handoff.exclusions.orgTypes);
-  const picked = options.industryChoices?.[norm(term)];
+  // The rep's choice for this term, or else one they made for another term
+  // that this term offers too: one answer covers every term it fits.
+  const picked =
+    options.industryChoices?.[norm(term)] ?? Object.values(options.industryChoices ?? {}).find((label) => choices.some((choice) => norm(choice) === norm(label)));
   if (picked !== undefined && choices.some((choice) => norm(choice) === norm(picked))) {
     const hits = byLabel(picked, vocabulary).filter((entry) => entry.level === "sub");
     if (hits.length > 0) return { ok: true, ids: hits.map((entry) => entry.id), label: hits[0]!.label, via: "choice" };

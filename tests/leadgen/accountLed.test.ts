@@ -176,6 +176,53 @@ describe("the account-led search (v2.2 §4a)", () => {
     expect(provider.calls).toHaveLength(1);
   });
 
+  it("@proof falls back to the next role's titles when the runs titles find no accounts, then asks for the rest inside them", async () => {
+    const provider = new FakeLeadGenProvider([
+      step([]),
+      step(accounts(10).map((account) => at(account, "Complaints Manager"))),
+      step(accounts(10).map((account) => at(account, "Chief Operating Officer"))),
+    ]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "complement:a1",
+    ]);
+    expect(provider.calls[1]?.filters).toMatchObject({
+      titles: ["Claims Quality Manager", "Head of Customer Relations", "Complaints Manager"],
+      maxContactsPerCompany: 1,
+    });
+    expect(provider.calls[1]?.filters.companyDomains).toBeUndefined();
+    // The complement asks for the other parts, runs and signs, inside the accounts champions found.
+    expect(provider.calls[2]?.filters).toMatchObject({
+      titles: ["Head of Claims", "Claims Operations Manager", "Claims Director", "Chief Operating Officer"],
+      companyDomains: accounts(10).map((account) => `${account}.example`),
+    });
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 20, ofM: 20 } });
+    expect(result.ledger.reduce((total, entry) => total + entry.worstCase, 0)).toBeLessThanOrEqual(30);
+  });
+
+  it("falls back to the signs titles when neither runs nor champions titles find an account", async () => {
+    const provider = new FakeLeadGenProvider([step([]), step([]), step(accounts(3).map((account) => at(account, "Claims Director"))), step([])]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 40)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "accounts:signs:p0:a1",
+      "complement:a1",
+    ]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 } });
+  });
+
+  it("@proof stops cleanly when the cap cannot cover a second discovery pass, and never spends past it", async () => {
+    // A cap of 20: the first discovery page costs 10, leaving 10, not enough for a second page (10) and the smallest complement (10).
+    const provider = new FakeLeadGenProvider([step([], false, 10)]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    expect(provider.calls).toHaveLength(1);
+    expect(result.output).toMatchObject({ phase: "needs_you", reason: "no_candidates" });
+    expect(result.ledger.reduce((total, entry) => total + entry.worstCase, 0)).toBeLessThanOrEqual(20);
+  });
+
   it("@proof leaves a V1 handoff on the v2.1 search: one title list, no per-company limit of one, no domains", async () => {
     const provider = new FakeLeadGenProvider([step(accounts(12).map((account, index) => at(account, runs(index))), false, 10)]);
     const result = await findPeople(handoff(), deps(provider));

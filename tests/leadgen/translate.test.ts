@@ -56,21 +56,34 @@ describe("countries and places", () => {
 });
 
 describe("size", () => {
-  it("uses only the provider buckets wholly inside the signed band, and records the effective range", () => {
+  it("keeps the provider buckets the signed band overlaps, and records the effective range", () => {
     const result = ok(translate(handoff(), VOCABULARY));
+    // 50 to 500 overlaps 51 to 200 and 201 to 500; 11 to 50 only touches its edge.
     expect(result.filters.sizes).toEqual([
       { min: 51, max: 200 },
       { min: 201, max: 500 },
     ]);
     expect(result.effective.sizeBand).toEqual({ min: 51, max: 500 });
-    for (const size of result.filters.sizes) {
-      expect(size.min).toBeGreaterThanOrEqual(50);
-      expect(size.max).toBeLessThanOrEqual(500);
-    }
   });
 
-  it("halts when no bucket fits inside the band, rather than widening", () => {
-    expect(translate(handoff((h) => (h.targeting.sizeBand = { min: 60, max: 150 })), VOCABULARY)).toEqual({
+  it("leaves out a bucket that only touches the band's edge, at either end", () => {
+    const result = ok(translate(handoff((h) => (h.targeting.sizeBand = { min: 200, max: 501 })), VOCABULARY));
+    expect(result.filters.sizes).toEqual([{ min: 201, max: 500 }]);
+    expect(result.effective.sizeBand).toEqual({ min: 201, max: 500 });
+  });
+
+  it("keeps every bucket that overlaps the band, not only the ones inside it: 80 to 800 is 51 to 1000", () => {
+    const result = ok(translate(handoff((h) => (h.targeting.sizeBand = { min: 80, max: 800 })), VOCABULARY));
+    expect(result.filters.sizes).toEqual([
+      { min: 51, max: 200 },
+      { min: 201, max: 500 },
+      { min: 501, max: 1000 },
+    ]);
+    expect(result.effective.sizeBand).toEqual({ min: 51, max: 1000 });
+  });
+
+  it("halts only when no bucket overlaps the band at all", () => {
+    expect(translate(handoff((h) => (h.targeting.sizeBand = { min: 2000, max: 3000 })), VOCABULARY)).toEqual({
       ok: false,
       halt: { reason: "would_widen", field: "sizeBand" },
     });
@@ -120,6 +133,25 @@ describe("industries", () => {
     expect(chosen.effective.industries[0]?.via).toBe("choice");
     // "Finance" is a whole sector, never offered, so choosing it does nothing.
     expect(translate(research, VOCABULARY, { industryChoices: { "specialist insurance": "Finance" } }).ok).toBe(false);
+  });
+
+  it("applies the rep's one choice to every other unmatched term that offers the same option", () => {
+    const research = handoff((h) => (h.targeting.industries = ["Specialist insurance", "Motor insurance", "Personal lines insurance"]));
+    const first = translate(research, VOCABULARY);
+    expect(!first.ok && first.halt).toMatchObject({ reason: "choose_industry", term: "Specialist insurance" });
+    const chosen = ok(translate(research, VOCABULARY, { industryChoices: { "specialist insurance": "Insurance" } }));
+    expect(chosen.filters.industryIds).toEqual(["44"]);
+    expect(chosen.effective.industries.map((industry) => [industry.term, industry.label, industry.via])).toEqual([
+      ["Specialist insurance", "Insurance", "choice"],
+      ["Motor insurance", "Insurance", "choice"],
+      ["Personal lines insurance", "Insurance", "choice"],
+    ]);
+  });
+
+  it("still asks about a term whose own choices do not include the rep's earlier pick", () => {
+    const research = handoff((h) => (h.targeting.industries = ["Specialist insurance", "Veterinary care"]));
+    const result = translate(research, VOCABULARY, { industryChoices: { "specialist insurance": "Insurance" } });
+    expect(!result.ok && result.halt).toMatchObject({ reason: "choose_industry", term: "Veterinary care", choices: ["Veterinary"] });
   });
 
   it("halts on a term nothing in the vocabulary resembles", () => {

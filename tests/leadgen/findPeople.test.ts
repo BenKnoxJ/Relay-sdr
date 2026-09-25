@@ -101,7 +101,7 @@ describe("People found", () => {
 describe("halts before any search", () => {
   it("makes no provider call when the recipe cannot be translated without widening", async () => {
     const d = deps([]);
-    const result = await findPeople(handoff((h) => (h.targeting.sizeBand = { min: 60, max: 150 })), d);
+    const result = await findPeople(handoff((h) => (h.targeting.sizeBand = { min: 2000, max: 3000 })), d);
     expect(result.output).toMatchObject({ phase: "needs_you", reason: "would_widen", field: "sizeBand" });
     expect(d.provider.calls).toHaveLength(0);
   });

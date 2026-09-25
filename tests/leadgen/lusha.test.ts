@@ -109,23 +109,27 @@ describe("the Lusha vocabulary", () => {
 });
 
 describe("translation against the real Lusha taxonomy", () => {
-  it("narrows 5 to 250 people to the buckets wholly inside it, 11 to 200, and never takes 201 to 500", async () => {
+  it("takes every bucket 5 to 250 people overlaps, 1 to 500, and nothing beyond", async () => {
     const { vocabulary } = await lushaEnvironment(recorded().client, claims(), NOW);
     const translated = translate(claims(), vocabulary, { industryAliases: INDUSTRY_ALIASES });
     if (!translated.ok) throw new Error(`tests: ${JSON.stringify(translated.halt)}`);
     expect(translated.filters.sizes).toEqual([
+      { min: 1, max: 10 },
       { min: 11, max: 50 },
       { min: 51, max: 200 },
+      { min: 201, max: 500 },
     ]);
-    expect(translated.effective.sizeBand).toEqual({ min: 11, max: 200 });
+    expect(translated.effective.sizeBand).toEqual({ min: 1, max: 500 });
   });
 
-  it("never reaches the open top bucket, and halts when no bucket fits inside the band", async () => {
+  it("reaches the open top bucket only when the band does, and halts when no bucket overlaps the band", async () => {
     const { vocabulary } = await lushaEnvironment(recorded().client, claims(), NOW);
-    const wide = translate(handoff((value) => (value.targeting.sizeBand = { min: 1, max: 1_000_000 })), vocabulary);
+    const wide = translate(handoff((value) => (value.targeting.sizeBand = { min: 1, max: 100_000 })), vocabulary);
     if (!wide.ok) throw new Error("tests: expected a translation");
     expect(wide.filters.sizes.some((size) => size.max === OPEN_ENDED)).toBe(false);
-    expect(translate(handoff((value) => (value.targeting.sizeBand = { min: 5, max: 9 })), vocabulary)).toEqual({ ok: false, halt: { reason: "would_widen", field: "sizeBand" } });
+    const wider = translate(handoff((value) => (value.targeting.sizeBand = { min: 1, max: 1_000_000 })), vocabulary);
+    expect(wider.ok && wider.filters.sizes.some((size) => size.max === OPEN_ENDED)).toBe(true);
+    expect(translate(handoff((value) => (value.targeting.sizeBand = { min: 0, max: 0 })), vocabulary)).toEqual({ ok: false, halt: { reason: "would_widen", field: "sizeBand" } });
   });
 
   it("maps the insurance campaign's three labels to Insurance (44) through the documented aliases, once", async () => {

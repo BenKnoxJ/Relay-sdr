@@ -123,15 +123,44 @@ describe("the account-led search (v2.2 §4a)", () => {
   });
 
   it("pages discovery only while short of the target and more remain, as §4a says, and never past the cap", async () => {
-    // A page of weak titles adds no lead; more remain, so the next page is asked for (§4a), not given up on.
+    // A page with one lead and some weak titles is short of the target; more remain, so the next page is asked for (§4a).
     const provider = new FakeLeadGenProvider([
-      step([at("a", "Office Manager"), at("b", "Office Manager")], true),
+      step([at("a", "Office Manager"), at("b", "Office Manager"), at("c", runs(0))], true),
       step(accounts(10).map((account, index) => at(account, runs(index)))),
       step([]),
     ]);
     const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
     expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p1:a1", "complement:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 11, ofM: 20 } });
+  });
+
+  it("moves to the next part after a page that leaves no lead, rather than paging weak results to the cap", async () => {
+    // Only weak titles and more remain: the runs pass hands over to champions instead of asking for page 2.
+    const provider = new FakeLeadGenProvider([
+      step([at("a", "Office Manager"), at("b", "Office Manager")], true),
+      step(accounts(10).map((account) => at(account, "Complaints Manager"))),
+      step([]),
+    ]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "complement:a1",
+    ]);
     expect(result.output).toMatchObject({ phase: "pick", found: { n: 10, ofM: 20 } });
+  });
+
+  it("keeps paging the last part when a page leaves no lead, since there is no part to move to", async () => {
+    const provider = new FakeLeadGenProvider([step([at("a", "Office Manager")], true), step(accounts(3).map((account, index) => at(account, runs(index))))]);
+    const result = await findPeople(
+      handoffV2((h) => {
+        h.targeting.titles = ["Head of Claims", "Claims Operations Manager"];
+        h.spend.searchCreditCap = 30;
+      }),
+      deps(provider),
+    );
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual(["accounts:p0:a1", "accounts:p1:a1"]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 } });
   });
 
   it("@proof stops discovery mid-way when the cap cannot cover another page and the smallest complement", async () => {
@@ -174,6 +203,54 @@ describe("the account-led search (v2.2 §4a)", () => {
     const provider = new FakeLeadGenProvider([step(accounts(10).map((account, index) => at(account, runs(index))))]);
     await findPeople(handoffV2((h) => (h.targeting.titles = ["Head of Claims"])), deps(provider));
     expect(provider.calls).toHaveLength(1);
+  });
+
+  it("@proof falls back to the next role's titles when the runs titles find no accounts, then asks for the rest inside them", async () => {
+    const provider = new FakeLeadGenProvider([
+      step([]),
+      step(accounts(10).map((account) => at(account, "Complaints Manager"))),
+      step(accounts(10).map((account) => at(account, "Chief Operating Officer"))),
+    ]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 30)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "complement:a1",
+    ]);
+    expect(provider.calls[1]?.filters).toMatchObject({
+      titles: ["Claims Quality Manager", "Head of Customer Relations", "Complaints Manager"],
+      maxContactsPerCompany: 1,
+    });
+    expect(provider.calls[1]?.filters.companyDomains).toBeUndefined();
+    // The complement asks for the other parts, runs and signs, inside the accounts champions found.
+    expect(provider.calls[2]?.filters).toMatchObject({
+      titles: ["Head of Claims", "Claims Operations Manager", "Claims Director", "Chief Operating Officer"],
+      companyDomains: accounts(10).map((account) => `${account}.example`),
+    });
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 20, ofM: 20 } });
+    expect(result.ledger.reduce((total, entry) => total + entry.worstCase, 0)).toBeLessThanOrEqual(30);
+  });
+
+  it("falls back to the signs titles when neither runs nor champions titles find an account", async () => {
+    const provider = new FakeLeadGenProvider([step([]), step([]), step(accounts(3).map((account) => at(account, "Claims Director"))), step([])]);
+    const result = await findPeople(handoffV2((h) => (h.spend.searchCreditCap = 40)), deps(provider));
+    expect(provider.calls.map((call) => call.key.replace(/^campaign:[^:]+:lead_gen:v\d+:/, ""))).toEqual([
+      "accounts:p0:a1",
+      "accounts:champions:p0:a1",
+      "accounts:signs:p0:a1",
+      "complement:a1",
+    ]);
+    expect(result.output).toMatchObject({ phase: "pick", found: { n: 3, ofM: 20 } });
+  });
+
+  it("@proof stops cleanly when the cap cannot cover a second discovery pass, and never spends past it", async () => {
+    // A cap of 20: the first discovery page costs 10, leaving 10, not enough for a second page (10) and the smallest complement (10).
+    const provider = new FakeLeadGenProvider([step([], false, 10)]);
+    const result = await findPeople(handoffV2(), deps(provider));
+    expect(provider.calls).toHaveLength(1);
+    // The cap stopped the fallback, so the rep is told to raise it, not to change the recipe.
+    expect(result.output).toMatchObject({ phase: "needs_you", reason: "over_cap" });
+    expect(result.ledger.reduce((total, entry) => total + entry.worstCase, 0)).toBeLessThanOrEqual(20);
   });
 
   it("@proof leaves a V1 handoff on the v2.1 search: one title list, no per-company limit of one, no domains", async () => {

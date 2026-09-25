@@ -28,7 +28,10 @@ import { loadStandard } from "@/lib/outreach/standard";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
-import { fixtureWriter, isCleanCut, outreachDraftHandler, type ModelCall } from "@/worker/handlers/outreachDraft";
+import { fixtureWriter, isCleanCut, outreachDraftHandler, type ModelCall, type OutreachHandlerDeps } from "@/worker/handlers/outreachDraft";
+import { evidenceUsedIn } from "@/lib/outreach/gates";
+
+type OutreachHandlerMakeModel = OutreachHandlerDeps["makeModel"];
 import { revealHandler } from "@/worker/handlers/reveal";
 import { TerminalError } from "@/worker/errors";
 import { appRouter } from "@/server/api/root";
@@ -917,6 +920,39 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
 
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(draft).toMatchObject({ state: "to_review", generations: 2, findings: [], body: fixed });
+  });
+});
+
+describe("the give across the campaign (trial fix 1)", () => {
+  it("tells the drafter how many other people have already been sent each quote", async () => {
+    const { campaign } = await revealed(rep(), 2);
+    await writeEmails(rep(), campaign);
+    const [first, second] = await draftJobs(campaign);
+    // The first person's LinkedIn message quotes the FCA's 40-firm finding.
+    const fca = loadStandard().gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
+    const ask = "Who checks whether a fix worked on your side?";
+    const body = `A complaint write-up usually names a category and stops there, so nobody can say later whether the change that followed did anything. The FCA's review of 40 firms found that ${fca.quote.split(". ")[0]!.replace(/^Firms/, "firms")}. ${ask}`;
+    await runDraft(first!, ["good"], undefined, (ref) => ({ li_dm: { kind: "message", body, ask, opener: { ref, kind: "role_pain" }, claims: [] } }));
+
+    const model = writer(["good"]);
+    const inputs: OutreachInput[] = [];
+    const lookup = nothingFound();
+    await outreachDraftHandler({
+      makeModel: (id, input, at) => {
+        if (at.pass === "draft") inputs.push(input);
+        return (model.makeModel as OutreachHandlerMakeModel)(id, input, at);
+      },
+      search: lookup.search,
+      fetch: lookup.fetch,
+      now: () => new Date("2026-09-15T09:00:00Z"),
+    })({ db: prisma, job: { ...second!, attempts: 1 }, signal: new AbortController().signal });
+
+    const evidence = inputs[0]!.pack.evidence;
+    expect(evidence.length).toBeGreaterThan(0);
+    // What the first person was actually sent, quote by quote: the second person's input counts exactly that.
+    const sent = (await prisma.outreachDraft.findMany({ where: { jobId: first!.id } })).map((draft) => draft.body ?? "").join("\n");
+    for (const quote of evidence) expect(quote.usedBy, quote.id).toBe(evidenceUsedIn(sent, [quote]).length);
+    expect(evidence.find((quote) => quote.id === fca.id)?.usedBy).toBe(1);
   });
 });
 

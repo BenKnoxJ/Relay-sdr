@@ -67,20 +67,21 @@ describe("the lookup", () => {
     expect(fetched).toEqual(["https://claimsweekly.co.uk/marsh"]);
   });
 
-  it("falls to account evidence when there is nothing on the person, and spends no fetch on nothing", async () => {
+  it("falls to account evidence when there is nothing on the person, and spends no fetch on a stale hit", async () => {
     const { deps, fetched } = services({
       searches: {
-        // Old, and undated: neither is usable, so nothing is fetched.
+        // Old, and undated. The old one is never read. The undated one names her, so it is read in case the
+        // page dates it (trial fix 1); this one cannot be read at all, and the account step follows.
         [PERSON_QUERY]: [hit("https://old.example/marsh", "2024-01-01"), { title: "Helen Marsh", url: "https://undated.example", snippet: "Helen Marsh" }],
         [FIRM_QUERY]: [hit("https://westburymutual.co.uk/news/complaints", "2026-07-01", "Westbury Mutual news")],
       },
       pages: { "https://westburymutual.co.uk/news/complaints": "Westbury Mutual is rebuilding complaint handling after complaint volumes rose, so every conversations review now counts." },
     });
     const result = await lookupEvidence(subject, deps);
-    expect(result).toMatchObject({ usable: true, searches: 2, fetches: 1 });
+    expect(result).toMatchObject({ usable: true, searches: 2, fetches: 2 });
     // On the company's own site, so primary and strong.
     expect(result.items[0]).toMatchObject({ about: "firm", confidence: "strong", evidence: { primary: true } });
-    expect(fetched).toEqual(["https://westburymutual.co.uk/news/complaints"]);
+    expect(fetched).toEqual(["https://undated.example", "extract:https://undated.example", "https://westburymutual.co.uk/news/complaints"]);
   });
 
   it("uses the role problem when neither turns up anything: two searches, no fetch, nothing usable", async () => {

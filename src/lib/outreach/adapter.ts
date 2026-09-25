@@ -1,11 +1,12 @@
 import type { CampaignPerson } from "@prisma/client";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
-import { SEQUENCE, type EvidenceQuote, type LookupResult, type OutreachInput, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, type EvidenceQuote, type LookupResult, type OutreachInput, type ProductLine, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
 import { hostOf, type Item } from "../../../agents/_shared/item.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { completeModule, deriveArchetype, deriveHook, type PackShape } from "../../../agents/research/output.schema";
 import { isSeedFirm } from "@/lib/leadgen/rank";
+import { linesOf } from "@/lib/outreach/lookup";
 
 import type { MessageStandard } from "./standard";
 
@@ -40,6 +41,8 @@ export type AdapterFacts = {
   thread?: OutreachInput["thread"];
   /** P2: one answer writes the whole sequence, starting at Email 1. */
   sequence?: boolean;
+  /** How many other people in the campaign have been sent each quote, by id (trial fix 1). */
+  evidenceUse?: ReadonlyMap<string, number>;
 };
 
 type Preview = { name: string; title: string; company: string; domain?: string; city?: string };
@@ -206,9 +209,49 @@ export function withLookupEvidence(slice: OutreachInput["pack"], lookup: LookupR
  * store. Each keeps its `scope` (M2 fix 2): fix round 1 dropped it, and the
  * drafts then widened the quotes in exactly the directions it rules out.
  */
-export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard): OutreachInput["pack"] {
-  const gives = standard.gives.filter((quote) => !slice.evidence.some((known) => known.id === quote.id));
+export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard, now: Date, fit?: LineFit): OutreachInput["pack"] {
+  // With no `fit`, nothing is known either way and no line is filtered: the drafter always passes one (`evidenceSliceOf`).
+  // A give past its `validUntil` day is dropped, and the field itself never reaches the drafter.
+  const gives = standard.gives
+    .filter((quote) => quote.validUntil === undefined || now.getTime() < Date.parse(`${quote.validUntil}T00:00:00Z`) + 24 * 60 * 60 * 1000)
+    .filter((quote) => (fit === undefined || fitsLine(quote, fit)) && !slice.evidence.some((known) => known.id === quote.id))
+    .map(({ validUntil: _validUntil, ...quote }) => quote);
   return gives.length === 0 ? slice : { ...slice, evidence: [...gives, ...slice.evidence].slice(0, 12) };
+}
+
+/**
+ * Which product lines a person's firm sells, from the lookup, and which the campaign is aimed at, from its
+ * industries (trial fix 1). Both are keyword reads (`linesOf`), no model.
+ */
+export type LineFit = { firm: readonly ProductLine[]; campaign: readonly ProductLine[] };
+
+export function lineFitOf(lookup: Pick<LookupResult, "lines">, handoff: Pick<LeadGenHandoff, "targeting">): LineFit {
+  // An industry is a short label ("Motor insurance"), so one mention of a line's words says it.
+  return { firm: lookup.lines ?? [], campaign: linesOf(handoff.targeting.industries.join("\n"), "", 1) };
+}
+
+/**
+ * A quote about one product line goes to a person only when their firm sells that line, or when nothing says
+ * what their firm sells and the campaign is aimed at that line (trial fix 1). The ombudsman's car and
+ * motorcycle figure reached a legal-expenses firm and a travel insurer in the 24 Sep trial.
+ */
+export function fitsLine(quote: Pick<EvidenceQuote, "line">, fit: LineFit): boolean {
+  if (quote.line === undefined) return true;
+  return fit.firm.length > 0 ? fit.firm.includes(quote.line) : fit.campaign.includes(quote.line);
+}
+
+/**
+ * Each quote with how many other people in this campaign have already been sent it (trial fix 1), so the
+ * drafter can prefer the least used. `used` maps a quote's id to that count; a quote nobody has used says 0.
+ */
+export function withUsage(slice: OutreachInput["pack"], used: ReadonlyMap<string, number>): OutreachInput["pack"] {
+  return { ...slice, evidence: slice.evidence.map((quote) => ({ ...quote, usedBy: used.get(quote.id) ?? 0 })) };
+}
+
+/** The evidence list a person's touches may quote: the slice's, the lookup's and the approved gives that fit their firm's line. */
+export function evidenceSliceOf(input: Pick<AdapterFacts, "pack" | "handoff" | "facts" | "lookup" | "standard" | "evidenceUse" | "now">): OutreachInput["pack"] {
+  const slice = withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, liveFacts(input.facts)), input.lookup), input.standard, input.now, lineFitOf(input.lookup, input.handoff));
+  return input.evidenceUse === undefined ? slice : withUsage(slice, input.evidenceUse);
 }
 
 export function buildOutreachInput(input: AdapterFacts): OutreachInput {
@@ -240,7 +283,7 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
     touch: touchOf(input.sequence === true ? "email1" : (input.touch ?? "email1"), input.now),
     ...(input.sequence === true ? { sequence: [...SEQUENCE] } : {}),
     thread: (input.thread ?? []).slice(0, 20),
-    pack: withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, facts), input.lookup), input.standard),
+    pack: evidenceSliceOf(input),
     facts,
     // §15 resolution 1: the eight most recent email samples.
     voice: { email: input.voice.samples.slice(-8).map((sample) => sample.text), linkedin: [], howIWrite: input.voice.howIWrite.slice(0, 2000) },

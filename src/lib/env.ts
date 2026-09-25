@@ -54,6 +54,9 @@ function positiveMs(fallback: number) {
   );
 }
 
+/** A positive whole number that is not a duration: the same rules as `positiveMs`. */
+const positiveCount = positiveMs;
+
 /**
  * Base64 with no slack. `Buffer.from(s, "base64")` silently drops characters
  * outside the alphabet, so `Buffer.from("not a key!!!", "base64").length` is a
@@ -202,6 +205,18 @@ const schema = z
      * one thing the drain existed to avoid.
      */
     RELAY_WORKER_DRAIN_MS: positiveMs(540_000),
+    /**
+     * How many jobs one worker runs at once (trial fix 1, 25 Sep 2026). One
+     * at a time, seven people took about 65 minutes to draft in the live
+     * trial; twenty would take over three hours. The claim keeps colleagues at
+     * the same account apart (`claimNext`), so this only overlaps people whose
+     * drafts do not read each other.
+     *
+     * At most 8 (fix round 2): each claim is an interactive transaction that
+     * needs a pool connection within Prisma's 2 s wait, so past the pool a
+     * claim fails as `poll.failed` rather than queues.
+     */
+    RELAY_WORKER_CONCURRENCY: positiveCount(3).pipe(z.number().max(8)),
 
     // --- lead gen ---------------------------------------------------------
     /**

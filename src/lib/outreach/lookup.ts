@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { LookupItem, LookupResult } from "../../../agents/outreach/input.schema";
+import { PRODUCT_LINES, type LookupItem, type LookupResult, type ProductLine } from "../../../agents/outreach/input.schema";
 import { hostOf } from "../../../agents/_shared/item.schema";
 import { domainKey } from "@/lib/leadgen/normalise";
 import { capText, scrubFetched } from "@/lib/research/scrub";
@@ -15,11 +15,23 @@ import type { FetchService, PageRead, SearchHit, SearchService } from "@/lib/ser
  * normal case and a good email. Two searches and two fetches are a maximum,
  * not a quota, and the lookup stops the moment it has a usable, relevant item.
  *
- * `usable` means all of: dated within twelve months; from a page this lookup
- * fetched and scanned for injection; about this person (Tier 1) or their firm
- * (Tier 2) by name; relevant to the role's needs or the plan's pains; and
- * professional, never personal life. The quote is the page's own sentence, so
- * the card shows exactly what the email rests on.
+ * `usable` means all of: dated within twelve months, or undated on the firm's
+ * own site; from a page this lookup fetched and scanned for injection; about
+ * this person (Tier 1) or their firm (Tier 2) by name; relevant to the role's
+ * needs or the plan's pains; and professional, never personal life. The quote
+ * is the page's own sentence, so the card shows exactly what the email rests on.
+ *
+ * Undated hits (trial fix 1, 25 Sep 2026). Tavily's general search dates
+ * almost nothing: in the 24 Sep live trial every hit came back with no date,
+ * so every hit was dropped and the lookup was empty for 7 people of 7. A hit
+ * without a date is now still read when it names the person or the firm, and
+ * its date is taken from the page when the page gives one. A page still
+ * undated after that is used only when it is on the firm's own domain (its
+ * complaints policy, say), and then only as a `weak` item. A dated item older
+ * than twelve months is dropped, whether the search or the page dated it.
+ *
+ * The lookup also says which product lines the firm sells, when its words say
+ * so (`linesOf`): the ombudsman's motor figure is no give for a travel insurer.
  */
 
 export type LookupSubject = {
@@ -85,6 +97,70 @@ function accountWords(terms: readonly string[], company: string): string[] {
     .sort((a, b) => b.count - a.count || a.first - b.first)
     .slice(0, 2)
     .map((entry) => entry.word);
+}
+
+const MONTHS = "january february march april may june july august september october november december".split(" ");
+const MONTH_NAMES = MONTHS.join("|");
+
+/**
+ * The date a page says it was published or updated, as `YYYY-MM-DD`, or undefined.
+ *
+ * A date the page labels ("Published 3 June 2026", "Last updated: 2026-06-03") wherever it sits, else a
+ * bare date in the page's first 300 characters, where a byline is. Never any other date in the body: a
+ * policy page that says "from 22 October 2026" is about that day, not written on it. A date after `now`
+ * is not a publication date.
+ */
+export function pageDate(markdown: string, now: Date): string | undefined {
+  const DAY_MONTH_YEAR = `(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES})\\s+(\\d{4})`;
+  const MONTH_DAY_YEAR = `(${MONTH_NAMES})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})`;
+  const ISO = "(\\d{4})-(\\d{2})-(\\d{2})";
+  const DATE = `(?:${DAY_MONTH_YEAR}|${MONTH_DAY_YEAR}|${ISO})`;
+  const read = (match: RegExpExecArray, offset: number): string | undefined => {
+    const [dmyDay, dmyMonth, dmyYear, mdyMonth, mdyDay, mdyYear, isoYear, isoMonth, isoDay] = match.slice(offset, offset + 9);
+    const iso =
+      isoYear !== undefined
+        ? `${isoYear}-${isoMonth}-${isoDay}`
+        : dmyYear !== undefined
+          ? `${dmyYear}-${String(MONTHS.indexOf(dmyMonth!.toLowerCase()) + 1).padStart(2, "0")}-${dmyDay!.padStart(2, "0")}`
+          : `${mdyYear}-${String(MONTHS.indexOf(mdyMonth!.toLowerCase()) + 1).padStart(2, "0")}-${mdyDay!.padStart(2, "0")}`;
+    const at = new Date(`${iso}T00:00:00Z`);
+    return Number.isNaN(at.getTime()) || at.getTime() > now.getTime() ? undefined : iso;
+  };
+  const labelled = new RegExp(`\\b(?:published|updated|posted|last (?:updated|reviewed|modified)|date)\\b\\W{0,3}(?:on\\s+)?${DATE}`, "gi");
+  for (const match of markdown.matchAll(labelled)) {
+    const date = read(match, 1);
+    if (date !== undefined) return date;
+  }
+  const byline = new RegExp(DATE, "i").exec(markdown.slice(0, 300));
+  return byline === null ? undefined : read(byline, 1);
+}
+
+/**
+ * The product lines a text says a firm sells, by keyword, no model (trial fix 1). A line counts when its
+ * words appear at least twice: a travel insurer's page that mentions car hire once does not sell motor.
+ * A word in the firm's own name counts once ("Brackenfield Legal"), so it tips a line the page also mentions but never
+ * decides one alone: Legal & General sells more than legal expenses. `min` is lower for a short label.
+ */
+const LINE_WORDS: Record<ProductLine, RegExp> = {
+  // Not "motor legal protection", the legal-expenses product, nor "motor trade" or "motor finance" (fix round 2).
+  motor: /\b(?:motor(?!\s+(?:legal|trade|finance)\b)|car insurance|van insurance|motorcycles?|motorbikes?|vehicle insurance)\b/gi,
+  home: /\b(?:home insurance|household insurance|buildings insurance|contents insurance|home and contents|buildings and contents)\b/gi,
+  travel: /\b(?:travel insurance|travel cover|holiday insurance)\b/gi,
+  pet: /\b(?:pet insurance|pet cover)\b/gi,
+  "legal-expenses": /\b(?:legal expenses?|legal protection|after the event insurance)\b/gi,
+};
+
+/** A line's short word in a firm's own name: "Brackenfield Legal", "Wayfarer Travel". Too loose for page text. */
+const NAME_WORDS: Record<ProductLine, RegExp> = {
+  motor: /\b(?:motor|car|van)\b/gi,
+  home: /\bhome\b/gi,
+  travel: /\b(?:travel|holidays?)\b/gi,
+  pet: /\bpets?\b/gi,
+  "legal-expenses": /\blegal\b/gi,
+};
+
+export function linesOf(text: string, company = "", min = 2): ProductLine[] {
+  return PRODUCT_LINES.filter((line) => (text.match(LINE_WORDS[line]) ?? []).length + (company.match(NAME_WORDS[line]) ?? []).length >= min);
 }
 
 function monthsOld(published: string | undefined, now: Date): number | null {
@@ -161,15 +237,29 @@ export async function lookupEvidence(subject: LookupSubject, deps: LookupDeps): 
     },
   ];
 
+  // The firm's name as whole words: "Arc" is not in "research".
+  const firmName = new RegExp(`(^|[^a-z0-9])${company.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`);
+  const namesFirm = (text: string) => company !== "" && firmName.test(text.toLowerCase());
+  const onFirmSite = (url: string) => companyDomain !== undefined && domainKey(url) === companyDomain;
+  // What the lookup read about the firm, for its product lines: hit titles and snippets that name it, and the pages.
+  const firmText: string[] = [];
+  const lines = () => linesOf(firmText.join("\n"), company);
+
   for (const step of steps) {
     searches += 1;
     const { hits } = await deps.search.search({ query: step.query, region: subject.region, recencyMonths: MAX_MONTHS, maxResults: 5 });
-    const fresh = hits.filter((hit) => {
+    const named = hits.filter((hit) => step.mention(hit));
+    firmText.push(...hits.filter((hit) => onFirmSite(hit.url) || namesFirm(`${hit.title} ${hit.snippet}`)).map((hit) => `${hit.title}\n${hit.snippet}`));
+    // A dated hit must be within twelve months. An undated one is still worth a read when it names them: its date may be on the page.
+    const candidates = named.filter((hit) => {
       const age = monthsOld(hit.publishedAt, now);
-      return age !== null && age >= 0 && age <= MAX_MONTHS && step.mention(hit);
+      return age === null || (age >= 0 && age <= MAX_MONTHS);
     });
-    trail.push({ kind: "search", target: step.query, outcome: `${hits.length} results, ${fresh.length} dated and about ${step.about === "person" ? "them" : "the firm"}` });
-    const best = fresh[0];
+    const dated = candidates.filter((hit) => monthsOld(hit.publishedAt, now) !== null).length;
+    trail.push({ kind: "search", target: step.query, outcome: `${hits.length} results, ${candidates.length} about ${step.about === "person" ? "them" : "the firm"} and not stale (${dated} dated)` });
+    // The best one to read: dated first, then the firm's own site, then the rest in the search's order.
+    const rank = (hit: SearchHit) => (monthsOld(hit.publishedAt, now) !== null ? 0 : onFirmSite(hit.url) ? 1 : 2);
+    const best = [...candidates].sort((a, b) => rank(a) - rank(b))[0];
     // Nothing worth reading: no fetch is spent on it, and the next step is tried.
     if (best === undefined) continue;
 
@@ -181,24 +271,40 @@ export async function lookupEvidence(subject: LookupSubject, deps: LookupDeps): 
     }
     const { text, stripped } = scrubFetched(page.markdown);
     if (stripped.length > 0) deps.log?.({ event: "outreach.lookup.stripped", url: best.url, lines: stripped.length });
-    const sentence = relevantSentence(capText(text), step.names, relevance);
-    trail.push({ kind: "fetch", target: best.url, outcome: sentence === null ? "nothing relevant" : "relevant" });
+    const capped = capText(text);
+    if (onFirmSite(best.url) || namesFirm(capped)) firmText.push(capped);
+    const primary = onFirmSite(best.url);
+    // A page's own date only on the firm's own site (fix round 2): anyone can write a date on their page.
+    const published = monthsOld(best.publishedAt, now) !== null ? best.publishedAt : primary ? pageDate(capped, now) : undefined;
+    const age = monthsOld(published, now);
+    if (age !== null && (age < 0 || age > MAX_MONTHS)) {
+      trail.push({ kind: "fetch", target: best.url, outcome: `stale (the page is dated ${dateOf(published!)})` });
+      continue;
+    }
+    if (published === undefined && !primary) {
+      trail.push({ kind: "fetch", target: best.url, outcome: "undated, and not the firm's own site" });
+      continue;
+    }
+    const sentence = relevantSentence(capped, step.names, relevance);
+    trail.push({ kind: "fetch", target: best.url, outcome: sentence === null ? "nothing relevant" : published === undefined ? "relevant, undated on the firm's own site" : "relevant" });
     if (sentence === null) continue;
 
     const host = hostOf(best.url);
-    const primary = companyDomain !== undefined && domainKey(best.url) === companyDomain;
     const item: LookupItem = {
       id: itemId(best.url, sentence),
       text: sentence.length > 400 ? `${sentence.slice(0, 399)}…` : sentence,
       quote: sentence,
-      ...(best.publishedAt === undefined ? {} : { publishedAt: dateOf(best.publishedAt) }),
+      ...(published === undefined ? {} : { publishedAt: dateOf(published) }),
       accessedAt: now.toISOString().slice(0, 10),
       evidence: { urls: [best.url], primary, domains: [host] },
-      confidence: primary ? "strong" : "weak",
+      // Undated is never better than weak, even on the firm's own site: nothing says it is still true.
+      confidence: primary && published !== undefined ? "strong" : "weak",
       about: step.about,
     };
     // Stop at the first usable, relevant item (v2.1 §3).
-    return { items: [item], usable: true, searches, fetches, trail };
+    const found = lines();
+    return { items: [item], usable: true, searches, fetches, ...(found.length === 0 ? {} : { lines: found }), trail };
   }
-  return { items: [], usable: false, searches, fetches, trail };
+  const found = lines();
+  return { items: [], usable: false, searches, fetches, ...(found.length === 0 ? {} : { lines: found }), trail };
 }

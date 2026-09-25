@@ -339,6 +339,12 @@ const seconds = (ms: number): number => ms / 1000;
 
 export type ClaimOptions = { leaseMs?: number };
 
+/** The advisory lock every claim takes, so claims are made one at a time. */
+const CLAIM_LOCK = "relay-jobs-claim";
+
+/** The drafting job's kind (`OUTREACH_DRAFT_JOB`), written here so the queue does not import a repository. */
+const OUTREACH_DRAFT_KIND = "outreach_draft";
+
 /**
  * Claim the next due job for this worker, or null when there is nothing to do.
  *
@@ -346,6 +352,19 @@ export type ClaimOptions = { leaseMs?: number };
  * attempt is counted as part of the claim, so the number a worker reads is the
  * attempt it is making — and a worker that dies without saying anything has
  * still spent one.
+ *
+ * One exception to "the next due job" (trial fix 1, 25 Sep 2026): a worker
+ * runs several jobs at once now, and two colleagues at the same account must
+ * not be drafted at the same moment. Each draft reads what its colleagues were
+ * already sent, so that it quotes something else and opens another way; drafted
+ * side by side, neither sees the other. So an `outreach_draft` job waits while
+ * one for a person at the same account in the same campaign is running, and
+ * the claim takes the next job instead.
+ *
+ * That check reads other jobs' rows, so two claims racing each other could both
+ * pass it. Claims are therefore made one at a time, under a transaction-scoped
+ * advisory lock: a claim is one short statement, and the queue is a handful of
+ * workers, so the wait is nothing.
  */
 export async function claimNext(
   db: PrismaClient,
@@ -353,25 +372,44 @@ export async function claimNext(
   options: ClaimOptions = {},
 ): Promise<ClaimedJob | null> {
   const leaseMs = options.leaseMs ?? LEASE_MS;
-  const rows = await db.$queryRaw<JobRow[]>`
-    UPDATE jobs
-       SET status = 'running'::"job_status",
-           worker_id = ${workerId},
-           lease_until = (now() AT TIME ZONE 'UTC')
-                         + make_interval(secs => ${seconds(leaseMs)}::double precision),
-           attempts = attempts + 1,
-           updated_at = (now() AT TIME ZONE 'UTC')
-     WHERE id = (
-             SELECT id
-               FROM jobs
-              WHERE status = 'queued'::"job_status"
-                AND next_at <= (now() AT TIME ZONE 'UTC')
-              ORDER BY priority DESC, next_at ASC, created_at ASC
-                FOR UPDATE SKIP LOCKED
-              LIMIT 1
-           )
-    RETURNING *
-  `;
+  const rows = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${CLAIM_LOCK}))::text`;
+    return tx.$queryRaw<JobRow[]>`
+      UPDATE jobs
+         SET status = 'running'::"job_status",
+             worker_id = ${workerId},
+             lease_until = (now() AT TIME ZONE 'UTC')
+                           + make_interval(secs => ${seconds(leaseMs)}::double precision),
+             attempts = attempts + 1,
+             updated_at = (now() AT TIME ZONE 'UTC')
+       WHERE id = (
+               SELECT candidate.id
+                 FROM jobs candidate
+                WHERE candidate.status = 'queued'::"job_status"
+                  AND candidate.next_at <= (now() AT TIME ZONE 'UTC')
+                  AND NOT (
+                        candidate.kind = ${OUTREACH_DRAFT_KIND}
+                    AND EXISTS (
+                          SELECT 1
+                            FROM jobs running
+                            JOIN campaign_people theirs ON theirs.id = running.input->>'campaignPersonId'
+                            JOIN campaign_people mine ON mine.id = candidate.input->>'campaignPersonId'
+                           WHERE running.status = 'running'::"job_status"
+                             AND running.kind = ${OUTREACH_DRAFT_KIND}
+                             AND running.org_id = candidate.org_id
+                             AND running.campaign_id = candidate.campaign_id
+                             AND theirs.org_id = mine.org_id
+                             AND theirs.company_key = mine.company_key
+                             AND mine.company_key <> ''
+                        )
+                  )
+                ORDER BY candidate.priority DESC, candidate.next_at ASC, candidate.created_at ASC
+                  FOR UPDATE SKIP LOCKED
+                LIMIT 1
+             )
+      RETURNING *
+    `;
+  });
   const row = rows[0];
   if (row === undefined) return null;
   const job = toJob(row);

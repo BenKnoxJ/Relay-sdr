@@ -40,7 +40,7 @@ function inputFor(exemplar: Exemplar, thread: OutreachInput["thread"]): Outreach
     ...person.input,
     sender: SENDER,
     // The real input merges the standard's approved gives into the slice (M2); `buildOutreachInput` does it for a live draft.
-    pack: withApprovedGives(packSliceSchema.parse(recorded.pack), standard),
+    pack: withApprovedGives(packSliceSchema.parse(recorded.pack), standard, new Date("2026-09-25T09:00:00Z")),
     facts,
     standard,
     touch: { kind, ordinal: SEQUENCE.indexOf(kind) + 1, dueAt: "2026-09-22T09:00:00Z" },

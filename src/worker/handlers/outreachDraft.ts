@@ -507,7 +507,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
     // The quotable sources behind this person's slice, read once: the recent drafts are scanned against them.
     const standard = loadStandard();
-    const evidence = evidenceSliceOf({ pack, handoff, facts, lookup: lookupUsed, standard }).evidence;
+    const evidence = evidenceSliceOf({ pack, handoff, facts, lookup: lookupUsed, standard, now }).evidence;
     // Trial fix 1: how many other people in the campaign have been sent each quote, so the drafter can prefer
     // the least used. One quote was in six of seven first emails in the 24 Sep trial.
     const evidenceUse = new Map<string, number>();

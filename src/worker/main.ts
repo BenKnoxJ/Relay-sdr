@@ -325,9 +325,10 @@ async function main(): Promise<void> {
   };
   while (!stopping) {
     if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      const failures = consecutiveFailures;
       // The jobs in hand finish first: each has its own lease and its own way out.
       await Promise.all(inFlight);
-      throw new Error(`the worker failed ${consecutiveFailures} polls in a row; last error: ${lastError}`);
+      throw new Error(`the worker failed ${failures} polls in a row; last error: ${lastError}`);
     }
     try {
       // Full: wait for a job to finish (or a signal) before claiming another.
@@ -353,7 +354,9 @@ async function main(): Promise<void> {
           log("idle", { mode: "once" });
           break;
         }
-        if (inFlight.size === 0) consecutiveFailures = 0;
+        // Only a poll that worked resets the count (fix round 2): a job finishing says nothing about the
+        // database the next poll needs, and with jobs in flight their successes kept the cap from tripping.
+        consecutiveFailures = 0;
         // Woken early when a running job finishes or a signal lands.
         await (inFlight.size === 0 ? pause(pollMs) : Promise.race([...inFlight, pause(pollMs)]));
         continue;
@@ -364,10 +367,9 @@ async function main(): Promise<void> {
         await runJob(db, job, leaseMs, drainMs);
         break;
       }
+      consecutiveFailures = 0;
       const running: Promise<void> = runJob(db, job, leaseMs, drainMs)
-        .then(() => {
-          consecutiveFailures = 0;
-        }, failed)
+        .catch(failed)
         .finally(() => {
           inFlight.delete(running);
           wake?.();

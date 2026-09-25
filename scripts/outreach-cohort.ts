@@ -334,7 +334,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
       kept: logs.filter((log) => log.kept === "humanized").length,
       touches: own.length,
     });
-    for (const quote of evidenceOf(first.campaignPerson, first.lookup)) evidence.set(quote.id, quote);
+    for (const quote of evidenceOf(first.campaignPerson, first.lookup, first.createdAt)) evidence.set(quote.id, quote);
     personRows.push(
       `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} | $${humanizerUsd.toFixed(3)} | $${(draftUsd + humanizerUsd).toFixed(3)} |`,
     );
@@ -460,11 +460,11 @@ async function evidenceReader(db: Db) {
   // Read ahead of the report loop: the report is written once, so this is at most one research read per campaign.
   const rows = await db.campaignPerson.findMany({ select: { orgId: true, campaignId: true, briefVersion: true }, distinct: ["campaignId", "briefVersion"] });
   for (const row of rows) await sliceOf(row);
-  return (row: { campaignId: string; briefVersion: number }, lookup: unknown) => {
+  return (row: { campaignId: string; briefVersion: number }, lookup: unknown, now: Date) => {
     const slice = slices.get(`${row.campaignId}:${row.briefVersion}`) ?? null;
     if (slice === null) return standard.gives;
     const found = (lookup ?? { items: [], usable: false, searches: 0, fetches: 0 }) as Parameters<typeof withLookupEvidence>[1];
-    return withApprovedGives(withLookupEvidence(slice, found), standard).evidence;
+    return withApprovedGives(withLookupEvidence(slice, found), standard, now).evidence;
   };
 }
 

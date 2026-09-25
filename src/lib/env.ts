@@ -211,8 +211,12 @@ const schema = z
      * trial; twenty would take over three hours. The claim keeps colleagues at
      * the same account apart (`claimNext`), so this only overlaps people whose
      * drafts do not read each other.
+     *
+     * At most 8 (fix round 2): each claim is an interactive transaction that
+     * needs a pool connection within Prisma's 2 s wait, so past the pool a
+     * claim fails as `poll.failed` rather than queues.
      */
-    RELAY_WORKER_CONCURRENCY: positiveCount(3),
+    RELAY_WORKER_CONCURRENCY: positiveCount(3).pipe(z.number().max(8)),
 
     // --- lead gen ---------------------------------------------------------
     /**

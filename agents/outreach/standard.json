@@ -350,7 +350,8 @@
       "sourceName": "the FCA's complaints data page (next edition, H1 2026 data: 22 October 2026)",
       "url": "https://www.fca.org.uk/data/complaints-data",
       "date": "2026",
-      "scope": "When the FCA publishes complaints data, not when firms report it. 22 October 2026 is the day the FCA publishes the H1 2026 figures by firm; each firm filed its own H1 return by early August. Say it in one sentence with the quote: \"The FCA publishes its complaints data every 6 months, around April and October, and the H1 figures by firm on 22 October.\" Never call 22 October a return, a deadline or a date anything is due, and never count the weeks to it. Firm-level figures cover only firms reporting 500 or more complaints in a half-year: nothing here says this reader's firm is among them."
+      "validUntil": "2026-10-22",
+      "scope": "Use only as a date; never tell the firm about its own reporting cycle. When the FCA publishes complaints data, not when firms report it. 22 October 2026 is the day the FCA publishes the H1 2026 figures by firm; each firm filed its own H1 return by early August. Say it in one sentence with the quote: \"The FCA publishes its complaints data every 6 months, around April and October, and the H1 figures by firm on 22 October.\" Never call 22 October a return, a deadline or a date anything is due, and never count the weeks to it. Firm-level figures cover only firms reporting 500 or more complaints in a half-year: nothing here says this reader's firm is among them."
     }
   ]
 }

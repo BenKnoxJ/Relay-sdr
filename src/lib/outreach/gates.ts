@@ -468,15 +468,19 @@ const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sort
  * is about, and it passes only when an approved quote in the sentence carries the trend itself. Only
  * measured things (complaints, volumes, numbers, rates): "your team is growing" is not a statistic.
  */
-const MEASURED = "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)";
+// Never the team that handles them (fix round 2): "claims teams", "complaints handling" are everyday nouns here.
+const MEASURED =
+  "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)(?!\\s+(?:teams?|handlers?|handling|managers?|departments?|staff|leads?|functions?|processes))";
 const RISES = "(?:drifting|rising|growing|climbing|increasing|creeping|slipping|going up)";
 const TREND = new RegExp(
   [
-    `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) ${RISES}`,
+    `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) (?:${RISES}|ending up|\\w+ing (?:up|in|to|at|past)\\b)`,
     `\\bmore and more (?:[\\w'’-]+ ){0,2}${MEASURED}\\b`,
     `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}(?:keeps?|kept) ${RISES}`,
     `\\b${MEASURED} (?:are|is|have been|has been) (?:${RISES}|on the rise|up)\\b`,
-    `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed)\\b`,
+    `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed|doubled|trebled|tripled|spiked|jumped|soared)\\b`,
+    // The simple past (fix round 2): "complaints rose sharply", "uphold rates went up".
+    `\\b${MEASURED} (?:[\\w'’-]+ )?(?:rose|grew|climbed|increased|doubled|trebled|tripled|spiked|jumped|soared|surged|went up)\\b`,
     `\\b(?:growing|rising) (?:number|share|volume) of (?:[\\w'’-]+ )?${MEASURED}\\b`,
   ].join("|"),
   "i",
@@ -841,8 +845,12 @@ export function askShapeOf(ask: string): string {
 const MONTH = "(?:january|february|march|april|may|june|july|august|september|october|november|december)";
 /** A day and a month, "22 October" or "October 22": never "may" or "march" alone, which are verbs as often. */
 const DAY_MONTH = `(?:\\d{1,2}(?:st|nd|rd|th)?\\s+${MONTH}|${MONTH}\\s+\\d{1,2}(?:st|nd|rd|th)?)\\b`;
-/** "Return" the noun, never "return to", "return on investment" or "return in March". */
-const A_RETURN = "\\breturns?\\b(?!\\s+(?:to|on|of|in|the|a|an|your|my|it|them|this|that|with|from)\\b)";
+/**
+ * "Return" the noun, never the verb ("when I return", "customers who return in March", "firms return their
+ * data", "return to"), "return on investment" or a tax return. Fix round 2: "on" and "in" no longer rule a
+ * return out on their own, since "the H1 return on 22 October" and "the return in October" are the fault.
+ */
+const A_RETURN = `(?<!\\b(?:who|to|i|we|you|they|will|would|can|could|may|might|should|must|tax|vat)\\s)\\breturns?\\b(?!\\s+(?:to|of|the|a|an|your|my|our|their|his|her|it|them|this|that|with|from|on (?:investment|capital|equity|assets)|in(?!\\s+${MONTH}))\\b)`;
 
 /**
  * A return dated with a publication day (trial fix 1): "the October return", "the next return dated 22 October",
@@ -851,8 +859,10 @@ const A_RETURN = "\\breturns?\\b(?!\\s+(?:to|on|of|in|the|a|an|your|my|it|them|t
  */
 const RETURN_DATE = new RegExp(
   [
-    `\\b(?:january|february|april|june|july|august|september|october|november|december)(?:\\s+[\\w'’-]+){0,2}\\s+returns?\\b`,
+    `\\b(?:january|february|april|june|july|august|september|october|november|december)(?:['’]s)?(?:\\s+[\\w'’-]+){0,2}\\s+${A_RETURN}`,
     `${A_RETURN}[^.?!]{0,40}${DAY_MONTH}`,
+    // Fix round 2: "the return is due in October", "your half-year return in October".
+    `${A_RETURN}[^.?!]{0,40}\\b(?:in|by|for)\\s+${MONTH}\\b`,
     `${DAY_MONTH}[^.?!]{0,60}${A_RETURN}`,
   ].join("|"),
   "i",
@@ -869,8 +879,11 @@ const SPAN = `${COUNT}\\s+(?:days?|weeks?|months?)`;
  * is a story, and a rule's own period ("within eight weeks", "every 6 months") is not a count to a date.
  */
 const RELATIVE_DATE: readonly RegExp[] = [
-  new RegExp(`\\b${SPAN}\\s+(?:out|away|left|from now|remaining|to go\\b(?!\\s+live))`, "i"),
-  new RegExp(`\\b${SPAN}\\s+(?:before|until|till|ahead of)\\s+(?:that|then|it|the (?:date|deadline|publication)|${DAY_MONTH})`, "i"),
+  new RegExp(`\\b${SPAN}\\s+(?:out|away|left|from now|remaining|to go\\b(?!\\s+(?:live|through|over)))`, "i"),
+  // Fix round 2: any short noun phrase with a publication or a date in it, "until the FCA publishes".
+  new RegExp(`\\b${SPAN}\\s+(?:before|until|till|ahead of)\\s+(?:that\\b|then\\b|it\\b|[^.?!]{0,30}?\\b(?:publish(?:es|ed|ing)?|publication|date|deadline|${DAY_MONTH}))`, "i"),
+  // "In 27 days the figures go public."
+  new RegExp(`^\\s*in\\s+${SPAN}\\b`, "i"),
   new RegExp(`\\b(?:leaves?|leaving|left with)\\s+(?:just\\s+|only\\s+)?${SPAN}\\b`, "i"),
   new RegExp(`\\bin\\s+${SPAN}(?:'s|’s)?\\s+time\\b`, "i"),
 ];

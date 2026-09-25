@@ -41,7 +41,7 @@ function inputFor(who: Who, kind: TouchKind, thread: OutreachInput["thread"] = [
     person: { ...base.person, name: who.name, firstName, company: who.company, domain: who.domain, email: `${firstName.toLowerCase()}@${who.domain}` },
     account: { company: who.company, domain: who.domain },
     sender: SENDER,
-    pack: withApprovedGives(packSliceSchema.parse(recorded.pack), standard),
+    pack: withApprovedGives(packSliceSchema.parse(recorded.pack), standard, new Date("2026-09-25T09:00:00Z")),
     facts,
     standard,
     touch: { kind, ordinal: SEQUENCE.indexOf(kind) + 1, dueAt: "2026-09-25T09:00:00Z" },
@@ -143,6 +143,11 @@ describe("return-date and relative-date", () => {
     ["a second email", "The next complaints return is due on 22 October, and once it lands this year's numbers are largely fixed."],
     ["a call objection", "We're not making any changes before the October return."],
     ["a subject", "the october complaints return"],
+    // Fix round 2: Critic's rewordings, one step from the trial's probe.
+    ["an Email 1, with on", "Ahead of the H1 return on 22 October, how are you settling what sits behind the numbers?"],
+    ["a second email, with a month", "Your next complaints return is due in October."],
+    ["an opener, with in", "Ahead of your half-year return in October, the explanation matters as much as the number."],
+    ["a possessive", "October's return will show the same pattern."],
   ] as const;
   it.each(RETURN)("holds a return dated with the publication day in %s", (_where, sentence) => {
     const body = `The cause on a complaint is usually a label. ${sentence} Who puts the explanation together?`;
@@ -154,6 +159,10 @@ describe("return-date and relative-date", () => {
     "Six weeks out from 22 October, the numbers are more or less locked in.",
     "The numbers publish on 22 October, and for the six weeks before that the number is fixed, so all that's left is explaining it.",
     "With publication a month out, the figures are set.",
+    // Fix round 2: Critic's rewordings.
+    "Under four weeks until the FCA publishes.",
+    "In 27 days the figures go public.",
+    "That leaves you a month ahead of the October publication.",
   ];
   it.each(COUNTED)("holds a count of time to a date: %s", (sentence) => {
     const body = `${sentence} Who puts the explanation together on your side?`;
@@ -179,6 +188,10 @@ describe("return-date and relative-date", () => {
       "It took two weeks before the team saw results.",
       "Just days before Christmas the volume doubled.",
       "It went three months to go live.",
+      // Fix round 2: the verb return with a date elsewhere in the sentence, and "to go through".
+      "Happy to pick this up on 3 November when I return.",
+      "The figures come out on 22 October, a few weeks after firms return their data.",
+      "We had two days to go through it.",
     ]) {
       const found = rules(gateFor(message(`${sentence} Who owns that on your side?`, "Who owns that on your side?"), inputFor(HARBOUR, "li_dm2"), context()));
       expect(found, sentence).not.toContain("relative-date");
@@ -198,6 +211,20 @@ describe("return-date and relative-date", () => {
     expect(dates.sourceName).toContain("22 October 2026");
     expect(dates.scope).toMatch(/publishes the H1 2026 figures by firm/);
     expect(dates.scope).toMatch(/Never call 22 October a return/);
+    // Fix round 2 (Benny-san, 25 Sep): a date anchor only, never news to the firm.
+    expect(dates.scope).toMatch(/use only as a date; never tell the firm about its own reporting cycle/i);
+  });
+
+  it("stops reaching the drafter after 22 October 2026, and the other gives stay (fix round 2)", () => {
+    const slice = { ...packSliceSchema.parse(recorded.pack), evidence: [] };
+    const ids = (now: string) => withApprovedGives(slice, standard, new Date(now)).evidence.map((quote) => quote.id);
+    expect(ids("2026-09-25T09:00:00Z")).toContain("give-fca-complaints-data-dates");
+    expect(ids("2026-10-22T23:59:59Z")).toContain("give-fca-complaints-data-dates");
+    expect(ids("2026-10-23T00:00:00Z")).not.toContain("give-fca-complaints-data-dates");
+    expect(ids("2026-10-23T00:00:00Z")).toEqual(expect.arrayContaining(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured"]));
+    // The expiry is the standard's to read, never the drafter's: it is not on the quote the drafter sees.
+    const before = withApprovedGives(slice, standard, new Date("2026-09-25T09:00:00Z")).evidence.find((quote) => quote.id === "give-fca-complaints-data-dates")!;
+    expect(before).not.toHaveProperty("validUntil");
   });
 });
 
@@ -218,6 +245,9 @@ describe("the product line of a give", () => {
     // A word in the firm's name tips a line the page also mentions, and never decides one alone.
     expect(linesOf("Legal expenses cover for landlords.", "Brackenfield Legal")).toEqual(["legal-expenses"]);
     expect(linesOf("", "Legal & General")).toEqual([]);
+    // Fix round 2: motor legal protection is the legal-expenses product, not motor cover.
+    expect(linesOf("Motor legal protection covers you after an accident. Our motor legal expenses policy pays solicitor costs.", "Brackenfield Legal")).toEqual(["legal-expenses"]);
+    expect(linesOf("Motor trade cover and motor finance protection for dealers.", "Brackenfield Legal")).toEqual([]);
   });
 
   it("gives the motor figure to a motor firm, and not to a travel or a legal-expenses firm", () => {
@@ -239,8 +269,8 @@ describe("the product line of a give", () => {
   it("keeps the motor figure out of a travel firm's evidence list", () => {
     const slice = { ...packSliceSchema.parse(recorded.pack), evidence: [] };
     const campaign = { targeting: { industries: ["Motor insurance"] } } as Parameters<typeof lineFitOf>[1];
-    expect(withApprovedGives(slice, standard, lineFitOf({ lines: ["travel"] }, campaign)).evidence.map((quote) => quote.id)).not.toContain(fos.id);
-    expect(withApprovedGives(slice, standard, lineFitOf({ lines: ["motor"] }, campaign)).evidence.map((quote) => quote.id)).toContain(fos.id);
+    expect(withApprovedGives(slice, standard, new Date("2026-09-25T09:00:00Z"), lineFitOf({ lines: ["travel"] }, campaign)).evidence.map((quote) => quote.id)).not.toContain(fos.id);
+    expect(withApprovedGives(slice, standard, new Date("2026-09-25T09:00:00Z"), lineFitOf({ lines: ["motor"] }, campaign)).evidence.map((quote) => quote.id)).toContain(fos.id);
   });
 });
 
@@ -271,8 +301,22 @@ describe("unsupported claims the trial let through", () => {
     }
   });
 
+  it("holds a trend in the simple past, or more of something ending up somewhere (fix round 2)", () => {
+    for (const sentence of [
+      "Complaints rose sharply last year.",
+      "Uphold rates went up in H1.",
+      "Volumes have doubled.",
+      "Complaint volumes spiked after the storm.",
+      "More motor complaints are ending up at the ombudsman.",
+    ]) {
+      expect(held(sentence), sentence).toEqual([sentence]);
+    }
+  });
+
   it("does not read a growing team or a separate send as a source claim", () => {
     for (const sentence of [
+      "More and more claims teams are moving to cloud contact centres.",
+      "Complaints handling has grown into a team of twelve.",
       "Your team is growing fast.",
       "Headcount at Harbour Motor is growing.",
       "Interest in call QA is on the rise.",
@@ -353,7 +397,8 @@ describe("the give across the campaign", () => {
   );
 
   it("tells the drafter how many other people each quote has gone to", () => {
-    const slice = withUsage({ ...packSliceSchema.parse(recorded.pack), evidence: gives }, new Map([[fca40.id, 5]]));
+    const approved = withApprovedGives({ ...packSliceSchema.parse(recorded.pack), evidence: [] }, standard, new Date("2026-09-25T09:00:00Z"));
+    const slice = withUsage(approved, new Map([[fca40.id, 5]]));
     expect(slice.evidence.find((quote) => quote.id === fca40.id)?.usedBy).toBe(5);
     expect(slice.evidence.find((quote) => quote.id === fos.id)?.usedBy).toBe(0);
     expect(outreachInputSchema.safeParse({ ...inputFor(HARBOUR, "email1"), pack: slice }).success).toBe(true);
@@ -431,6 +476,14 @@ describe("the lookup, with undated search hits", () => {
     const { deps } = services({ [FIRM]: [undated("https://harbourmotor.example/news/causes")] }, { "https://harbourmotor.example/news/causes": fresh });
     const result = await lookupEvidence(subject, deps);
     expect(result.items[0]).toMatchObject({ publishedAt: "2026-06-12", confidence: "strong" });
+  });
+
+  it("never takes an off-site page's own date: only the search's date counts off the firm's site (fix round 2)", async () => {
+    const fresh = `Last updated: 12 June 2026\n\n${POLICY}`;
+    const { deps } = services({ [FIRM]: [undated("https://news.example/harbour")] }, { "https://news.example/harbour": fresh });
+    const result = await lookupEvidence(subject, deps);
+    expect(result.usable).toBe(false);
+    expect(result.trail.map((step) => step.outcome)).toContain("undated, and not the firm's own site");
   });
 
   it("drops an undated page that is not the firm's own", async () => {

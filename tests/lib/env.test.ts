@@ -309,6 +309,17 @@ describe("parseEnv and the worker's timing knobs", () => {
   });
 });
 
+describe("parseEnv and the worker's concurrency", () => {
+  it("defaults to 3, and takes up to 8", () => {
+    expect(parseEnv(base()).RELAY_WORKER_CONCURRENCY).toBe(3);
+    expect(parseEnv({ ...base(), RELAY_WORKER_CONCURRENCY: "8" }).RELAY_WORKER_CONCURRENCY).toBe(8);
+  });
+
+  it("refuses more than 8: each claim holds a pool connection, and past the pool a claim fails rather than queues", () => {
+    expect(() => parseEnv({ ...base(), RELAY_WORKER_CONCURRENCY: "9" })).toThrow(/RELAY_WORKER_CONCURRENCY/);
+  });
+});
+
 describe("devBypassEmail", () => {
   it("hands back the bypass rep in a development or test environment", () => {
     for (const NODE_ENV of ["development", "test"] as const) {

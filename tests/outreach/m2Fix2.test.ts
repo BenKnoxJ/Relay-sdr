@@ -215,7 +215,7 @@ describe("the evidence list the drafter is given", () => {
 
   it("gives the drafter each approved quote's scope, and no longer the FCA-publishes line", () => {
     const base = outreachInputSchema.parse(goodInput);
-    const evidence = withApprovedGives({ ...base.pack, evidence: [] }, standard).evidence;
+    const evidence = withApprovedGives({ ...base.pack, evidence: [] }, standard, new Date("2026-09-25T09:00:00Z")).evidence;
     expect(evidence.map((quote) => quote.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-complaints-data-dates"]);
     for (const quote of evidence) expect(quote.scope, quote.id).toMatch(/\S/);
     expect(evidence.every((quote) => !quote.scope!.includes("\n"))).toBe(true);

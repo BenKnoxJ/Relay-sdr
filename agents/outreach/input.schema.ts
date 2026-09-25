@@ -226,7 +226,21 @@ export const standardSchema = z
      * misstated their source. `scope` is what the quote does *not* say, and
      * is read by a person reviewing this file, never by the model.
      */
-    gives: z.array(evidenceQuoteSchema.extend({ scope: z.string().min(1).max(1000) }).strict()).max(12).default([]),
+    gives: z
+      .array(
+        evidenceQuoteSchema
+          .extend({
+            scope: z.string().min(1).max(1000),
+            /**
+             * The last day a give may reach the drafter, UTC (trial fix 1, round 2): a give that names a coming
+             * date goes stale the day after it. Read by `withApprovedGives`, never passed to the drafter.
+             */
+            validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          })
+          .strict(),
+      )
+      .max(12)
+      .default([]),
   })
   .strict();
 

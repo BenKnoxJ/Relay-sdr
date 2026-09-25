@@ -142,7 +142,8 @@ export function pageDate(markdown: string, now: Date): string | undefined {
  * decides one alone: Legal & General sells more than legal expenses. `min` is lower for a short label.
  */
 const LINE_WORDS: Record<ProductLine, RegExp> = {
-  motor: /\b(?:motor|car insurance|van insurance|motorcycles?|motorbikes?|vehicle insurance)\b/gi,
+  // Not "motor legal protection", the legal-expenses product, nor "motor trade" or "motor finance" (fix round 2).
+  motor: /\b(?:motor(?!\s+(?:legal|trade|finance)\b)|car insurance|van insurance|motorcycles?|motorbikes?|vehicle insurance)\b/gi,
   home: /\b(?:home insurance|household insurance|buildings insurance|contents insurance|home and contents|buildings and contents)\b/gi,
   travel: /\b(?:travel insurance|travel cover|holiday insurance)\b/gi,
   pet: /\b(?:pet insurance|pet cover)\b/gi,
@@ -273,7 +274,8 @@ export async function lookupEvidence(subject: LookupSubject, deps: LookupDeps): 
     const capped = capText(text);
     if (onFirmSite(best.url) || namesFirm(capped)) firmText.push(capped);
     const primary = onFirmSite(best.url);
-    const published = monthsOld(best.publishedAt, now) === null ? pageDate(capped, now) : best.publishedAt;
+    // A page's own date only on the firm's own site (fix round 2): anyone can write a date on their page.
+    const published = monthsOld(best.publishedAt, now) !== null ? best.publishedAt : primary ? pageDate(capped, now) : undefined;
     const age = monthsOld(published, now);
     if (age !== null && (age < 0 || age > MAX_MONTHS)) {
       trail.push({ kind: "fetch", target: best.url, outcome: `stale (the page is dated ${dateOf(published!)})` });

@@ -209,9 +209,13 @@ export function withLookupEvidence(slice: OutreachInput["pack"], lookup: LookupR
  * store. Each keeps its `scope` (M2 fix 2): fix round 1 dropped it, and the
  * drafts then widened the quotes in exactly the directions it rules out.
  */
-export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard, fit?: LineFit): OutreachInput["pack"] {
+export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard, now: Date, fit?: LineFit): OutreachInput["pack"] {
   // With no `fit`, nothing is known either way and no line is filtered: the drafter always passes one (`evidenceSliceOf`).
-  const gives = standard.gives.filter((quote) => (fit === undefined || fitsLine(quote, fit)) && !slice.evidence.some((known) => known.id === quote.id));
+  // A give past its `validUntil` day is dropped, and the field itself never reaches the drafter.
+  const gives = standard.gives
+    .filter((quote) => quote.validUntil === undefined || now.getTime() < Date.parse(`${quote.validUntil}T00:00:00Z`) + 24 * 60 * 60 * 1000)
+    .filter((quote) => (fit === undefined || fitsLine(quote, fit)) && !slice.evidence.some((known) => known.id === quote.id))
+    .map(({ validUntil: _validUntil, ...quote }) => quote);
   return gives.length === 0 ? slice : { ...slice, evidence: [...gives, ...slice.evidence].slice(0, 12) };
 }
 
@@ -245,8 +249,8 @@ export function withUsage(slice: OutreachInput["pack"], used: ReadonlyMap<string
 }
 
 /** The evidence list a person's touches may quote: the slice's, the lookup's and the approved gives that fit their firm's line. */
-export function evidenceSliceOf(input: Pick<AdapterFacts, "pack" | "handoff" | "facts" | "lookup" | "standard" | "evidenceUse">): OutreachInput["pack"] {
-  const slice = withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, liveFacts(input.facts)), input.lookup), input.standard, lineFitOf(input.lookup, input.handoff));
+export function evidenceSliceOf(input: Pick<AdapterFacts, "pack" | "handoff" | "facts" | "lookup" | "standard" | "evidenceUse" | "now">): OutreachInput["pack"] {
+  const slice = withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, liveFacts(input.facts)), input.lookup), input.standard, input.now, lineFitOf(input.lookup, input.handoff));
   return input.evidenceUse === undefined ? slice : withUsage(slice, input.evidenceUse);
 }
 

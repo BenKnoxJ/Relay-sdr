@@ -30,7 +30,7 @@ const RECORDED_SENDER = { firstName: "Ben", company: "Conversant" };
 function inputOf(person: Recorded): OutreachInput {
   const standard = loadStandard();
   // As a live draft is built (M2): the standard's approved gives merged into the slice's evidence.
-  const pack = withApprovedGives(packSliceSchema.parse(recorded.pack), standard);
+  const pack = withApprovedGives(packSliceSchema.parse(recorded.pack), standard, new Date("2026-09-25T09:00:00Z"));
   return outreachInputSchema.parse({ sender: RECORDED_SENDER, ...person.input, pack, facts, standard });
 }
 

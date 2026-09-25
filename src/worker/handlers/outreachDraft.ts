@@ -30,7 +30,7 @@ import { OUTREACH_PROSE_WORDS } from "@/lib/copy/plainWords";
 import { env } from "@/lib/env";
 import { loadFacts } from "@/lib/facts/load";
 import { loadNeverSay } from "@/lib/facts/neverSay";
-import { buildOutreachInput, buyerRoleOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf, withApprovedGives, withLookupEvidence } from "@/lib/outreach/adapter";
+import { buildOutreachInput, buyerRoleOf, evidenceSliceOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf } from "@/lib/outreach/adapter";
 import { addedFacts, evidenceUsedIn, gateFor, humanizerLoss, normaliseClaims, proseText, withoutThreadSubject, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
 import { changePct, mentionsProduct, proseString } from "@/lib/outreach/messageChecks";
@@ -507,7 +507,14 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     const cohort = await cohortFor(db, { ...scope, excludeCampaignPersonId: row.id, companyKey: row.companyKey });
     // The quotable sources behind this person's slice, read once: the recent drafts are scanned against them.
     const standard = loadStandard();
-    const evidence = withApprovedGives(withLookupEvidence(slice, lookupUsed), standard).evidence;
+    const evidence = evidenceSliceOf({ pack, handoff, facts, lookup: lookupUsed, standard }).evidence;
+    // Trial fix 1: how many other people in the campaign have been sent each quote, so the drafter can prefer
+    // the least used. One quote was in six of seven first emails in the 24 Sep trial.
+    const evidenceUse = new Map<string, number>();
+    for (const quote of evidence) {
+      const people = new Set(cohort.filter((entry) => evidenceUsedIn(entry.body, [quote]).length > 0).map((entry) => entry.personId));
+      evidenceUse.set(quote.id, people.size);
+    }
     const owner = await db.user.findFirst({ where: { id: ownerUserId, orgId: job.orgId }, select: { name: true, email: true, org: { select: { name: true } } } });
     if (owner === null) throw new TerminalError("outreach: the campaign's owner is not in this org");
     const repName = owner.name ?? owner.email.split("@")[0] ?? "";
@@ -521,6 +528,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       voice: await voiceFor(db, { orgId: job.orgId, userId: ownerUserId }),
       standard,
       lookup: lookupUsed,
+      evidenceUse,
       // M2: what a colleague at the same firm has already been sent, and not
       // only their opening and ask — the angle they opened on and the source
       // they quoted, so the drafter can take a different one rather than

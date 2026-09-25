@@ -36,8 +36,11 @@ const held = (sentence: string) => unsupportedSourceClaims([sentence], gives);
 describe("the approved gives", () => {
   it("carries the source sentences the re-review asked for, each with a url and a scope", () => {
     // Fix round 2 dropped "the FCA publishes complaints data every six months": every prospect here works at a
-    // firm that sends the FCA that data, so it told them about their own regulatory return.
-    expect(standard.gives.map((give) => give.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-upheld-means-by-the-firm"]);
+    // firm that sends the FCA that data, so it told them about their own regulatory return. Trial fix 1 brings
+    // back the FCA's own schedule sentence, scoped to the one thing a draft needs from it: 22 October is the
+    // FCA's publication, never the firm's return. And it drops the one firm's "percentage upheld" line, which
+    // read as how every firm defines it.
+    expect(standard.gives.map((give) => give.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-complaints-data-dates"]);
     for (const give of standard.gives) {
       expect(give.url, give.id).toMatch(/^https:\/\//);
       expect(give.scope.length, give.id).toBeGreaterThan(20);
@@ -48,8 +51,9 @@ describe("the approved gives", () => {
     const fca = standard.gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
     expect(fca.quote).toContain("not as effective as they might need to be");
     expect(fca.quote).not.toContain("weren't working");
-    const upheld = standard.gives.find((give) => give.id === "give-fca-upheld-means-by-the-firm")!;
-    expect(upheld.quote).toContain("by the firm");
+    const dates = standard.gives.find((give) => give.id === "give-fca-complaints-data-dates")!;
+    expect(dates.quote).toBe("We publish our complaints data every 6 months, around April and October.");
+    expect(dates.scope).toMatch(/never call 22 October a return/i);
   });
 });
 

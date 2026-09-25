@@ -46,11 +46,19 @@ describe("unsupported-source-claim: the false negatives Critic and Sentinel prob
   });
 
   it("no longer clears a claim with the quote in the sentence next to it", () => {
+    // The "percentage upheld" give this probe quoted was dropped in trial fix 1; it is kept here so the probe
+    // still tests what it was written for.
+    const upheld: EvidenceQuote = {
+      id: "give-fca-upheld-means-by-the-firm",
+      quote: "Just so you know, 'percentage upheld' by the firm means complaints found in the customer's favour.",
+      sourceName: "a firm's own FCA complaints disclosure",
+      url: "https://www.ageas.co.uk/important-information/complaints-data-ageas-retail",
+    };
     const nell = [
       "For board packs, a firm's own FCA complaints disclosure notes that 'percentage upheld' by the firm means complaints found in the customer's favour.",
       "That is a different number from the ombudsman's own uphold rate.",
     ];
-    expect(unsupportedSourceClaims([nell.join(" ")], gives, BRAMBLE)).toEqual([nell[1]]);
+    expect(unsupportedSourceClaims([nell.join(" ")], [...gives, upheld], BRAMBLE)).toEqual([nell[1]]);
     const avery = `The ombudsman's quarterly figures show that ${fos.quote.charAt(0).toLowerCase()}${fos.quote.slice(1)} Those figures get published against Ardent's name.`;
     expect(unsupportedSourceClaims([avery], gives, ARDENT)).toEqual(["Those figures get published against Ardent's name."]);
   });
@@ -208,7 +216,7 @@ describe("the evidence list the drafter is given", () => {
   it("gives the drafter each approved quote's scope, and no longer the FCA-publishes line", () => {
     const base = outreachInputSchema.parse(goodInput);
     const evidence = withApprovedGives({ ...base.pack, evidence: [] }, standard).evidence;
-    expect(evidence.map((quote) => quote.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-upheld-means-by-the-firm"]);
+    expect(evidence.map((quote) => quote.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-complaints-data-dates"]);
     for (const quote of evidence) expect(quote.scope, quote.id).toMatch(/\S/);
     expect(evidence.every((quote) => !quote.scope!.includes("\n"))).toBe(true);
     expect(outreachInputSchema.safeParse({ ...base, pack: { ...base.pack, evidence } }).success).toBe(true);

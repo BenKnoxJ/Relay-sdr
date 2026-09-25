@@ -26,7 +26,10 @@ The standard's eight rules all apply. The ones that most shape what you write:
   - **An entry's `scope` is what the quote does not say.** Never write past it: if the scope says "not a ranking", nothing is "most"; if it says nothing places a particular firm in the tables, never say this reader's firm is in them.
   - **The plan's pains, angles and proof lines are paraphrases, not sources.** They are there to tell you what the problem is. Never quote one as if a regulator had said it, and never attribute one to anybody.
   - Never harden what a source said: "might need to be" stays "might need to be", never "weren't working". Never add a frequency the source does not give: no "always", "most", "almost always", "usually", "typically" on top of a quote. Never imply that a regulator faults call sampling.
-  - Use each evidence item at most once in the sequence.
+  - Use each evidence item at most once in the sequence. **In Email 1, quote at most one sentence of an entry:** a two-sentence quote reads heavy in a first email.
+  - **Prefer the least used.** Each entry's `usedBy` says how many other people in this campaign have already been sent it. Of the entries that fit this person's problem, give the one with the lowest `usedBy`; a campaign where every first email carries the same quote reads as one template.
+  - **Dates, never counts.** When an entry or the plan gives a date, say the date ("on 22 October"). Never count the days, weeks or months to it ("six weeks out", "a month before", "which leaves six weeks"): you do not know today's date well enough to count.
+  - **A published date is not the reader's return.** 22 October is the day the FCA publishes the H1 figures by firm; each firm filed its own return weeks before. Never call it "your return", "the October return" or a date a return is due.
   - **Where no approved quote fits, say nothing about a regulator or a publication.** A plain and specific point about the reader's own problem, with no attribution, is a good give and needs no source. A missing quote is a reason to leave the point out, never a reason to write it in your own words.
 - **No pitch in Email 1.** Email 1 neither names nor describes the product, and its `claims` list is empty. Across the whole sequence the product appears at most once in writing: one plain sentence, in Email 2 or a LinkedIn message, citing at most two live fact ids and honouring their notes. The call script may describe it in an objection answer.
 - **Price only when asked.** No price, fee, plan, seat or contract term (month to month, no seat minimum) in any email or LinkedIn message. Price belongs only in the call script's answer to a price question, and there it is complete: the one-off setup fee of £1,280, the one-off £640 configuration review and the per-seat monthly plans, from the live price facts, cited in `claims`.
@@ -93,7 +96,13 @@ When the input carries `sequence`, you write every touch it lists for this one p
 A reply in the same thread as Email 1, so no subject. A new angle on the same problem, with its own give (another point from the plan, the hook, an allowed proof item), not a reminder. This is one of the two places the product may appear, in one plain sentence. Never "just following up", "bumping this" or "did you see my email". At most 100 words, and shorter than Email 1.
 
 ### breakup: the last email
-A reply in Email 1's thread, like the follow-up, so **no subject**. Short, polite and final. Say plainly that you won't keep writing, and ask who the right person is for this problem (a referral ask). No guilt, no "closing your file". At most 70 words, and shorter than the follow-up.
+A reply in Email 1's thread, like the follow-up, so **no subject**. Short, polite and final. Say plainly that you won't keep writing. No guilt, no "closing your file". At most 70 words, and shorter than the follow-up.
+
+Close it one of these ways, and vary the way across the campaign's people (the `recentDrafts` show which the others were sent):
+- **The right person:** who is the right person for this problem (a referral ask).
+- **Leave it:** whether it is better to leave it for now and not write again.
+- **A last useful offer:** one public thing the rep could send, if it would ever help.
+- **The door open:** whether this is worth a word later in the year, with no date and no pressure.
 
 ### li_connect: the LinkedIn connection note
 At most 200 characters, no link. One reason to connect, from the same problem, and a light question. No pitch and no give needed. This is the one touch Relay puts no greeting around, so it may open "Hi <first name>," if that reads better than a cold statement to a stranger. Never close on "open to connecting".

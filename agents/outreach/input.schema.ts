@@ -17,6 +17,10 @@ import { callDraftSchema, messageDraftSchema } from "./output.schema";
  * person is Relay's revealed Person (v2.1 §2), not lead gen's preview shape.
  */
 
+/** The product lines a quote or a firm can be about (trial fix 1). */
+export const PRODUCT_LINES = ["motor", "home", "travel", "pet", "legal-expenses"] as const;
+export type ProductLine = (typeof PRODUCT_LINES)[number];
+
 export const TOUCH_KINDS = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"] as const;
 export type TouchKind = (typeof TOUCH_KINDS)[number];
 
@@ -127,6 +131,17 @@ export const evidenceQuoteSchema = z
      * drafts widened the quotes in exactly those directions.
      */
     scope: z.string().min(1).max(1000).optional(),
+    /**
+     * The one product line the quote is about, when it is about one (trial fix 1): the ombudsman's car and
+     * motorcycle figure is `motor`, and it went to a travel insurer and a legal-expenses firm in the 24 Sep
+     * trial. Absent for a quote about complaints in general.
+     */
+    line: z.enum(PRODUCT_LINES).optional(),
+    /**
+     * How many other people in this campaign have already been sent this quote (trial fix 1). The drafter
+     * prefers the least used: in the trial one quote was in six of seven first emails.
+     */
+    usedBy: z.number().int().nonnegative().max(10_000).optional(),
   })
   .strict();
 
@@ -228,6 +243,11 @@ export const lookupResultSchema = z
     /** What the lookup used, recorded on the draft (§4). A maximum, not a quota (v2.1 §3). */
     searches: z.number().int().nonnegative().max(2),
     fetches: z.number().int().nonnegative().max(2),
+    /**
+     * The product lines the firm sells, when what the lookup read says so (trial fix 1): a figure about one
+     * line reaches a person only when their firm sells it. Absent when nothing said.
+     */
+    lines: z.array(z.enum(PRODUCT_LINES)).max(PRODUCT_LINES.length).optional(),
   })
   .strict();
 

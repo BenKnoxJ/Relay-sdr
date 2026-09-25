@@ -36,7 +36,10 @@ import { retryDelayMs } from "@/worker/retry";
  *      this job requeues it and then runs it", and only this order makes that
  *      a single, deterministic poll rather than a race between two of them.
  *   2. **Claim one.** `claimNext` is the queue's single-statement claim, so
- *      exclusivity is Postgres's problem and not this file's.
+ *      exclusivity is Postgres's problem and not this file's. Up to
+ *      `RELAY_WORKER_CONCURRENCY` jobs run at once (trial fix 1): the loop
+ *      claims again while fewer are in flight, and waits for one to finish
+ *      when that many are.
  *   3. **Run it under a lease.** `withLease` renews while the handler works
  *      and aborts it if the lease is lost.
  *   4. **Say what happened, fenced.** `complete`, `fail` or `requeue`, each
@@ -58,8 +61,8 @@ const workerId = `${hostname()}-${process.pid}-${randomBytes(4).toString("hex")}
 let prisma: PrismaClient | undefined;
 let stopping = false;
 let wake: (() => void) | undefined;
-/** Aborts the in-flight handler when a draining worker runs out of time. */
-let drain: AbortController | undefined;
+/** One per in-flight handler: aborted when a draining worker runs out of time. */
+const drains = new Set<AbortController>();
 let drainDeadline: NodeJS.Timeout | undefined;
 
 /**
@@ -73,10 +76,10 @@ let drainDeadline: NodeJS.Timeout | undefined;
  * the drain.
  */
 function armDrain(drainMs: number): void {
-  if (drain === undefined || drainDeadline !== undefined) return;
+  if (drains.size === 0 || drainDeadline !== undefined) return;
   drainDeadline = setTimeout(() => {
     log("drain.timeout", { drainMs });
-    drain?.abort(new Error(`the worker drained for ${drainMs}ms and gave the job back`));
+    for (const drain of drains) drain.abort(new Error(`the worker drained for ${drainMs}ms and gave the job back`));
   }, drainMs);
   drainDeadline.unref?.();
 }
@@ -103,7 +106,8 @@ function pause(ms: number): Promise<void> {
     wake = finish;
     function finish(): void {
       clearTimeout(timer);
-      wake = undefined;
+      // A pause that lost a race to a finishing job still times out later; it must not unhook the newer one.
+      if (wake === finish) wake = undefined;
       resolve();
     }
   });
@@ -157,7 +161,8 @@ async function runJob(
 
   // Armed only while a handler is in flight, so a SIGTERM with an idle worker
   // exits immediately rather than waiting on a deadline for nothing.
-  drain = new AbortController();
+  const drain = new AbortController();
+  drains.add(drain);
   // A signal that arrived during the reap or the claim has already latched
   // `stopping`; this job is the one it has to drain.
   if (stopping) armDrain(drainMs);
@@ -176,7 +181,7 @@ async function runJob(
     // attempt the claim spent and makes it due now, so a deploy does not
     // charge every in-flight job an attempt — and does not terminally fail the
     // one that happened to be on its last.
-    if (drain?.signal.aborted === true) {
+    if (drain.signal.aborted) {
       const result = await release(db, job, message);
       log(result.fenced ? "job.fenced" : "job.released", { ...shape, durationMs, error: message });
       return;
@@ -204,9 +209,12 @@ async function runJob(
     }
     return;
   } finally {
-    clearTimeout(drainDeadline);
-    drainDeadline = undefined;
-    drain = undefined;
+    drains.delete(drain);
+    // The deadline is the drain's, not this job's: it stands while any other job is still draining.
+    if (drains.size === 0) {
+      clearTimeout(drainDeadline);
+      drainDeadline = undefined;
+    }
   }
 
   const durationMs = Math.round(performance.now() - started);
@@ -257,6 +265,7 @@ async function main(): Promise<void> {
     RELAY_WORKER_POLL_MS: pollMs,
     RELAY_WORKER_LEASE_MS: leaseMs,
     RELAY_WORKER_DRAIN_MS: drainMs,
+    RELAY_WORKER_CONCURRENCY: concurrency,
   } = env();
   ({ prisma } = await import("@/lib/db"));
   const db = prisma;
@@ -266,7 +275,7 @@ async function main(): Promise<void> {
   // write.
   // eslint-disable-next-line no-restricted-syntax
   await db.$queryRaw`SELECT 1`;
-  log("started", { mode: once ? "once" : "loop", integrations: INTEGRATIONS, pollMs, leaseMs, db: "ok" });
+  log("started", { mode: once ? "once" : "loop", integrations: INTEGRATIONS, pollMs, leaseMs, concurrency, db: "ok" });
 
   // Stop claiming, let the job in flight finish, exit 0. `once` returns to
   // the default handler: a `--once` run is a CI step and a systemd
@@ -278,12 +287,12 @@ async function main(): Promise<void> {
       // repeated Ctrl-C does nothing at all. It aborts the handler now; the
       // job is given back by the same path the drain deadline uses.
       log("stopping.forced", { signal });
-      drain?.abort(new Error("the worker was asked to stop twice and gave the job back"));
+      for (const drain of drains) drain.abort(new Error("the worker was asked to stop twice and gave the job back"));
       wake?.();
       return;
     }
     stopping = true;
-    log("stopping", { signal, draining: drain !== undefined, drainMs });
+    log("stopping", { signal, draining: drains.size, drainMs });
     // Cut the poll sleep short so an idle worker exits now rather than after
     // one more interval.
     wake?.();
@@ -305,8 +314,28 @@ async function main(): Promise<void> {
   // `--once` is the exception. It is a CI step and a smoke test, and a step
   // that swallows a database failure and exits 0 is worse than useless.
   let consecutiveFailures = 0;
+  let lastError = "";
+  /** The jobs this worker is running, each settled into a promise that never rejects. */
+  const inFlight = new Set<Promise<void>>();
+  /** A poll that threw, or a job that threw out of `runJob` (the database went while it was recording). */
+  const failed = (error: unknown): void => {
+    consecutiveFailures += 1;
+    lastError = safeError(error);
+    log("poll.failed", { error: lastError, consecutiveFailures });
+  };
   while (!stopping) {
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      // The jobs in hand finish first: each has its own lease and its own way out.
+      await Promise.all(inFlight);
+      throw new Error(`the worker failed ${consecutiveFailures} polls in a row; last error: ${lastError}`);
+    }
     try {
+      // Full: wait for a job to finish (or a signal) before claiming another.
+      if (inFlight.size >= concurrency) {
+        await Promise.race([...inFlight, pause(pollMs)]);
+        continue;
+      }
+
       const reaped = await reapExpired(db);
       if (reaped.requeued.length > 0 || reaped.failed.length > 0) {
         log("reaped", { requeued: reaped.requeued.length, failed: reaped.failed.length });
@@ -324,24 +353,30 @@ async function main(): Promise<void> {
           log("idle", { mode: "once" });
           break;
         }
-        consecutiveFailures = 0;
-        await pause(pollMs);
+        if (inFlight.size === 0) consecutiveFailures = 0;
+        // Woken early when a running job finishes or a signal lands.
+        await (inFlight.size === 0 ? pause(pollMs) : Promise.race([...inFlight, pause(pollMs)]));
         continue;
       }
 
-      await runJob(db, job, leaseMs, drainMs);
-      consecutiveFailures = 0;
-      if (once) break;
+      // `--once` runs its one job in the foreground: it is a CI step, and its failure is the step's.
+      if (once) {
+        await runJob(db, job, leaseMs, drainMs);
+        break;
+      }
+      const running: Promise<void> = runJob(db, job, leaseMs, drainMs)
+        .then(() => {
+          consecutiveFailures = 0;
+        }, failed)
+        .finally(() => {
+          inFlight.delete(running);
+          wake?.();
+        });
+      inFlight.add(running);
     } catch (error) {
       if (once) throw error;
-      consecutiveFailures += 1;
-      const message = safeError(error);
-      log("poll.failed", { error: message, consecutiveFailures });
-      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        throw new Error(
-          `the worker failed ${consecutiveFailures} polls in a row; last error: ${message}`,
-        );
-      }
+      failed(error);
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) continue;
       // Whatever job this poll was holding is left where it is: its lease
       // lapses and the reaper — this worker's next pass, or another worker's —
       // takes it. That is the same path a SIGKILL takes, and it is already
@@ -350,6 +385,8 @@ async function main(): Promise<void> {
     }
   }
 
+  // Draining: the jobs in hand finish (or are given back at the deadline) before the worker exits.
+  await Promise.all(inFlight);
   log("stopped");
   await db.$disconnect();
 }

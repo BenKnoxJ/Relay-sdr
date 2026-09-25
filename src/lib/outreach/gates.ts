@@ -26,7 +26,7 @@ export type GateResult = { tierA: Finding[]; tierB: Finding[] };
  * A draft already written in this campaign, as the cohort gates read it. `personId` is who it was written for:
  * the repetition gates count people, not drafts (M2 fix 2), so one colleague's two touches are one person.
  */
-export type CohortDraft = { body: string; ask: string; sameAccount: boolean; personId: string };
+export type CohortDraft = { body: string; ask: string; sameAccount: boolean; personId: string; touch?: string };
 
 export type GateContext = {
   /** The product's name as the rep says it; always allowed in a body. */
@@ -462,6 +462,37 @@ const FIGURES_SHOW = /\bfigures show\b/i;
  */
 const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sortable) tables?\b/i;
 
+/**
+ * A trend in something measured, stated as fact (trial fix 1): "more motor complaints are drifting past three
+ * days", "the volume keeps rising". Somebody measured that or nobody did, so it is a source claim whoever it
+ * is about, and it passes only when an approved quote in the sentence carries the trend itself. Only
+ * measured things (complaints, volumes, numbers, rates): "your team is growing" is not a statistic.
+ */
+const MEASURED = "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)";
+const RISES = "(?:drifting|rising|growing|climbing|increasing|creeping|slipping|going up)";
+const TREND = new RegExp(
+  [
+    `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) ${RISES}`,
+    `\\bmore and more (?:[\\w'’-]+ ){0,2}${MEASURED}\\b`,
+    `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}(?:keeps?|kept) ${RISES}`,
+    `\\b${MEASURED} (?:are|is|have been|has been) (?:${RISES}|on the rise|up)\\b`,
+    `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed)\\b`,
+    `\\b(?:growing|rising) (?:number|share|volume) of (?:[\\w'’-]+ )?${MEASURED}\\b`,
+  ].join("|"),
+  "i",
+);
+
+/** A trend in a quote's own words: what lets a trend sentence carrying that quote through. */
+const QUOTE_TREND = /\b(?:rose|risen|rising|up from|up on|increased?|increasing|grew|grown|growing|fell|fallen|down from|down on)\b/i;
+
+/**
+ * One figure set against another body's (trial fix 1): "a different number from what gets recorded once a
+ * case is escalated", "the ombudsman publishes its own uphold figure separately". The M2 probe named the
+ * ombudsman and was held; the trial's versions left it unnamed, or rode on a quote about something else.
+ * No approved quote makes that comparison, so none clears it.
+ */
+const COMPARED = /\bdifferent (?:number|figure|rate|measure)s? (?:from|to|than)\b|\bnot the same (?:number|figure|rate)\b|\bpublish(?:es|ed|ing)?\b[^.?!]{0,40}\b(?:figures?|numbers?|rates?|data)\b[^.?!]{0,30}\bseparately\b/i;
+
 /** A sentence written to the reader about themselves. */
 const SECOND_PERSON = /^\s*(?:you|your)\b/i;
 
@@ -501,7 +532,7 @@ function withoutNames(text: string, names: readonly string[]): string {
  * read as a figure, so "Insights360… so a theme can be shown" is not a report of the number 360.
  */
 export function attributesASource(sentence: string, names: readonly string[] = []): boolean {
-  if (SOURCE_NAMED_OUTRIGHT.test(sentence) || FIGURES_SHOW.test(sentence)) return true;
+  if (SOURCE_NAMED_OUTRIGHT.test(sentence) || FIGURES_SHOW.test(sentence) || TREND.test(sentence) || COMPARED.test(sentence)) return true;
   const figure = FIGURE.test(withoutNames(sentence, names));
   if (PUBLISHED_ABOUT.test(sentence) || (PUBLISH.test(sentence) && figure)) return true;
   return figure && REPORTED.test(sentence);
@@ -572,6 +603,49 @@ const FREQUENCY_WORDS: readonly (readonly [string, RegExp])[] = [
   ["always", /\balways\b/i],
 ];
 
+/** Words for figure matching: as `quoteWords`, with a thousands comma kept inside its number ("4,100" is one word). */
+function figureWords(text: string): string[] {
+  return quoteWords(text.replace(/(\d),(?=\d{3}\b)/g, "$1"));
+}
+
+const IS_FIGURE = /^\d[\d.]*%?$/;
+
+/**
+ * True when a sentence takes a quote's figures out of the quote's own words (trial fix 1). The trial wrote
+ * "numbers up on the 4,000 from January to March 2026": every word of it is in the ombudsman's quote, and it
+ * garbles the quote, because the 4,000 is only what the 4,100 is compared with. So:
+ *
+ * - a figure the quote carries sits inside a run of the quote's own words in the sentence, so its number and
+ *   its period come with it ("rose to 2,800" is not the quote's 2,800);
+ * - the figures used from a quote are its first ones, in order: a comparison never arrives without the
+ *   figure it is compared with.
+ *
+ * A figure the quote's source name also carries (the period "April to June 2026") is the attribution's, not
+ * the quote's. `names` are never figures (Insights360).
+ */
+export function figuresMisquoted(sentence: string, quote: EvidenceQuote, names: readonly string[] = []): boolean {
+  const mine = figureWords(withoutNames(sentence, names));
+  const theirs = figureWords(quote.quote);
+  const runs = new Set<string>();
+  for (let i = 0; i + QUOTE_RUN_WORDS <= theirs.length; i += 1) runs.add(theirs.slice(i, i + QUOTE_RUN_WORDS).join(" "));
+  const covered = new Set<number>();
+  for (let i = 0; i + QUOTE_RUN_WORDS <= mine.length; i += 1) {
+    if (runs.has(mine.slice(i, i + QUOTE_RUN_WORDS).join(" "))) for (let j = i; j < i + QUOTE_RUN_WORDS; j += 1) covered.add(j);
+  }
+  const quoteFigures = theirs.filter((word) => IS_FIGURE.test(word));
+  const attribution = new Set(figureWords(quote.sourceName).filter((word) => IS_FIGURE.test(word)));
+  const used = new Set<string>();
+  for (const [index, word] of mine.entries()) {
+    if (!IS_FIGURE.test(word) || !quoteFigures.includes(word)) continue;
+    if (covered.has(index)) used.add(word);
+    else if (!attribution.has(word)) return true;
+  }
+  // The figures used are the quote's first ones: 4,100 alone, or 4,100, 2,800 and 2025, never 4,000 alone.
+  // A year is the figure's date, not a figure it is compared with: "4,100" may be quoted without "in 2025".
+  const year = (word: string) => /^(?:19|20)\d{2}$/.test(word);
+  return [...used].some((word) => quoteFigures.slice(0, quoteFigures.indexOf(word)).some((earlier) => !used.has(earlier) && !attribution.has(earlier) && !year(earlier)));
+}
+
 /**
  * Every sentence that attributes something to a source without quoting that source (M2, as fix round 2
  * tightened it). A sentence passes only on its own words: it carries a run of a quote from the body it
@@ -597,15 +671,23 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
       // about someone: that is a third party's finding whoever it is about. The firm is matched as a whole
       // phrase, never a word of it — "motor" or "insurance" from Ardent Motor Insurance, or a prospect called
       // Will, let "The FCA will name firms…" through in fix round 1.
-      const thirdParty = SOURCE_NAMED_OUTRIGHT.test(sentence) || PUBLISHED_ABOUT.test(sentence);
+      // A trend or a comparison is never personalisation: "Harbour Motor's complaints keep rising" is a claim
+      // somebody measured, whoever it is about (trial fix 1).
+      const thirdParty = SOURCE_NAMED_OUTRIGHT.test(sentence) || PUBLISHED_ABOUT.test(sentence) || TREND.test(sentence) || COMPARED.test(sentence);
       if (!thirdParty && (about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || SECOND_PERSON.test(sentence))) continue;
       // The quote must be in this sentence: a quote beside it clears nothing (fix round 1's neighbour window
       // passed "Those figures get published against Ardent's name" after the ombudsman's sentence). And it must
       // be from the body the sentence credits: six words of any quote is not the FCA's word.
       const named = familiesIn(sentence);
       const matched = quotes.filter(({ runs, families }) => quotesEvidence(sentence, runs) && (named.size === 0 || [...named].some((family) => families.has(family))));
+      // Every body the sentence names needs a quote of its own (trial fix 1). An FCA-sourced quote let "and
+      // the ombudsman publishes its own uphold figure separately" through in the same sentence.
+      const uncovered = [...named].some((family) => !matched.some(({ families }) => families.has(family)));
       const widened = FREQUENCY_WORDS.some(([, pattern]) => pattern.test(sentence) && !matched.some(({ quote }) => pattern.test(quote.quote)));
-      if ((matched.length === 0 || widened) && !held.includes(sentence)) held.push(sentence);
+      const trend = TREND.test(sentence) && !matched.some(({ quote }) => QUOTE_TREND.test(quote.quote));
+      const compared = COMPARED.test(sentence) && !matched.some(({ quote }) => COMPARED.test(quote.quote));
+      const misquoted = matched.some(({ quote }) => figuresMisquoted(sentence, quote, names));
+      if ((matched.length === 0 || uncovered || widened || trend || compared || misquoted) && !held.includes(sentence)) held.push(sentence);
     }
   }
   return held;
@@ -614,6 +696,37 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
 /** Which evidence quotes a text actually carries, by id: what a colleague at the same firm has already used. */
 export function evidenceUsedIn(text: string, evidence: readonly EvidenceQuote[]): string[] {
   return evidence.filter((quote) => presentRuns(text, quoteRuns([quote])).size > 0).map((quote) => quote.id);
+}
+
+/**
+ * The evidence a draft uses, against what the campaign has already been sent (trial fix 1).
+ *
+ * Tier A, on every touch: a quote a colleague at the same account was already sent. The sentence check
+ * missed it in the trial because the second draft joined the quote's two sentences into one, which moved
+ * the wording under the 0.8 score; the item used is the same whatever the wording around it.
+ *
+ * Tier B, on Email 1: a quote more than half the campaign's first emails already carry, this one included.
+ */
+function evidenceReuseFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
+  const tierA: Finding[] = [];
+  const tierB: Finding[] = [];
+  const used = input.pack.evidence.filter((quote) => evidenceUsedIn(proseText(draft), [quote]).length > 0);
+  if (used.length === 0) return { tierA, tierB };
+  const carries = (other: CohortDraft, quote: EvidenceQuote) => evidenceUsedIn(other.body, [quote]).length > 0;
+  const colleagues = context.cohort.filter((other) => other.sameAccount);
+  const shared = used.find((quote) => colleagues.some((other) => carries(other, quote)));
+  if (shared !== undefined) {
+    tierA.push({ rule: "colleague-evidence", text: `A colleague at this firm was already sent the quote from ${shared.sourceName}. Give a different one, or a plain point with no source.` });
+  }
+  if (input.touch.kind === "email1") {
+    const firsts = context.cohort.filter((other) => other.touch === "email1");
+    const total = peopleIn(firsts) + 1;
+    const common = used.find((quote) => (peopleIn(firsts.filter((other) => carries(other, quote))) + 1) * 2 > total);
+    if (common !== undefined && total >= 3) {
+      tierB.push({ rule: "cohort-give", text: `Most first emails in this campaign already quote ${common.sourceName}. A less used give would make this one stand apart.` });
+    }
+  }
+  return { tierA, tierB };
 }
 
 /** Words too common to say which quote a sentence was reaching for. */
@@ -647,7 +760,20 @@ const clip = (text: string, max: number) => (text.length <= max ? text : `${text
  */
 function evidenceFindings(parts: readonly string[], input: OutreachInput, context: GateContext): Finding[] {
   const held = unsupportedSourceClaims(parts, input.pack.evidence, [input.person.company, input.account.company, input.person.name], allowedValues(input, context));
-  return held.map((sentence) => ({ rule: "unsupported-source-claim", text: sourceClaimFix(sentence, closestQuote(sentence, input.pack.evidence)) }));
+  return held.map((sentence) => ({ rule: "unsupported-source-claim", text: heldClaimText(sentence, input.pack.evidence, allowedValues(input, context)) }));
+}
+
+/** What to do about a held sentence, in the words that fit what it did (trial fix 1). */
+function heldClaimText(sentence: string, evidence: readonly EvidenceQuote[], names: readonly string[]): string {
+  const said = `"${clip(sentence, 90)}"`;
+  const carried = evidence.filter((quote) => quotesEvidence(sentence, quoteRuns([quote])));
+  if (TREND.test(sentence) && !carried.some((quote) => QUOTE_TREND.test(quote.quote))) return `${said} says something is rising or growing, and no approved quote in it says so. Say the point without the trend, or leave it out.`;
+  if (COMPARED.test(sentence)) return `${said} compares a figure with another body's, and no approved quote makes that comparison. Leave the comparison out.`;
+  const quote = closestQuote(sentence, evidence);
+  if (quote !== null && figuresMisquoted(sentence, quote, names)) {
+    return `${said} takes a figure out of its quote. Quote the figures in the quote's own words and order, first figure first, or leave them out.`;
+  }
+  return sourceClaimFix(sentence, quote);
 }
 
 /**
@@ -712,6 +838,43 @@ export function askShapeOf(ask: string): string {
   return quoteWords(question).slice(0, 2).join(" ");
 }
 
+const MONTH = "(?:january|february|march|april|may|june|july|august|september|october|november|december)";
+/** A day and a month, "22 October" or "October 22": never "may" or "march" alone, which are verbs as often. */
+const DAY_MONTH = `(?:\\d{1,2}(?:st|nd|rd|th)?\\s+${MONTH}|${MONTH}\\s+\\d{1,2}(?:st|nd|rd|th)?)\\b`;
+/** "Return" the noun, never "return to", "return on investment" or "return in March". */
+const A_RETURN = "\\breturns?\\b(?!\\s+(?:to|on|of|in|the|a|an|your|my|it|them|this|that|with|from)\\b)";
+
+/**
+ * A return dated with a publication day (trial fix 1): "the October return", "the next return dated 22 October",
+ * "the return is due on 22 October", "22 October, the numbers in this return". A month before "return" counts
+ * only when it cannot be a verb ("I may return" is not a date).
+ */
+const RETURN_DATE = new RegExp(
+  [
+    `\\b(?:january|february|april|june|july|august|september|october|november|december)(?:\\s+[\\w'’-]+){0,2}\\s+returns?\\b`,
+    `${A_RETURN}[^.?!]{0,40}${DAY_MONTH}`,
+    `${DAY_MONTH}[^.?!]{0,60}${A_RETURN}`,
+  ].join("|"),
+  "i",
+);
+
+const COUNT = "(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a|a few|a couple of|several)";
+const SPAN = `${COUNT}\\s+(?:days?|weeks?|months?)`;
+
+/**
+ * A count of time up to a date (trial fix 1): "six weeks out from 22 October", "which leaves six weeks", "for
+ * the six weeks before that", "a month out". The trial said six weeks where it was 27 days, three times.
+ * Relay does no date arithmetic in a message, so the count is banned outright rather than checked. "Before",
+ * "until" and "ahead of" count only with a date or "that" after them: "two weeks before the team saw results"
+ * is a story, and a rule's own period ("within eight weeks", "every 6 months") is not a count to a date.
+ */
+const RELATIVE_DATE: readonly RegExp[] = [
+  new RegExp(`\\b${SPAN}\\s+(?:out|away|left|from now|remaining|to go\\b(?!\\s+live))`, "i"),
+  new RegExp(`\\b${SPAN}\\s+(?:before|until|till|ahead of)\\s+(?:that|then|it|the (?:date|deadline|publication)|${DAY_MONTH})`, "i"),
+  new RegExp(`\\b(?:leaves?|leaving|left with)\\s+(?:just\\s+|only\\s+)?${SPAN}\\b`, "i"),
+  new RegExp(`\\bin\\s+${SPAN}(?:'s|’s)?\\s+time\\b`, "i"),
+];
+
 function standardFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
   const tierA: Finding[] = [];
   const tierB: Finding[] = [];
@@ -752,6 +915,31 @@ function standardFindings(draft: OutreachOutput, input: OutreachInput, context: 
   // but it is not this draft's fault and it must never push the writer into synonym-swapping: advice.
   if (shape !== "" && peopleIn(context.cohort.filter((other) => askShapeOf(other.ask) === shape)) > 3) {
     tierB.push({ rule: "cohort-ask-shape", text: `More than three people in this campaign are being asked a "${shape}…" question.` });
+  }
+
+  // Trial fix 1: a published date is not the firm's return, and no touch counts the time to a date.
+  const parts = proseParts(draft);
+  const returnSentence = parts.flatMap((part) => sentences(part)).find((sentence) => RETURN_DATE.test(sentence));
+  if (returnSentence !== undefined) {
+    tierA.push({
+      rule: "return-date",
+      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: say who publishes on that day, with its approved quote (the FCA publishes the H1 figures by firm on 22 October), or leave the date out.`,
+    });
+  }
+  const counted = parts.flatMap((part) => sentences(part)).find((sentence) => RELATIVE_DATE.some((pattern) => pattern.test(sentence)));
+  if (counted !== undefined) {
+    tierA.push({ rule: "relative-date", text: `"${clip(counted, 90)}" counts the time to a date. Give the date itself ("on 22 October"), or nothing, and leave the count out.` });
+  }
+
+  // Trial fix 1: every last email in the trial asked the same right-person question. Advice, like the other
+  // campaign-wide shapes: more than half of the campaign's last emails, with this one, asking it one way.
+  if (kind === "breakup" && shape !== "") {
+    const breakups = context.cohort.filter((other) => other.touch === "breakup");
+    const same = peopleIn(breakups.filter((other) => askShapeOf(other.ask) === shape)) + 1;
+    const total = peopleIn(breakups) + 1;
+    if (same >= 3 && same * 2 > total) {
+      tierB.push({ rule: "cohort-breakup-shape", text: `Most last emails in this campaign end on a "${shape}…" question. Close this one another way.` });
+    }
   }
 
   // The facts file's never-say list. Research has been linted against it since brief E; outreach
@@ -797,6 +985,7 @@ export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context:
   const cohort = cohortFindings(draft, input, context.cohort);
   const provenance = provenanceFindings(draft.body, input, context);
   const standard = standardFindings(draft, input, context);
+  const reuse = evidenceReuseFindings(draft, input, context);
   const tierA = [
     ...checkTouchLimits(draft, input),
     ...shapeFindings(draft, input, input.standard.bannedLexicon),
@@ -804,8 +993,9 @@ export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context:
     ...evidenceFindings([draft.subject ?? "", draft.body], input, context),
     ...standard.tierA,
     ...cohort.tierA,
+    ...reuse.tierA,
   ];
-  return { tierA, tierB: [...adviceFindings(draft), ...provenance.tierB, ...standard.tierB, ...cohort.tierB] };
+  return { tierA, tierB: [...adviceFindings(draft), ...provenance.tierB, ...standard.tierB, ...cohort.tierB, ...reuse.tierB] };
 }
 
 /**
@@ -892,7 +1082,9 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
       found.push({ rule: "second-call", text: "The script has nothing for the second call: it needs its own opener and its own question." });
     }
   }
-  if (ANTITHESIS.some((pattern) => pattern.test(text))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
+  // Part by part (trial fix 1): joined, a call's objection ("This isn't something I own directly.") ran into
+  // its answer ("That's fine.") and read as "isn't X. That's Y", which held a clean call script in the trial.
+  if (ANTITHESIS.some((pattern) => proseParts(draft).some((part) => pattern.test(part)))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
   const tells = input.standard.bannedLexicon.filter((phrase) => hasTell(text, phrase));
   if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
   const us = US_SPELLINGS.filter((word) => new RegExp(`\\b${word}\\b`, "i").test(text));
@@ -913,9 +1105,10 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
   // LinkedIn message is not the same fault as repeating a colleague's.
   const sameAccount = context.cohort.filter((other) => other.sameAccount);
   const cohort = draft.kind === "message" && sameAccount.length > 0 ? cohortFindings(draft, input, sameAccount) : { tierA: [], tierB: [] };
+  const reuse = evidenceReuseFindings(draft, input, context);
   return {
-    tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input, context), ...standard.tierA, ...cohort.tierA],
-    tierB: [...advice, ...provenance.tierB, ...standard.tierB, ...cohort.tierB],
+    tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input, context), ...standard.tierA, ...cohort.tierA, ...reuse.tierA],
+    tierB: [...advice, ...provenance.tierB, ...standard.tierB, ...cohort.tierB, ...reuse.tierB],
   };
 }
 

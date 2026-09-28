@@ -153,8 +153,10 @@ function spellingFinding(text: string): Finding[] {
  * what …, never which …", "it says nothing about …", a stand-alone "…, not Y." and the escalating fragment
  * ("Not a subset. All of them."). The older two-sentence antithesis stays under its own rule.
  */
+const SET_UP = /\b(?:is|are|'s|’s|was|becomes)\s+(?:a\s+|an\s+)?(?:separate|different|another|whole other|other)\s+(?:question|job|matter|problem|conversation|issue|story|claim)\b/i;
+
 const CONTRAST: readonly RegExp[] = [
-  /\b(?:is|are|'s|’s|was|becomes)\s+(?:a\s+|an\s+)?(?:separate|different|another|whole other|other)\s+(?:question|job|matter|problem|thing|conversation|issue|story|claim)\b/i,
+  SET_UP,
   /\bis one thing\b[^.?!]*\banother\b/i,
   /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?)\s+(?:what|which|how|why|who|when)\b[^.?!]{0,80}\b(?:never|not|but not|and not|rarely)\s+(?:what|which|how|why|who|when)\b/i,
   /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?|explains?)\s+nothing (?:about|of)\b/i,
@@ -171,18 +173,22 @@ const CONTRAST: readonly RegExp[] = [
 const NOT_FRAGMENT =
   /^not\s+(?!(?:yet|really|sure|always|quite|necessarily|often|much|many|at all|exactly|everyone|everybody|that|to worry|a problem|a bother|an easy|the easiest|bad|too bad|long|now)\b)/i;
 
-function contrastIn(parts: readonly string[]): string | undefined {
+function contrastIn(parts: readonly string[], patterns: readonly RegExp[] = CONTRAST): string | undefined {
   for (const part of parts) {
     for (const sentence of sentences(part)) {
-      if (CONTRAST.some((pattern) => pattern.test(sentence))) return sentence;
+      if (patterns.some((pattern) => pattern.test(sentence))) return sentence;
       if (NOT_FRAGMENT.test(sentence) && sentence.split(/\s+/).length <= 6) return sentence;
     }
   }
   return undefined;
 }
 
-function contrastFinding(parts: readonly string[]): Finding[] {
-  const sentence = contrastIn(parts);
+/**
+ * Fix round 3 of #54: `answers` are a call's objection answers, where deferring a topic ("that's a different
+ * conversation") is how a rep moves on, not the set-up contrast; every other contrast still holds there.
+ */
+function contrastFinding(parts: readonly string[], answers: readonly string[] = []): Finding[] {
+  const sentence = contrastIn(parts) ?? contrastIn(answers, CONTRAST.filter((pattern) => pattern !== SET_UP));
   return sentence === undefined
     ? []
     : [{ rule: "contrast", text: `"${clip(sentence, 90)}" sets one thing against another for effect, which reads as written by a machine. Say the one point plainly.` }];
@@ -588,8 +594,12 @@ const NOT_A_NOUN = "(?<!\\b(?:a|an|the|any|this|that|each|every|price|premium|pr
  * "Across" and "in" stay: "complaint volumes across motor climb" is the trend.
  */
 const GAP = "(?:(?!(?:about|over|on|for|of|with|around|from|after|against|regarding|concerning|like|following)\\b)[\\w'’-]+ )";
-/** Any words between a measured noun and a base-form verb: "claims for storm damage rise every autumn". */
-const GAP_ANY = "(?:[\\w'’-]+ )";
+/**
+ * Any words between a measured noun and a base-form verb: "claims for storm damage rise every autumn". Never a
+ * determiner or a possessive (fix round 3 of #54): "complaints about the recent rise", "claims after last year's
+ * increase" make the verb a noun.
+ */
+const GAP_ANY = "(?:(?!(?:a|an|the|this|that|these|those|last|its|their|your|our|his|her|my|any|each|every)\\b)(?![\\w'’-]+['’]s )[\\w'’-]+ )";
 /** What a figure does over time. Never "drift" or "creep": "the conversation tends to drift toward price" is talk. */
 const MOVES = "(?:slip|grow|fall|rise|climb|drop|increase)";
 const TREND = new RegExp(
@@ -1316,9 +1326,14 @@ export function normaliseClaims<T extends OutreachOutput>(draft: T, input: Outre
 export function proseParts(draft: OutreachOutput): string[] {
   if (draft.kind === "message") return [draft.subject ?? "", draft.body].filter((part) => part !== "");
   const point = draft.talkingPoint;
-  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? "", ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer])].filter(
-    (part) => part !== "",
-  );
+  return [...callLines(point), ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer]).filter((part) => part !== "")];
+}
+
+type TalkingPoint = Extract<OutreachOutput, { kind: "call" }>["talkingPoint"];
+
+/** A call script's own lines, without its objection pairs. */
+function callLines(point: TalkingPoint): string[] {
+  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? ""].filter((part) => part !== "");
 }
 
 /** The same, as one text, for the checks that read words rather than sentences. */
@@ -1367,7 +1382,9 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
   // Part by part (trial fix 1): joined, a call's objection ("This isn't something I own directly.") ran into
   // its answer ("That's fine.") and read as "isn't X. That's Y", which held a clean call script in the trial.
   if (ANTITHESIS.some((pattern) => proseParts(draft).some((part) => pattern.test(part)))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
-  found.push(...contrastFinding(proseParts(draft)));
+  // Fix round 3 of #54: an objection is the prospect's line ("Not interested."), never the rep's hand.
+  if (draft.kind === "call") found.push(...contrastFinding(callLines(draft.talkingPoint), (draft.talkingPoint.objections ?? []).map((pair) => pair.answer)));
+  else found.push(...contrastFinding(proseParts(draft)));
   const tells = tellsIn(text, input.standard.bannedLexicon);
   if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
   found.push(...spellingFinding(text));

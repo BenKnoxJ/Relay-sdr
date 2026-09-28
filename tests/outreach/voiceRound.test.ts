@@ -430,3 +430,70 @@ describe("self-review probes", () => {
     expect(found).not.toContain("aside");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fix round 3 of #54 (Critic): a call's objection is the prospect's line, a deferral is not a set-up contrast, and
+// "rise" or "increase" after an adjective is a noun.
+
+describe("fix round 3 of #54", () => {
+  const call = (objection: string, answer = "Fair enough. Who would be the right person to ask?"): OutreachOutput => ({
+    kind: "call",
+    talkingPoint: {
+      openingLine: "Hi Sam, it's Alex from Conversant. I sent a note about the delay calls. Is now an alright time?",
+      oneQuestion: "Who looks after the delay calls day to day?",
+      openingLine2: "Alex again, from Conversant. Have you got a moment?",
+      oneQuestion2: "Who decides which calls get reviewed?",
+      listenFor: "Whether anyone listens back to the delay calls.",
+      voicemail: "Hi Sam, it's Alex from Conversant. No need to call back, I'll follow up by email.",
+      numberSource: "switchboard",
+      objections: [{ objection, answer }],
+    },
+    opener: { ref: ROLE_REF, kind: "role_pain" },
+    claims: [],
+  });
+  const runCall = (objection: string, answer?: string) => gated(call(objection, answer), inputFor(HARBOUR, "call"));
+
+  it.each([
+    "Not interested.",
+    "Not right now.",
+    "Not my area.",
+    "Not a priority this year.",
+    "Not for us.",
+    "Not in the budget.",
+    "Not at the moment.",
+    "Not today.",
+    "Not this quarter.",
+    "Not me, try our QA lead.",
+  ])("reads no contrast in the objection %s", (objection) => {
+    expect(runCall(objection)).not.toContain("contrast");
+  });
+
+  it.each(["That's another thing we could look at later.", "Fair enough, that's a different conversation."])("reads no contrast in the answer %s", (answer) => {
+    expect(runCall("Not interested.", answer)).not.toContain("contrast");
+  });
+
+  it("still holds the escalating fragment in the rep's own answer", () => {
+    expect(runCall("We already review calls.", "Not a subset. All of them.")).toContain("contrast");
+  });
+
+  it("still holds a set-up contrast in a message", () => {
+    const run = (sentence: string) => gated(message(`${sentence} Been wondering how the team keeps on top of the delay calls day to day. Who looks after that?`), inputFor(HARBOUR, "li_dm2"));
+    expect(run("Whether the fix worked is a different conversation.")).toContain("contrast");
+  });
+
+  it.each([
+    "Most of the complaints about the recent rise in premiums land with your team.",
+    "Claims after the big increase in storm cover often need a second look.",
+    "Complaints about last year's rise tend to cluster at renewal.",
+    "Disputes over the steep increase in excess are hard calls to take.",
+  ])("does not read a noun after an adjective as a trend: %s", (sentence) => {
+    expect(held(sentence)).toEqual([]);
+  });
+
+  it.each(["Claims for storm damage rise every autumn.", "Complaint numbers in home insurance increase each quarter.", "Complaint volumes on motor climb in January."])(
+    "still holds the base-form trend in %s",
+    (sentence) => {
+      expect(held(sentence)).toEqual([sentence]);
+    },
+  );
+});

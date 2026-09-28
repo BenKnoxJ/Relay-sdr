@@ -97,7 +97,7 @@ describe("a subject the touch is never sent with is dropped in code, not held", 
 
   it("no longer holds a LinkedIn message for its discarded subject, and still holds a paraphrase in its body", () => {
     const ask = "How far back can you go if the board asks about a specific dispute type?";
-    const quoted = message(`${gives[2]!.quote} It doesn't cover the conversations that led there. ${ask}`, ask, "what the fca publishes");
+    const quoted = message(`${gives[1]!.quote} It doesn't cover the conversations that led there. ${ask}`, ask, "what the fca found");
     expect(rules(withoutThreadSubject(quoted, "li_dm2"), "li_dm2")).not.toContain("unsupported-source-claim");
     const paraphrased = message(`The FCA publishes figures showing most complaints are upheld. ${ask}`, ask);
     expect(rules(paraphrased, "li_dm2")).toContain("unsupported-source-claim");

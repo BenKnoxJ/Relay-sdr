@@ -250,9 +250,15 @@ function evidenceRaw(input: OutreachInput): string {
 export function namedEntities(body: string): string[] {
   const found: string[] = [];
   for (const sentence of sentences(body)) {
-    const tokens = sentence.split(/\s+/).map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""));
+    // Punctuation left over from the sentence before ("…be.' Want me to…") is not a word: the sentence starts after it.
+    const tokens = sentence
+      .split(/\s+/)
+      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
+      .filter((token) => token !== "");
     let run: { text: string; index: number }[] = [];
     const flush = () => {
+      // A question or an offer opens on an ordinary word (trial fix 2): "Shall I send…" is not the name "Shall I".
+      if (run.length > 1 && run[0]!.index === 0 && isOpener(run[0]!.text)) run = run.slice(1);
       // A lone capitalised word at the start of a sentence is a sentence start, unless it is an acronym or carries a digit.
       const onlyStart = run.length === 1 && run[0]!.index === 0 && !/^[A-Z0-9]{2,}$/.test(run[0]!.text) && !/\d/.test(run[0]!.text) && !/[a-z][A-Z]/.test(run[0]!.text);
       if (run.length > 0 && !onlyStart) found.push(run.map((t) => t.text).join(" "));
@@ -269,10 +275,16 @@ export function namedEntities(body: string): string[] {
 
 /** Words that commonly open an English sentence. Never a name, whatever their case. */
 const STARTERS = new Set(
-  "so also just still yet even only then now instead otherwise however meanwhile again perhaps maybe happy glad worth given since because after before once until unless although though whether either neither both few several last next first second finally often usually sometimes typically currently recently today honestly curious fair sounds seems looks feel reading looking seeing having being going teams people firms handlers managers leaders directors most many some none nothing everything something anything".split(
+  "shall want need fancy keen mind open so also just still yet even only then now instead otherwise however meanwhile again perhaps maybe happy glad worth given since because after before once until unless although though whether either neither both few several last next first second finally often usually sometimes typically currently recently today honestly curious fair sounds seems looks feel reading looking seeing having being going teams people firms handlers managers leaders directors most many some none nothing everything something anything".split(
     " ",
   ),
 );
+
+/** An ordinary word opening a sentence or a question: "Shall", "Want", "Worth", "Should". */
+function isOpener(token: string): boolean {
+  const word = token.toLowerCase().replace(/['’]s$/, "");
+  return ORDINARY.has(word) || STARTERS.has(word);
+}
 
 /**
  * A lone capitalised word that opens a sentence, when it is not ordinary
@@ -283,7 +295,10 @@ const STARTERS = new Set(
 function sentenceStartNames(body: string, lowerCorpus: string): string[] {
   const found: string[] = [];
   for (const sentence of sentences(body)) {
-    const tokens = sentence.split(/\s+/).map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""));
+    const tokens = sentence
+      .split(/\s+/)
+      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
+      .filter((token) => token !== "");
     const [first, second] = tokens;
     if (first === undefined || !/^[A-Z][a-z][\w'’-]*$/.test(first)) continue;
     // A run of capitals is `namedEntities`' business.
@@ -472,12 +487,26 @@ const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sort
 const MEASURED =
   "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)(?!\\s+(?:teams?|handlers?|handling|managers?|departments?|staff|leads?|functions?|processes))";
 const RISES = "(?:drifting|rising|growing|climbing|increasing|creeping|slipping|going up)";
+/**
+ * The present tense, as a pattern is put (trial fix 2): "as complaint volumes climb", "volumes rise". Never an
+ * escalation: "a complaint goes up to the ombudsman", "rises to a manager".
+ */
+const RISE_NOW = "(?:(?:climbs?|rises?|grows?|increases?|go(?:es)? up|creeps? up)(?!\\s+to\\b))";
+/** What a figure does over time. Never "drift" or "creep": "the conversation tends to drift toward price" is talk. */
+const MOVES = "(?:slip|grow|fall|rise|climb|drop|increase)";
 const TREND = new RegExp(
   [
     `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) (?:${RISES}|ending up|\\w+ing (?:up|in|to|at|past)\\b)`,
     `\\bmore and more (?:[\\w'’-]+ ){0,2}${MEASURED}\\b`,
     `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}(?:keeps?|kept) ${RISES}`,
     `\\b${MEASURED} (?:are|is|have been|has been) (?:${RISES}|on the rise|up)\\b`,
+    // Trial fix 2: "complaint volumes across motor have been climbing", "as complaint volumes climb".
+    `\\b${MEASURED} (?:[\\w'’-]+ ){1,3}(?:have|has) been (?:${RISES}|on the rise)\\b`,
+    `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}${RISE_NOW}\\b`,
+    // A pattern put as a tendency, whatever it is about: "the share closed within three days tends to slip".
+    `\\btends? to ${MOVES}\\b`,
+    // "can slip as volumes rise": a fall tied to a rise. Never "a fix can slip through" on its own.
+    `\\b(?:can|may|might|could|will|often) ${MOVES}s?\\b[^.?!]{0,40}\\bas\\b[^.?!]{0,30}\\b(?:${RISE_NOW}|${RISES})\\b`,
     `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed|doubled|trebled|tripled|spiked|jumped|soared)\\b`,
     // The simple past (fix round 2): "complaints rose sharply", "uphold rates went up".
     `\\b${MEASURED} (?:[\\w'’-]+ )?(?:rose|grew|climbed|increased|doubled|trebled|tripled|spiked|jumped|soared|surged|went up)\\b`,
@@ -888,6 +917,26 @@ const RELATIVE_DATE: readonly RegExp[] = [
   new RegExp(`\\bin\\s+${SPAN}(?:'s|’s)?\\s+time\\b`, "i"),
 ];
 
+/**
+ * The FCA's publication schedule told to a firm that reports to it (trial fix 2, Benny-san 28 Sep): "The FCA
+ * publishes its complaints data every 6 months", "the H1 figures by firm land on 22 October". Every reader
+ * here files that data, so it is never news. The give is gone, and this keeps it from coming back from
+ * research text.
+ */
+const SCHEDULE = /\bevery (?:6|six) months\b|\btwice a year\b|\bhalf[- ]year(?:ly)?\b|\b(?:around|in) april and october\b/i;
+const FCA_SCHEDULE = [
+  (sentence: string) => /\b(?:fca|financial conduct authority|regulators?)\b/i.test(sentence) && PUBLISH.test(sentence) && SCHEDULE.test(sentence),
+  (sentence: string) => /\bwe publish our complaints data\b/i.test(sentence),
+  (sentence: string) => new RegExp(`\\bh[12]\\b[^.?!]{0,40}\\b(?:figures|data|numbers|tables?)\\b[^.?!]{0,40}(?:${DAY_MONTH}|\\b(?:land|lands|landing|out|published|publishes)\\b)`, "i").test(sentence),
+];
+
+/**
+ * One firm's main complaint cause said of every firm, or of the reader's (trial fix 2): "'other general admin'
+ * is often the only category on offer", "your published category is just 'general admin'". Research has it
+ * as one named firm's main cause only, so it holds unless this person's own lookup says it.
+ */
+const ONE_FIRM_CAUSE = [/\bonly (?:cause )?categor(?:y|ies)\b/i, /\byour\b[^.?!]{0,40}\bcategor(?:y|ies)\b[^.?!]{0,40}\bgeneral admin\b/i];
+
 function standardFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
   const tierA: Finding[] = [];
   const tierB: Finding[] = [];
@@ -936,8 +985,28 @@ function standardFindings(draft: OutreachOutput, input: OutreachInput, context: 
   if (returnSentence !== undefined) {
     tierA.push({
       rule: "return-date",
-      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: say who publishes on that day, with its approved quote (the FCA publishes the H1 figures by firm on 22 October), or leave the date out.`,
+      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: leave the date out.`,
     });
+  }
+  const schedule = parts.flatMap((part) => sentences(part)).find((sentence) => FCA_SCHEDULE.some((test) => test(sentence)));
+  if (schedule !== undefined) {
+    tierA.push({ rule: "fca-schedule", text: `"${clip(schedule, 90)}" tells the firm when the FCA publishes complaints data. Every firm here reports that data itself, so it is never news: leave it out.` });
+  }
+  const lookupSays = input.lookup.items.some((item) => /\bgeneral admin\b/i.test(`${item.text} ${item.quote ?? ""}`));
+  const oneFirm = lookupSays ? undefined : parts.flatMap((part) => sentences(part)).find((sentence) => ONE_FIRM_CAUSE.some((pattern) => pattern.test(sentence)));
+  if (oneFirm !== undefined) {
+    tierA.push({ rule: "one-firm-cause", text: `"${clip(oneFirm, 90)}" says one firm's complaint category is everyone's, or this firm's. Research has it for one firm only: leave it out.` });
+  }
+  // Trial fix 2: an offer of a source's write-up follows from the thread. "Want me to send over the ombudsman's
+  // write-up?" with no ombudsman anywhere before it reads as a non sequitur. Advice: the rep can see it.
+  const said = parts.flatMap((part) => sentences(part));
+  for (const offer of said.filter((sentence) => sentence.trim().endsWith("?"))) {
+    const earlier = [...input.thread.map((entry) => entry.body), ...said.filter((sentence) => sentence !== offer)].join("\n");
+    const missing = [...familiesIn(offer)].filter((family) => !familiesIn(earlier).has(family));
+    if (missing.length > 0 && /\b(?:the )?(?:fca|ombudsman|regulator)['’]s\b/i.test(offer)) {
+      tierB.push({ rule: "ask-source", text: `"${clip(offer, 90)}" offers something from a source nothing earlier in this thread mentions. Offer something this thread has already raised.` });
+      break;
+    }
   }
   const counted = parts.flatMap((part) => sentences(part)).find((sentence) => RELATIVE_DATE.some((pattern) => pattern.test(sentence)));
   if (counted !== undefined) {

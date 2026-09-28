@@ -247,25 +247,20 @@ export function makeModel(
 }
 
 /**
- * A model that may use the SDK's own web search, and nothing else (the outreach trigger search, 28 Sep).
+ * The settings for a web-search run (the outreach trigger search, 28 Sep). Pure, so a test pins them.
  *
  * The one place a Relay run gets a built-in tool: `WebSearch` only, no file, shell or fetch tool, no MCP
- * server, the same isolated config dir and single credential as every other run. The search runs on the
- * subscription the rest of the drafting runs on, so it costs no Tavily or Firecrawl credit. Returns null when
- * the credential is not the subscription token (the Messages API path has no search wired) or in a stub
- * environment, and the caller falls back to the old lookup.
+ * server, the same isolated config dir and single credential as every other run. `onUrls` receives every URL
+ * in the search's own results, so a finding can be checked against a page the search really returned.
  */
-export function makeWebSearchModel(
-  id: PricedModel,
-  onResult: (result: AgentSdkResult) => void,
-  source: ReturnType<typeof env> = env(),
-): LanguageModel | null {
-  if (!isPricedModel(id) || source.RELAY_AGENT_STUB_MODEL !== undefined) return null;
-  if (credentialKind(source) !== "subscription-token") return null;
-  const configDir = agentHome(source);
-  mkdirSync(configDir, { recursive: true });
-  const settings: ClaudeCodeSettings = {
-    env: subprocessEnv(configDir, source.CLAUDE_CODE_OAUTH_TOKEN as string),
+export function webSearchSettings(input: {
+  configDir: string;
+  token: string;
+  onResult: (result: AgentSdkResult) => void;
+  onUrls: (urls: readonly string[]) => void;
+}): ClaudeCodeSettings {
+  return {
+    env: subprocessEnv(input.configDir, input.token),
     settingSources: [],
     tools: ["WebSearch"],
     allowedTools: ["WebSearch"],
@@ -275,8 +270,10 @@ export function makeWebSearchModel(
     persistSession: false,
     logger: false,
     onSdkMessage: async (message) => {
-      if (message.type === "result") {
-        onResult({
+      if (message.type === "user") {
+        input.onUrls(JSON.stringify(message.message.content).match(/https?:\/\/[^\s"'<>)\]\\]+/g) ?? []);
+      } else if (message.type === "result") {
+        input.onResult({
           subtype: message.subtype,
           numTurns: message.num_turns,
           totalCostUsd: message.total_cost_usd,
@@ -286,5 +283,21 @@ export function makeWebSearchModel(
       }
     },
   };
-  return createClaudeCode({ defaultSettings: settings })(id);
+}
+
+/**
+ * A web-search model on the subscription token. Null when the credential is not the subscription token (the
+ * Messages API path has no search wired) or in a stub environment: the trigger search then finds nothing and
+ * the sequence is written to the role and the plan.
+ */
+export function makeWebSearchModel(
+  id: PricedModel,
+  observe: { onResult: (result: AgentSdkResult) => void; onUrls: (urls: readonly string[]) => void },
+  source: ReturnType<typeof env> = env(),
+): LanguageModel | null {
+  if (!isPricedModel(id) || source.RELAY_AGENT_STUB_MODEL !== undefined) return null;
+  if (credentialKind(source) !== "subscription-token") return null;
+  const configDir = agentHome(source);
+  mkdirSync(configDir, { recursive: true });
+  return createClaudeCode({ defaultSettings: webSearchSettings({ configDir, token: source.CLAUDE_CODE_OAUTH_TOKEN as string, ...observe }) })(id);
 }

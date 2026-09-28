@@ -179,7 +179,7 @@ export function defaultOutreachDeps(): OutreachHandlerDeps {
     fetch: createFirecrawlService(e, { mode, fixturesDir }),
     ...(mode === "mock" || e.RELAY_OUTREACH_FIXTURE_DRAFTS !== undefined
       ? {}
-      : { triggers: webTriggerSearch((onCost) => makeWebSearchModel(TRIGGER_MODEL, (result) => onCost(result.totalCostUsd, result.numTurns))) }),
+      : { triggers: webTriggerSearch((observe) => makeWebSearchModel(TRIGGER_MODEL, { onResult: (result) => observe.onCost(result.totalCostUsd, result.numTurns), onUrls: observe.onUrls })) }),
   };
 }
 
@@ -398,7 +398,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
       } catch (error) {
         if (!unexpected(error)) throw error;
         // A search that fails is "nothing found": the sequence is written to the role and the plan.
-        searched = { answer: { lines: [], findings: [] }, costUsd: 0, searches: 0 };
+        searched = { answer: { lines: [], findings: [] }, costUsd: 0, searches: 0, seen: [] };
       }
       lookupCost = searched.costUsd;
       lookup = lookupFromTriggers(subject, searched, now);

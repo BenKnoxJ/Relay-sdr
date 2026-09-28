@@ -9,7 +9,7 @@ import { emailLookCopy, sendCopy } from "@/lib/copy/send";
 import type { SendOffer } from "@/lib/outreach/send";
 
 import { actionsMock, draft, emailCard, personView } from "./people/fixtures";
-import { OPT_OUT_LINE, emailCopyText } from "@/lib/outreach/envelope";
+import { emailCopyText } from "@/lib/outreach/envelope";
 
 /**
  * Sending from Outlook on screen (Relay P7): the Send button draws the
@@ -113,7 +113,7 @@ describe("the drawer's Send", () => {
     expect(screen.getByTestId("drawer-alert").textContent).toBe("");
   });
 
-  it("keeps Copy on an approved email, with the greeting, sign-off, signature and opt-out around the body (M2)", async () => {
+  it("keeps Copy on an approved email, with the greeting, sign-off and signature around the body, and no opt-out line (D3)", async () => {
     const writeText = vi.fn<(text: string) => Promise<undefined>>(async () => undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     render(<PersonDrawer person={{ ...approved(), sendOffers: { email1: { kind: "not_due", from: "2026-10-12" } } }} closeHref="/c" actions={actionsMock()} onChanged={vi.fn()} />);
@@ -124,9 +124,9 @@ describe("the drawer's Send", () => {
       fireEvent.click(within(item).getByRole("button", { name: /copy/i }));
     });
     const envelope = emailCard("d-email1").envelope!;
-    // M2: the rep sends by hand, so what they copy is the whole email, opt-out included.
+    // M2: the rep sends by hand, so what they copy is the whole email. D3 (28 Sep 2026): no opt-out line.
     expect(writeText).toHaveBeenCalledWith(emailCopyText("Complaints arrive late.", envelope));
-    expect(writeText.mock.calls[0]![0]).toContain(OPT_OUT_LINE);
+    expect(writeText.mock.calls[0]![0]).not.toMatch(/just reply and I won't follow up/);
   });
 });
 

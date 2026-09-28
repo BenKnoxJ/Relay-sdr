@@ -173,3 +173,51 @@ The first implementation writes `email1` only. The other touches stay as signed 
 ## 9. Master edits implied
 - §7.3: "50 to 150 words" becomes "Email 1: 40 to 110 words".
 - §15: "one humaniser skill" becomes "the humaniser gate (code) and its principles in the prompt".
+
+# Relay agent definition — Outreach (v3, signed)
+**v3 · SIGNED by Benny-san 2026-09-28 · amends `outreach.v2.signed.md` and v2.1; where they differ, v3 wins**
+Inputs: the messaging audit and plan (`ops/design/2026-09-28-relay-messaging-audit/plan.md`, decisions D1–D3) and the outreach standard v3 (`outreach-standard.md` in the same folder), approved by Benny-san on 2026-09-28 ("Go!").
+
+## Changelog
+- **2026-09-28, v3 signed by Benny-san.** The writing is simplified to three layers: truth holds a draft, style only warns, and everything specific to a campaign lives in that campaign's data. The humanizer pass is removed. The opt-out line is removed from every email (D3, final). Lead gen is unchanged: up to 3 people per firm, one per buyer role (D2).
+
+## 1. The three layers
+- **Truth (code).** A draft is held only for the eight checks in §4, the same for every campaign.
+- **Voice (examples).** The rep's own messages when they have any, otherwise the vendored approved anchors (`agents/outreach/voice/`), shown to the writer as "messages this person wrote, continue this hand", with the one-page style profile. No rule list about style.
+- **Campaign (data).** Hooks, evidence, dates, lines of business and the kind of firm the light line names come from the campaign's research pack, the lookup and the campaign's industries. Nothing specific to a market is written into the prompt, the standard's rules or the checks.
+
+## 2. Drafting (amends v2.1 §6)
+- One model call writes the sequence; the checks run per touch; the touches held go back once, together, in one corrective call; a touch held again goes to Needs you with the reasons.
+- There is no humanizer pass. The writer's prompt is the standard in about 1,000 words.
+
+## 3. The sequence and its limits (amends v2 §5 and v2.1 §4)
+- Email 1: 50 to 100 words; subject 2 to 4 plain words; no product, and at most one light true line about the rep (D1).
+- Connection note: at most 200 characters; no pitch and no problem; may end on a statement.
+- Call script: two calls, each with its own opener and one question; a voicemail under 40 words; up to three objections; the complete price answer only there.
+- Email 2: at most 90 words, a reply in Email 1's thread; the product may appear once, in one plain sentence.
+- LinkedIn message: 40 to 70 words, one breath; "Thanks for connecting" may open it; no product and no offer.
+- LinkedIn follow-up: at most 50 words.
+- Email 3, the breakup: at most 50 words, a reply in the thread.
+- Every ask is about interest, never a time or a meeting. Evidence is optional, as a short exact fragment with its source named (D2 of 28 Sep).
+
+## 4. What holds a draft (replaces v2 §7 Tier A and v2.1 §6 Tier A)
+1. A price outside the call script's price answer.
+2. A product claim that is not in the facts file.
+3. A quote or attributed finding that is not word for word from the campaign's evidence, or names no source.
+4. Invented experience, customers or results (the light line about the rep is the one allowed aside).
+5. A firm fact, person, number or line of business that is not in the data.
+6. A colleague at the same firm already sent the same evidence item.
+7. A link, a gender guess, or the name of the drafting tool.
+8. A touch that is empty, the wrong shape or over its length.
+
+## 5. Advice (replaces v2 §7 Tier B and v2.1 §6 Tier B)
+Everything else is a warning on the card, never a hold: contrast phrasing, the tell list, American spellings, exclamation marks, time asks, the subject's length, a product in Email 1, the light line used twice, a repeated ask shape, and repetition across the campaign.
+
+## 6. The envelope (amends v2.1 §4)
+The greeting and the sign-off are added around the body, and the rep's signature below an email. **No opt-out line on any email, and no footer** (D3, final): people can reply, or unsubscribe via the contact provider.
+
+## 7. Rubric (amends §12 and v2.1 §8)
+- **Row 4:** the limits in §3.
+- **Row 5:** repetition is advice, never a hold.
+- **Row 8:** each of the eight truth checks has a held probe and a clean pass; a style probe gives advice and never holds.
+- **Acceptance** (the plan's §5, Benny-san the judge): the same 7 people re-drafted with no rewrites and at least 40 of 49 sent as is; a blind voice check; a reuse check on a different campaign with no code change; the live 20-person campaign's replies against the 3 to 4.5% average.

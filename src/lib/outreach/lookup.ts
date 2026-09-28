@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { PRODUCT_LINES, type LookupItem, type LookupResult, type ProductLine } from "../../../agents/outreach/input.schema";
+import type { LookupItem, LookupResult } from "../../../agents/outreach/input.schema";
 import { hostOf } from "../../../agents/_shared/item.schema";
 import { domainKey } from "@/lib/leadgen/normalise";
 import { capText, scrubFetched } from "@/lib/research/scrub";
@@ -30,8 +30,9 @@ import type { FetchService, PageRead, SearchHit, SearchService } from "@/lib/ser
  * complaints policy, say), and then only as a `weak` item. A dated item older
  * than twelve months is dropped, whether the search or the page dated it.
  *
- * The lookup also says which product lines the firm sells, when its words say
- * so (`linesOf`): the ombudsman's motor figure is no give for a travel insurer.
+ * The lookup also says which of the campaign's lines of business the firm is in,
+ * when its words say so (`linesOf`), so a draft cannot put a travel firm among
+ * motor insurers (truth check 5).
  */
 
 export type LookupSubject = {
@@ -44,6 +45,8 @@ export type LookupSubject = {
   relevance: readonly string[];
   /** The plan's trigger words, for the account search. */
   triggers: readonly string[];
+  /** The campaign's lines of business and how its labels say each one (`lineVocabularyOf(...).phrases`). */
+  linePhrases?: Readonly<Record<string, readonly string[]>>;
 };
 
 export type LookupDeps = {
@@ -136,31 +139,16 @@ export function pageDate(markdown: string, now: Date): string | undefined {
 }
 
 /**
- * The product lines a text says a firm sells, by keyword, no model (trial fix 1). A line counts when its
- * words appear at least twice: a travel insurer's page that mentions car hire once does not sell motor.
- * A word in the firm's own name counts once ("Brackenfield Legal"), so it tips a line the page also mentions but never
- * decides one alone: Legal & General sells more than legal expenses. `min` is lower for a short label.
+ * The lines of business a text says a firm is in, from the campaign's own words, no model. A line counts when
+ * its phrases ("travel insurance") appear at least `min` times: a page's "Home" link is not home insurance, and
+ * a travel insurer that mentions motor insurance once is not in motor. The line in the firm's own name counts
+ * once ("Wayfarer Travel"), so it tips a line the page also names but never decides one alone.
  */
-const LINE_WORDS: Record<ProductLine, RegExp> = {
-  // Not "motor legal protection", the legal-expenses product, nor "motor trade" or "motor finance" (fix round 2).
-  motor: /\b(?:motor(?!\s+(?:legal|trade|finance)\b)|car insurance|van insurance|motorcycles?|motorbikes?|vehicle insurance)\b/gi,
-  home: /\b(?:home insurance|household insurance|buildings insurance|contents insurance|home and contents|buildings and contents)\b/gi,
-  travel: /\b(?:travel insurance|travel cover|holiday insurance)\b/gi,
-  pet: /\b(?:pet insurance|pet cover)\b/gi,
-  "legal-expenses": /\b(?:legal expenses?|legal protection|after the event insurance)\b/gi,
-};
-
-/** A line's short word in a firm's own name: "Brackenfield Legal", "Wayfarer Travel". Too loose for page text. */
-const NAME_WORDS: Record<ProductLine, RegExp> = {
-  motor: /\b(?:motor|car|van)\b/gi,
-  home: /\bhome\b/gi,
-  travel: /\b(?:travel|holidays?)\b/gi,
-  pet: /\bpets?\b/gi,
-  "legal-expenses": /\blegal\b/gi,
-};
-
-export function linesOf(text: string, company = "", min = 2): ProductLine[] {
-  return PRODUCT_LINES.filter((line) => (text.match(LINE_WORDS[line]) ?? []).length + (company.match(NAME_WORDS[line]) ?? []).length >= min);
+export function linesOf(text: string, company: string, phrases: Readonly<Record<string, readonly string[]>>, min = 2): string[] {
+  const count = (haystack: string, phrase: string) => (haystack.match(new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`, "gi")) ?? []).length;
+  return Object.entries(phrases)
+    .filter(([term, said]) => said.reduce((total, phrase) => total + count(text, phrase), 0) + Math.min(1, count(company, term)) >= min)
+    .map(([term]) => term);
 }
 
 function monthsOld(published: string | undefined, now: Date): number | null {
@@ -241,9 +229,9 @@ export async function lookupEvidence(subject: LookupSubject, deps: LookupDeps): 
   const firmName = new RegExp(`(^|[^a-z0-9])${company.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`);
   const namesFirm = (text: string) => company !== "" && firmName.test(text.toLowerCase());
   const onFirmSite = (url: string) => companyDomain !== undefined && domainKey(url) === companyDomain;
-  // What the lookup read about the firm, for its product lines: hit titles and snippets that name it, and the pages.
+  // What the lookup read about the firm, for its lines of business: hit titles and snippets that name it, and the pages.
   const firmText: string[] = [];
-  const lines = () => linesOf(firmText.join("\n"), company);
+  const lines = () => linesOf(firmText.join("\n"), company, subject.linePhrases ?? {});
 
   for (const step of steps) {
     searches += 1;

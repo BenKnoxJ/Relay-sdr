@@ -8,8 +8,6 @@ import { TRPCError } from "@trpc/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SEQUENCE, type OutreachInput } from "../../agents/outreach/input.schema";
-import type { OutreachOutput } from "../../agents/outreach/output.schema";
-import type { HumanTouches, HumanizeInput } from "../../agents/outreach/sequence.schema";
 import { stubModel } from "@/lib/agents/stubModel";
 import { enqueue } from "@/lib/jobs/queue";
 import { nameFrom, toResearchBrief } from "@/lib/campaigns/brief";
@@ -24,11 +22,10 @@ import { confirmCampaign, confirmReveal, createCampaign, getCampaignForOwner, re
 import { LEAD_GEN_JOB, REVEAL_JOB } from "@/lib/repo/leadgen";
 import { OUTREACH_DRAFT_JOB, OUTREACH_LOOKUP, PERSON_DRAFT_COST_CAP_USD, recordDraft, saveVoice } from "@/lib/repo/outreach";
 import { checkedSequenceOf, renderChecks } from "@/lib/outreach/messageChecks";
-import { loadStandard } from "@/lib/outreach/standard";
 import { recordResearchCompleted } from "@/lib/repo/research";
 import type { FetchService, SearchService } from "@/lib/services";
 import { leadGenHandler } from "@/worker/handlers/leadGen";
-import { fixtureWriter, isCleanCut, outreachDraftHandler, type ModelCall, type OutreachHandlerDeps } from "@/worker/handlers/outreachDraft";
+import { fixtureWriter, outreachDraftHandler, type ModelCall, type OutreachHandlerDeps } from "@/worker/handlers/outreachDraft";
 import { evidenceUsedIn } from "@/lib/outreach/gates";
 
 type OutreachHandlerMakeModel = OutreachHandlerDeps["makeModel"];
@@ -108,10 +105,10 @@ function setup(): LeadGenSetup {
 
 const contact = (n: number): RevealedContact => ({ status: "found", name: `Person ${n}`, domain: `www.firm${n}.co.uk`, emails: [{ address: `person${n}@firm${n}.co.uk`, type: "work", grade: "A+" }] });
 
-async function revealed(session: Session = rep(), keep = 3): Promise<{ actor: Actor; campaign: CampaignRow }> {
+async function revealed(session: Session = rep(), keep = 3, tweak: (pack: ReturnType<typeof completePack>) => ReturnType<typeof completePack> = (pack) => pack): Promise<{ actor: Actor; campaign: CampaignRow }> {
   const actor = await ensureUser(prisma, session);
   const brief = toResearchBrief(briefFields());
-  const pack = completePack();
+  const pack = tweak(completePack());
   const { campaign, job } = await createCampaign(prisma, { orgId: actor.orgId, userId: actor.userId, startRequestId: randomUUID(), name: nameFrom(brief.who), brief: brief as Prisma.InputJsonObject });
   if (job === null) throw new Error("tests: a fresh start made no job");
   await recordResearchCompleted(prisma, {
@@ -192,7 +189,7 @@ const GOOD: { body: string; ask: string }[] = [
   },
 ];
 
-type Answer = "good" | "time-ask" | "garbage" | "opener-claim" | "call" | "machine-word";
+type Answer = "good" | "price" | "garbage" | "opener-claim" | "call" | "machine-word";
 
 function answerFor(input: OutreachInput, kind: Answer): string {
   if (kind === "garbage") return "Here is the email you asked for.";
@@ -207,7 +204,8 @@ function answerFor(input: OutreachInput, kind: Answer): string {
     const ask = "Is the current review doing the job?";
     return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", body: good.body.replace(good.ask, `Our orchestrator reads every call in the pipeline, with no prompt to tune. ${ask}`), ask, opener: { ref, kind: "role_pain" }, claims: [] });
   }
-  const draft = kind !== "time-ask" ? good : { body: good.body.replace(good.ask, "Could we find twenty minutes next week?"), ask: "Could we find twenty minutes next week?" };
+  // A price in a first email: truth check 1, the scripted hold.
+  const draft = kind !== "price" ? good : { body: good.body.replace(good.ask, "Would £4.99 a seat a month be worth a look?"), ask: "Would £4.99 a seat a month be worth a look?" };
   // The 15 Sep slip: the opener's ref listed as if it were a product claim.
   const claims = kind === "opener-claim" ? [ref] : [];
   return JSON.stringify({ kind: "message", subject: "Complaints and the calls behind them", ...draft, opener: { ref, kind: "role_pain" }, claims });
@@ -250,28 +248,20 @@ function restOfSequence(ref: string): Record<string, unknown> {
   };
 }
 
-type Humanize = (touches: HumanTouches) => unknown;
-
-function writer(script: Answer[], humanize: Humanize = (touches) => touches, patch: (ref: string) => Record<string, unknown> = () => ({})) {
+function writer(script: Answer[], patch: (ref: string, input: OutreachInput) => Record<string, unknown> = () => ({})) {
   const inputs: OutreachInput[] = [];
-  const humanized: HumanizeInput[] = [];
   return {
     inputs,
-    humanized,
-    makeModel: (id: "claude-sonnet-5" | string, input: OutreachInput, at: ModelCall) => {
+    makeModel: (id: "claude-sonnet-5" | string, input: OutreachInput) => {
       const usage = { in: 6000, out: 350, cacheRead: 0, cacheWrite: 0, reasoning: 0 };
       const reply = (text: string) => ({ transport: "stub" as const, model: stubModel({ modelId: id, calls: [{ text, usage }], whenExhausted: "throw" }) });
-      if (at.pass === "humanize") {
-        humanized.push(at.humanize!);
-        return reply(JSON.stringify(humanize(at.humanize!.touches)));
-      }
       const kind = script[inputs.length] ?? "good";
       inputs.push(input);
       const ref = input.buyerRole?.id ?? input.pack.archetype.pains[0]!.id;
       if (input.sequence === undefined && input.touch.kind !== "email1") return reply(JSON.stringify(restOfSequence(ref)[input.touch.kind]));
       const first = answerFor(input, kind);
       if (input.sequence === undefined || kind === "garbage") return reply(first);
-      return reply(JSON.stringify({ ...restOfSequence(ref), ...patch(ref), email1: JSON.parse(first) }));
+      return reply(JSON.stringify({ ...restOfSequence(ref), ...patch(ref, input), email1: JSON.parse(first) }));
     },
   };
 }
@@ -294,8 +284,8 @@ function nothingFound() {
   return { calls, search, fetch };
 }
 
-async function runDraft(job: Job, script: Answer[] = ["good"], humanize?: Humanize, patch?: (ref: string) => Record<string, unknown>) {
-  const model = writer(script, humanize, patch);
+async function runDraft(job: Job, script: Answer[] = ["good"], patch?: (ref: string, input: OutreachInput) => Record<string, unknown>) {
+  const model = writer(script, patch);
   const lookup = nothingFound();
   // The handler's makeModel names a priced model; the scripted one accepts any.
   const result = await outreachDraftHandler({ makeModel: model.makeModel as never, search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z") })({
@@ -361,7 +351,7 @@ describe("Write emails", () => {
 });
 
 describe("the draft job", () => {
-  it("@proof looks up, drafts the whole sequence in one call, humanizes it once, and stores seven drafts", async () => {
+  it("@proof looks up, drafts the whole sequence in one call, and stores seven drafts", async () => {
     const { actor, campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
@@ -372,13 +362,11 @@ describe("the draft job", () => {
     expect(drafts.map((row) => [row.touch, row.state, row.findings])).toEqual(drafts.map((row) => [row.touch, "to_review", []]));
     expect(drafts.every((row) => row.orgId === actor.orgId && row.attempt === 1)).toBe(true);
     expect(result).toEqual({ draftId: expect.any(String), draftIds: expect.any(Array) });
-    // One call wrote all seven, one humanizer pass edited them: two runs, one Event.
+    // One call wrote all seven: one run, one Event, and no humanizer pass (standard v3).
     expect(model.inputs).toHaveLength(1);
     expect(model.inputs[0]!.sequence).toEqual([...SEQUENCE]);
     // P5c: the drafter is told who is writing: the rep's first name, and Conversant while the org is only its domain.
     expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
-    expect(model.humanized).toHaveLength(1);
-    expect(Object.keys(model.humanized[0]!.touches).sort()).toEqual([...SEQUENCE].sort());
     // The job's cost sits on its first touch.
     const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
     expect(Number(touch("email2").costUsd)).toBe(0);
@@ -402,8 +390,10 @@ describe("the draft job", () => {
     expect(draft.lookup).toMatchObject({ usable: false, searches: 2, fetches: 0 });
     expect(Number(draft.costUsd)).toBeGreaterThan(0);
     expect(model.inputs[0]!.touch.kind).toBe("email1");
-    expect(await prisma.agentRun.count({ where: { jobId: job!.id } })).toBe(2);
+    expect(await prisma.agentRun.count({ where: { jobId: job!.id } })).toBe(1);
     expect(await prisma.event.count({ where: { kind: "outreach.drafted" } })).toBe(1);
+    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted" } });
+    expect(event.after).not.toHaveProperty("humanizer");
   });
 
   it("moves the opener's ref out of the claims before the gates, and stores the draft without it", async () => {
@@ -427,8 +417,8 @@ describe("the draft job", () => {
     expect(draft).toMatchObject({ state: "to_review", generations: 2 });
     expect(model.inputs[1]!.redraft?.previous.body).toMatch(/did not come back in the right shape/);
     const runs = await prisma.agentRun.findMany({ where: { jobId: job!.id }, orderBy: { createdAt: "asc" }, select: { status: true, error: true } });
-    // The refused answer, the corrected one, and the humanizer pass.
-    expect(runs.map((run) => run.status)).toEqual(["failed", "done", "done"]);
+    // The refused answer and the corrected one.
+    expect(runs.map((run) => run.status)).toEqual(["failed", "done"]);
     expect(runs[0]!.error).toMatch(/schema|validate/);
   });
 
@@ -464,26 +454,26 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const { model } = await runDraft(job!, ["time-ask", "good"]);
+    const { model } = await runDraft(job!, ["price", "good"]);
 
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(draft).toMatchObject({ state: "to_review", generations: 2 });
-    expect(model.inputs[1]!.redraft?.findings.join(" ")).toMatch(/asks for a time/);
-    expect(model.inputs[1]!.redraft?.previous.ask).toBe("Could we find twenty minutes next week?");
+    expect(model.inputs[1]!.redraft?.findings.join(" ")).toMatch(/carries a price/);
+    expect(model.inputs[1]!.redraft?.previous.ask).toBe("Would £4.99 a seat a month be worth a look?");
   });
 
   it("@proof parks a draft that fails twice as Needs you, with the labels, after two generations and no more", async () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const { model } = await runDraft(job!, ["time-ask", "time-ask", "good"]);
+    const { model } = await runDraft(job!, ["price", "price", "good"]);
 
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(draft).toMatchObject({ state: "needs_you", generations: 2 });
-    expect((draft.findings as { rule: string }[]).map((finding) => finding.rule)).toContain("time-ask");
+    expect((draft.findings as { rule: string }[]).map((finding) => finding.rule)).toContain("price-in-message");
     expect(model.inputs).toHaveLength(2);
-    // Two draft calls and the humanizer pass.
-    expect(await prisma.agentRun.count({ where: { jobId: job!.id } })).toBe(3);
+    // Two draft calls, and no other pass.
+    expect(await prisma.agentRun.count({ where: { jobId: job!.id } })).toBe(2);
   });
 
   it("records a draft it could not write as not written, with no body", async () => {
@@ -554,165 +544,9 @@ describe("the draft job", () => {
     const second = await runDraft(job!);
     expect(second.result).toEqual(first.result);
     expect(second.model.inputs).toHaveLength(0);
-    expect(second.model.humanized).toHaveLength(0);
     expect(second.lookup.calls).toEqual({ searches: 0, fetches: 0 });
     expect(await prisma.outreachDraft.count({ where: { jobId: job!.id } })).toBe(SEQUENCE.length);
     expect(await prisma.event.count({ where: { kind: OUTREACH_LOOKUP } })).toBe(1);
-  });
-
-  it("@proof keeps the humanizer's rewording when it passes the checks, and records both versions", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    const shorter = "Another angle on this. The calls behind a complaint are usually weeks old by the time anyone hears them. Reading every call shows the pattern while there is still time to coach it. Who looks back at those calls today?";
-    await runDraft(job!, ["good"], (touches) => ({ ...touches, email2: { ...touches.email2!, body: shorter } }));
-
-    const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
-    expect(email2).toMatchObject({ body: shorter, state: "to_review" });
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    const humanizer = (event.after as { humanizer: { ran: boolean; touches: Record<string, { kept: string; drafted: { body: string }; humanized: { body: string } }> } }).humanizer;
-    expect(humanizer.ran).toBe(true);
-    expect(humanizer.touches.email2).toMatchObject({ kept: "humanized", humanized: { body: shorter } });
-    expect(humanizer.touches.email2!.drafted.body).toMatch(/^Another angle on the same problem\./);
-    expect((event.after as { cost: { draftUsd: number; humanizerUsd: number } }).cost.humanizerUsd).toBeGreaterThan(0);
-    // Messaging v2: each touch's change size, as a share of its characters. Untouched is 0.
-    const sizes = (event.after as { humanizer: { touches: Record<string, { changePct: number | null }> } }).humanizer.touches;
-    expect(sizes.email2!.changePct).toBeGreaterThan(5);
-    expect(sizes.email2!.changePct).toBeLessThan(100);
-    expect(sizes.breakup!.changePct).toBe(0);
-    expect(Object.keys(sizes).sort()).toEqual([...SEQUENCE].sort());
-  });
-
-  it("@proof gives the humanizer the standard's rules, who is writing, and the live facts with their notes", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    const { model } = await runDraft(job!);
-    const given = model.humanized[0]!;
-    expect(given.rules).toEqual(loadStandard().rules);
-    expect(given.sender).toEqual({ firstName: "Sam", company: "Conversant" });
-    expect(given.facts.product).toBe("insights360");
-    expect(given.facts.facts.length).toBeGreaterThan(0);
-    expect(given.facts.facts.every((fact) => fact.status === "live")).toBe(true);
-    // The notes travel with the facts, so the pass can keep a claim inside them: the price notes as the product owner set them.
-    const fees = given.facts.facts.find((fact) => fact.id === "i360.price.setup-and-config-review-fees");
-    expect(fees?.notes).toMatch(/only in answer to a price question in a call/i);
-    expect(given.facts.facts.find((fact) => fact.id === "i360.product.results-lag-up-to-about-an-hour")?.notes).toMatch(/same day/);
-  });
-
-  it("clears a touch's claims when the humanizer cleanly cuts its product sentence, and records that it did", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    const ask = "Who looks back at those calls today?";
-    const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
-    const cut = `Another angle on the same problem. ${ask}`;
-    await runDraft(
-      job!,
-      ["good"],
-      (touches) => ({ ...touches, email2: { body: cut, ask, droppedProduct: true } }),
-      (ref) => ({ email2: { kind: "message", body: pitched, ask, opener: { ref, kind: "role_pain" }, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] } }),
-    );
-    const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
-    expect(email2).toMatchObject({ body: cut, claims: [], state: "to_review" });
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    const logged = (event.after as { humanizer: { touches: Record<string, { kept: string; droppedProduct?: boolean }> } }).humanizer.touches;
-    expect(logged.email2).toMatchObject({ kept: "humanized", droppedProduct: true });
-    expect(logged.breakup!.droppedProduct).toBeUndefined();
-  });
-
-  it.each([
-    ["the product is still named", "Another angle on this. Insights360 scores every analysed call against a team's own QA rules."],
-    // Critic, PR #50: a paraphrase `mentionsProduct` does not catch is still a pitch; it must not ship uncited.
-    ["a paraphrase the product check misses", "Another angle on the same problem. It marks each of a team's calls against the team's own QA rules."],
-  ])("keeps the drafted touch and its claims when the humanizer says it cut the product sentence but %s", async (_case, words) => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    const ask = "Who looks back at those calls today?";
-    const pitched = `Another angle on the same problem. Insights360 scores every analysed call against a team's own QA rules. ${ask}`;
-    const offered = `${words} ${ask}`;
-    await runDraft(
-      job!,
-      ["good"],
-      (touches) => ({ ...touches, email2: { body: offered, ask, droppedProduct: true } }),
-      (ref) => ({ email2: { kind: "message", body: pitched, ask, opener: { ref, kind: "role_pain" }, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] } }),
-    );
-    const email2 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } });
-    expect(email2).toMatchObject({ body: pitched, claims: ["i360.feature.auto-qa-scoring-against-tenant-rules"] });
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    const logged = (event.after as { humanizer: { touches: Record<string, { kept: string; reason?: string; droppedProduct?: boolean }> } }).humanizer.touches;
-    expect(logged.email2).toMatchObject({ kept: "drafted", droppedProduct: true, reason: expect.stringMatching(/cut the product sentence/) });
-  });
-
-  it("@proof sends a touch back to its drafted words when the humanizer adds a number or a name", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    await runDraft(job!, ["good"], (touches) => ({
-      ...touches,
-      email2: { ...touches.email2!, body: touches.email2!.body.replace("Another angle on the same problem.", "Another angle on the same problem, which cost firms 40% more in 2025.") },
-      li_dm2: { ...touches.li_dm2!, body: touches.li_dm2!.body.replace("A last thought on this.", "A last thought on this, from a chat with Aviva Direct.") },
-    }));
-
-    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
-    const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
-    expect(touch("email2").body).toMatch(/^Another angle on the same problem\. When/);
-    expect(touch("li_dm2").body).toMatch(/^A last thought on this\. The/);
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    const logged = (event.after as { humanizer: { touches: Record<string, { kept: string; reason?: string }> } }).humanizer.touches;
-    expect(logged.email2).toMatchObject({ kept: "drafted" });
-    expect(logged.email2!.reason).toMatch(/40%.*2025|2025.*40%/);
-    expect(logged.li_dm2!.reason).toMatch(/Aviva Direct/);
-    // The touches it left alone are kept as humanized.
-    expect(logged.breakup).toMatchObject({ kept: "humanized" });
-  });
-
-  it("sends a touch back when the humanized words fail a check the draft passed", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    await runDraft(job!, ["good"], (touches) => ({ ...touches, li_connect: { ...touches.li_connect!, body: "I wanted to reach out about complaint handling. Worth a chat?", ask: "Worth a chat?" } }));
-    const connect = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "li_connect" } });
-    expect(connect).toMatchObject({ state: "to_review", body: "Your role came up while I was reading about complaint handling. Worth a conversation?" });
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    expect((event.after as { humanizer: { touches: Record<string, { reason?: string }> } }).humanizer.touches.li_connect!.reason).toMatch(/tells/);
-  });
-
-  it("gates every touch once more against the emails actually kept: a follow-up no longer shorter than a humanized Email 1 is held", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    const followUp =
-      "One more thought on the same problem. When a complaint lands, the calls behind it are usually weeks old and nobody on the whole team can easily find them again quickly. Reading every call shows the pattern early enough to coach the habit out properly, before the next letter turns up on the desk. Who looks back at those calls today?";
-    const firstEmail =
-      "Complaints tend to arrive weeks after the call that caused them.\n\nBy then the same habit has quietly repeated on many other calls, and the handful that got reviewed that month were picked mostly because they were quick and easy to find. Reading all of them really shows which conversations to coach first. Would that be useful for your team?";
-    const count = (text: string) => text.split(/\s+/).length;
-    // Every scripted first email is longer than 60 words, so the drafted follow-up passes; the humanized first email is 60 (voice round's floor).
-    expect([count(followUp), count(firstEmail)]).toEqual([61, 60]);
-    await runDraft(
-      job!,
-      ["good"],
-      (touches) => ({ ...touches, email1: { ...touches.email1!, body: firstEmail, ask: "Would that be useful for your team?" } }),
-      (ref) => ({ email2: { kind: "message", body: followUp, ask: "Who looks back at those calls today?", opener: { ref, kind: "role_pain" }, claims: [] } }),
-    );
-    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
-    const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
-    expect([touch("email1").state, touch("email1").findings, touch("email1").body]).toEqual(["to_review", [], firstEmail]);
-    expect(touch("email2")).toMatchObject({ body: followUp, state: "needs_you" });
-    expect((touch("email2").findings as { rule: string }[]).map((finding) => finding.rule)).toEqual(["shorter-than-the-last"]);
-  });
-
-  it("@proof never lets the humanizer touch the claims or the opener: an answer carrying them is refused whole", async () => {
-    const { campaign } = await revealed(rep(), 1);
-    await writeEmails(rep(), campaign);
-    const [job] = await draftJobs(campaign);
-    await runDraft(job!, ["good"], (touches) => ({ ...touches, email1: { ...touches.email1!, claims: ["i360.product.every-ingested-call-analysed"], opener: { ref: "made-up", kind: "person_fact" } } }));
-    const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
-    expect(drafts.every((row) => row.claims.length === 0)).toBe(true);
-    expect(drafts.every((row) => (row.opener as { kind: string }).kind === "role_pain")).toBe(true);
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    expect((event.after as { humanizer: { ran: boolean; error?: string } }).humanizer).toMatchObject({ ran: false, error: expect.stringMatching(/refused/) });
   });
 
   /** A draft that cost `costUsd`, for the person the job is for, under a job of its own. */
@@ -782,18 +616,17 @@ describe("the draft job", () => {
     expect(await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } })).toMatchObject({ state: "to_review" });
   });
 
-  it("stops at the ceiling part way: the corrective call and the humanizer are skipped, and a failing touch is parked", async () => {
+  it("stops at the ceiling part way: the corrective call is skipped, and a failing touch is parked", async () => {
     const { actor, campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
     // Just under the ceiling: the first call takes it over.
     await spent(actor, campaign, job!, 1.49);
-    const { model } = await runDraft(job!, ["time-ask", "good"]);
+    const { model } = await runDraft(job!, ["price", "good"]);
     expect(model.inputs).toHaveLength(1);
-    expect(model.humanized).toHaveLength(0);
     const email1 = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(email1.state).toBe("needs_you");
-    expect((email1.findings as { rule: string }[]).map((finding) => finding.rule)).toEqual(expect.arrayContaining(["cost-cap", "time-ask"]));
+    expect((email1.findings as { rule: string }[]).map((finding) => finding.rule)).toEqual(expect.arrayContaining(["cost-cap", "price-in-message"]));
     expect(await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email2" } })).toMatchObject({ state: "to_review" });
   });
 });
@@ -818,7 +651,7 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     let draftCalls = 0;
     const makeModel = (id: string, input: OutreachInput, at: ModelCall) => {
       if (at.pass === "draft" && (draftCalls += 1) <= 2) return silent(id);
-      return model.makeModel(id, input, at);
+      return model.makeModel(id, input);
     };
     await outreachDraftHandler({ makeModel: makeModel as never, search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z"), maxSeconds: { sequence: 1 } })({
       db: prisma,
@@ -846,7 +679,7 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     const makeModel = (id: string, input: OutreachInput, at: ModelCall) => {
       if (at.pass === "draft" && (draftCalls += 1) === 1) return silent(id);
       if (at.pass === "draft") findings.push(input.redraft?.findings ?? []);
-      return model.makeModel(id, input, at);
+      return model.makeModel(id, input);
     };
     await outreachDraftHandler({ makeModel: makeModel as never, search: lookup.search, fetch: lookup.fetch, now: () => new Date("2026-09-15T09:00:00Z"), maxSeconds: { sequence: 1 } })({
       db: prisma,
@@ -864,7 +697,7 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    await runDraft(job!, ["good"], undefined, (ref) => {
+    await runDraft(job!, ["good"], (ref) => {
       const own = restOfSequence(ref);
       return { breakup: { ...(own.breakup as object), subject: "one more on disputes" }, li_dm2: { ...(own.li_dm2 as object), subject: "what the fca publishes" } };
     });
@@ -874,18 +707,19 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     }
   });
 
-  it("@proof gives the corrective call exact fixes for a paraphrased source and a long paragraph, and following them to the letter passes", async () => {
+  it("@proof gives the corrective call the exact fix for an unsourced finding, and following it passes", async () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
     const person = await prisma.campaignPerson.findFirstOrThrow({ where: { id: (job!.input as { campaignPersonId: string }).campaignPersonId }, include: { person: true } });
-    const fca = loadStandard().gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
     const ask = "When a script changes, how do you check the calls it touched?";
-    const paraphrase = "The FCA's review of 40 firms found firms weren't checking their changes.";
-    const bad = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls, picked by whoever had the time that week. ${paraphrase} Without a way to search every call by theme, each fix is judged on a guess. ${ask}`;
-    // What the corrective call should come back with: the two instructions, followed and nothing else.
-    const fixed = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls, picked by whoever had the time that week. ${fca.quote}\n\nWithout a way to search every call by theme, each fix is judged on a guess. ${ask}`;
-    const email = (body: string) => ({ subject: "Checking a script change", body, ask, opener: { ref: "$role", kind: "role_pain" }, claims: [] });
+    const paraphrase = "The FCA found that firms were not checking their changes.";
+    const lead = "When a valuation script changes, proving it worked usually means re-listening to a handful of calls, picked by whoever had the time that week.";
+    const rest = "Without a way to search every call by theme, each fix is judged on a guess and nobody can say for sure whether it held.";
+    const bad = `${lead} ${paraphrase} ${rest} ${ask}`;
+    // What the corrective call should come back with: the finding followed, and nothing else changed.
+    const fixed = `${lead} ${rest} ${ask}`;
+    const email = (body: string) => ({ subject: "a script change", body, ask, opener: { ref: "$role", kind: "role_pain" }, claims: [] });
     const dir = mkdtempSync(path.join(tmpdir(), "relay-fix1-"));
     const file = path.join(dir, "drafts.json");
     writeFileSync(file, JSON.stringify({ drafts: { [person.person!.email!.toLowerCase()]: [email(bad), email(fixed)] }, touches: restOfSequence("$role") }));
@@ -895,7 +729,7 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     const lookup = nothingFound();
     await outreachDraftHandler({
       makeModel: (id, input, at) => {
-        if (at.pass === "draft") inputs.push(input);
+        inputs.push(input);
         return scripted(id, input, at);
       },
       search: lookup.search,
@@ -904,44 +738,43 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     })({ db: prisma, job: { ...job!, attempts: 1 }, signal: new AbortController().signal });
 
     expect(inputs).toHaveLength(2);
-    const told = inputs[1]!.redraft!.findings.filter((finding) => finding.startsWith("email1: "));
-    expect(told).toHaveLength(2);
-    expect(told).toContain(`email1: "${paraphrase}" puts a source's finding in its own words. Use this approved quote exactly: "${fca.quote}" (${fca.sourceName}). Or remove the source reference.`);
-    expect(told).toContain('email1: A paragraph runs to 4 sentences; a phone screen wants three at most. Split this paragraph: start a new paragraph at "Without a way to search every call by…".');
-
-    // The instructions are exact enough to follow mechanically, and following them gives the email that passed.
-    const follow = (body: string, fixes: readonly string[]) =>
-      fixes.reduce((text, fix) => {
-        const quote = fix.match(/^email1: "(.+?)" puts a source's finding in its own words\. Use this approved quote exactly: "(.+)" \(/);
-        if (quote !== null) return text.replace(quote[1]!, quote[2]!);
-        const split = fix.match(/start a new paragraph at "(.+?)…?"\.$/);
-        if (split !== null) return text.replace(` ${split[1]!}`, `\n\n${split[1]!}`);
-        return text;
-      }, body);
-    expect(follow(bad, told)).toBe(fixed);
-
+    const told = inputs[1]!.redraft!.findings.filter((finding) => finding.startsWith("email1: ") && finding.includes(paraphrase));
+    expect(told).toHaveLength(1);
+    expect(told[0]).toMatch(new RegExp(`^email1: "${paraphrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" quotes or reports a source without its exact words and its name\\.`));
     const draft = await prisma.outreachDraft.findFirstOrThrow({ where: { jobId: job!.id, touch: "email1" } });
     expect(draft).toMatchObject({ state: "to_review", generations: 2, findings: [], body: fixed });
   });
 });
 
+/** The pack with every m09 verbatim item quotable: a stored quote from a primary source (the campaign's own evidence). */
+function withQuotableVerbatim(pack: ReturnType<typeof completePack>): ReturnType<typeof completePack> {
+  const copy = JSON.parse(JSON.stringify(pack)) as { modules: { m09?: { perArchetype: { verbatim: { text: string; quote?: string; evidence: { primary: boolean } }[] }[] } } };
+  for (const entry of copy.modules.m09?.perArchetype ?? []) {
+    entry.verbatim = entry.verbatim.map((item, index) => ({ ...item, quote: `Source ${index + 1} said that the complaint backlog doubled over the summer and stayed high.`, evidence: { ...item.evidence, primary: true } }));
+  }
+  return copy as unknown as ReturnType<typeof completePack>;
+}
+
 describe("the give across the campaign (trial fix 1)", () => {
   it("tells the drafter how many other people have already been sent each quote", async () => {
-    const { campaign } = await revealed(rep(), 2);
+    const { campaign } = await revealed(rep(), 2, withQuotableVerbatim);
     await writeEmails(rep(), campaign);
     const [first, second] = await draftJobs(campaign);
-    // The first person's LinkedIn message quotes the FCA's 40-firm finding.
-    const fca = loadStandard().gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
+    // The first person's LinkedIn message carries the campaign evidence's first quote, word for word.
     const ask = "Who checks whether a fix worked on your side?";
-    const body = `A complaint write-up usually names a category and stops there, so nobody can say later whether the change that followed did anything. The FCA's review of 40 firms found that ${fca.quote.split(". ")[0]!.replace(/^Firms/, "firms")}. ${ask}`;
-    await runDraft(first!, ["good"], undefined, (ref) => ({ li_dm: { kind: "message", body, ask, opener: { ref, kind: "role_pain" }, claims: [] } }));
+    let quoted = "";
+    await runDraft(first!, ["good"], (ref, input) => {
+      quoted = input.pack.evidence[0]!.id;
+      const words = input.pack.evidence[0]!.quote.split(/\s+/).slice(0, 10).join(" ").replace(/[.,;:]$/, "");
+      return { li_dm: { kind: "message", body: `A complaint write-up usually names a category and stops there. Something I read put it well, ${words}. ${ask}`, ask, opener: { ref, kind: "role_pain" }, claims: [] } };
+    });
 
     const model = writer(["good"]);
     const inputs: OutreachInput[] = [];
     const lookup = nothingFound();
     await outreachDraftHandler({
       makeModel: (id, input, at) => {
-        if (at.pass === "draft") inputs.push(input);
+        inputs.push(input);
         return (model.makeModel as OutreachHandlerMakeModel)(id, input, at);
       },
       search: lookup.search,
@@ -954,26 +787,7 @@ describe("the give across the campaign (trial fix 1)", () => {
     // What the first person was actually sent, quote by quote: the second person's input counts exactly that.
     const sent = (await prisma.outreachDraft.findMany({ where: { jobId: first!.id } })).map((draft) => draft.body ?? "").join("\n");
     for (const quote of evidence) expect(quote.usedBy, quote.id).toBe(evidenceUsedIn(sent, [quote]).length);
-    expect(evidence.find((quote) => quote.id === fca.id)?.usedBy).toBe(1);
-  });
-});
-
-describe("a clean cut of the product sentence", () => {
-  const ask = "Would that timing matter?";
-  const message = (body: string, extra: { subject?: string; ask?: string } = {}) =>
-    ({ kind: "message", body, ask: extra.ask ?? ask, opener: { ref: "r", kind: "role_pain" }, claims: [], ...(extra.subject === undefined ? {} : { subject: extra.subject }) }) as Extract<OutreachOutput, { kind: "message" }>;
-  const drafted = message(`One angle.\n\nInsights360 scores every call. ${ask}`, { subject: "timing" });
-
-  it.each([
-    ["the sentence taken out, paragraphs joined", message(`One angle. ${ask}`, { subject: "timing" }), true],
-    ["nothing taken out", message(`One angle.\n\nInsights360 scores every call. ${ask}`, { subject: "timing" }), false],
-    ["a sentence reworded", message(`One angle, briefly. ${ask}`, { subject: "timing" }), false],
-    ["the pitch paraphrased", message(`One angle. Each call gets a mark. ${ask}`, { subject: "timing" }), false],
-    ["a sentence said twice", message(`One angle. One angle.`, { subject: "timing" }), false],
-    ["the subject changed", message(`One angle. ${ask}`, { subject: "a new subject" }), false],
-    ["the ask changed", message(`One angle. Is timing a worry?`, { subject: "timing", ask: "Is timing a worry?" }), false],
-  ])("%s", (_case, offered, clean) => {
-    expect(isCleanCut(drafted, offered, "insights360")).toBe(clean);
+    expect(evidence.find((quote) => quote.id === quoted)?.usedBy).toBe(1);
   });
 });
 
@@ -1032,7 +846,7 @@ describe("the rep's review", () => {
     ]);
   });
 
-  it("@proof redrafts one touch in one call, given the earlier emails' words, then humanizes that touch", async () => {
+  it("@proof redrafts one touch in one call, given the earlier emails' words", async () => {
     const { campaign } = await written(1);
     const { items } = await caller(rep()).drafts.queue();
     const followUp = items[1]!;
@@ -1043,20 +857,15 @@ describe("the rep's review", () => {
     expect(job.input).toMatchObject({ attempt: 2, touch: "email2", avoid: { reason: "wrong_angle" } });
     expect(job.idempotencyKey).toMatch(/:email2:a2$/);
 
-    const reworded = "A different angle, on timing. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern while it can still be coached. Who looks back at those calls today?";
-    const { model } = await runDraft(job, ["good"], (touches) => ({ email2: { ...touches.email2!, body: reworded } }));
+    const { model } = await runDraft(job, ["good"]);
+    // One draft call and no other pass (standard v3).
     expect(model.inputs).toHaveLength(1);
-    // Messaging v2: every message goes through the humanizer, a redraft too: one draft call and one humanizer call.
-    expect(model.humanized).toHaveLength(1);
-    expect(Object.keys(model.humanized[0]!.touches)).toEqual(["email2"]);
-    expect(model.humanized[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
-    expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(2);
+    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
+    expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(1);
     const event = (await prisma.event.findMany({ where: { kind: "outreach.drafted", campaignId: campaign.id } })).find((candidate) => (candidate.after as { jobId?: string }).jobId === job.id)!;
-    const after = event.after as { cost: { humanizerUsd: number }; humanizer: { ran: boolean; touches: Record<string, { kept: string; changePct: number | null }> } };
-    expect(after.humanizer.ran).toBe(true);
-    expect(after.humanizer.touches.email2).toMatchObject({ kept: "humanized" });
-    expect(after.humanizer.touches.email2!.changePct).toBeGreaterThan(0);
-    expect(after.cost.humanizerUsd).toBeGreaterThan(0);
+    const after = event.after as { cost: { draftUsd: number } };
+    expect(after.cost.draftUsd).toBeGreaterThan(0);
+    expect(after).not.toHaveProperty("humanizer");
     const input = model.inputs[0]!;
     expect(input.sequence).toBeUndefined();
     expect(input.touch).toMatchObject({ kind: "email2", ordinal: 2 });
@@ -1065,7 +874,7 @@ describe("the rep's review", () => {
     expect(input.thread[0]!.body).toBe(email1.body);
     const redrafted = await prisma.outreachDraft.findMany({ where: { jobId: job.id } });
     expect(redrafted).toHaveLength(1);
-    expect(redrafted[0]).toMatchObject({ touch: "email2", attempt: 2, state: "to_review", body: reworded });
+    expect(redrafted[0]).toMatchObject({ touch: "email2", attempt: 2, state: "to_review" });
   });
 
   it("@proof keeps drafts to their owner: another org sees none and cannot decide one", async () => {
@@ -1079,7 +888,7 @@ describe("the rep's review", () => {
 });
 
 describe("the cohort report's messaging v2 checks", () => {
-  it("@proof shows the new columns for a sequence the fixture writer drafted, with each touch's change size from the Event", async () => {
+  it("@proof shows the columns for a sequence the fixture writer drafted", async () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
@@ -1098,18 +907,15 @@ describe("the cohort report's messaging v2 checks", () => {
     const drafts = await prisma.outreachDraft.findMany({ where: { jobId: job!.id } });
     const order = [...SEQUENCE] as string[];
     drafts.sort((a, b) => order.indexOf(a.touch) - order.indexOf(b.touch));
-    const event = await prisma.event.findFirstOrThrow({ where: { kind: "outreach.drafted", campaignId: campaign.id } });
-    const humanizer = (event.after as { humanizer: { touches: Record<string, { changePct: number | null }> } }).humanizer.touches;
-    const report = renderChecks([checkedSequenceOf("Person 1", drafts, humanizer)], "Insights360");
+    const report = renderChecks([checkedSequenceOf("Person 1", drafts, {})], "Insights360");
 
-    expect(report).toContain('| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight | Humanizer change (median) |');
-    expect(report).toContain('| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight | Humanizer change (median) |');
+    expect(report).toContain('| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight |');
+    expect(report).toContain('| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight |');
+    expect(report).not.toMatch(/Humanizer/);
     // M2: the scripted sequence now keeps to one "X, or Y?" ask (the LinkedIn follow-up's), which is the bar.
     expect(report).toMatch(/\| "X, or Y\?" asks in any one sequence \| at most 1 \| at most 1 \(1 in total\) \| yes \|/);
     expect(report).toContain("| Price in a cold touch | 0 | 0 of 6 | yes |");
-    // The fixture writer hands every touch back untouched: 0% on all seven, and the bar says so.
-    expect(report).toContain("| Humanizer change, median | at least 10% | 0.0% over 7 touches | **no** |");
-    expect(report).toMatch(/\| Person 1 \| no \| \d \| 0 \| 1 \| none \| none \| \d of 5 \| 0\.0% \|/);
+    expect(report).toMatch(/\| Person 1 \| no \| \d \| 0 \| 1 \| none \| none \| \d of 5 \|$/m);
   });
 });
 

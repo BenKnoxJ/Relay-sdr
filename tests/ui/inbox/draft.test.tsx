@@ -287,16 +287,15 @@ describe("a real first email (outreach v2.1)", () => {
     ...over,
   });
 
-  it("draws the signature and the opt-out below the sign-off, so the rep reads what they will send (M2)", () => {
+  it("draws the signature below the sign-off, so the rep reads what they will send (M2), and no opt-out line (D3)", () => {
     render(<DraftCard item={real()} onApprove={noop} onReject={noop} />);
     expect(screen.getByTestId("draft-signature").textContent).toContain("Sam Carter");
-    expect(screen.getByTestId("draft-optout").textContent).toBe("If this isn't relevant, just reply and I won't follow up.");
+    expect(screen.queryByTestId("draft-optout")).toBeNull();
   });
 
-  it("draws the opt-out even for a rep with no signature saved", () => {
+  it("draws no signature for a rep with none saved", () => {
     render(<DraftCard item={real({ envelope: envelopeOf({ firstName: "Nell", repName: "Sam", signature: "" }) })} onApprove={noop} onReject={noop} />);
     expect(screen.queryByTestId("draft-signature")).toBeNull();
-    expect(screen.getByTestId("draft-optout")).toBeDefined();
   });
 
   it("draws Relay's greeting and sign-off around the body, the campaign, the advice, and says nothing is sent", () => {

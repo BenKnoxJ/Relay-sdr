@@ -15,9 +15,9 @@ import type { OutreachInput, TouchKind } from "./input.schema";
  *   * what is true of a draft on its own — the close is last and it is the
  *     `ask`, at most two questions; no em dash; ids are ids — which is this schema; and
  *   * what is true of a draft *against its touch and its thread* — the word
- *     count for this touch kind, "shorter than the last", the five-gram overlap,
- *     whether `opener.ref` resolves — which needs the input and is
- *     `checkTouchLimits` below.
+ *     count for this touch kind, whether `opener.ref` resolves, whether each
+ *     claim is a live fact — which needs the input and is `checkTouchLimits`
+ *     below.
  *
  * Splitting them that way is the point: the first set can never pass, so it is a
  * schema; the second set is Tier A findings that redraft the touch, so it
@@ -42,8 +42,6 @@ export const openerSchema = z
 /**
  * The raw list is checked here, before `normaliseClaims` moves out the opener's
  * ref and any lookup or plan id the model listed, so it leaves room for those.
- * How many facts a touch may cite is `checkTouchLimits`, after normalising
- * (D-1 for a first email, `MAX_TOUCH_CLAIMS` for the rest).
  */
 const MAX_RAW_CLAIMS = 6;
 
@@ -246,8 +244,8 @@ function checkMessageShape(draft: z.infer<typeof messageDraftSchema>, ctx: z.Ref
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ask"], message: "the ask is the last sentence" });
   }
   // Voice round (28 Sep 2026): the ask is the close, and a close need not be a question. The rep's approved cold
-  // email asks a question mid-body and closes on another, so a message carries at most two; which touches may
-  // close on a statement is the sequence's business (`statement-close` in the gates), not the shape's.
+  // email asks a question mid-body and closes on another, so a message carries at most two; any touch may close
+  // on a statement (standard v3).
   const questions = (body.match(/\?/g) ?? []).length;
   if (questions > MAX_QUESTIONS) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["body"], message: `a draft asks at most ${MAX_QUESTIONS} questions; this one asks ${questions}` });
@@ -264,37 +262,28 @@ export type OutreachOutput = z.infer<typeof outreachOutputSchema>;
 export type MessageDraft = z.infer<typeof messageDraftSchema>;
 
 /**
- * §5's per-touch limits, one row per kind and read only by that kind: a limit
- * is never borrowed or loosened for another. Lower bound, upper bound, and
- * whether a shrink is required. P2 (21 Sep 2026) sets the break-up at 70 words
- * and adds the second LinkedIn message.
+ * The per-touch limits (outreach standard v3, 28 Sep 2026), one row per kind and read only by that kind.
+ * Email 1 50 to 100 words, Email 2 at most 90, the last email at most 50, the connection note at most 200
+ * characters, the LinkedIn message 40 to 70 words and its follow-up at most 50. The call's limits are on
+ * its schema (the opening lines and the voicemail).
  */
-export const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number; shrinks?: boolean; noLink?: boolean }> = {
-  // Voice round (28 Sep 2026): 60 to 120 words, room for the rep's own hand; the follow-up at most 110.
-  email1: { minWords: 60, maxWords: 120 },
-  email2: { maxWords: 110, shrinks: true },
-  breakup: { maxWords: 70, shrinks: true },
-  // §5: 300 characters on Premium, else 200. The lower bound is what a draft
-  // must satisfy without knowing the rep's plan, so 200 is the gate and the
-  // extra hundred is headroom a Premium account does not need.
-  li_connect: { maxChars: 200, noLink: true },
-  li_dm: { minWords: 50, maxWords: 80, noLink: true },
-  li_dm2: { maxWords: 60, noLink: true },
+export const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number }> = {
+  email1: { minWords: 50, maxWords: 100 },
+  email2: { maxWords: 90 },
+  breakup: { maxWords: 50 },
+  li_connect: { maxChars: 200 },
+  li_dm: { minWords: 40, maxWords: 70 },
+  li_dm2: { maxWords: 50 },
   call: {},
 };
 
-/** The touches that go by email; "shorter than the last" compares an email with the email before it. */
-const EMAIL_KINDS: readonly TouchKind[] = ["email1", "email2", "breakup"];
-
-/** A Tier A finding, in rep words (§7). */
+/** A Tier A finding, in rep words. */
 export type Finding = { rule: string; text: string };
 
 /**
- * The gates that need the touch and the thread.
- *
- * Returns findings rather than throwing: §7's Tier A result is "reject and
- * redraft the failing touch only, with findings, max two, then `needs_you` with
- * the reasons", and a thrown error cannot carry a list.
+ * The checks that need the touch and its input: the length for this kind (truth check 8), whether the
+ * opener points at something real (5), and whether every claim is a live fact whose number appears (2).
+ * Returns findings rather than throwing, because a hold carries a list.
  */
 export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): Finding[] {
   const findings: Finding[] = [];
@@ -311,29 +300,9 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
   if (limits.maxChars !== undefined && text.length > limits.maxChars) {
     findings.push({ rule: "length", text: `This is ${text.length} characters; the limit is ${limits.maxChars}.` });
   }
-  if (limits.noLink === true && /https?:\/\//i.test(text)) {
-    findings.push({ rule: "no-link", text: "A LinkedIn message carries no link." });
-  }
-  if (limits.shrinks === true) {
-    // §6 rule 7: a follow-up shrinks. Measured against the previous touch this
-    // person actually received, not against the campaign's template — which is
-    // the same reason the rule exists.
-    // Within the same channel: a follow-up email is shorter than the email before it, not than a 200-character connection note.
-    const previous = [...input.thread]
-      .filter((entry) => entry.ordinal < input.touch.ordinal && EMAIL_KINDS.includes(entry.kind) === EMAIL_KINDS.includes(input.touch.kind))
-      .sort((a, b) => b.ordinal - a.ordinal)[0];
-    if (previous !== undefined && length >= words(previous.body)) {
-      findings.push({
-        rule: "shorter-than-the-last",
-        text: `This is ${length} words and the one before it was ${words(previous.body)}; a follow-up is shorter.`,
-      });
-    }
-  }
 
-  // §5 and v2.1 §4: `opener.ref` must resolve — to a lookup item about the
-  // person for `person_fact`, about the firm for `firm_fact`, and to an
-  // archetype pain, the hook or the buyer role for `role_pain`. A dangling id
-  // renders an evidence line on the card with nothing behind it.
+  // `opener.ref` must resolve: to a lookup item about the person for `person_fact`, about the firm for
+  // `firm_fact`, and to an archetype pain, the hook or the buyer role for `role_pain`.
   const { kind, ref } = draft.opener;
   const lookupItem = input.lookup.items.find((item) => item.id === ref);
   const resolved =
@@ -345,13 +314,12 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
   if (!resolved) {
     findings.push({ rule: "opener-ref", text: "The opener points at something that is not in the lookup or the pack." });
   }
-  // §4: inference from firm type is never usable. An unusable lookup cannot be
-  // the opener, however well it reads (v2.1 §3: usable also means relevant and professional).
+  // Inference from a firm's type is never usable: an unusable lookup cannot be the opener.
   if ((kind === "person_fact" || kind === "firm_fact") && !input.lookup.usable) {
     findings.push({ rule: "opener-usable", text: "There is no usable fact about this person or their firm, so open on the role problem." });
   }
 
-  // §5 and §7: every claim must be a live fact, and a fact's number must appear.
+  // Every claim must be a live fact, and a fact's number must appear where the rep reads it.
   for (const claim of draft.claims) {
     const fact = input.facts.facts.find((candidate) => candidate.id === claim);
     if (fact === undefined) {
@@ -359,7 +327,6 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       continue;
     }
     const numbers = fact.text.match(/\d[\d,.]*/g) ?? [];
-    // A call's facts can sit in any line the rep reads: messaging v2 puts price only in an objection answer.
     const body =
       draft.kind === "message"
         ? draft.body
@@ -368,48 +335,7 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       findings.push({ rule: "claim-number", text: `The claim ${claim} carries a number that is not in the message.` });
     }
   }
-  // D-1 (17 Sep 2026): a first email makes at most one product sentence,
-  // citing at most two fact ids. A product sentence is one that names the product.
-  if (input.touch.kind === "email1" && (draft.claims.length > MAX_EMAIL1_CLAIMS || productSentences(draft, input.facts.product) > 1)) {
-    findings.push({ rule: "one-claim", text: "A first email carries at most one sentence about the product, citing at most two facts." });
-  }
-  // M2 (23 Sep 2026): the price facts do not count against a call's cap.
-  //
-  // The standard says a call's price answer is always *complete* — the setup
-  // fee, the configuration review and the per-seat plans — which is two or
-  // three price ids before the call has said anything about the product. At a
-  // flat cap of three, obeying the standard broke the gate (the 22 Sep cohort
-  // held Blair's call on four ids for a price answer that was right). The two
-  // rules now agree: price ids are free in a call, everything else is capped
-  // as before, and no other touch is loosened — a price in a message is
-  // forbidden outright, not counted.
-  const counted = input.touch.kind === "call" ? draft.claims.filter((claim) => !isPriceFact(claim)) : draft.claims;
-  if (input.touch.kind !== "email1" && counted.length > MAX_TOUCH_CLAIMS) {
-    findings.push({ rule: "claim-count", text: `This cites ${counted.length} facts; a touch cites at most ${MAX_TOUCH_CLAIMS}.` });
-  }
-
   return findings;
-}
-
-/** D-1: the fact ids one product sentence in a first email may cite. */
-const MAX_EMAIL1_CLAIMS = 2;
-
-/**
- * The fact ids any other touch may cite, after normalising: the ceiling the raw
- * schema cap gave them before it was raised for `normaliseClaims`. Outreach
- * v2.2 sets the per-touch limits; until then this holds the old line.
- */
-const MAX_TOUCH_CLAIMS = 3;
-
-/** A price fact id, as the facts file spells them. */
-export function isPriceFact(factId: string): boolean {
-  return /^i360\.price\./.test(factId);
-}
-
-function productSentences(draft: OutreachOutput, product: string): number {
-  if (draft.kind !== "message" || product.trim() === "") return 0;
-  const name = new RegExp(`(^|[^a-z0-9])${product.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`);
-  return (draft.body.match(/[^.?!]+[.?!]*/g) ?? []).filter((sentence) => name.test(sentence.toLowerCase())).length;
 }
 
 function words(text: string): number {

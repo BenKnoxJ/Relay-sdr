@@ -2,8 +2,7 @@
  * Re-run the outreach cohort with the real model and write the report a
  * person scores, so every change to the outreach prompt or its checks is
  * measured on the same six people in the same way. Since P2 (21 Sep 2026) each
- * person's job drafts the whole sequence and humanizes it, and the report shows
- * every touch's drafted and humanized text side by side.
+ * person's job drafts the whole sequence, and the report shows every touch's text.
  *
  *   node --import tsx scripts/outreach-cohort.ts [--source relay_outreach_cohort_dev] \
  *       [--out <dir>] [--cap 8] [--people <n>] [--compare <earlier cohort.md>] [--keep]
@@ -24,7 +23,7 @@
  *      credential (`.env`); no Lusha, Microsoft or Zoho call is made;
  *   4. stops before a draft that could take the run past `--cap` dollars;
  *   5. writes `cohort.md` to `--out`: pass, hold and fail per touch kind, cost
- *      per person split between draft and humanizer, and every touch's text
+ *      per person, and every touch's text
  *      grouped by person; the messaging v2 checks per touch and per person
  *      (`src/lib/outreach/messageChecks.ts`), and the same checks over the
  *      `--compare` report beside this run's; then drops the copy unless `--keep`.
@@ -250,8 +249,7 @@ async function runCohort(db: Db, args: Args, copyName: string): Promise<void> {
 type CohortError = { campaignPersonId: string; message: string; cost: number };
 
 type Prose = { subject?: string; body?: string; ask?: string; openingLine?: string; oneQuestion?: string; openingLine2?: string; oneQuestion2?: string; listenFor?: string; voicemail?: string; objections?: { objection: string; answer: string }[] };
-type HumanizerLog = { ran?: boolean; skipped?: string; error?: string; touches?: Record<string, { drafted?: Prose; humanized?: Prose | null; kept?: string; reason?: string; changePct?: number | null }> };
-type DraftedAfter = { cost?: { draftUsd?: number; humanizerUsd?: number }; humanizer?: HumanizerLog; redraftError?: string };
+type DraftedAfter = { cost?: { draftUsd?: number }; redraftError?: string };
 
 const TOUCH_NAME: Record<string, string> = {
   email1: "Email 1",
@@ -293,7 +291,6 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
   const { renderM2Report } = await import("@/lib/outreach/cohortReport");
   const evidenceOf = await evidenceReader(db);
   const reportTouches: Parameters<typeof renderM2Report>[0]["touches"][number][] = [];
-  const reportHumanizer: Parameters<typeof renderM2Report>[0]["humanizer"][number][] = [];
   const evidence = new Map<string, Parameters<typeof renderM2Report>[0]["evidence"][number]>();
   const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
   const dirty = execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim() !== "";
@@ -305,8 +302,6 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
   const sections: string[] = [];
   const checked: ReturnType<typeof checkedSequenceOf>[] = [];
   const draftCosts: number[] = [];
-  const humanCosts: number[] = [];
-  const totals: number[] = [];
   for (const jobId of jobIds) {
     const own = drafts.filter((draft) => draft.jobId === jobId).sort((a, b) => SEQUENCE.indexOf(a.touch as never) - SEQUENCE.indexOf(b.touch as never));
     const first = own[0];
@@ -316,48 +311,25 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     const role = ROLE_WORD[first.campaignPerson.rolePart ?? ""] ?? "related";
     const after = afterOf(jobId);
     const draftUsd = after.cost?.draftUsd ?? 0;
-    const humanizerUsd = after.cost?.humanizerUsd ?? 0;
     draftCosts.push(draftUsd);
-    humanCosts.push(humanizerUsd);
-    totals.push(draftUsd + humanizerUsd);
     const jobRuns = runs.filter((run) => run.jobId === jobId);
-    const humanizer = after.humanizer ?? {};
     const lookup = first.lookup as { usable?: boolean; items?: unknown[] } | null;
-    checked.push(checkedSequenceOf(preview.name, own, humanizer.touches ?? {}));
+    checked.push(checkedSequenceOf(preview.name, own, {}));
     for (const draft of own) reportTouches.push({ person: preview.name, touch: draft.touch, state: draft.state, findings: findingsOf(draft.findings) });
-    const logs = Object.values(humanizer.touches ?? {});
-    reportHumanizer.push({
-      person: preview.name,
-      ran: humanizer.ran === true,
-      ...(humanizer.error === undefined && humanizer.skipped === undefined ? {} : { error: humanizer.error ?? `skipped: ${humanizer.skipped}` }),
-      returned: logs.filter((log) => log.humanized !== null && log.humanized !== undefined).length,
-      kept: logs.filter((log) => log.kept === "humanized").length,
-      touches: own.length,
-    });
-    for (const quote of evidenceOf(first.campaignPerson, first.lookup, first.createdAt)) evidence.set(quote.id, quote);
+    for (const quote of evidenceOf(first.campaignPerson, first.lookup)) evidence.set(quote.id, quote);
     personRows.push(
-      `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} | $${humanizerUsd.toFixed(3)} | $${(draftUsd + humanizerUsd).toFixed(3)} |`,
+      `| ${preview.name} | ${role} | ${own.map((draft) => `${draft.touch}: ${draft.state}`).join(", ")} | ${jobRuns.length} | $${draftUsd.toFixed(3)} |`,
     );
     const touchSections = own.map((draft) => {
-      const log = humanizer.touches?.[draft.touch];
       const tierA = findingsOf(draft.findings);
       const tierB = findingsOf(draft.advice);
       return [
-        `### ${TOUCH_NAME[draft.touch] ?? draft.touch} · **${draft.state}** · generations: ${draft.generations}${log?.kept === undefined ? "" : ` · kept: ${log.kept}`}${typeof log?.changePct === "number" ? ` · humanizer changed ${log.changePct.toFixed(1)}%` : ""}`,
-        "",
-        "**Drafted:**",
+        `### ${TOUCH_NAME[draft.touch] ?? draft.touch} · **${draft.state}** · generations: ${draft.generations}`,
         "",
         "```",
-        log === undefined ? (draft.body ?? "(not written)") : proseLines(log.drafted, draft.touch),
+        proseLines(draft.body === null ? null : { ...(draft.subject === null ? {} : { subject: draft.subject }), body: draft.body }, draft.touch),
         "```",
         "",
-        "**Humanized:**",
-        "",
-        "```",
-        log === undefined ? `(no humanizer pass: ${humanizer.skipped ?? humanizer.error ?? "not run"})` : proseLines(log.humanized, draft.touch),
-        "```",
-        "",
-        ...(log?.reason === undefined ? [] : [`**Humanized version not kept:** ${log.reason}  `]),
         `**Stored (what the rep sees):** ${draft.subject === null ? "" : `subject "${draft.subject}"; `}ask "${draft.ask ?? "(none)"}"  `,
         `**Opener:** \`${JSON.stringify(draft.opener)}\` · **Claims:** \`${JSON.stringify(draft.claims)}\`  `,
         `**Gate findings (Tier A):** ${tierA.map((finding) => `${finding.rule}: ${finding.text}`).join("; ") || "none"}  `,
@@ -369,7 +341,7 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
       [
         `## ${preview.name} · ${preview.title}, ${preview.company} · role: ${role}`,
         "",
-        `Model runs: ${jobRuns.length} (${jobRuns.map((run) => run.status).join(", ")}${jobRuns.some((run) => run.error !== null) ? `; errors: ${jobRuns.flatMap((run) => (run.error === null ? [] : [run.error.slice(0, 200)])).join(" | ")}` : ""}) · cost: draft $${draftUsd.toFixed(3)}, humanizer $${humanizerUsd.toFixed(3)} · lookup: ${lookup?.usable === true ? `usable, ${lookup.items?.length ?? 0} item(s)` : "nothing usable (role problem used)"}${after.redraftError === undefined ? "" : ` · corrective call error: ${after.redraftError}`}`,
+        `Model runs: ${jobRuns.length} (${jobRuns.map((run) => run.status).join(", ")}${jobRuns.some((run) => run.error !== null) ? `; errors: ${jobRuns.flatMap((run) => (run.error === null ? [] : [run.error.slice(0, 200)])).join(" | ")}` : ""}) · cost: $${draftUsd.toFixed(3)} · lookup: ${lookup?.usable === true ? `usable, ${lookup.items?.length ?? 0} item(s)` : "nothing usable (role problem used)"}${after.redraftError === undefined ? "" : ` · corrective call error: ${after.redraftError}`}`,
         "",
         ...touchSections,
       ].join("\n"),
@@ -381,16 +353,15 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
     const preview = row === undefined ? null : previewFields(row.preview);
     const role = ROLE_WORD[row?.rolePart ?? ""] ?? "related";
     const name = preview?.name ?? error.campaignPersonId;
-    personRows.push(`| ${name} | ${role} | error | n/a | n/a | n/a | $${error.cost.toFixed(3)} |`);
+    personRows.push(`| ${name} | ${role} | error | n/a | $${error.cost.toFixed(3)} |`);
     sections.push([`## ${name} · role: ${role} · **error** · cost $${error.cost.toFixed(3)}`, "", `**Error:** ${error.message.replace(/\s+/g, " ").slice(0, 500)}`, ""].join("\n"));
   }
 
   const kindRows = SEQUENCE.map((kind) => {
     const own = drafts.filter((draft) => draft.touch === kind);
     const count = (state: string) => own.filter((draft) => draft.state === state).length;
-    const kept = own.filter((draft) => afterOf(draft.jobId).humanizer?.touches?.[kind]?.kept === "humanized").length;
     const rules = [...new Set(own.flatMap((draft) => findingsOf(draft.findings).map((finding) => finding.rule)))];
-    return `| ${TOUCH_NAME[kind]} | ${count("to_review")} | ${count("needs_you")} | ${count("failed")} | ${kept} of ${own.length} | ${rules.join(", ") || "none"} |`;
+    return `| ${TOUCH_NAME[kind]} | ${count("to_review")} | ${count("needs_you")} | ${count("failed")} | ${rules.join(", ") || "none"} |`;
   });
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
   const { liveFacts } = await import("@/lib/outreach/adapter");
@@ -403,27 +374,27 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
         ? [renderComparison(parseCohortMarkdown(readFileSync(args.compare, "utf8")), checked, product, `the earlier cohort (\`${path.basename(path.dirname(args.compare))}\`)`)]
         : [`## Compared with an earlier cohort\n\nNot compared: ${args.compare} does not exist.\n`];
   return [
-    `# Relay Outreach: full-sequence cohort, drafted and humanized (${today()})`,
+    `# Relay Outreach: full-sequence cohort (${today()})`,
     "",
-    `Real model (${definition.model ?? "no model"}, effort ${definition.effort ?? "none"}): one call drafts each person's seven touches, the gates run per touch, the failing touches get one corrective call together, then one humanizer call edits the sequence and each humanized touch is gated again. Lookup on the recorded fixtures (\`fixtures/tools/outreach\`), commit \`${sha}\`. A throwaway copy of \`${args.source}\` with the earlier drafts removed; the same people the earlier cohort drafted, one at a time. Written by \`scripts/outreach-cohort.ts\`, spend capped at $${args.cap.toFixed(2)}. Nothing was approved, sent or bought.`,
+    `Real model (${definition.model ?? "no model"}, effort ${definition.effort ?? "none"}): one call drafts each person's seven touches, the gates run per touch, the touches held get one corrective call together. Lookup on the recorded fixtures (\`fixtures/tools/outreach\`), commit \`${sha}\`. A throwaway copy of \`${args.source}\` with the earlier drafts removed; the same people the earlier cohort drafted, one at a time. Written by \`scripts/outreach-cohort.ts\`, spend capped at $${args.cap.toFixed(2)}. Nothing was approved, sent or bought.`,
     "",
-    "## Summary per touch kind (after the humanizer)",
+    "## Summary per touch kind",
     "",
-    "| Touch | Pass (to review) | Hold (needs you) | Fail (not written) | Humanized version kept | Tier A rules seen |",
-    "|---|---|---|---|---|---|",
+    "| Touch | Pass (to review) | Hold (needs you) | Fail (not written) | Tier A rules seen |",
+    "|---|---|---|---|---|",
     ...kindRows,
     "",
     `- **People drafted:** ${jobIds.length} of ${jobIds.length + skipped.length + errors.length}; **error:** ${errors.length}; **not run** (would pass the cap): ${skipped.length}`,
-    `- **Cost per person:** median $${median(totals).toFixed(3)} (draft $${median(draftCosts).toFixed(3)}, humanizer $${median(humanCosts).toFixed(3)})`,
-    `- **Cost in total:** $${spent.toFixed(3)} (draft $${sum(draftCosts).toFixed(3)}, humanizer $${sum(humanCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
+    `- **Cost per person:** median $${median(draftCosts).toFixed(3)}`,
+    `- **Cost in total:** $${spent.toFixed(3)} (drafting $${sum(draftCosts).toFixed(3)}${errors.length > 0 ? `, errored jobs $${sum(errors.map((error) => error.cost)).toFixed(3)}` : ""})`,
     "",
     renderChecks(checked, product),
-    renderM2Report({ touches: reportTouches, humanizer: reportHumanizer, sequences: checked, evidence: [...evidence.values()], timeouts: runs.filter((run) => /-second cap/.test(run.error ?? "")).length, modelRuns: runs.length, names: [product], companyOf: (person) => companies.get(person) ?? "" }),
+    renderM2Report({ touches: reportTouches, sequences: checked, evidence: [...evidence.values()], timeouts: runs.filter((run) => /-second cap/.test(run.error ?? "")).length, modelRuns: runs.length, names: [product], companyOf: (person) => companies.get(person) ?? "" }),
     ...comparison,
     "## Per person",
     "",
-    "| Person | Role | Touches | Model runs | Draft | Humanizer | Total |",
-    "|---|---|---|---|---|---|---|",
+    "| Person | Role | Touches | Model runs | Cost |",
+    "|---|---|---|---|---|",
     ...personRows,
     "",
     ...sections,
@@ -431,19 +402,17 @@ async function renderReport(db: Db, jobIds: string[], skipped: string[], errors:
 }
 
 /**
- * The evidence list a person's job drafted from, as the handler builds it: the campaign's pack slice, the
- * person's lookup quotes and the standard's approved gives. The report matches each source reference to it.
+ * The evidence list a person's job drafted from, as the handler builds it: the campaign's pack slice and the
+ * person's lookup quotes. The report matches each source reference to it.
  */
 async function evidenceReader(db: Db) {
-  const { packSliceOf, withApprovedGives, withLookupEvidence } = await import("@/lib/outreach/adapter");
+  const { packSliceOf, withLookupEvidence } = await import("@/lib/outreach/adapter");
   const { storedPack } = await import("@/lib/campaigns/derive");
   const { findConfirmEvent, handoffOf } = await import("@/lib/repo/leadgen");
   const { findResearchCompletedForJob } = await import("@/lib/repo/research");
   const { latestResearchJob } = await import("@/lib/repo/campaigns");
   const { loadFacts } = await import("@/lib/facts/load");
   const { liveFacts } = await import("@/lib/outreach/adapter");
-  const { loadStandard } = await import("@/lib/outreach/standard");
-  const standard = loadStandard();
   const slices = new Map<string, Awaited<ReturnType<typeof packSliceOf>> | null>();
   const sliceOf = async (row: { orgId: string; campaignId: string; briefVersion: number }) => {
     const key = `${row.campaignId}:${row.briefVersion}`;
@@ -460,11 +429,11 @@ async function evidenceReader(db: Db) {
   // Read ahead of the report loop: the report is written once, so this is at most one research read per campaign.
   const rows = await db.campaignPerson.findMany({ select: { orgId: true, campaignId: true, briefVersion: true }, distinct: ["campaignId", "briefVersion"] });
   for (const row of rows) await sliceOf(row);
-  return (row: { campaignId: string; briefVersion: number }, lookup: unknown, now: Date) => {
+  return (row: { campaignId: string; briefVersion: number }, lookup: unknown) => {
     const slice = slices.get(`${row.campaignId}:${row.briefVersion}`) ?? null;
-    if (slice === null) return standard.gives;
+    if (slice === null) return [];
     const found = (lookup ?? { items: [], usable: false, searches: 0, fetches: 0 }) as Parameters<typeof withLookupEvidence>[1];
-    return withApprovedGives(withLookupEvidence(slice, found), standard, now).evidence;
+    return withLookupEvidence(slice, found).evidence;
   };
 }
 

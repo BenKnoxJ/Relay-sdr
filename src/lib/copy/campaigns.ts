@@ -748,7 +748,7 @@ export const campaignsCopy = {
    * stores this exact text, with the rep, the time and the brief version, in
    * the `campaign.confirmed` Event (lead gen v2.1 §12). Not an LIA.
    */
-  lawfulBasis: "Legitimate interest: B2B offer, opt out in every email",
+  lawfulBasis: "Legitimate interest: B2B offer",
   /** Lead gen v2.1 §12: the label for that stored record, never an LIA. No screen shows the record yet. */
   lawfulBasisConfirmed: "Lawful basis confirmed",
   /** The campaign's activity, newest first, from its Events: the pieces each line is built from. */

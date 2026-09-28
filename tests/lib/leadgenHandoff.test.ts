@@ -39,7 +39,7 @@ function facts(pack: PackShape, over: Partial<ConfirmFacts> = {}): ConfirmFacts 
     research: { jobId: "job-9", eventId: "evt-9", pack },
     confirmRequestId: "req-1",
     spend: { searchCreditCap: 40, balanceSnapshot: { remaining: 120, readAt: "2026-09-14T09:00:00Z" }, pricingAssumptions: "lusha-public-docs-2026-09-14-unverified" },
-    lawfulBasis: { text: "Legitimate interest: B2B offer, opt out in every email", confirmedByUserId: "user-1", confirmedAt: "2026-09-14T09:00:00Z", briefVersion: 2 },
+    lawfulBasis: { text: "Legitimate interest: B2B offer", confirmedByUserId: "user-1", confirmedAt: "2026-09-14T09:00:00Z", briefVersion: 2 },
     ...over,
   };
 }

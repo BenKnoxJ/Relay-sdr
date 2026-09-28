@@ -1,12 +1,11 @@
 import type { CampaignPerson } from "@prisma/client";
 
 import type { LeadGenHandoff } from "../../../agents/leadgen/input.schema";
-import { SEQUENCE, type EvidenceQuote, type LookupResult, type OutreachInput, type ProductLine, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
+import { SEQUENCE, type EvidenceQuote, type LookupResult, type OutreachInput, type RecentDraft, type Sender, type TouchKind } from "../../../agents/outreach/input.schema";
 import { hostOf, type Item } from "../../../agents/_shared/item.schema";
 import type { ProductFacts } from "../../../agents/research/input.schema";
 import { completeModule, deriveArchetype, deriveHook, type PackShape } from "../../../agents/research/output.schema";
 import { isSeedFirm } from "@/lib/leadgen/rank";
-import { linesOf } from "@/lib/outreach/lookup";
 
 import type { MessageStandard } from "./standard";
 import { loadDefaultVoice, voiceInputOf, type DefaultVoice } from "./voice";
@@ -99,29 +98,14 @@ export function buyerRoleOf(row: AdapterFacts["row"], handoff: LeadGenHandoff): 
 
 
 /**
- * The plain words a message would name a source by, from its host: the FCA's
- * own site is "the FCA", the ombudsman's is "the ombudsman". Anything not in
- * the table is named by the host itself, which is honest if plain — a
- * drafter may not attribute a quote to a source Relay cannot name.
- *
- * Never the item's `speaker` (M2 fix 2, Sentinel CWE-345). A speaker is words
- * research read off a web page, and the gate trusts a written source name to
- * say which body a quote is from: a scraped page whose speaker says "the FCA"
- * would otherwise make its words the FCA's.
+ * Who a quote is from: the host of the page it was read on. Never the item's `speaker` (M2 fix 2, Sentinel
+ * CWE-345): a speaker is words research read off a web page, and a scraped page whose speaker says it is a
+ * regulator would otherwise make its words the regulator's. The drafter names the source in plain words, and
+ * the evidence check reads the host's own labels ("fca" from fca.org.uk), so no table of bodies is needed.
  */
-const SOURCE_NAMES: readonly (readonly [RegExp, string])[] = [
-  [/(^|\.)fca\.org\.uk$/, "the FCA"],
-  [/(^|\.)financial-ombudsman\.org\.uk$/, "the ombudsman"],
-  [/(^|\.)handbook\.fca\.org\.uk$/, "the FCA"],
-  [/(^|\.)gov\.uk$/, "the government"],
-  [/(^|\.)ico\.org\.uk$/, "the ICO"],
-];
-
 export function sourceNameOf(item: { evidence: { urls: string[] } }): string | undefined {
   const url = item.evidence.urls[0];
-  if (url === undefined) return undefined;
-  const host = hostOf(url);
-  return SOURCE_NAMES.find(([pattern]) => pattern.test(host))?.[1] ?? host;
+  return url === undefined ? undefined : hostOf(url);
 }
 
 /**
@@ -179,13 +163,18 @@ export function packSliceOf(pack: PackShape, handoff: LeadGenHandoff, facts: Pro
     doDont: (messaging?.doDont ?? []).slice(0, 12),
     verbatim: (messaging?.verbatim ?? []).slice(0, 8),
     proof: proof.slice(0, 6).map((item) => ({ factId: item.factId, text: item.text, ...(item.note === undefined ? {} : { note: item.note }) })),
-    // M2: the quotable sources behind the slice. m09's verbatim phrases first —
-    // they are lifted from primary sources for exactly this — then the pains
-    // and buyer words, then the hook's trigger. m15's proof items carry no
-    // stored quote and no url of their own, so none of them is quotable.
-    // Fix round 2: only the vetted ones (`isVetted`); the lookup's own quotes and the approved gives are added after.
+    // The quotable sources behind the slice. m09's verbatim phrases first (they are lifted from primary
+    // sources for exactly this), then the pains and buyer words, then the hook's trigger; only the vetted ones
+    // (`isVetted`). m15's proof items carry no stored quote and no url, so none is quotable. The lookup's own
+    // quotes are added after.
     evidence: evidenceListOf([...(messaging?.verbatim ?? []), ...archetype.pains, ...archetype.language, ...(hook === undefined ? [] : [hook.whyNow])].filter(isVetted)),
   };
+}
+
+/** The campaign as the checks read it: the confirmed group's industries and every group's in m04. */
+export function campaignOf(pack: PackShape, handoff: Pick<LeadGenHandoff, "targeting">): NonNullable<OutreachInput["campaign"]> {
+  const groups = (completeModule(pack, "m04")?.perArchetype ?? []).map((group) => group.recipe.industries.slice(0, 30)).slice(0, 12);
+  return { industries: handoff.targeting.industries.slice(0, 30), ...(groups.length === 0 ? {} : { groups }) };
 }
 
 /** Only live facts reach the writer (§3). */
@@ -205,45 +194,6 @@ export function withLookupEvidence(slice: OutreachInput["pack"], lookup: LookupR
 }
 
 /**
- * The standard's approved gives added to the slice's evidence.
- *
- * They go first: they are the curated, scope-checked sentences a person
- * signed off, and the pack's own quotes are whatever research happened to
- * store. Each keeps its `scope` (M2 fix 2): fix round 1 dropped it, and the
- * drafts then widened the quotes in exactly the directions it rules out.
- */
-export function withApprovedGives(slice: OutreachInput["pack"], standard: MessageStandard, now: Date, fit?: LineFit): OutreachInput["pack"] {
-  // With no `fit`, nothing is known either way and no line is filtered: the drafter always passes one (`evidenceSliceOf`).
-  // A give past its `validUntil` day is dropped, and the field itself never reaches the drafter.
-  const gives = standard.gives
-    .filter((quote) => quote.validUntil === undefined || now.getTime() < Date.parse(`${quote.validUntil}T00:00:00Z`) + 24 * 60 * 60 * 1000)
-    .filter((quote) => (fit === undefined || fitsLine(quote, fit)) && !slice.evidence.some((known) => known.id === quote.id))
-    .map(({ validUntil: _validUntil, ...quote }) => quote);
-  return gives.length === 0 ? slice : { ...slice, evidence: [...gives, ...slice.evidence].slice(0, 12) };
-}
-
-/**
- * Which product lines a person's firm sells, from the lookup, and which the campaign is aimed at, from its
- * industries (trial fix 1). Both are keyword reads (`linesOf`), no model.
- */
-export type LineFit = { firm: readonly ProductLine[]; campaign: readonly ProductLine[] };
-
-export function lineFitOf(lookup: Pick<LookupResult, "lines">, handoff: Pick<LeadGenHandoff, "targeting">): LineFit {
-  // An industry is a short label ("Motor insurance"), so one mention of a line's words says it.
-  return { firm: lookup.lines ?? [], campaign: linesOf(handoff.targeting.industries.join("\n"), "", 1) };
-}
-
-/**
- * A quote about one product line goes to a person only when their firm sells that line, or when nothing says
- * what their firm sells and the campaign is aimed at that line (trial fix 1). The ombudsman's car and
- * motorcycle figure reached a legal-expenses firm and a travel insurer in the 24 Sep trial.
- */
-export function fitsLine(quote: Pick<EvidenceQuote, "line">, fit: LineFit): boolean {
-  if (quote.line === undefined) return true;
-  return fit.firm.length > 0 ? fit.firm.includes(quote.line) : fit.campaign.includes(quote.line);
-}
-
-/**
  * Each quote with how many other people in this campaign have already been sent it (trial fix 1), so the
  * drafter can prefer the least used. `used` maps a quote's id to that count; a quote nobody has used says 0.
  */
@@ -251,9 +201,9 @@ export function withUsage(slice: OutreachInput["pack"], used: ReadonlyMap<string
   return { ...slice, evidence: slice.evidence.map((quote) => ({ ...quote, usedBy: used.get(quote.id) ?? 0 })) };
 }
 
-/** The evidence list a person's touches may quote: the slice's, the lookup's and the approved gives that fit their firm's line. */
-export function evidenceSliceOf(input: Pick<AdapterFacts, "pack" | "handoff" | "facts" | "lookup" | "standard" | "evidenceUse" | "now">): OutreachInput["pack"] {
-  const slice = withApprovedGives(withLookupEvidence(packSliceOf(input.pack, input.handoff, liveFacts(input.facts)), input.lookup), input.standard, input.now, lineFitOf(input.lookup, input.handoff));
+/** The evidence list a person's touches may quote: the campaign's research and the lookup's own quotes. */
+export function evidenceSliceOf(input: Pick<AdapterFacts, "pack" | "handoff" | "facts" | "lookup" | "evidenceUse">): OutreachInput["pack"] {
+  const slice = withLookupEvidence(packSliceOf(input.pack, input.handoff, liveFacts(input.facts)), input.lookup);
   return input.evidenceUse === undefined ? slice : withUsage(slice, input.evidenceUse);
 }
 
@@ -283,6 +233,7 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
       ...(preview.domain === undefined ? {} : { domain: preview.domain }),
       ...(seed ? { seedEvidence: "Research named this firm for the plan." } : {}),
     },
+    campaign: campaignOf(input.pack, input.handoff),
     touch: touchOf(input.sequence === true ? "email1" : (input.touch ?? "email1"), input.now),
     ...(input.sequence === true ? { sequence: [...SEQUENCE] } : {}),
     thread: (input.thread ?? []).slice(0, 20),

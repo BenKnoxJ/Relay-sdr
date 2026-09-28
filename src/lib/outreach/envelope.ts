@@ -2,23 +2,16 @@
  * What Relay puts around a written body (M2, 23 Sep 2026).
  *
  * The writer writes the body and nothing else. Everything else a prospect
- * reads is Relay's: the greeting above it, the rep's sign-off below it, the
- * signature they pasted from Outlook, and the soft opt-out line.
+ * reads is Relay's: the greeting above it, the rep's sign-off below it, and
+ * the signature they pasted from Outlook. It is built here, in the one place
+ * the preview, the Copy button and the send path all read, so the three
+ * cannot drift.
  *
- * The opt-out is the reason this module exists. Relay's own lawful-basis text
- * promises every cold email carries a way out, and until now nothing added
- * one: the body rule held (no draft writes its own opt-out, correctly), but
- * the rep sends by hand, so what they copied had no opt-out in it and the
- * promise went undelivered. It is added here, in the one place the preview,
- * the Copy button and the send path all read, so the three cannot drift.
+ * No opt-out line (Benny-san, 28 Sep 2026, final): no body line and no footer.
+ * People can reply, or unsubscribe via the contact provider.
  *
- * Email only. A LinkedIn note and a call script carry neither a signature nor
- * an opt-out: a connection request is not a cold email, and reading an opt-out
- * line down the phone is absurd.
+ * Email only. A LinkedIn note and a call script carry no signature.
  */
-
-/** Benny-san's wording, 22 Sep 2026. Not paraphrased anywhere. */
-export const OPT_OUT_LINE = "If this isn't relevant, just reply and I won't follow up.";
 
 export type Envelope = {
   /** "Hi Avery," */
@@ -27,8 +20,6 @@ export type Envelope = {
   signOff: string;
   /** The rep's Settings signature as plain lines; empty when they have none. */
   signature: string;
-  /** The soft opt-out. Always present on an email. */
-  optOut: string;
 };
 
 const BLOCK = /<\/(?:p|div|tr|li|h[1-6]|table|blockquote)>|<br\s*\/?>|<\/?(?:p|div|tr|li|h[1-6]|table|blockquote)[^>]*>/gi;
@@ -65,18 +56,17 @@ export function envelopeOf(input: { firstName: string; repName: string; signatur
     greeting: `Hi ${input.firstName},`,
     signOff: input.repName.trim(),
     signature: signatureText(input.signature),
-    optOut: OPT_OUT_LINE,
   };
 }
 
 /**
  * The email exactly as the rep copies and sends it: greeting, body, sign-off,
- * signature, opt-out. Blank lines between the parts, and a part Relay does
+ * signature. Blank lines between the parts, and a part Relay does
  * not have is left out rather than left as a gap.
  */
 export function emailCopyText(body: string, envelope: Envelope | undefined): string {
   if (envelope === undefined) return body.trim();
-  return [envelope.greeting, body.trim(), envelope.signOff, envelope.signature, envelope.optOut]
+  return [envelope.greeting, body.trim(), envelope.signOff, envelope.signature]
     .map((part) => part.trim())
     .filter((part) => part !== "")
     .join("\n\n");

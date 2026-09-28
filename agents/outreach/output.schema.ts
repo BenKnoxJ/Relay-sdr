@@ -12,8 +12,8 @@ import type { OutreachInput, TouchKind } from "./input.schema";
  * because §5's call touch produces a `talkingPoint` and not a body. §7's gates
  * are deliberately **not** all here. Two different things are being checked:
  *
- *   * what is true of a draft on its own — one question, last, and it is the
- *     `ask`; no em dash; ids are ids — which is this schema; and
+ *   * what is true of a draft on its own — the close is last and it is the
+ *     `ask`, at most two questions; no em dash; ids are ids — which is this schema; and
  *   * what is true of a draft *against its touch and its thread* — the word
  *     count for this touch kind, "shorter than the last", the five-gram overlap,
  *     whether `opener.ref` resolves — which needs the input and is
@@ -58,7 +58,7 @@ export const messageDraftSchema = z
     /** Email touches only. §13: a concrete noun phrase, 20 to 50 characters, no fake "Re:". */
     subject: z.string().min(1).max(200).optional(),
     body: z.string().min(1).max(5000),
-    /** §5: the one question. Must appear verbatim, once, as the last sentence. */
+    /** §5: the close, a question or (voice round) a statement. Must appear verbatim, once, as the last sentence. */
     ask: z.string().min(1).max(300),
     ...common,
   })
@@ -230,6 +230,9 @@ function authoredProse(
   ];
 }
 
+/** The most question marks a message carries (voice round): one mid-body question and the close, as the rep's own email does. */
+export const MAX_QUESTIONS = 2;
+
 /** The §5 and §6 rules a message draft satisfies on its own, with no touch in hand. */
 function checkMessageShape(draft: z.infer<typeof messageDraftSchema>, ctx: z.RefinementCtx): void {
   const body = draft.body.trim();
@@ -242,10 +245,12 @@ function checkMessageShape(draft: z.infer<typeof messageDraftSchema>, ctx: z.Ref
   } else if (!body.endsWith(ask)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ask"], message: "the ask is the last sentence" });
   }
+  // Voice round (28 Sep 2026): the ask is the close, and a close need not be a question. The rep's approved cold
+  // email asks a question mid-body and closes on another, so a message carries at most two; which touches may
+  // close on a statement is the sequence's business (`statement-close` in the gates), not the shape's.
   const questions = (body.match(/\?/g) ?? []).length;
-  if (questions !== 1) {
-    // §6 rule 4 and rubric row 4: exactly one question, and it is the ask.
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["body"], message: `a draft asks one question; this one asks ${questions}` });
+  if (questions > MAX_QUESTIONS) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["body"], message: `a draft asks at most ${MAX_QUESTIONS} questions; this one asks ${questions}` });
   }
   if (/^\s*[-*•]\s/m.test(draft.body)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["body"], message: "no bullets in an email (§6 rule 5)" });
@@ -265,9 +270,9 @@ export type MessageDraft = z.infer<typeof messageDraftSchema>;
  * and adds the second LinkedIn message.
  */
 export const LIMITS: Record<TouchKind, { minWords?: number; maxWords?: number; maxChars?: number; shrinks?: boolean; noLink?: boolean }> = {
-  // v2.1 §4: 40 to 110 words, aiming for 50 to 90.
-  email1: { minWords: 40, maxWords: 110 },
-  email2: { maxWords: 100, shrinks: true },
+  // Voice round (28 Sep 2026): 60 to 120 words, room for the rep's own hand; the follow-up at most 110.
+  email1: { minWords: 60, maxWords: 120 },
+  email2: { maxWords: 110, shrinks: true },
   breakup: { maxWords: 70, shrinks: true },
   // §5: 300 characters on Premium, else 200. The lower bound is what a draft
   // must satisfy without knowing the rep's plan, so 200 is the gate and the

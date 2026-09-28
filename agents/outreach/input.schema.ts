@@ -189,6 +189,15 @@ export const voiceSchema = z
     email: z.array(z.string().min(1).max(5000)).max(8),
     linkedin: z.array(z.string().min(1).max(5000)).max(4),
     howIWrite: z.string().max(2000),
+    /**
+     * Voice round (28 Sep 2026): messages this rep's hand wrote, each with the ask that produced it, for the
+     * writer to continue rather than imitate from rules. The vendored defaults (`agents/outreach/voice/`) when
+     * the rep has no samples of their own; absent when they do.
+     */
+    anchors: z
+      .array(z.object({ register: z.enum(REGISTERS), ask: z.string().min(1).max(600), wrote: z.string().min(1).max(1500) }).strict())
+      .max(8)
+      .optional(),
   })
   .strict();
 

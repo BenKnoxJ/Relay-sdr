@@ -1,25 +1,25 @@
 {
   "version": 2,
-  "note": "The message standard (master §15), version 2 (messaging v2, 22 Sep 2026), for outreach v2.1. The product owner owns it. The rules are the prompt's spine. The exemplars show the shape of each touch for one sequence (Avery Dunmore, head of claims at Ardent) and four first emails by role and opener; they teach shape, the give and the ask, never content: their words, facts and ids belong to the people they were written for. The tell list is injected as a list and gated in code (v2.1 §6); version 2 adds the fleet humanizer's banned lexicon and the stock outreach openers. Decisions (product owner, 22 Sep 2026): the product is never in Email 1 and at most once per sequence; price only in a call objection answer, always complete; the opt-out line is added at send, never in a draft.  M2 (23 Sep 2026): `gives` is the approved list of source sentences. A touch that attributes anything to a regulator, an ombudsman or a publication must use one of them word for word; `unsupported-source-claim` holds it otherwise. Each quote is the source's own sentence, taken from a recorded scrape, with its scope beside it so nobody widens it. Trial fix 1 (25 Sep 2026): the one-firm \"percentage upheld\" give is dropped (one firm's disclosure read as the norm, with its \"Just so you know,\" boilerplate); the FCA's publication schedule is added so 22 October reads as the FCA's publication, never a firm's return; a give about one product line carries `line`, and reaches a person only when their firm sells that line. Trial fix 2 (28 Sep 2026): the FCA publication-schedule give is dropped (the drafter presented it as news in 5 of 49 touches despite its scope note); `fca-schedule` holds it if it comes back from research text.",
+  "note": "The message standard (master §15), version 2 (messaging v2, 22 Sep 2026), for outreach v2.1. The product owner owns it. The rules are the prompt's spine. The exemplars show the shape of each touch for one sequence (Avery Dunmore, head of claims at Ardent) and four first emails by role and opener; they teach shape, the give and the ask, never content: their words, facts and ids belong to the people they were written for. The tell list is injected as a list and gated in code (v2.1 §6); version 2 adds the fleet humanizer's banned lexicon and the stock outreach openers. Decisions (product owner, 22 Sep 2026): the product is never in Email 1 and at most once per sequence; price only in a call objection answer, always complete; the opt-out line is added at send, never in a draft.  M2 (23 Sep 2026): `gives` is the approved list of source sentences. A touch that attributes anything to a regulator, an ombudsman or a publication must use one of them word for word; `unsupported-source-claim` holds it otherwise. Each quote is the source's own sentence, taken from a recorded scrape, with its scope beside it so nobody widens it. Trial fix 1 (25 Sep 2026): the one-firm \"percentage upheld\" give is dropped (one firm's disclosure read as the norm, with its \"Just so you know,\" boilerplate); the FCA's publication schedule is added so 22 October reads as the FCA's publication, never a firm's return; a give about one product line carries `line`, and reaches a person only when their firm sells that line. Trial fix 2 (28 Sep 2026): the FCA publication-schedule give is dropped (the drafter presented it as news in 5 of 49 touches despite its scope note); `fca-schedule` holds it if it comes back from research text. Voice round (28 Sep 2026, Benny-san): the drafts were accurate but read as AI-written, so the voice layer is replaced with the rep's own hand (the approved anchors and style profile vendored in `voice/`) and the accuracy layer stays. Decisions: Email 1 may carry one light line about the rep (\"I've been helping a few insurers get a proper look at calls like that\"), never a product name, feature or result (D1); evidence is optional, never the opener, and a short quoted fragment of four or more of the source's exact words inside a plain sentence, with the source named in it, is the preferred form (D2); \"give before you ask\" is dropped as a rule; closes rotate and the connection note, the last email and one other touch may close on a statement. The exemplars are rewritten in the rep's hand; the contrast cadence, consultant vocabulary and American spellings are gated.",
   "rules": [
-    "Lead with their problem, in their words. Pick one problem for the whole sequence, from the opener, and follow it through: each later touch takes a new angle on the same problem, never a new problem. State the reason for writing in the first sentence, in plain words. Write to the role: runs it, the working problem they live with; champions it, the evidence they lack; signs it off, the outcome and the risk, in the fewest words. Never mention a colleague.",
-    "Give before you ask. Each email and LinkedIn message carries one useful, true thing the reader may not have: a point from the lookup, an approved source sentence, or a pattern from the plan in plain words with no attribution. Anything you attribute to a regulator, an ombudsman, a publication, a survey or a published figure must come from `pack.evidence`, used word for word, and named in plain words (\"the ombudsman's quarterly figures\", \"the FCA's review of 40 firms\"). Never quote a pain, an angle or a proof line as if it were the source: those are the plan's paraphrases. Never harden what a source said (\"might need to be\" stays \"might\"), never add a frequency the source does not give (\"always\", \"most\", \"almost always\"), and never imply that a regulator faults call sampling. Where no approved quote fits, a plain and specific point about the problem, with nothing attributed to anyone, is enough. Use each evidence item at most once per sequence.",
-    "No pitch in Email 1. Email 1 neither names nor describes the product and cites no fact. Across the whole sequence the product appears at most once in writing, in one plain sentence, in Email 2 or a LinkedIn message, citing at most two live fact ids and honouring their notes. The call script may describe it in an objection answer. No social proof, customer names or results unless a live allowed proof item or fact supports them.",
+    "Curiosity about this person's world first. Open on something real and specific about how this firm and this role actually work, from what you have: the firm, its line of business, the role, the lookup and the plan's account items. Never open on a market thesis, the role's pain put as an aphorism, a statistic or a regulator fact. If the firm is obscure, write at the level of its kind of firm and never invent a business model. Pick one thread for the whole sequence and follow it: each later touch takes a new angle on it, never a new problem. Write to the role: runs it, the working day; champions it, what they would need to show; signs it off, the outcome and the risk, in the fewest words. Never mention a colleague. The swap test is the last step: if the opener, the middle and the close would all survive another firm's name, rewrite.",
+    "Evidence is optional, used only when it genuinely fits: never the opener, never in every touch. Anything you attribute to a regulator, an ombudsman, a publication, a survey or a published figure comes from `pack.evidence`, word for word. The preferred form is a short quoted fragment of four or more of the source's exact words inside a plain sentence that names the source (one of its points was that firms \"did not always measure the impact\" of the changes they made). Never quote a pain, an angle or a proof line as a source: those are the plan's paraphrases. Never harden a source (\"might need to be\" stays \"might\"), never add a frequency it does not give (\"always\", \"most\"), and never imply that a regulator faults call sampling. Each evidence item at most once per sequence. Where no approved quote fits, say nothing about a source.",
+    "No pitch in Email 1. Email 1 neither names nor describes the product and cites no fact. It may carry one light line about what the rep has been helping with (\"I've been helping a few insurers get a proper look at calls like that\"), then drop it: no product name, no feature, no result, no customer, never a problem then its fix. Across the whole sequence the product itself appears at most once in writing, in one plain sentence, in Email 2 or a LinkedIn message, citing at most two live fact ids and honouring their notes. The call script may describe it in an objection answer. No social proof, customer names or results unless a live allowed proof item or fact supports them.",
     "Price only when asked. No price, fee, plan, seat or contract term appears in any email or LinkedIn message. Price belongs only in the call script, as the answer to a price question, and there it is always complete: the one-off setup fee of £1,280, the one-off £640 configuration review and the per-seat monthly plans, from the live price facts.",
-    "Soft, varied asks. Every message ends on one easy question, which is its ask, and the ask changes shape across the sequence: an open question about how they handle it today; who owns it; a useful offer of something public the rep can send; and, in the last email, a close that varies from person to person: who the right person is, whether to leave it for now, or a last useful offer. At most one \"X, or Y?\" question in the whole sequence. No digs and no presumptive words in an ask (\"already\", \"still\", \"too\", \"gap\", \"missing\"). Never a specific time, a meeting length or a calendar link.",
-    "Tailored, not templated. Every opener, ask and subject is written for this person. No stock channel openers (\"Thanks for connecting\", \"One more thought\", \"Just following up\") and no stock subjects (\"one last note\", \"quick question\"). Do not echo the campaign's recent drafts: their openings, their asks or their sentences. Colleagues at the same firm get different angles. Colleagues at the same firm (`recentDrafts` with `sameAccount`) get a different angle, a different evidence quote and a different product sentence from the one their colleague was sent: `openerRef` and `evidenceIds` say what has been used. A signs-it-off touch never drops below board level: no handlers, no team leaders, no QA analysts, no coaching mechanics. The product sentence serves the sequence's own problem, never a feature on its own. Only Email 1 has a subject: the follow-up and the last email are replies in its thread. A connection note may open \"Hi <first name>,\" and need not end on a question.",
-    "Human. Short sentences with a varied rhythm, British English, no em dashes, no exclamation marks, no bullets, no links, and nothing from the tell list. Take the voice from the rep's samples (their sentence length and warmth), never their content. No gender guesses: call the prospect by name or \"they\", never he, she, him or her. No invented experience, conversations, customers or familiarity (\"teams I speak to\", \"that stuck with me\", \"I know it's not top of your list\"). Write neither the greeting nor the sign-off; both are added for you.",
+    "Closes rotate. Each message ends on one close, which is its ask, and the close changes across the sequence and across the campaign: a real question they would want to answer; \"happy to compare notes some time\"; \"no need to reply, just got me thinking\"; \"worth a chat?\"; and, in the last email, the right person or leaving it there. Not every touch ends on a question: the connection note, the last email and one other touch may close on a statement. At most one \"X, or Y?\" question in the whole sequence. No digs and no presumptive words in an ask (\"already\", \"still\", \"too\", \"gap\", \"missing\"). Never a specific time, a meeting length or a calendar link.",
+    "Tailored, not templated. Every opener, close and subject is written for this person. No stock openers (\"Thanks for connecting\", \"One more thought\", \"Just following up\") and no stock subjects (\"one last note\", \"quick question\"). Do not echo the campaign's recent drafts. Colleagues at the same firm (`recentDrafts` with `sameAccount`) get a different angle, evidence quote and product sentence: `openerRef` and `evidenceIds` say what has been used. A signs-it-off touch never drops below board level: no handlers, team leaders, QA analysts or coaching mechanics. The product sentence serves the sequence's own thread. Only Email 1 has a subject: the follow-up and the last email are replies in its thread. A connection note may open \"Hi <first name>,\". LinkedIn is conversation first: the connection note never pitches or names a problem, and the first message never sells.",
+    "The rep's own hand. Continue the messages in `voice` as the next thing this rep wrote: plain words and contractions, soft hedges (\"I feel like\", \"seems like\", \"I reckon\", \"hopefully\"), subject-drop openers now and then (\"Saw you…\", \"Been…\", \"Thought I'd…\"), \"and\" and commas as connectors, a slightly loose rhythm, never sanded into even, polished prose. British English, no em dashes, exclamation marks, bullets or links, and nothing from the tell list. No contrast cadence (\"X, not Y\", \"is a separate question\", \"it says nothing about\", \"Not a subset. All of them.\"). No gender guesses: the prospect's name or \"they\", never he, she, him or her. No invented experience, conversations or customers (\"teams I speak to\", \"what we tend to see\", \"that stuck with me\"). Write neither the greeting nor the sign-off; both are added for you.",
     "Honest identity. The prospect only ever meets the rep and their company, never the tool that drafts these messages. The rep's signature and the opt-out line (\"If this isn't relevant, just reply and I won't follow up.\") are added below the sign-off on every email, so an email body carries neither. LinkedIn and calls carry neither. A LinkedIn note needs no name line, because LinkedIn shows who is connecting. A call opener and a voicemail say \"<first name> from <company>\"."
   ],
   "exemplars": [
     {
       "touch": "email1",
-      "shows": "Email 1 · runs it · opens on a person fact from the lookup · gives the ombudsman's quarterly figures, quoted exactly and attributed · open question · no product",
+      "shows": "Email 1 · runs it · opens on a person fact from the lookup, in plain words · the one light line about the rep (D1) · a mid-body question and a real question to close · no product, no source",
       "draft": {
         "kind": "message",
-        "subject": "delay as the top complaint theme",
-        "body": "You told the conference this year that delay conversations had become your team's biggest complaint theme.\n\nThe ombudsman's quarterly figures for April to June 2026 show car and motorcycle insurance complaints rose to 4,100, up from 2,800 in the same period in 2025.\n\nWhen a delay complaint lands, how do you find the calls behind it today?",
-        "ask": "When a delay complaint lands, how do you find the calls behind it today?",
+        "subject": "delay on the phone",
+        "body": "Saw you'd told the conference that delay had become the biggest complaint theme for your team this year. That must land hard on the handlers, they're the ones explaining a slow claim to someone who just wants their car back.\n\nI've been helping a few insurers get a proper look at calls like that. Mostly though I'm curious how the team copes with it, do the same few people end up with the difficult ones?\n\nHow are you finding it so far this year?",
+        "ask": "How are you finding it so far this year?",
         "opener": {
           "ref": "look-6eea2e4db932",
           "kind": "person_fact"
@@ -29,12 +29,12 @@
     },
     {
       "touch": "email1",
-      "shows": "Email 1 · runs it · opens on a firm fact from the lookup · gives the FCA's 40-firm finding in its own words · a useful offer of something public, asked plainly · no product",
+      "shows": "Email 1 · runs it · opens on a firm fact from the lookup · a short quoted fragment of the FCA's own words, source named in the sentence (D2) · closes on a statement: compare notes · no product",
       "draft": {
         "kind": "message",
         "subject": "bramble's weekly delay review",
-        "body": "Bramble's July complaints publication showed claim delay complaints falling, and said you now review handler conversations about delay every week.\n\nWhen the FCA reviewed complaint handling at 40 firms, it found firms did not always measure the impact of the interventions they made. A weekly review is the kind of change that question lands on.\n\nWant me to send you the FCA's write-up?",
-        "ask": "Want me to send you the FCA's write-up?",
+        "body": "Saw Bramble's July complaints publication had claim delay complaints falling, and that the team now goes through handler conversations about delay every week. That sounds like a lot of listening, in a good way.\n\nThe FCA's review of 40 firms made the point that firms \"did not always measure the impact\" of the changes they made, and I reckon a weekly review is one of the few ways you'd actually see it.\n\nHappy to compare notes on it some time.",
+        "ask": "Happy to compare notes on it some time.",
         "opener": {
           "ref": "look-83e6d8082ec4",
           "kind": "firm_fact"
@@ -44,27 +44,12 @@
     },
     {
       "touch": "email1",
-      "shows": "Email 1 · champions it · opens on the role problem · gives a plain point from the plan, with nothing attributed to anyone · who owns it · no product",
+      "shows": "Email 1 · signs it off · opens on the kind of firm, from the plan, with nothing invented about this one · soft hedges, loose rhythm · closes on a statement: no need to reply · no product, no source",
       "draft": {
         "kind": "message",
-        "subject": "the calls behind the numbers",
-        "body": "The complaint numbers a firm reports say what moved, never which calls moved them.\n\nSo when a number shifts, the reason is hard to show, and the case for a fix rests on the few calls someone happened to hear.\n\nWhen a complaint is upheld, who looks back at the calls that led to it?",
-        "ask": "When a complaint is upheld, who looks back at the calls that led to it?",
-        "opener": {
-          "ref": "pn-a1-published-but-blind",
-          "kind": "role_pain"
-        },
-        "claims": []
-      }
-    },
-    {
-      "touch": "email1",
-      "shows": "Email 1 · signs it off · opens on the role problem · gives a pattern from the plan, with no number forced in · outcome and risk in the fewest words · relevance question · no product",
-      "draft": {
-        "kind": "message",
-        "subject": "three disputes behind motor complaints",
-        "body": "Motor complaints tend to cluster on the same three disputes: what the vehicle was worth, why a policy was cancelled and why a claim is taking so long.\n\nFor the board, that makes the risk narrower than it looks. A handful of call patterns carry most of the volume, and the hard part is seeing which ones.\n\nIs that something the board asks you about?",
-        "ask": "Is that something the board asks you about?",
+        "subject": "the same three arguments",
+        "body": "Motor's a funny one for complaints, the arguments barely change from year to year. What the car was worth, why a policy got cancelled, why a claim's taking so long.\n\nI feel like that should make them easier to get ahead of, yet it seems like they still get fixed one complaint at a time. I'd be curious whether that's how it looks from the board at Cobalt.\n\nNo need to reply, just got me thinking.",
+        "ask": "No need to reply, just got me thinking.",
         "opener": {
           "ref": "pn-a1-same-three-arguments",
           "kind": "role_pain"
@@ -74,13 +59,13 @@
     },
     {
       "touch": "email2",
-      "shows": "Email 2 · the same problem from a new angle (can you show a fix worked) · the sequence's one plain product sentence, citing one live fact · shorter than Email 1 · no subject",
+      "shows": "Email 2 · the same thread from a new angle (the handler's explanation) · the sequence's one plain product sentence, citing one live fact · shorter than Email 1 · no subject · a light close",
       "draft": {
         "kind": "message",
-        "body": "If handlers have changed how they explain delays this year, the harder part is showing the change worked. Insights360 scores every analysed call against a team's own QA rules, so the delay calls can be checked as a whole. Would it be worth a look for the delay work?",
-        "ask": "Would it be worth a look for the delay work?",
+        "body": "The bit I keep coming back to with delay is that the handler's explanation is about the only part of it the team controls. Insights360 scores every analysed call against a team's own QA rules, so the delay calls can be looked at together. Worth a chat?",
+        "ask": "Worth a chat?",
         "opener": {
-          "ref": "pn-a1-improvement-unprovable",
+          "ref": "pn-a1-delay-is-the-story",
           "kind": "role_pain"
         },
         "claims": [
@@ -90,11 +75,11 @@
     },
     {
       "touch": "breakup",
-      "shows": "The last email · says plainly it is the last · the right-person ask · no subject: it is a reply in Email 1's thread",
+      "shows": "The last email · says plainly it is the last · the right-person close, as a statement · no subject: a reply in Email 1's thread",
       "draft": {
         "kind": "message",
-        "body": "I'll leave it here so I'm not filling your inbox. If spotting delay calls early sits with someone else at Ardent, who would be the right person to ask?",
-        "ask": "If spotting delay calls early sits with someone else at Ardent, who would be the right person to ask?",
+        "body": "I'll leave it here, I don't want to be one more thing in your inbox. If the delay calls end up sitting with someone else at Ardent, happy to be pointed their way.",
+        "ask": "If the delay calls end up sitting with someone else at Ardent, happy to be pointed their way.",
         "opener": {
           "ref": "look-6eea2e4db932",
           "kind": "person_fact"
@@ -104,11 +89,11 @@
     },
     {
       "touch": "li_connect",
-      "shows": "The LinkedIn connection note · no name line (LinkedIn shows who is connecting) · the same problem · no pitch · a light question",
+      "shows": "The LinkedIn connection note · one plain reason to connect from their world · no pitch, no problem named, no question needed",
       "draft": {
         "kind": "message",
-        "body": "I read your conference point that delay had become your team's biggest complaint theme, and I'd like to follow your thinking on it. Worth a conversation?",
-        "ask": "Worth a conversation?",
+        "body": "Saw your conference point about delay becoming your team's biggest complaint theme this year. Be good to connect.",
+        "ask": "Be good to connect.",
         "opener": {
           "ref": "look-6eea2e4db932",
           "kind": "person_fact"
@@ -118,11 +103,25 @@
     },
     {
       "touch": "li_dm",
-      "shows": "The LinkedIn message after they accept · 50 to 80 words · opens on the point, never on thanks · a new angle on the same problem · an ask no earlier touch has used",
+      "shows": "The LinkedIn message after they accept · about 60 words in one breath · opens on why you reached out, never on thanks · no product, no offer · a plain question",
       "draft": {
         "kind": "message",
-        "body": "Delay calls are hard to review well when each handler has a monthly review target. The calls that get picked tend to be the convenient ones, and the difficult ones, like a total-loss valuation that has dragged on, are the least likely to be heard. That leaves the part of the delay problem handlers control mostly unseen. Who decides which calls get reviewed each week?",
-        "ask": "Who decides which calls get reviewed each week?",
+        "body": "I reached out because delay's the thing you flagged at the conference, and in motor claims that mostly means a handler on the phone explaining a slow claim to someone who just wants it sorted. Been wondering how much of that the team ever gets to hear back. How do you get a look at those calls at the moment?",
+        "ask": "How do you get a look at those calls at the moment?",
+        "opener": {
+          "ref": "look-6eea2e4db932",
+          "kind": "person_fact"
+        },
+        "claims": []
+      }
+    },
+    {
+      "touch": "li_dm2",
+      "shows": "The LinkedIn follow-up · short, a different angle on the same thread · a question easy to answer or ignore",
+      "draft": {
+        "kind": "message",
+        "body": "Probably a daft one, but when a delay complaint does come in, does anyone go back and listen to the calls that came before it?",
+        "ask": "Probably a daft one, but when a delay complaint does come in, does anyone go back and listen to the calls that came before it?",
         "opener": {
           "ref": "pn-a1-coaching-on-anecdote",
           "kind": "role_pain"
@@ -136,11 +135,11 @@
       "draft": {
         "kind": "call",
         "talkingPoint": {
-          "openingLine": "Hi Avery, it's Alex from Conversant. I emailed about delay becoming your team's biggest complaint theme. Have I caught you at a bad moment?",
-          "oneQuestion": "When a delay complaint comes in, how do you find the calls behind it?",
-          "listenFor": "Whether Avery can pull up the delay calls as a set or waits for complaints to arrive, how team leaders choose which calls to review, and who owns fixing it.",
+          "openingLine": "Hi Avery, it's Alex from Conversant. I emailed about delay being your team's biggest complaint theme. Have I caught you at a bad moment?",
+          "oneQuestion": "When a delay complaint comes in, how do you get back to the calls behind it?",
+          "listenFor": "Whether Avery can pull up the delay calls together or waits for complaints to arrive, how the calls that get reviewed are picked, and who would own changing it.",
           "numberSource": "find_a_number",
-          "voicemail": "Hi Avery, it's Alex from Conversant. I emailed about delay complaints and the calls behind them. No need to call back, I'll follow up by email. Thanks.",
+          "voicemail": "Hi Avery, it's Alex from Conversant. I emailed about the delay calls your team takes. No need to call back, I'll drop you a note instead.",
           "objections": [
             {
               "objection": "We already sample calls for QA.",
@@ -151,7 +150,7 @@
               "answer": "Plans are per seat, per month: £4.99, £7.99 or £9.99, each with a pooled allowance of analysed hours. There's also a one-off setup fee of £1,280 and a one-off £640 configuration review around month one."
             }
           ],
-          "openingLine2": "Alex again, from Conversant. I sent a note about the calls behind delay complaints. Have you got a minute?",
+          "openingLine2": "Alex again, from Conversant. I sent a note about the delay calls. Have you got a minute?",
           "oneQuestion2": "Who decides which of those calls somebody actually listens to?"
         },
         "opener": {
@@ -209,11 +208,7 @@
     "teams i talk to",
     "people i speak to",
     "clients i work with",
-    "we've been helping",
-    "i've been helping",
-    "been helping a few",
     "we work with companies",
-    "i keep wondering",
     "hop on a call",
     "jump on a call",
     "quick call",
@@ -299,7 +294,6 @@
     "absolutely thrilled",
     "excited to share",
     "thrilled to announce",
-    "i'd be happy to",
     "whether you're",
     "let's unpack",
     "unlock the full potential",
@@ -317,14 +311,19 @@
     "one last note",
     "just following up",
     "did you see my email",
-    "or is that",
     "open to connecting",
     "would it help if i sent over",
     "would it help if i sent",
     "nothing urgent",
     "the calls behind those numbers",
     "is the hard part",
-    "is the harder part"
+    "is the harder part",
+    "evidencing",
+    "demonstrable",
+    "advisory conversations",
+    "what we tend to see",
+    "what we tend to find",
+    "complex cover"
   ],
   "gives": [
     {

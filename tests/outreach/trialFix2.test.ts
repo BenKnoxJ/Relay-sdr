@@ -119,6 +119,27 @@ describe("unsourced trend and pattern claims", () => {
     expect(held(sentence)).toEqual([]);
   });
 
+  // Fix round 2 (Critic on #54): "rises" and "increases" after a preposition are nouns, an escalation goes up the
+  // chain as well as to a manager, and a job "tends to fall to" someone.
+  const CRITIC_ORDINARY = [
+    "We see a lot of complaints about premium rises at renewal.",
+    "Claims about price increases are the ones that reach the ombudsman.",
+    "Most disputes about rate rises start on the phone.",
+    "When a complaint goes up the chain, the notes rarely follow it.",
+    "Complaints that go up a level lose the call context.",
+    "The root-cause write-up tends to fall to one team leader.",
+    "Ownership of the fix tends to fall between claims and customer services.",
+  ];
+
+  it.each(CRITIC_ORDINARY)("does not read Critic's ordinary sentence as a trend: %s", (sentence) => {
+    expect(attributesASource(sentence.replace(/ombudsman/, "complaints team"))).toBe(false);
+    expect(held(sentence.replace(/ombudsman/, "complaints team"))).toEqual([]);
+  });
+
+  it.each(["As the complaint volume goes up, reviews slip.", "Complaint numbers go up every winter.", "Volumes across motor rise every January."])("still holds a trend put with \"goes up\" or a gap: %s", (sentence) => {
+    expect(held(sentence)).toEqual([sentence]);
+  });
+
   it("tells the drafter never to describe how a figure moves without a quote", () => {
     expect(readFileSync("agents/outreach/prompt.md", "utf8")).toContain("Never describe how a market or complaint figure moves or tends to move unless a quote says so.");
   });
@@ -231,25 +252,53 @@ describe("one firm's complaint category", () => {
     const body = "A complaint category says what to file a case under, not what happened on the call. Who ends up working that out?";
     expect(rules(gateFor(touch(body), inputFor(WAYFARER, "li_dm"), context()))).not.toContain("one-firm-cause");
   });
+
+  // Fix round 2 (Critic on #54): keyed on "general admin", whatever the wording, and a bare "only category" is fine.
+  it.each([
+    "Most firms file their complaints under 'general admin'.",
+    "General admin is the biggest cause on your published data.",
+    "'Other general admin' tops most firms' published causes.",
+  ])("holds a rewording: %s", (sentence) => {
+    expect(rules(gateFor(touch(`${sentence} Who looks at what sits behind it?`), inputFor(WAYFARER, "li_dm"), context()))).toContain("one-firm-cause");
+  });
+
+  it("does not hold a bare \"only category\" with no general admin in it", () => {
+    const body = "Is complaints the only category you report on the dashboard?";
+    expect(rules(gateFor(touch(body), inputFor(WAYFARER, "li_dm2"), context()))).not.toContain("one-firm-cause");
+  });
 });
 
 // ---------------------------------------------------------------------------
 // Fix 5: an offer of a source's write-up follows from the thread (advice).
 
+describe("the relative-date remedy (fix round 2 of #54)", () => {
+  it("no longer suggests the dropped give's date", () => {
+    const body = "The figures publish on 3 November, which leaves six weeks to get ahead of them. Who puts the explanation together on your side?";
+    const found = gateFor(touch(body), inputFor(HARBOUR, "li_dm2"), context()).tierA.find((finding) => finding.rule === "relative-date");
+    expect(found?.text).toContain("Give the date itself, as the plan gives it, or nothing");
+    expect(found?.text).not.toContain("22 October");
+  });
+});
+
 describe("an offer that names a source", () => {
-  const LUKE_E1 =
+  const RHYS_E1 =
     "Most complaints MI can say what caused a complaint and what the fix was. Whether that fix actually worked afterwards is a different question. Usually it comes down to a judgement call, because there's nothing solid to check it against.\n\nWhen you do make a change, how do you show it worked?";
-  const LUKE_E2 = `Pointing to one handler doing something differently is easy. Showing it changed the pattern across every complaint-adjacent call is a different claim.\n\n${facts.product}'s dashboard compares each period against the one before it, so a change shows up in the numbers.\n\nWant me to send over the ombudsman's write-up?`;
+  const RHYS_E2 = `Pointing to one handler doing something differently is easy. Showing it changed the pattern across every complaint-adjacent call is a different claim.\n\n${facts.product}'s dashboard compares each period against the one before it, so a change shows up in the numbers.\n\nWant me to send over the ombudsman's write-up?`;
 
   it("advises when nothing earlier in the thread mentions the ombudsman", () => {
-    const found = gateFor(message(LUKE_E2, "Want me to send over the ombudsman's write-up?"), inputFor(HARBOUR, "email2", [entry("email1", LUKE_E1)]), context());
+    const found = gateFor(message(RHYS_E2, "Want me to send over the ombudsman's write-up?"), inputFor(HARBOUR, "email2", [entry("email1", RHYS_E1)]), context());
     expect(advice(found)).toContain("ask-source");
     expect(rules(found)).not.toContain("ask-source");
   });
 
   it("gives no advice when an earlier touch raised it", () => {
-    const thread = [entry("email1", `${LUKE_E1.split("\n\n")[0]} The ombudsman sees the cases that were never settled.\n\nWhen you do make a change, how do you show it worked?`)];
-    expect(advice(gateFor(message(LUKE_E2, "Want me to send over the ombudsman's write-up?"), inputFor(HARBOUR, "email2", thread), context()))).not.toContain("ask-source");
+    const thread = [entry("email1", `${RHYS_E1.split("\n\n")[0]} The ombudsman sees the cases that were never settled.\n\nWhen you do make a change, how do you show it worked?`)];
+    expect(advice(gateFor(message(RHYS_E2, "Want me to send over the ombudsman's write-up?"), inputFor(HARBOUR, "email2", thread), context()))).not.toContain("ask-source");
+  });
+
+  it.each(["Want me to send over the Financial Ombudsman Service's write-up?", "Want me to send over the FOS's summary?"])("advises on the ombudsman's full name and its initials: %s", (offer) => {
+    const body = RHYS_E2.replace("Want me to send over the ombudsman's write-up?", offer);
+    expect(advice(gateFor(message(body, offer), inputFor(HARBOUR, "email2", [entry("email1", RHYS_E1)]), context()))).toContain("ask-source");
   });
 
   it("gives no advice when the same touch raised it", () => {
@@ -298,7 +347,9 @@ describe("the re-run's clean sequences still pass", () => {
     }
   });
 
-  it("the travel champion: six touches clean, the schedule Email 2 held, the schedule among its findings", () => {
+  // Voice round (28 Sep 2026): the LinkedIn message ("…already got flagged, not the full set around it") and the
+  // follow-up ("is a separate problem from making the fix itself") use the contrast cadence Benny-san banned.
+  it("the travel champion: four touches clean, the schedule Email 2 held, the two contrast LinkedIn touches held", () => {
     const steps: Step[] = [
       {
         kind: "email1",
@@ -323,6 +374,7 @@ describe("the re-run's clean sequences still pass", () => {
     const result = walk(WAYFARER, steps);
     for (const { kind, rules: found } of result) {
       if (kind === "email2") expect(found, kind).toContain("fca-schedule");
+      else if (kind === "li_dm" || kind === "li_dm2") expect(found, kind).toEqual(["contrast"]);
       else expect(found, kind).toEqual([]);
     }
   });

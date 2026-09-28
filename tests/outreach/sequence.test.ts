@@ -48,17 +48,17 @@ const call = (point: Record<string, unknown>) => ({
 });
 
 describe("each touch kind's limits, at its boundary", () => {
-  it("email1: 40 to 110 words, unchanged", () => {
-    expect(LIMITS.email1).toEqual({ minWords: 40, maxWords: 110 });
-    expect(lengthRules(words(40), "email1")).toEqual([]);
-    expect(lengthRules(words(39), "email1")).toEqual(["length"]);
-    expect(lengthRules(words(110), "email1")).toEqual([]);
-    expect(lengthRules(words(111), "email1")).toEqual(["length"]);
+  it("email1: 60 to 120 words (voice round)", () => {
+    expect(LIMITS.email1).toEqual({ minWords: 60, maxWords: 120 });
+    expect(lengthRules(words(60), "email1")).toEqual([]);
+    expect(lengthRules(words(59), "email1")).toEqual(["length"]);
+    expect(lengthRules(words(120), "email1")).toEqual([]);
+    expect(lengthRules(words(121), "email1")).toEqual(["length"]);
   });
 
-  it("email2: at most 100 words", () => {
-    expect(lengthRules(words(100), "email2")).toEqual([]);
-    expect(lengthRules(words(101), "email2")).toEqual(["length"]);
+  it("email2: at most 110 words (voice round)", () => {
+    expect(lengthRules(words(110), "email2")).toEqual([]);
+    expect(lengthRules(words(111), "email2")).toEqual(["length"]);
   });
 
   it("breakup: at most 70 words", () => {

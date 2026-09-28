@@ -27,7 +27,6 @@ const SENDER = { firstName: "Alex", company: "Conversant" };
 const PERSON_FOR_REF: Record<string, string> = {
   "look-6eea2e4db932": "Avery Dunmore",
   "look-83e6d8082ec4": "Blair Kendrick",
-  "pn-a1-published-but-blind": "Marlo Holloway",
   "pn-a1-same-three-arguments": "Orla Bellamy",
 };
 
@@ -59,10 +58,10 @@ function checked(exemplar: Exemplar): CheckedTouch {
 const email1s = standard.exemplars.filter((exemplar) => exemplar.touch === "email1");
 
 describe("the writing standard, version 2", () => {
-  it("loads: version 2, the eight rules, and an exemplar for every touch kind but the LinkedIn follow-up", () => {
+  it("loads: version 2, the eight rules, and an exemplar for every touch kind (voice round: three first emails)", () => {
     expect(standard.version).toBe(2);
     expect(standard.rules).toHaveLength(8);
-    expect(standard.exemplars.map((exemplar) => exemplar.touch)).toEqual(["email1", "email1", "email1", "email1", "email2", "breakup", "li_connect", "li_dm", "call"]);
+    expect(standard.exemplars.map((exemplar) => exemplar.touch)).toEqual(["email1", "email1", "email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"]);
   });
 
   it("states the product owner's decisions in its rules: no pitch in Email 1, price only when asked and complete, no gender, no stock openers", () => {
@@ -78,11 +77,11 @@ describe("the writing standard, version 2", () => {
     expect(rules).toMatch(/opt-out line \("If this isn.t relevant, just reply and I won.t follow up."\) are added below the sign-off/);
   });
 
-  it("gives four Email 1 exemplars across the three roles and the three opener kinds, each with a different ask", () => {
+  it("gives three Email 1 exemplars across the three opener kinds, each with a different close", () => {
     expect(new Set(email1s.map((exemplar) => exemplar.draft.opener.kind))).toEqual(new Set(["person_fact", "firm_fact", "role_pain"]));
-    expect(email1s.map((exemplar) => exemplar.shows.split(" · ")[1])).toEqual(["runs it", "runs it", "champions it", "signs it off"]);
+    expect(email1s.map((exemplar) => exemplar.shows.split(" · ")[1])).toEqual(["runs it", "runs it", "signs it off"]);
     const asks = email1s.map((exemplar) => (exemplar.draft.kind === "message" ? exemplar.draft.ask : ""));
-    expect(new Set(asks).size).toBe(4);
+    expect(new Set(asks).size).toBe(3);
   });
 
   it.each(email1s.map((exemplar, index) => [index + 1, exemplar] as const))("Email 1 exemplar %i makes no product sentence and cites no fact", (_index, exemplar) => {

@@ -175,19 +175,19 @@ const draftJobs = (campaign: CampaignRow) => prisma.job.findMany({ where: { camp
 /** Four different good first emails on the role problem, one per firm, so no two share an opening or an ask. */
 const GOOD: { body: string; ask: string }[] = [
   {
-    body: `When quality checking covers a small sample of calls, the habit behind a complaint is usually found weeks after it started.\n\nMost claims teams only hear about it once the letter arrives. Reading every call shows the pattern in the first week instead. Is finding those calls earlier something you are working on?`,
+    body: `When quality checking covers a small sample of calls, the habit behind a complaint is usually found weeks after it started.\n\nMost claims teams only hear about it once the letter arrives, and by then the handler has taken the same kind of call many times over without anyone listening back. Reading every call shows the pattern in the first week instead. Is finding those calls earlier something you are working on?`,
     ask: "Is finding those calls earlier something you are working on?",
   },
   {
-    body: `Complaints tend to arrive long after the call that caused them.\n\nMeanwhile the same habit repeats quietly on dozens of other calls across the team. Reading all of them would show which conversations to coach first. Would that be useful for your team?`,
+    body: `Complaints tend to arrive long after the call that caused them.\n\nMeanwhile the same habit repeats quietly on dozens of other calls across the team, and the team leader only ever hears the handful that happened to be picked for review by someone that month. Reading all of them would show which conversations to coach first. Would that be useful for your team?`,
     ask: "Would that be useful for your team?",
   },
   {
-    body: `The part of a complaint nobody can see is the conversation that started it.\n\nMost sampling catches it too late to matter. We read every recorded call and point to the ones behind each complaint. Is that a gap your team feels at the moment?`,
+    body: `The part of a complaint nobody can see is the conversation that started it.\n\nMost sampling catches it too late to matter, because the calls that get reviewed are picked for convenience and the difficult ones hardly ever make the list. We read every recorded call and point to the ones behind each complaint. Is that a gap your team feels at the moment?`,
     ask: "Is that a gap your team feels at the moment?",
   },
   {
-    body: `Which calls sit behind this quarter's complaints is usually a guess.\n\nA sample of one in fifty leaves most of them unheard. We read every recorded call, so the answer comes from the calls themselves. Would it help to see how that works for a claims team?`,
+    body: `Which calls sit behind this quarter's complaints is usually a guess.\n\nA sample of one in fifty leaves most of them unheard, so the team fixes each complaint as it lands and the same conversation keeps going wrong elsewhere. We read every recorded call, so the answer comes from the calls themselves. Would it help to see how that works for a claims team?`,
     ask: "Would it help to see how that works for a claims team?",
   },
 ];
@@ -683,11 +683,13 @@ describe("the draft job", () => {
     const { campaign } = await revealed(rep(), 1);
     await writeEmails(rep(), campaign);
     const [job] = await draftJobs(campaign);
-    const followUp = "One more thought on the same problem. When a complaint lands, the calls behind it are usually weeks old. Reading every call shows the pattern early enough to coach the habit out properly. Who looks back at those calls today?";
-    const firstEmail = "Complaints tend to arrive weeks after the call that caused them.\n\nBy then the same habit has quietly repeated on many other calls. Reading all of them shows which conversations to coach first. Would that be useful for your team?";
+    const followUp =
+      "One more thought on the same problem. When a complaint lands, the calls behind it are usually weeks old and nobody on the whole team can easily find them again quickly. Reading every call shows the pattern early enough to coach the habit out properly, before the next letter turns up on the desk. Who looks back at those calls today?";
+    const firstEmail =
+      "Complaints tend to arrive weeks after the call that caused them.\n\nBy then the same habit has quietly repeated on many other calls, and the handful that got reviewed that month were picked mostly because they were quick and easy to find. Reading all of them really shows which conversations to coach first. Would that be useful for your team?";
     const count = (text: string) => text.split(/\s+/).length;
-    // Every scripted first email is longer than 40 words, so the drafted follow-up passes; the humanized first email is 40.
-    expect([count(followUp), count(firstEmail)]).toEqual([40, 40]);
+    // Every scripted first email is longer than 60 words, so the drafted follow-up passes; the humanized first email is 60 (voice round's floor).
+    expect([count(followUp), count(firstEmail)]).toEqual([61, 60]);
     await runDraft(
       job!,
       ["good"],
@@ -880,9 +882,9 @@ describe("M2 fix 1: time, thread subjects and the corrective call", () => {
     const fca = loadStandard().gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
     const ask = "When a script changes, how do you check the calls it touched?";
     const paraphrase = "The FCA's review of 40 firms found firms weren't checking their changes.";
-    const bad = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls. ${paraphrase} Without a way to search every call by theme, each fix is judged on a guess. ${ask}`;
+    const bad = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls, picked by whoever had the time that week. ${paraphrase} Without a way to search every call by theme, each fix is judged on a guess. ${ask}`;
     // What the corrective call should come back with: the two instructions, followed and nothing else.
-    const fixed = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls. ${fca.quote}\n\nWithout a way to search every call by theme, each fix is judged on a guess. ${ask}`;
+    const fixed = `When a valuation script changes, proving it worked usually means re-listening to a handful of calls, picked by whoever had the time that week. ${fca.quote}\n\nWithout a way to search every call by theme, each fix is judged on a guess. ${ask}`;
     const email = (body: string) => ({ subject: "Checking a script change", body, ask, opener: { ref: "$role", kind: "role_pain" }, claims: [] });
     const dir = mkdtempSync(path.join(tmpdir(), "relay-fix1-"));
     const file = path.join(dir, "drafts.json");

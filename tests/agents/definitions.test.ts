@@ -295,13 +295,13 @@ describe("outreach: the gates that need the touch", () => {
     ]);
   });
 
-  it("refuses a draft whose ask is not the last sentence, or that asks twice", () => {
+  it("refuses a draft whose ask is not the last sentence, or that asks more than twice", () => {
     const result = outreachOutputSchema.safeParse(fixture("outreach", "output.bad.json"));
     expect(result.success).toBe(false);
     if (result.success) return;
     const messages = result.error.issues.map((issue) => issue.message);
     expect(messages).toContain("the ask is the last sentence");
-    expect(messages.some((message) => /asks one question; this one asks 2/.test(message))).toBe(true);
+    expect(messages.some((message) => /asks at most 2 questions; this one asks 3/.test(message))).toBe(true);
   });
 
   it("refuses a planned fact in the input, before the writer sees it", () => {

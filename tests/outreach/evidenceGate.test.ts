@@ -39,8 +39,9 @@ describe("the approved gives", () => {
     // firm that sends the FCA that data, so it told them about their own regulatory return. Trial fix 1 brings
     // back the FCA's own schedule sentence, scoped to the one thing a draft needs from it: 22 October is the
     // FCA's publication, never the firm's return. And it drops the one firm's "percentage upheld" line, which
-    // read as how every firm defines it.
-    expect(standard.gives.map((give) => give.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured", "give-fca-complaints-data-dates"]);
+    // read as how every firm defines it. Trial fix 2 (Benny-san, 28 Sep) drops the schedule sentence again: the
+    // drafter used it as news in 5 of 49 touches, scope note or not.
+    expect(standard.gives.map((give) => give.id)).toEqual(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured"]);
     for (const give of standard.gives) {
       expect(give.url, give.id).toMatch(/^https:\/\//);
       expect(give.scope.length, give.id).toBeGreaterThan(20);
@@ -51,9 +52,6 @@ describe("the approved gives", () => {
     const fca = standard.gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
     expect(fca.quote).toContain("not as effective as they might need to be");
     expect(fca.quote).not.toContain("weren't working");
-    const dates = standard.gives.find((give) => give.id === "give-fca-complaints-data-dates")!;
-    expect(dates.quote).toBe("We publish our complaints data every 6 months, around April and October.");
-    expect(dates.scope).toMatch(/never call 22 October a return/i);
   });
 });
 

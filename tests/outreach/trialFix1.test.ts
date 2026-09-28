@@ -199,31 +199,24 @@ describe("return-date and relative-date", () => {
     }
   });
 
-  it("passes the approved wording: the FCA's own schedule sentence, and the date as the FCA's publication", () => {
+  it("holds the FCA's schedule sentence, once approved, as never news to a firm that reports to it (trial fix 2)", () => {
     const sentence = "The FCA publishes its complaints data every 6 months, around April and October, and the H1 figures by firm on 22 October.";
-    expect(held(sentence)).toEqual([]);
     const found = gateFor(message(`${sentence} Who puts the explanation together on your side?`, "Who puts the explanation together on your side?"), inputFor(HARBOUR, "li_dm2"), context());
-    expect(found.tierA).toEqual([]);
+    expect(rules(found)).toContain("fca-schedule");
   });
 
-  it("says 22 October is the FCA's publication in the give's scope, never the firm's return", () => {
-    const dates = gives.find((give) => give.id === "give-fca-complaints-data-dates")!;
-    expect(dates.sourceName).toContain("22 October 2026");
-    expect(dates.scope).toMatch(/publishes the H1 2026 figures by firm/);
-    expect(dates.scope).toMatch(/Never call 22 October a return/);
-    // Fix round 2 (Benny-san, 25 Sep): a date anchor only, never news to the firm.
-    expect(dates.scope).toMatch(/use only as a date; never tell the firm about its own reporting cycle/i);
-  });
-
-  it("stops reaching the drafter after 22 October 2026, and the other gives stay (fix round 2)", () => {
+  it("stops a dated give reaching the drafter after its validUntil day, and the other gives stay (fix round 2)", () => {
+    // Trial fix 2 dropped the one dated give; the mechanism stays, so it is tested on a made-up one.
+    const dated = { ...standard.gives.find((give) => give.id === fca40.id)!, id: "give-dated", validUntil: "2026-10-22" };
+    const withDated = { ...standard, gives: [...standard.gives, dated] };
     const slice = { ...packSliceSchema.parse(recorded.pack), evidence: [] };
-    const ids = (now: string) => withApprovedGives(slice, standard, new Date(now)).evidence.map((quote) => quote.id);
-    expect(ids("2026-09-25T09:00:00Z")).toContain("give-fca-complaints-data-dates");
-    expect(ids("2026-10-22T23:59:59Z")).toContain("give-fca-complaints-data-dates");
-    expect(ids("2026-10-23T00:00:00Z")).not.toContain("give-fca-complaints-data-dates");
+    const ids = (now: string) => withApprovedGives(slice, withDated, new Date(now)).evidence.map((quote) => quote.id);
+    expect(ids("2026-09-25T09:00:00Z")).toContain("give-dated");
+    expect(ids("2026-10-22T23:59:59Z")).toContain("give-dated");
+    expect(ids("2026-10-23T00:00:00Z")).not.toContain("give-dated");
     expect(ids("2026-10-23T00:00:00Z")).toEqual(expect.arrayContaining(["give-fos-motor-complaints-q1-2026", "give-fca-interventions-not-measured"]));
     // The expiry is the standard's to read, never the drafter's: it is not on the quote the drafter sees.
-    const before = withApprovedGives(slice, standard, new Date("2026-09-25T09:00:00Z")).evidence.find((quote) => quote.id === "give-fca-complaints-data-dates")!;
+    const before = withApprovedGives(slice, withDated, new Date("2026-09-25T09:00:00Z")).evidence.find((quote) => quote.id === "give-dated")!;
     expect(before).not.toHaveProperty("validUntil");
   });
 });

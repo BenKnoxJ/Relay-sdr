@@ -110,14 +110,103 @@ const ANTITHESIS = [
   /\bnot [^.?!]{1,40}\.\s+(?:it's|it is)\b/i,
 ];
 
-/** Non-British spellings, a fixed list (§7). */
-const US_SPELLINGS = [
-  "organize", "organized", "organizing", "organization", "organizations", "prioritize", "prioritized", "analyze", "analyzed", "analyzing",
-  "optimize", "optimized", "optimizing", "optimization", "realize", "realized", "recognize", "recognized", "specialize", "specialized",
-  "customize", "customized", "apologize", "standardize", "standardized", "summarize", "utilize", "maximize", "minimize", "emphasize",
-  "color", "colors", "behavior", "behaviors", "favor", "favorite", "honor", "labor", "center", "centers", "centered", "defense", "catalog",
-  "modeling", "traveling", "canceled", "fulfill", "enroll", "judgment",
+/**
+ * Non-British spellings, a fixed list (§7), each with the British spelling the finding offers (voice round,
+ * 28 Sep 2026: the remedy is the word to use, not "use British English"). "While" is fine; "whilst" is never
+ * required. "Program" is held unless it is a computer program; "license" only as a noun after a determiner,
+ * because the British verb is spelt that way too.
+ */
+const US_SPELLINGS: readonly (readonly [RegExp, string, string])[] = [
+  ...(
+    [
+      ["organize", "organise"], ["organized", "organised"], ["organizing", "organising"], ["organization", "organisation"], ["organizations", "organisations"],
+      ["prioritize", "prioritise"], ["prioritized", "prioritised"], ["analyze", "analyse"], ["analyzed", "analysed"], ["analyzing", "analysing"],
+      ["optimize", "optimise"], ["optimized", "optimised"], ["optimizing", "optimising"], ["optimization", "optimisation"], ["realize", "realise"],
+      ["realized", "realised"], ["recognize", "recognise"], ["recognized", "recognised"], ["specialize", "specialise"], ["specialized", "specialised"],
+      ["customize", "customise"], ["customized", "customised"], ["apologize", "apologise"], ["standardize", "standardise"], ["standardized", "standardised"],
+      ["summarize", "summarise"], ["utilize", "use"], ["maximize", "maximise"], ["minimize", "minimise"], ["emphasize", "emphasise"],
+      ["color", "colour"], ["colors", "colours"], ["behavior", "behaviour"], ["behaviors", "behaviours"], ["favor", "favour"], ["favorite", "favourite"],
+      ["honor", "honour"], ["labor", "labour"], ["center", "centre"], ["centers", "centres"], ["centered", "centred"], ["defense", "defence"],
+      ["catalog", "catalogue"], ["modeling", "modelling"], ["traveling", "travelling"], ["canceled", "cancelled"], ["fulfill", "fulfil"], ["enroll", "enrol"],
+      ["toward", "towards"], ["practiced", "practised"],
+    ] as const
+  ).map(([us, uk]) => [new RegExp(`\\b${us}\\b`, "i"), us, uk] as const),
+  // Lower case only: "Gray" is a surname and a firm's name.
+  [/\bgray\b/, "gray", "grey"],
+  [/(?<!\bcomputer )\bprograms?\b/i, "program", "programme"],
+  [/\b(?:a|the|your|their|our|its|this)\s+license\b/i, "license", "licence"],
 ];
+
+/** The American spellings in a text, as "toward (towards)". */
+function americanSpellings(text: string): string[] {
+  return US_SPELLINGS.filter(([pattern]) => pattern.test(text)).map(([, us, uk]) => `${us} (${uk})`);
+}
+
+function spellingFinding(text: string): Finding[] {
+  const found = americanSpellings(text);
+  return found.length === 0 ? [] : [{ rule: "spelling", text: `American spelling: ${found.join(", ")}. Use the British spelling in brackets.` }];
+}
+
+/**
+ * The contrast cadence (voice round, 28 Sep 2026; the voice root's first don't): the move that makes a message
+ * read as machine-written whatever its words. "Is a separate question", "is one thing, … is another", "says
+ * what …, never which …", "it says nothing about …", a stand-alone "…, not Y." and the escalating fragment
+ * ("Not a subset. All of them."). The older two-sentence antithesis stays under its own rule.
+ */
+const SET_UP = /\b(?:is|are|'s|’s|was|becomes)\s+(?:a\s+|an\s+)?(?:separate|different|another|whole other|other)\s+(?:question|job|matter|problem|conversation|issue|story|claim)\b/i;
+
+const CONTRAST: readonly RegExp[] = [
+  SET_UP,
+  /\bis one thing\b[^.?!]*\banother\b/i,
+  /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?)\s+(?:what|which|how|why|who|when)\b[^.?!]{0,80}\b(?:never|not|but not|and not|rarely)\s+(?:what|which|how|why|who|when)\b/i,
+  /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?|explains?)\s+nothing (?:about|of)\b/i,
+  // A stand-alone parallel closing the sentence: "…across the base, not the sample you could get to." "Not yet"
+  // and "whether or not" are ordinary English and never match: the word after "not" opens a noun phrase. The
+  // everyday idioms ("…, not a problem.", "…, not an easy one.", "…, not the easiest for anyone.") are not a contrast.
+  /,\s+not\s+(?!(?:a (?:problem|bother|worry|big deal)|an? (?:easy|bad|big|small)\b|the (?:easiest|best|worst|end|first)\b|that\b|to worry\b|at all\b))(?:the|a|an|just|only|your|their|its|our|one|every|all|some|what|which|how|who)\b[^,.?!;]{0,60}[.!]/i,
+];
+
+/**
+ * A short sentence opening "Not …": the escalating fragment. Ordinary replies ("Not yet.", "Not sure.", "Not a
+ * problem.", "Not to worry.", "Not everyone does.") excepted: a call script's objection answer is read part by part.
+ */
+const NOT_FRAGMENT =
+  /^not\s+(?!(?:yet|really|sure|always|quite|necessarily|often|much|many|at all|exactly|everyone|everybody|that|to worry|a problem|a bother|an easy|the easiest|bad|too bad|long|now)\b)/i;
+
+function contrastIn(parts: readonly string[], patterns: readonly RegExp[] = CONTRAST): string | undefined {
+  for (const part of parts) {
+    for (const sentence of sentences(part)) {
+      if (patterns.some((pattern) => pattern.test(sentence))) return sentence;
+      if (NOT_FRAGMENT.test(sentence) && sentence.split(/\s+/).length <= 6) return sentence;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Fix round 3 of #54: `answers` are a call's objection answers, where deferring a topic ("that's a different
+ * conversation") is how a rep moves on, not the set-up contrast; every other contrast still holds there.
+ */
+function contrastFinding(parts: readonly string[], answers: readonly string[] = []): Finding[] {
+  const sentence = contrastIn(parts) ?? contrastIn(answers, CONTRAST.filter((pattern) => pattern !== SET_UP));
+  return sentence === undefined
+    ? []
+    : [{ rule: "contrast", text: `"${clip(sentence, 90)}" sets one thing against another for effect, which reads as written by a machine. Say the one point plainly.` }];
+}
+
+/**
+ * Tells the lexicon cannot hold as one phrase (voice round): the consultant frame "we work with X on the Y side",
+ * and "or is that" only where it presumes a gap ("…, or is that guesswork?", "…, or is that already sorted?"), because "Do they take the hard
+ * calls, or is that a separate team?" is the rep's own approved question.
+ */
+const PATTERN_TELLS: readonly (readonly [RegExp, string])[] = [
+  [/\bwe work with\b[^.?!]{0,60}\bon the\b[^.?!]{0,30}\bside\b/i, "we work with … on the … side"],
+  [/\bor is that\b[^?]{0,40}\b(?:guesswork|guess|luck|a gap|missing|already|still)\b/i, "or is that"],
+];
+
+function tellsIn(text: string, lexicon: readonly string[]): string[] {
+  return [...lexicon.filter((phrase) => hasTell(text, phrase)), ...PATTERN_TELLS.filter(([pattern]) => pattern.test(text)).map(([, name]) => name)];
+}
 
 /**
  * The paragraphs finding, as an instruction the corrective call can follow to the letter (M2 fix 1): which
@@ -145,10 +234,10 @@ function shapeFindings(draft: MessageDraft, input: OutreachInput, lexicon: reado
     found.push({ rule: "time-ask", text: "It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead." });
   }
   if (ANTITHESIS.some((pattern) => pattern.test(body))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
-  const tells = lexicon.filter((phrase) => hasTell(`${draft.subject ?? ""} ${body}`, phrase));
+  found.push(...contrastFinding([draft.subject ?? "", body]));
+  const tells = tellsIn(`${draft.subject ?? ""} ${body}`, lexicon);
   if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
-  const us = US_SPELLINGS.filter((word) => new RegExp(`\\b${word}\\b`, "i").test(body));
-  if (us.length > 0) found.push({ rule: "spelling", text: `American spelling: ${us.join(", ")}. Use British English.` });
+  found.push(...spellingFinding(`${draft.subject ?? ""} ${body}`));
   // v2.1 §2: the greeting and the sign-off are Relay's envelope; the body is what sits between them.
   const first = input.person.firstName.trim();
   const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(body);
@@ -250,9 +339,15 @@ function evidenceRaw(input: OutreachInput): string {
 export function namedEntities(body: string): string[] {
   const found: string[] = [];
   for (const sentence of sentences(body)) {
-    const tokens = sentence.split(/\s+/).map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""));
+    // Punctuation left over from the sentence before ("…be.' Want me to…") is not a word: the sentence starts after it.
+    const tokens = sentence
+      .split(/\s+/)
+      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
+      .filter((token) => token !== "");
     let run: { text: string; index: number }[] = [];
     const flush = () => {
+      // A question or an offer opens on an ordinary word (trial fix 2): "Shall I send…" is not the name "Shall I".
+      if (run.length > 1 && run[0]!.index === 0 && isOpener(run[0]!.text)) run = run.slice(1);
       // A lone capitalised word at the start of a sentence is a sentence start, unless it is an acronym or carries a digit.
       const onlyStart = run.length === 1 && run[0]!.index === 0 && !/^[A-Z0-9]{2,}$/.test(run[0]!.text) && !/\d/.test(run[0]!.text) && !/[a-z][A-Z]/.test(run[0]!.text);
       if (run.length > 0 && !onlyStart) found.push(run.map((t) => t.text).join(" "));
@@ -269,10 +364,16 @@ export function namedEntities(body: string): string[] {
 
 /** Words that commonly open an English sentence. Never a name, whatever their case. */
 const STARTERS = new Set(
-  "so also just still yet even only then now instead otherwise however meanwhile again perhaps maybe happy glad worth given since because after before once until unless although though whether either neither both few several last next first second finally often usually sometimes typically currently recently today honestly curious fair sounds seems looks feel reading looking seeing having being going teams people firms handlers managers leaders directors most many some none nothing everything something anything".split(
+  "shall want need fancy keen mind open so also just still yet even only then now instead otherwise however meanwhile again perhaps maybe happy glad worth given since because after before once until unless although though whether either neither both few several last next first second finally often usually sometimes typically currently recently today honestly curious fair sounds seems looks feel saw been thought mostly funny wondering reckon probably hopefully reading looking seeing having being going teams people firms handlers managers leaders directors most many some none nothing everything something anything".split(
     " ",
   ),
 );
+
+/** An ordinary word opening a sentence or a question: "Shall", "Want", "Worth", "Should". */
+function isOpener(token: string): boolean {
+  const word = token.toLowerCase().replace(/['’]s$/, "");
+  return ORDINARY.has(word) || STARTERS.has(word);
+}
 
 /**
  * A lone capitalised word that opens a sentence, when it is not ordinary
@@ -283,7 +384,10 @@ const STARTERS = new Set(
 function sentenceStartNames(body: string, lowerCorpus: string): string[] {
   const found: string[] = [];
   for (const sentence of sentences(body)) {
-    const tokens = sentence.split(/\s+/).map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""));
+    const tokens = sentence
+      .split(/\s+/)
+      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
+      .filter((token) => token !== "");
     const [first, second] = tokens;
     if (first === undefined || !/^[A-Z][a-z][\w'’-]*$/.test(first)) continue;
     // A run of capitals is `namedEntities`' business.
@@ -472,12 +576,49 @@ const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sort
 const MEASURED =
   "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)(?!\\s+(?:teams?|handlers?|handling|managers?|departments?|staff|leads?|functions?|processes))";
 const RISES = "(?:drifting|rising|growing|climbing|increasing|creeping|slipping|going up)";
+/**
+ * The present tense, as a pattern is put (trial fix 2): "as complaint volumes climb", "volumes rise". Never an
+ * escalation: "a complaint goes up to the ombudsman", "rises to a manager", "goes up the chain", "go up a level"
+ * (fix round 2 of #54).
+ */
+const ESCALATION = "(?!\\s+(?:to|through|the chain|the line|the ladder|a level|a tier|a grade)\\b)";
+const RISE_NOW = `(?:(?:climbs?|rises?|grows?|increases?|go(?:es)? up|creeps? up)${ESCALATION})`;
+/** The verb in the base form a plural subject takes ("complaints rise"), and the "-s" form a singular one does. */
+const RISE_BASE = `(?:(?:climb|rise|grow|increase|go up|creep up)${ESCALATION})`;
+const RISE_S = `(?:(?:climbs|rises|grows|increases|goes up|creeps up)${ESCALATION})`;
+/** Never a noun: "a price rise", "premium increases", "the rise". */
+const NOT_A_NOUN = "(?<!\\b(?:a|an|the|any|this|that|each|every|price|premium|premiums|rate|pay|fee|fees|tax|cost|costs|interest|renewal) )";
+/**
+ * The words between a measured noun and its verb, never a preposition (fix round 2 of #54): in "complaints about
+ * premium rises" and "claims about price increases", "rises" and "increases" are nouns, the object of "about".
+ * "Across" and "in" stay: "complaint volumes across motor climb" is the trend.
+ */
+const GAP = "(?:(?!(?:about|over|on|for|of|with|around|from|after|against|regarding|concerning|like|following)\\b)[\\w'’-]+ )";
+/**
+ * Any words between a measured noun and a base-form verb: "claims for storm damage rise every autumn". Never a
+ * determiner or a possessive (fix round 3 of #54): "complaints about the recent rise", "claims after last year's
+ * increase" make the verb a noun.
+ */
+const GAP_ANY = "(?:(?!(?:a|an|the|this|that|these|those|last|its|their|your|our|his|her|my|any|each|every)\\b)(?![\\w'’-]+['’]s )[\\w'’-]+ )";
+/** What a figure does over time. Never "drift" or "creep": "the conversation tends to drift toward price" is talk. */
+const MOVES = "(?:slip|grow|fall|rise|climb|drop|increase)";
 const TREND = new RegExp(
   [
     `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) (?:${RISES}|ending up|\\w+ing (?:up|in|to|at|past)\\b)`,
     `\\bmore and more (?:[\\w'’-]+ ){0,2}${MEASURED}\\b`,
     `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}(?:keeps?|kept) ${RISES}`,
     `\\b${MEASURED} (?:are|is|have been|has been) (?:${RISES}|on the rise|up)\\b`,
+    // Trial fix 2: "complaint volumes across motor have been climbing", "as complaint volumes climb".
+    `\\b${MEASURED} (?:[\\w'’-]+ ){1,3}(?:have|has) been (?:${RISES}|on the rise)\\b`,
+    // Fix round 2 of #54: a base-form verb after any words ("claims for storm damage rise"); an "-s" form only with
+    // no preposition between, since "complaints about premium rises" is a noun; never a noun after a determiner.
+    `\\b${MEASURED} ${GAP_ANY}{0,3}${NOT_A_NOUN}${RISE_BASE}\\b`,
+    `\\b${MEASURED} ${GAP}{0,2}${NOT_A_NOUN}${RISE_S}\\b`,
+    // A pattern put as a tendency, whatever it is about: "the share closed within three days tends to slip". Never
+    // who a job falls to (fix round 2 of #54): "tends to fall to one team leader", "tends to drop into price".
+    `\\btends? to ${MOVES}\\b(?!\\s+(?:to\\s+(?:one|a|an|the|whoever|someone|somebody|them|us|you)\\b(?!\\s+(?:peak|low|high|minimum|maximum|\\d))|between|into|on|under|through)\\b)`,
+    // "can slip as volumes rise": a fall tied to a rise. Never "a fix can slip through" on its own.
+    `\\b(?:can|may|might|could|will|often) ${MOVES}s?\\b[^.?!]{0,40}\\bas\\b[^.?!]{0,30}\\b(?:${RISE_NOW}|${RISES})\\b`,
     `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed|doubled|trebled|tripled|spiked|jumped|soared)\\b`,
     // The simple past (fix round 2): "complaints rose sharply", "uphold rates went up".
     `\\b${MEASURED} (?:[\\w'’-]+ )?(?:rose|grew|climbed|increased|doubled|trebled|tripled|spiked|jumped|soared|surged|went up)\\b`,
@@ -575,6 +716,58 @@ export function quotesEvidence(sentence: string, runs: ReadonlySet<string>, run:
   return false;
 }
 
+/**
+ * A short quoted fragment inside a plain sentence (voice round, D2, Benny-san 28 Sep 2026): `one of its points was
+ * that firms "did not always measure the impact" of the changes they made`. The words inside the quote marks are
+ * the source's own, exactly, and at least this many of them; the source is named in the same sentence.
+ */
+export const QUOTE_FRAGMENT_WORDS = 4;
+
+/** Spans in quote marks: double quotes, curly quotes, or straight single quotes at a word's edge ("firms' calls" is not one). */
+const QUOTED = /(?:^|[\s(:,])(?:"([^"]+)"|“([^”]+)”|‘(.+?)’(?=$|[\s.,;:?!)])|'([^']+)'(?=$|[\s.,;:?!)]))/g;
+
+export function quotedSpans(text: string): string[] {
+  return [...text.matchAll(QUOTED)].map((match) => (match[1] ?? match[2] ?? match[3] ?? match[4] ?? "").trim()).filter((span) => span !== "");
+}
+
+/** True when a span is a run of a quote's own words, exactly, in order. */
+export function isFragmentOf(span: string, quote: EvidenceQuote): boolean {
+  const mine = quoteWords(span);
+  const theirs = quoteWords(quote.quote);
+  if (mine.length === 0 || mine.length > theirs.length) return false;
+  for (let i = 0; i + mine.length <= theirs.length; i += 1) {
+    if (mine.every((word, j) => theirs[i + j] === word)) return true;
+  }
+  return false;
+}
+
+/** The quoted fragments of at least `QUOTE_FRAGMENT_WORDS` words a text carries from one quote. */
+function fragmentsFrom(text: string, quote: EvidenceQuote): string[] {
+  return quotedSpans(text).filter((span) => quoteWords(span).length >= QUOTE_FRAGMENT_WORDS && isFragmentOf(span, quote));
+}
+
+/**
+ * A source's finding made harder than it was (M2's "weren't working" for "not as effective as they might need to
+ * be"). Read only outside the quote's own words, so the quote's "were not as effective" is not the fault.
+ */
+const HARDENED =
+  /\b(?:weren't|were not|wasn't|was not|aren't|are not|isn't|is not|didn't|did not|don't|do not|never|no longer)\s+(?:[\w']+\s+){0,2}?(?:work(?:ing|ed|s)?|effective|help(?:ing|ed|s)?)\b|\bfail(?:s|ed|ing|ure)?\b|\bineffective\b|\buseless\b|\bwast(?:e|ed|ing)\b/i;
+
+/** A sentence's words that no run of these quotes' words covers, as text. */
+function outsideQuotes(sentence: string, quotes: readonly EvidenceQuote[]): string {
+  const mine = quoteWords(sentence);
+  const grams = new Set<string>();
+  for (const quote of quotes) {
+    const theirs = quoteWords(quote.quote);
+    for (let i = 0; i + QUOTE_FRAGMENT_WORDS <= theirs.length; i += 1) grams.add(theirs.slice(i, i + QUOTE_FRAGMENT_WORDS).join(" "));
+  }
+  const covered = new Set<number>();
+  for (let i = 0; i + QUOTE_FRAGMENT_WORDS <= mine.length; i += 1) {
+    if (grams.has(mine.slice(i, i + QUOTE_FRAGMENT_WORDS).join(" "))) for (let j = i; j < i + QUOTE_FRAGMENT_WORDS; j += 1) covered.add(j);
+  }
+  return mine.filter((_, index) => !covered.has(index)).join(" ");
+}
+
 /** The bodies a sentence can credit by name, and the words that name each. */
 const SOURCE_FAMILIES: readonly (readonly [string, RegExp])[] = [
   // "The regulator" and the Consumer Duty are the FCA's, for a UK insurer: the ombudsman's figures credited to
@@ -666,6 +859,12 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
   const held: string[] = [];
   for (const part of parts) {
     for (const sentence of sentences(part)) {
+      // D2: an approved quote's words in quote marks, with no source named in the sentence: whose words are they?
+      const fragmentQuotes = quotes.filter(({ quote }) => fragmentsFrom(sentence, quote).length > 0);
+      if (fragmentQuotes.length > 0 && familiesIn(sentence).size === 0 && fragmentQuotes.some(({ families }) => families.size > 0)) {
+        if (!held.includes(sentence)) held.push(sentence);
+        continue;
+      }
       if (!attributesASource(sentence, names)) continue;
       // A question asserts nothing. "Would it help if I sent over the FCA's
       // write-up?" offers a document; it does not say what the FCA found.
@@ -683,7 +882,13 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
       // passed "Those figures get published against Ardent's name" after the ombudsman's sentence). And it must
       // be from the body the sentence credits: six words of any quote is not the FCA's word.
       const named = familiesIn(sentence);
-      const matched = quotes.filter(({ runs, families }) => quotesEvidence(sentence, runs) && (named.size === 0 || [...named].some((family) => families.has(family))));
+      // A quote counts when the sentence carries a run of its words, or a quoted fragment of them (D2).
+      const matched = quotes.filter(
+        ({ quote, runs, families }) => (quotesEvidence(sentence, runs) || fragmentsFrom(sentence, quote).length > 0) && (named.size === 0 || [...named].some((family) => families.has(family))),
+      );
+      // Words in quote marks that no approved quote carries, word for word: a made-up quotation.
+      const invented = quotedSpans(sentence).some((span) => quoteWords(span).length >= QUOTE_FRAGMENT_WORDS && !evidence.some((quote) => isFragmentOf(span, quote)));
+      const hardened = matched.length > 0 && HARDENED.test(outsideQuotes(sentence, matched.map(({ quote }) => quote)));
       // Every body the sentence names needs a quote of its own (trial fix 1). An FCA-sourced quote let "and
       // the ombudsman publishes its own uphold figure separately" through in the same sentence.
       const uncovered = [...named].some((family) => !matched.some(({ families }) => families.has(family)));
@@ -691,7 +896,7 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
       const trend = TREND.test(sentence) && !matched.some(({ quote }) => QUOTE_TREND.test(quote.quote));
       const compared = COMPARED.test(sentence) && !matched.some(({ quote }) => COMPARED.test(quote.quote));
       const misquoted = matched.some(({ quote }) => figuresMisquoted(sentence, quote, names));
-      if ((matched.length === 0 || uncovered || widened || trend || compared || misquoted) && !held.includes(sentence)) held.push(sentence);
+      if ((matched.length === 0 || uncovered || widened || trend || compared || misquoted || invented || hardened) && !held.includes(sentence)) held.push(sentence);
     }
   }
   return held;
@@ -699,7 +904,7 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
 
 /** Which evidence quotes a text actually carries, by id: what a colleague at the same firm has already used. */
 export function evidenceUsedIn(text: string, evidence: readonly EvidenceQuote[]): string[] {
-  return evidence.filter((quote) => presentRuns(text, quoteRuns([quote])).size > 0).map((quote) => quote.id);
+  return evidence.filter((quote) => presentRuns(text, quoteRuns([quote])).size > 0 || fragmentsFrom(text, quote).length > 0).map((quote) => quote.id);
 }
 
 /**
@@ -888,6 +1093,40 @@ const RELATIVE_DATE: readonly RegExp[] = [
   new RegExp(`\\bin\\s+${SPAN}(?:'s|’s)?\\s+time\\b`, "i"),
 ];
 
+/**
+ * The FCA's publication schedule told to a firm that reports to it (trial fix 2, Benny-san 28 Sep): "The FCA
+ * publishes its complaints data every 6 months", "the H1 figures by firm land on 22 October". Every reader
+ * here files that data, so it is never news. The give is gone, and this keeps it from coming back from
+ * research text.
+ */
+const SCHEDULE = /\bevery (?:6|six) months\b|\btwice a year\b|\bhalf[- ]year(?:ly)?\b|\b(?:around|in) april and october\b/i;
+const FCA_SCHEDULE = [
+  (sentence: string) => /\b(?:fca|financial conduct authority|regulators?)\b/i.test(sentence) && PUBLISH.test(sentence) && SCHEDULE.test(sentence),
+  (sentence: string) => /\bwe publish our complaints data\b/i.test(sentence),
+  (sentence: string) => new RegExp(`\\bh[12]\\b[^.?!]{0,40}\\b(?:figures|data|numbers|tables?)\\b[^.?!]{0,40}(?:${DAY_MONTH}|\\b(?:land|lands|landing|out|published|publishes)\\b)`, "i").test(sentence),
+];
+
+/**
+ * One firm's main complaint cause said of every firm, or of the reader's (trial fix 2): "'other general admin'
+ * is often the only category on offer", "your published category is just 'general admin'". Research has it
+ * as one named firm's main cause only, so any sentence carrying it holds unless this person's own lookup says it
+ * (fix round 2 of #54: keyed on the fact, not the sentence's shape, so a rewording does not get past it).
+ */
+const ONE_FIRM_CAUSE = [/\bgeneral admin\b/i];
+
+/**
+ * The one light line about the rep (voice round, D1, Benny-san 28 Sep 2026): "I've been helping a few insurers
+ * get a proper look at calls like that." True, and allowed, Email 1 included. It is not the sequence's product
+ * sentence: it names no product, describes nothing the product does and claims no result.
+ */
+const ASIDE = /\b(?:i|we)(?:['’]ve| have)?\s+(?:been helping|spent (?:a while|some time|a lot of time) helping)\b|^\s*been helping\b/i;
+/** What turns the aside into a pitch: what the product does, or a result. */
+const ASIDE_DESCRIBES =
+  /\b(?:scor(?:e|es|ed|ing)|transcrib\w*|analys\w*|analyz\w*|ai|platform|software|tool|dashboards?|automat\w*|every (?:single )?call|all (?:of )?(?:the|their|your) calls|results?|reduc\w*|cut(?:ting)? (?:their|the)|sav(?:e|ed|ing)|faster|fewer|double[ds]?|halv\w*)\b|\d+\s*%|\b\d+x\b/i;
+
+/** The touches a close may end on a statement in, whatever else the sequence does. */
+const STATEMENT_CLOSE_FREE: readonly string[] = ["li_connect", "breakup", "call"];
+
 function standardFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
   const tierA: Finding[] = [];
   const tierB: Finding[] = [];
@@ -895,9 +1134,29 @@ function standardFindings(draft: OutreachOutput, input: OutreachInput, context: 
   const checked = checkedOf(draft, kind);
   const cold = COLD.includes(kind);
 
-  // No pitch in Email 1. The prompt has said so since M1; this is what makes it true.
-  if (kind === "email1" && namesProduct(checked, input.facts.product)) {
-    tierA.push({ rule: "product-in-email1", text: "A first email says nothing about the product: no name, no description of what it does, and no cited fact." });
+  // No pitch in Email 1. The prompt has said so since M1; this is what makes it true. The one light line about the
+  // rep (D1) is allowed, and holds when it describes what the product does or claims a result.
+  const asides = proseParts(draft)
+    .flatMap((part) => sentences(part))
+    .filter((sentence) => ASIDE.test(sentence));
+  if (kind === "email1" && (namesProduct(checked, input.facts.product) || asides.some((sentence) => ASIDE_DESCRIBES.test(sentence)))) {
+    tierA.push({
+      rule: "product-in-email1",
+      text: "A first email says nothing about the product: no name, no description of what it does, and no cited fact. One light line about what you've been helping with is fine, with no feature or result in it.",
+    });
+  }
+  if (kind !== "call" && asides.length > 1) {
+    tierA.push({ rule: "aside", text: "The line about what you've been helping with appears more than once. Keep one light line, or none." });
+  }
+
+  // Voice round: a close need not be a question. The connection note, the last email and the call may close on a
+  // statement; of the rest, one touch in the sequence may.
+  const statement = (ask: string) => !ask.trim().endsWith("?");
+  if (draft.kind === "message" && !STATEMENT_CLOSE_FREE.includes(kind) && statement(draft.ask)) {
+    const earlier = input.thread.filter((entry) => !STATEMENT_CLOSE_FREE.includes(entry.kind) && statement(askOfThreadEntry(entry)));
+    if (earlier.length > 0) {
+      tierA.push({ rule: "statement-close", text: "An earlier touch already closes on a statement rather than a question. Close this one on a real question." });
+    }
   }
   // No price in anything the prospect reads cold. Price belongs in the call's answer to a price question.
   if (cold && mentionsPrice(checked)) {
@@ -936,12 +1195,32 @@ function standardFindings(draft: OutreachOutput, input: OutreachInput, context: 
   if (returnSentence !== undefined) {
     tierA.push({
       rule: "return-date",
-      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: say who publishes on that day, with its approved quote (the FCA publishes the H1 figures by firm on 22 October), or leave the date out.`,
+      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: leave the date out.`,
     });
+  }
+  const schedule = parts.flatMap((part) => sentences(part)).find((sentence) => FCA_SCHEDULE.some((test) => test(sentence)));
+  if (schedule !== undefined) {
+    tierA.push({ rule: "fca-schedule", text: `"${clip(schedule, 90)}" tells the firm when the FCA publishes complaints data. Every firm here reports that data itself, so it is never news: leave it out.` });
+  }
+  const lookupSays = input.lookup.items.some((item) => /\bgeneral admin\b/i.test(`${item.text} ${item.quote ?? ""}`));
+  const oneFirm = lookupSays ? undefined : parts.flatMap((part) => sentences(part)).find((sentence) => ONE_FIRM_CAUSE.some((pattern) => pattern.test(sentence)));
+  if (oneFirm !== undefined) {
+    tierA.push({ rule: "one-firm-cause", text: `"${clip(oneFirm, 90)}" says one firm's complaint category is everyone's, or this firm's. Research has it for one firm only: leave it out.` });
+  }
+  // Trial fix 2: an offer of a source's write-up follows from the thread. "Want me to send over the ombudsman's
+  // write-up?" with no ombudsman anywhere before it reads as a non sequitur. Advice: the rep can see it.
+  const said = parts.flatMap((part) => sentences(part));
+  for (const offer of said.filter((sentence) => sentence.trim().endsWith("?"))) {
+    const earlier = [...input.thread.map((entry) => entry.body), ...said.filter((sentence) => sentence !== offer)].join("\n");
+    const missing = [...familiesIn(offer)].filter((family) => !familiesIn(earlier).has(family));
+    if (missing.length > 0 && /\b(?:fca|fos|ombudsman(?: service)?|regulator)['’]s\b/i.test(offer)) {
+      tierB.push({ rule: "ask-source", text: `"${clip(offer, 90)}" offers something from a source nothing earlier in this thread mentions. Offer something this thread has already raised.` });
+      break;
+    }
   }
   const counted = parts.flatMap((part) => sentences(part)).find((sentence) => RELATIVE_DATE.some((pattern) => pattern.test(sentence)));
   if (counted !== undefined) {
-    tierA.push({ rule: "relative-date", text: `"${clip(counted, 90)}" counts the time to a date. Give the date itself ("on 22 October"), or nothing, and leave the count out.` });
+    tierA.push({ rule: "relative-date", text: `"${clip(counted, 90)}" counts the time to a date. Give the date itself, as the plan gives it, or nothing, and leave the count out.` });
   }
 
   // Trial fix 1: every last email in the trial asked the same right-person question. Advice, like the other
@@ -1047,9 +1326,14 @@ export function normaliseClaims<T extends OutreachOutput>(draft: T, input: Outre
 export function proseParts(draft: OutreachOutput): string[] {
   if (draft.kind === "message") return [draft.subject ?? "", draft.body].filter((part) => part !== "");
   const point = draft.talkingPoint;
-  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? "", ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer])].filter(
-    (part) => part !== "",
-  );
+  return [...callLines(point), ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer]).filter((part) => part !== "")];
+}
+
+type TalkingPoint = Extract<OutreachOutput, { kind: "call" }>["talkingPoint"];
+
+/** A call script's own lines, without its objection pairs. */
+function callLines(point: TalkingPoint): string[] {
+  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? ""].filter((part) => part !== "");
 }
 
 /** The same, as one text, for the checks that read words rather than sentences. */
@@ -1098,10 +1382,12 @@ export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: 
   // Part by part (trial fix 1): joined, a call's objection ("This isn't something I own directly.") ran into
   // its answer ("That's fine.") and read as "isn't X. That's Y", which held a clean call script in the trial.
   if (ANTITHESIS.some((pattern) => proseParts(draft).some((part) => pattern.test(part)))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
-  const tells = input.standard.bannedLexicon.filter((phrase) => hasTell(text, phrase));
+  // Fix round 3 of #54: an objection is the prospect's line ("Not interested."), never the rep's hand.
+  if (draft.kind === "call") found.push(...contrastFinding(callLines(draft.talkingPoint), (draft.talkingPoint.objections ?? []).map((pair) => pair.answer)));
+  else found.push(...contrastFinding(proseParts(draft)));
+  const tells = tellsIn(text, input.standard.bannedLexicon);
   if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
-  const us = US_SPELLINGS.filter((word) => new RegExp(`\\b${word}\\b`, "i").test(text));
-  if (us.length > 0) found.push({ rule: "spelling", text: `American spelling: ${us.join(", ")}. Use British English.` });
+  found.push(...spellingFinding(text));
   // Provenance part by part, one finding per rule and text.
   const checked = proseParts(draft).map((part) => provenanceFindings(part, input, context));
   const unique = (list: Finding[]) => list.filter((finding, index) => list.findIndex((other) => other.rule === finding.rule && other.text === finding.text) === index);
@@ -1185,6 +1471,10 @@ export function humanizerLoss(
   const kept = presentRuns(proseText(after), runs);
   const lost = [...had].filter((run) => !kept.has(run));
   if (lost.length > 0 && !quoteSentencesCut(before, after, runs)) return `it reworded an approved quote ("${lost[0]!}")`;
+  // A quoted fragment (D2) is shorter than a run, so it is checked as itself: its words, in order, still there.
+  const afterWords = ` ${quoteWords(proseText(after)).join(" ")} `;
+  const fragment = evidence.flatMap((quote) => fragmentsFrom(proseText(before), quote)).find((span) => !afterWords.includes(` ${quoteWords(span).join(" ")} `));
+  if (fragment !== undefined) return `it reworded or cut a quoted fragment ("${fragment}")`;
 
   if (cleanProductCut) return null;
   // A clean quote cut still counts against the word loss: cutting the give and leaving "a pattern like that"

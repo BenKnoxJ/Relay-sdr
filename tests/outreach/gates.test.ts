@@ -42,11 +42,11 @@ describe("a clean first email", () => {
 });
 
 describe("shape (v2.1 §4 and §6)", () => {
-  it("rejects under 40 and over 110 words", () => {
+  it("rejects under 60 and over 120 words (voice round)", () => {
     const short = body("Helen, complaint handling is being rebuilt at Westbury Mutual. We read every recorded call.");
     expect(rules(gateEmail1(short, input(), context()))).toContain("length");
     const long = body(Array.from({ length: 4 }, () => "When quality checking covers one call in fifty the habit behind a complaint is usually found weeks after it started and the team only hears of it once the letter arrives.").join(" "));
-    expect(gateEmail1(long, input(), context()).tierA.find((finding) => finding.rule === "length")?.text).toMatch(/limit is 110/);
+    expect(gateEmail1(long, input(), context()).tierA.find((finding) => finding.rule === "length")?.text).toMatch(/limit is 120/);
   });
 
   it("rejects fewer than 3 or more than 5 sentences", () => {

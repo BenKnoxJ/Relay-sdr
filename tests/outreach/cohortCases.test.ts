@@ -85,7 +85,8 @@ describe("the recorded cohort (15 Sep 2026)", () => {
 
   it("Emlyn Lomax: a sentence opening on \"Finding\" is advice, not a hold", () => {
     const result = gate("Emlyn Lomax");
-    expect(rules(result.tierA)).toEqual(["product-in-email1"]);
+    // Voice round (28 Sep 2026): "…by theme and category, not just wait for one to surface" is the contrast cadence.
+    expect(rules(result.tierA)).toEqual(["contrast", "product-in-email1"]);
     expect(result.tierB.find((finding) => finding.rule === "sentence-start-name")?.text).toContain('"Finding"');
   });
 
@@ -137,7 +138,12 @@ describe("claims before the gates (R2)", () => {
     return { ...input, facts: { ...input.facts, facts: [...input.facts.facts, ...extra] } };
   };
   const lead = "You told the trade press in June that complaint handling at Westbury Mutual was being rebuilt end to end.";
-  const raw = (claims: string[]) => ({ ...goodOutput, body: `${lead} Insights360 reads every call and lets you search them by theme. ${goodOutput.ask}`, claims });
+  // Voice round: Email 1 is at least 60 words, so the body carries one more plain sentence than it did.
+  const raw = (claims: string[]) => ({
+    ...goodOutput,
+    body: `${lead} When a complaint lands, the calls behind it are usually weeks old and hard to find again. Insights360 reads every call and lets you search them by theme. ${goodOutput.ask}`,
+    claims,
+  });
 
   it("takes a raw list with the opener, a lookup id and pains beside two facts, and passes it once normalised", () => {
     const input = withFacts(facts);

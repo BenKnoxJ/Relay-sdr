@@ -217,12 +217,12 @@ describe("schema identity", () => {
     }
   });
 
-  it("refuses an opener that is not an id, and a body that asks two questions", () => {
+  it("refuses an opener that is not an id, and a body that asks three questions (voice round: two are allowed)", () => {
     const dangling = { ...goodDraft(), opener: { ref: "Not An Id", kind: "person_fact" } };
     expect(outreachOutputSchema.safeParse(dangling).success).toBe(false);
 
-    const twoQuestions = { ...goodDraft(), body: `Is this one? ${goodDraft().body}` };
-    expect(outreachOutputSchema.safeParse(twoQuestions).success).toBe(false);
+    const threeQuestions = { ...goodDraft(), body: `Is this one? Or that one? ${goodDraft().body}` };
+    expect(outreachOutputSchema.safeParse(threeQuestions).success).toBe(false);
   });
 
   it("resolves every fixture draft's opener through the pack, kind and id both", () => {

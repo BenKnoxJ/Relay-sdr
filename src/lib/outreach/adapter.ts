@@ -9,6 +9,7 @@ import { isSeedFirm } from "@/lib/leadgen/rank";
 import { linesOf } from "@/lib/outreach/lookup";
 
 import type { MessageStandard } from "./standard";
+import { loadDefaultVoice, voiceInputOf, type DefaultVoice } from "./voice";
 
 /**
  * The thin adapter at the campaign boundary (outreach v2.1 §2): Relay's
@@ -30,6 +31,8 @@ export type AdapterFacts = {
   pack: PackShape;
   facts: ProductFacts;
   voice: VoiceSamples;
+  /** The vendored default hand (`loadDefaultVoice`), for a rep with no samples; loaded from `agents/` when absent. */
+  defaultVoice?: DefaultVoice;
   standard: MessageStandard;
   lookup: LookupResult;
   recentDrafts: RecentDraft[];
@@ -285,8 +288,8 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
     thread: (input.thread ?? []).slice(0, 20),
     pack: evidenceSliceOf(input),
     facts,
-    // §15 resolution 1: the eight most recent email samples.
-    voice: { email: input.voice.samples.slice(-8).map((sample) => sample.text), linkedin: [], howIWrite: input.voice.howIWrite.slice(0, 2000) },
+    // §15 resolution 1: the eight most recent email samples; the vendored hand when there are none (voice round).
+    voice: voiceInputOf(input.voice, input.defaultVoice ?? loadDefaultVoice()),
     standard: input.standard,
     lookup: input.lookup,
     recentDrafts: input.recentDrafts.slice(0, 20),

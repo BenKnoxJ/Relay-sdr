@@ -1,0 +1,30 @@
+{
+  "source": "Vendored 28 Sep 2026 from Conversant's internal outreach voice notes: the voice root's style profile, the business register, the rep's two approved messages and the worked cold-email and LinkedIn samples. Every person and firm is made up; the kind of firm is kept, because the hook depends on it. The greeting and the sign-off are removed, because Relay adds them.",
+  "anchors": [
+    {
+      "register": "email",
+      "ask": "Write a first email to Rob, who runs the contact centre at Throttle Cover, a direct motorcycle insurer. Genuine curiosity about their world (the seasonal spike), at most one light line about what I do, and a real question.",
+      "wrote": "Saw you run the contact centre at Throttle Cover. Spring must be brutal, everyone back on the bikes at once and the accident calls stacking up while the team goes from quiet to flat-out in a fortnight.\n\nI've been helping a few insurers get a proper look at calls like that. Mostly though I'm just curious how a seasonal operation copes with that swing, do you flex the team or lean on the people who've been through it before?\n\nHow do you handle it when the season turns?"
+    },
+    {
+      "register": "email",
+      "ask": "Write a first email to Nadia, who leads customer experience at Sunwell Life (group life cover plus a wellbeing app). Pure curiosity about a real tension in their world, no mention of what I do, and a real question.",
+      "wrote": "Sunwell's a funny one. Most of the customer experience is the wellbeing app, gamified and upbeat, and then occasionally someone has to make a bereavement claim, about as far from that tone as it gets.\n\nI keep wondering how a team holds two registers that different. Do the people on the wellness side ever take the hard calls, or is that a separate team entirely?"
+    },
+    {
+      "register": "email",
+      "ask": "Write a first email to Dev at Keelstone, a specialty commercial MGA. A different hook again (the placing call as the only real record of what got agreed), and a light compare-notes close with no question.",
+      "wrote": "Saw you're in the specialty MGA world at Keelstone, where so much of what gets agreed lives in the placing call itself rather than any neat document afterwards.\n\nI've spent a while helping firms make those conversations easy to get back to months later, but honestly I'm just as curious how you handle it now, when something comes up on a deal and you need to know exactly what was said.\n\nIf it's a useful thing to compare notes on some time, I'd be happy to."
+    },
+    {
+      "register": "linkedin",
+      "ask": "LinkedIn connection note and first message to Tess, who looks after the PI book at Hartwell & Crane (cover for vets, architects and the like). One breath, no offer, a plain question.",
+      "wrote": "Note: Tess, you look after the PI book at Hartwell & Crane, vets and architects and the like. Be good to connect.\n\nMessage: I reached out because you look after the PI book at Hartwell & Crane, vets, architects, that kind of thing. Been helping a few firms keep an eye on the calls behind that sort of cover, and QA never seems to get near most of them. Curious how you keep on top of that at the moment?"
+    },
+    {
+      "register": "linkedin",
+      "ask": "LinkedIn connection note and first message to Dev at Keelstone, a specialty commercial MGA. No line about what I do, pure curiosity about the placing call being the only real record.",
+      "wrote": "Note: Dev, you're in the specialty MGA world, where the placing call is often the only real record of what got agreed. Be good to connect.\n\nMessage: I reached out because you're in the specialty MGA world, where the placing call's often the only real record of what got agreed. Months later, when something comes up on a deal, getting back to exactly what was said must be a proper slog. How do you handle that side of things at the moment?"
+    }
+  ]
+}

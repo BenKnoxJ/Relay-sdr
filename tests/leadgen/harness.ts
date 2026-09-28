@@ -74,7 +74,7 @@ const BASE: LeadGenHandoffV1 = {
     balanceSnapshot: { remaining: 100, readAt: "2026-09-14T09:00:00Z" },
     pricingAssumptions: "lusha-public-docs-2026-09-14-unverified",
   },
-  lawfulBasis: { text: "Legitimate interest: B2B offer, opt out in every email", confirmedByUserId: "user-1", confirmedAt: "2026-09-14T09:00:00Z", briefVersion: 1 },
+  lawfulBasis: { text: "Legitimate interest: B2B offer", confirmedByUserId: "user-1", confirmedAt: "2026-09-14T09:00:00Z", briefVersion: 1 },
 };
 
 /** A handoff, edited in place by `patch`. */

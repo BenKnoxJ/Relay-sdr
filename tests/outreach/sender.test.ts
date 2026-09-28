@@ -51,8 +51,10 @@ describe("what the drafter is told (P5c)", () => {
     const read = (file: string) => readFileSync(new URL(`../../agents/outreach/${file}`, import.meta.url), "utf8");
     const { loadStandard } = await import("@/lib/outreach/standard");
     const standard = loadStandard();
-    for (const text of [read("prompt.md"), read("humanizer.md"), ...standard.rules]) expect(text).not.toMatch(/Relay adds/);
-    expect(read("prompt.md")).toMatch(/introduce the rep as "<sender first name> from <sender company>"/);
-    expect(standard.bannedLexicon).toEqual(expect.arrayContaining(["relay", "pipeline"]));
+    for (const text of [read("prompt.md"), ...standard.rules]) expect(text).not.toMatch(/Relay adds/);
+    expect(read("prompt.md")).toMatch(/it's <sender first name> from <sender company>/);
+    // The tool's own name is refused by the output schema (truth check 7), so the tell list need not carry it.
+    const { OUTREACH_PROSE_WORDS } = await import("@/lib/copy/plainWords");
+    expect("relay pipeline").toMatch(new RegExp(OUTREACH_PROSE_WORDS.source, "i"));
   });
 });

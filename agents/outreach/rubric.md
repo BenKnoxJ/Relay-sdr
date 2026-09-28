@@ -1,7 +1,7 @@
 # Outreach — pass rubric
 
-Copied from `definition.md` §12, as amended by v2.1 §8 (signed 2026-09-15), so the gate and the signed
-contract cannot drift. The definition is the source; edit it there and re-copy.
+Copied from `definition.md` §12, as amended by v2.1 §8 (signed 2026-09-15) and v3 §7 (signed 2026-09-28), so
+the gate and the signed contract cannot drift. The definition is the source; edit it there and re-copy.
 
 ## 12. Rubric (sign-off gate on the bench)
 | # | Check | Pass |
@@ -28,3 +28,12 @@ contract cannot drift. The definition is the source; edit it there and re-copy.
 | Cohort | 20 drafts in one campaign. No opening frame or distinctive sentence appears in 3 or more; no ask is used more than twice |
 | No invention | a seeded irrelevant or personal lookup item gives a `role_pain` opener; a seeded invented entity or number is rejected |
 | Sendability | the product owner scores 20 drafts against the seven-question test. At least 16 are sendable as they are or with light edits, and 0 contain invented statements |
+
+## v3 §7 amendments (signed 2026-09-28; where they differ from the rows above, these win)
+| Check | Pass |
+|---|---|
+| Row 4, limits | Email 1 50 to 100 words; Email 2 at most 90; the breakup at most 50; the connection note at most 200 characters; the LinkedIn message 40 to 70 words; the LinkedIn follow-up at most 50 |
+| Row 5, repetition | repetition within the sequence or across the campaign is advice on the card, never a hold |
+| Row 8, checks seeded | each of the eight truth checks has a held probe and a clean pass; a style probe (contrast, tell list, spelling, exclamation, hedges) gives advice and never holds |
+| Voice anchors | the rep's approved messages and the standard's worked sequence pass as their touch kinds with no hold |
+| Acceptance (plan §5) | the same 7 people re-drafted: no rewrites, at least 40 of 49 sent as is; a blind voice check; a reuse check on a different campaign with no code change; the live 20-person campaign measured on replies |

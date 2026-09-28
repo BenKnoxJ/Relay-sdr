@@ -1,6 +1,7 @@
 /**
  * Messaging v2 (22 Sep 2026): the measures the cohort report puts against the
- * writing standard, and the humanizer's change size the draft job records.
+ * writing standard. An earlier report's humanizer change sizes are still read
+ * back (`parseCohortMarkdown`), though standard v3 has no humanizer pass.
  *
  * These are **report measures, not gates.** They read the words a rep would see
  * and count what the standard forbids or asks for: the product in Email 1, a
@@ -243,7 +244,6 @@ const TOUCH_NAME: Record<string, string> = {
 };
 const ORDER = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"];
 
-const pct = (value: number | null) => (value === null ? "n/a" : `${value.toFixed(1)}%`);
 const mark = (ok: boolean) => (ok ? "yes" : "**no**");
 
 /** The report's messaging v2 section: per touch kind, per person, and the acceptance bar. */
@@ -252,11 +252,10 @@ export function renderChecks(sequences: readonly CheckedSequence[], product: str
     const own = sequences.flatMap((sequence) => sequence.touches.filter((touch) => touch.kind === kind));
     if (own.length === 0) return [];
     const count = (test: (touch: CheckedTouch) => boolean) => own.filter(test).length;
-    const changes = own.flatMap((touch) => (typeof touch.changePct === "number" ? [touch.changePct] : []));
     const insight = includes(MESSAGE_TOUCHES, kind) ? `${count(hasAttributedInsight)} of ${own.length}` : "n/a";
     const price = includes(COLD_TOUCHES, kind) ? String(count(mentionsPrice)) : `${count(mentionsPrice)} (allowed)`;
     return [
-      `| ${TOUCH_NAME[kind] ?? kind} | ${own.length} | ${count((touch) => mentionsProduct(touch, product))} | ${price} | ${count((touch) => isBinaryAsk(touch.ask))} | ${count((touch) => stockOpener(touch) !== null)} | ${count((touch) => genderedPronouns(touch).length > 0)} | ${insight} | ${pct(changes.length === 0 ? null : median(changes))} |`,
+      `| ${TOUCH_NAME[kind] ?? kind} | ${own.length} | ${count((touch) => mentionsProduct(touch, product))} | ${price} | ${count((touch) => isBinaryAsk(touch.ask))} | ${count((touch) => stockOpener(touch) !== null)} | ${count((touch) => genderedPronouns(touch).length > 0)} | ${insight} |`,
     ];
   });
   const personRows = sequences.map((sequence) => {
@@ -266,24 +265,24 @@ export function renderChecks(sequences: readonly CheckedSequence[], product: str
       return found === null ? [] : [`${touch.kind}: ${found}`];
     });
     const pronouns = [...new Set(sequence.touches.flatMap(genderedPronouns))];
-    return `| ${sequence.name} | ${one.productInEmail1 > 0 ? "**yes**" : "no"} | ${one.maxProductPerSequence} | ${one.priceInColdTouch} | ${one.binaryAsks} | ${stock.join("; ") || "none"} | ${pronouns.join(", ") || "none"} | ${one.withInsight} of ${one.messages} | ${pct(one.medianChangePct)} |`;
+    return `| ${sequence.name} | ${one.productInEmail1 > 0 ? "**yes**" : "no"} | ${one.maxProductPerSequence} | ${one.priceInColdTouch} | ${one.binaryAsks} | ${stock.join("; ") || "none"} | ${pronouns.join(", ") || "none"} | ${one.withInsight} of ${one.messages} |`;
   });
   const total = measure(sequences, product);
   return [
     "## Messaging v2 checks",
     "",
-    'Counted by `src/lib/outreach/messageChecks.ts` over the words the rep sees. "Product" is the product named, a first-person product sentence or a cited fact, and "attributed insight" is a named source with what it found, or the reader\'s own public words: both are **heuristics**, so read the text before trusting a count. The humanizer change is the share of characters it changed, over the touches it returned text for.',
+    'Counted by `src/lib/outreach/messageChecks.ts` over the words the rep sees. "Product" is the product named, a first-person product sentence or a cited fact, and "attributed insight" is a named source with what it found, or the reader\'s own public words: both are **heuristics**, so read the text before trusting a count.',
     "",
     "### Per touch kind",
     "",
-    '| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight | Humanizer change (median) |',
-    "|---|---|---|---|---|---|---|---|---|",
+    '| Touch | Written | Product named or described | Price | "X, or Y?" asks | Stock opener or subject | Gendered pronouns | Attributed insight |',
+    "|---|---|---|---|---|---|---|---|",
     ...kindRows,
     "",
     "### Per person",
     "",
-    '| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight | Humanizer change (median) |',
-    "|---|---|---|---|---|---|---|---|---|",
+    '| Person | Product in Email 1 | Written touches with the product | Price in cold touches | "X, or Y?" asks | Stock openers or subjects | Gendered pronouns | Emails and LinkedIn messages with an insight |',
+    "|---|---|---|---|---|---|---|---|",
     ...personRows,
     "",
     "### Against the acceptance bar",
@@ -295,7 +294,6 @@ export function renderChecks(sequences: readonly CheckedSequence[], product: str
     `| "X, or Y?" asks in any one sequence | at most 1 | at most ${total.maxBinaryPerSequence} (${total.binaryAsks} in total) | ${mark(total.maxBinaryPerSequence <= 1)} |`,
     `| Stock openers or subjects | 0 | ${total.stockOpeners} | ${mark(total.stockOpeners === 0)} |`,
     `| Touches with a gendered pronoun | 0 | ${total.genderedTouches} | ${mark(total.genderedTouches === 0)} |`,
-    `| Humanizer change, median | at least 10% | ${pct(total.medianChangePct)} over ${total.changed} touches | ${mark(total.medianChangePct !== null && total.medianChangePct >= 10)} |`,
     `| Emails and LinkedIn messages with an attributed insight | reported, no bar | ${total.withInsight} of ${total.messages} | n/a |`,
     "",
   ].join("\n");
@@ -309,7 +307,7 @@ export function renderComparison(before: readonly CheckedSequence[], now: readon
   return [
     `## Compared with ${beforeLabel}`,
     "",
-    "The earlier report parsed with the same measures, over the text the rep saw there (the humanized text, or the draft where the humanized version was not kept). The people are the same fixture people; the prompt, standard and humanizer are not.",
+    "The earlier report parsed with the same measures, over the text the rep saw there (the humanized text, or the draft where the humanized version was not kept). The people are the same fixture people; the prompt and the standard are not.",
     "",
     `| Measure | ${beforeLabel} | This run |`,
     "|---|---|---|",
@@ -322,7 +320,6 @@ export function renderComparison(before: readonly CheckedSequence[], now: readon
     row("Stock openers or subjects", String(a.stockOpeners), String(b.stockOpeners)),
     row("Touches with a gendered pronoun", String(a.genderedTouches), String(b.genderedTouches)),
     row("Emails and LinkedIn messages with an attributed insight", `${a.withInsight} of ${a.messages}`, `${b.withInsight} of ${b.messages}`),
-    row("Humanizer change, median", `${pct(a.medianChangePct)} (${a.changed} touches)`, `${pct(b.medianChangePct)} (${b.changed} touches)`),
     "",
   ].join("\n");
 }

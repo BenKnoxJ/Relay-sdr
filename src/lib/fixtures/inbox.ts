@@ -85,7 +85,7 @@ export type DraftItem = {
   findings?: string[];
   /** Advice beside the draft; never blocks. */
   advice?: string[];
-  /** What Relay puts around the body: the greeting, the sign-off, the rep's signature and the opt-out (v2.1 §4, M2). */
+  /** What Relay puts around the body: the greeting, the sign-off, and the rep's signature (v2.1 §4, M2). */
   envelope?: Envelope;
   /** The campaign it belongs to. */
   campaignName?: string;

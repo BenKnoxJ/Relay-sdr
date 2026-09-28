@@ -1,31 +1,57 @@
 import type { EvidenceQuote, OutreachInput } from "../../../agents/outreach/input.schema";
+import { hostOf } from "../../../agents/_shared/item.schema";
 import { checkTouchLimits, type MessageDraft, type OutreachOutput } from "../../../agents/outreach/output.schema";
 import type { NeverSayFile } from "@/lib/facts/neverSay";
 import { neverSayIssues } from "@/lib/facts/neverSay";
 
-import { genderedPronouns, isBinaryAsk, mentionsPrice, namesProduct } from "./messageChecks";
+import { genderedPronouns, namesProduct } from "./messageChecks";
 
 /**
- * Outreach v2.1 §6: the deterministic gates on a first email, after the model.
+ * The checks on a drafted touch (outreach standard v3, 28 Sep 2026).
  *
- * Tier A findings reject the draft and go back to the writer once, with the
- * findings; a second failure parks it as Needs you. Tier B is advice on the
- * card and never blocks. Every finding is in the rep's words, because the card
- * shows it.
+ * Tier A holds a draft, and only for the eight truth checks, which are the same for every campaign:
  *
- * What is deliberately not here: taste. A draft that passes can still be a
- * poor email, which is what the rep's review and the sendability panel are
- * for. These gates hold what code can hold: shape, the tell list, provenance
- * and template repetition.
+ *   1. a price anywhere but the call script's objection answers;
+ *   2. a product claim that is not in the facts file;
+ *   3. a quote or attributed finding that is not word for word from the campaign's evidence, or names no source;
+ *   4. invented experience, customers or results;
+ *   5. a firm, person, number or line of business that is not in the data;
+ *   6. a colleague at the same firm already sent the same evidence item;
+ *   7. a link or a gender guess (the drafting tool's name is refused by the output schema);
+ *   8. a touch that is empty, the wrong shape or over its length.
+ *
+ * Everything about style is Tier B: a warning on the card, never a hold. The rep reads every draft.
+ *
+ * Nothing here knows the campaign. Sources come from `pack.evidence`, lines of business from the lookup and
+ * the campaign's industries, prices from the facts file. A new market needs new research, not new code.
  */
 
 export type Finding = { rule: string; text: string };
 export type GateResult = { tierA: Finding[]; tierB: Finding[] };
 
-/**
- * A draft already written in this campaign, as the cohort gates read it. `personId` is who it was written for:
- * the repetition gates count people, not drafts (M2 fix 2), so one colleague's two touches are one person.
- */
+/** Which truth check each Tier A rule is. A Tier A finding whose rule is not here is a bug. */
+export const TRUTH_CHECKS: Readonly<Record<string, 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>> = {
+  "price-in-message": 1,
+  "claim-id": 2,
+  "claim-number": 2,
+  "never-say": 2,
+  "unsupported-source-claim": 3,
+  "invented-experience": 4,
+  "unsourced-name": 5,
+  "unsourced-number": 5,
+  "firm-line": 5,
+  "opener-ref": 5,
+  "opener-usable": 5,
+  "colleague-evidence": 6,
+  link: 7,
+  "gendered-pronoun": 7,
+  length: 8,
+  kind: 8,
+  voicemail: 8,
+  "second-call": 8,
+};
+
+/** A draft already written in this campaign. `personId` is who it was for: repetition counts people, not drafts. */
 export type CohortDraft = { body: string; ask: string; sameAccount: boolean; personId: string; touch?: string };
 
 export type GateContext = {
@@ -35,7 +61,7 @@ export type GateContext = {
   repName: string;
   /** The campaign's other drafts, newest first. */
   cohort: readonly CohortDraft[];
-  /** The product's never-say list, so a touch cannot say what the pack may not (M2). */
+  /** The product's never-say list. */
   neverSay?: Pick<NeverSayFile, "entries">;
 };
 
@@ -46,13 +72,6 @@ const SENTENCE = /[^.?!]+[.?!]+|[^.?!]+$/g;
 
 export function sentences(text: string): string[] {
   return (text.replace(/\s+/g, " ").trim().match(SENTENCE) ?? []).map((s) => s.trim()).filter((s) => s.length > 0);
-}
-
-function paragraphs(text: string): string[] {
-  return text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
 }
 
 /** Lower-case words, a possessive read as its noun: "July's" is July. */
@@ -67,621 +86,16 @@ function hasPhrase(text: string, phrase: string): boolean {
   return new RegExp(`(^|[^a-z0-9])${escape(phrase.toLowerCase())}($|[^a-z0-9])`).test(text.toLowerCase());
 }
 
-/**
- * A tell-list entry in a text (M2, 23 Sep 2026).
- *
- * `hasPhrase` is whole-word and exact, which let two whole families of tell
- * through in the 22 Sep cohort. A multi-word entry now matches as a
- * substring, so "would it help if I sent" is caught inside a longer sentence
- * whatever punctuation sits in it, and a single word matches its ordinary
- * English stems, so "streamline" catches "streamlined" and "empower" catches
- * "empowers". Nothing here matches a *prefix*: "outreaching" is not "out".
- */
+/** A tell-list entry in a text: a multi-word entry as a substring, a single word with its ordinary stems. */
 export function hasTell(text: string, phrase: string): boolean {
   const wanted = phrase.trim().toLowerCase();
   if (wanted === "") return false;
-  const haystack = text.toLowerCase().replace(/[\u2019]/g, "'").replace(/\s+/g, " ");
+  const haystack = text.toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ");
   if (/\s/.test(wanted)) return haystack.includes(wanted.replace(/\s+/g, " "));
   return new RegExp(`(^|[^a-z0-9])${escape(wanted)}(?:s|es|d|ed|ing|ly|ment|ments)?($|[^a-z0-9])`).test(haystack);
 }
 
-// ---------------------------------------------------------------------------
-// Tier A: shape and wording
-
-/** v2.1 §5 rule 4: a time or meeting ask, a meeting length or a calendar link. */
-const TIME_ASK = [
-  /\b\d+\s*(?:-|to)?\s*(?:\d+\s*)?(?:min|mins|minute|minutes)\b/i,
-  /\b(?:fifteen|twenty|thirty|ten|five)[- ]minutes?\b/i,
-  /\bhalf an hour\b/i,
-  /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
-  /\b(?:next|this) week\b/i,
-  /\btomorrow\b/i,
-  /\bcalend(?:ar|ly)\b/i,
-  /\bin (?:your|the) diary\b/i,
-  /\bbook (?:a|some|in a) (?:call|meeting|time|slot|demo)\b/i,
-  /\b(?:grab|find) (?:a|some) time\b/i,
-  /\bsend (?:you )?(?:an? )?invite\b/i,
-];
-
-/** v2.1 §6: the two-sentence antithesis and the "not X, but Y" turn. */
-const ANTITHESIS = [
-  /\b(?:isn't|is not|aren't|are not|wasn't|was not|it's not|it is not)\b[^.?!]{0,80}[.;,]\s*(?:it's|it is|they're|they are|this is|that's|that is)\b/i,
-  /\bnot (?:just |only |simply )?[^.,?!]{1,50}, but\b/i,
-  /\bnot [^.?!]{1,40}\.\s+(?:it's|it is)\b/i,
-];
-
-/**
- * Non-British spellings, a fixed list (§7), each with the British spelling the finding offers (voice round,
- * 28 Sep 2026: the remedy is the word to use, not "use British English"). "While" is fine; "whilst" is never
- * required. "Program" is held unless it is a computer program; "license" only as a noun after a determiner,
- * because the British verb is spelt that way too.
- */
-const US_SPELLINGS: readonly (readonly [RegExp, string, string])[] = [
-  ...(
-    [
-      ["organize", "organise"], ["organized", "organised"], ["organizing", "organising"], ["organization", "organisation"], ["organizations", "organisations"],
-      ["prioritize", "prioritise"], ["prioritized", "prioritised"], ["analyze", "analyse"], ["analyzed", "analysed"], ["analyzing", "analysing"],
-      ["optimize", "optimise"], ["optimized", "optimised"], ["optimizing", "optimising"], ["optimization", "optimisation"], ["realize", "realise"],
-      ["realized", "realised"], ["recognize", "recognise"], ["recognized", "recognised"], ["specialize", "specialise"], ["specialized", "specialised"],
-      ["customize", "customise"], ["customized", "customised"], ["apologize", "apologise"], ["standardize", "standardise"], ["standardized", "standardised"],
-      ["summarize", "summarise"], ["utilize", "use"], ["maximize", "maximise"], ["minimize", "minimise"], ["emphasize", "emphasise"],
-      ["color", "colour"], ["colors", "colours"], ["behavior", "behaviour"], ["behaviors", "behaviours"], ["favor", "favour"], ["favorite", "favourite"],
-      ["honor", "honour"], ["labor", "labour"], ["center", "centre"], ["centers", "centres"], ["centered", "centred"], ["defense", "defence"],
-      ["catalog", "catalogue"], ["modeling", "modelling"], ["traveling", "travelling"], ["canceled", "cancelled"], ["fulfill", "fulfil"], ["enroll", "enrol"],
-      ["toward", "towards"], ["practiced", "practised"],
-    ] as const
-  ).map(([us, uk]) => [new RegExp(`\\b${us}\\b`, "i"), us, uk] as const),
-  // Lower case only: "Gray" is a surname and a firm's name.
-  [/\bgray\b/, "gray", "grey"],
-  [/(?<!\bcomputer )\bprograms?\b/i, "program", "programme"],
-  [/\b(?:a|the|your|their|our|its|this)\s+license\b/i, "license", "licence"],
-];
-
-/** The American spellings in a text, as "toward (towards)". */
-function americanSpellings(text: string): string[] {
-  return US_SPELLINGS.filter(([pattern]) => pattern.test(text)).map(([, us, uk]) => `${us} (${uk})`);
-}
-
-function spellingFinding(text: string): Finding[] {
-  const found = americanSpellings(text);
-  return found.length === 0 ? [] : [{ rule: "spelling", text: `American spelling: ${found.join(", ")}. Use the British spelling in brackets.` }];
-}
-
-/**
- * The contrast cadence (voice round, 28 Sep 2026; the voice root's first don't): the move that makes a message
- * read as machine-written whatever its words. "Is a separate question", "is one thing, … is another", "says
- * what …, never which …", "it says nothing about …", a stand-alone "…, not Y." and the escalating fragment
- * ("Not a subset. All of them."). The older two-sentence antithesis stays under its own rule.
- */
-const SET_UP = /\b(?:is|are|'s|’s|was|becomes)\s+(?:a\s+|an\s+)?(?:separate|different|another|whole other|other)\s+(?:question|job|matter|problem|conversation|issue|story|claim)\b/i;
-
-const CONTRAST: readonly RegExp[] = [
-  SET_UP,
-  /\bis one thing\b[^.?!]*\banother\b/i,
-  /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?)\s+(?:what|which|how|why|who|when)\b[^.?!]{0,80}\b(?:never|not|but not|and not|rarely)\s+(?:what|which|how|why|who|when)\b/i,
-  /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?|explains?)\s+nothing (?:about|of)\b/i,
-  // A stand-alone parallel closing the sentence: "…across the base, not the sample you could get to." "Not yet"
-  // and "whether or not" are ordinary English and never match: the word after "not" opens a noun phrase. The
-  // everyday idioms ("…, not a problem.", "…, not an easy one.", "…, not the easiest for anyone.") are not a contrast.
-  /,\s+not\s+(?!(?:a (?:problem|bother|worry|big deal)|an? (?:easy|bad|big|small)\b|the (?:easiest|best|worst|end|first)\b|that\b|to worry\b|at all\b))(?:the|a|an|just|only|your|their|its|our|one|every|all|some|what|which|how|who)\b[^,.?!;]{0,60}[.!]/i,
-];
-
-/**
- * A short sentence opening "Not …": the escalating fragment. Ordinary replies ("Not yet.", "Not sure.", "Not a
- * problem.", "Not to worry.", "Not everyone does.") excepted: a call script's objection answer is read part by part.
- */
-const NOT_FRAGMENT =
-  /^not\s+(?!(?:yet|really|sure|always|quite|necessarily|often|much|many|at all|exactly|everyone|everybody|that|to worry|a problem|a bother|an easy|the easiest|bad|too bad|long|now)\b)/i;
-
-function contrastIn(parts: readonly string[], patterns: readonly RegExp[] = CONTRAST): string | undefined {
-  for (const part of parts) {
-    for (const sentence of sentences(part)) {
-      if (patterns.some((pattern) => pattern.test(sentence))) return sentence;
-      if (NOT_FRAGMENT.test(sentence) && sentence.split(/\s+/).length <= 6) return sentence;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Fix round 3 of #54: `answers` are a call's objection answers, where deferring a topic ("that's a different
- * conversation") is how a rep moves on, not the set-up contrast; every other contrast still holds there.
- */
-function contrastFinding(parts: readonly string[], answers: readonly string[] = []): Finding[] {
-  const sentence = contrastIn(parts) ?? contrastIn(answers, CONTRAST.filter((pattern) => pattern !== SET_UP));
-  return sentence === undefined
-    ? []
-    : [{ rule: "contrast", text: `"${clip(sentence, 90)}" sets one thing against another for effect, which reads as written by a machine. Say the one point plainly.` }];
-}
-
-/**
- * Tells the lexicon cannot hold as one phrase (voice round): the consultant frame "we work with X on the Y side",
- * and "or is that" only where it presumes a gap ("…, or is that guesswork?", "…, or is that already sorted?"), because "Do they take the hard
- * calls, or is that a separate team?" is the rep's own approved question.
- */
-const PATTERN_TELLS: readonly (readonly [RegExp, string])[] = [
-  [/\bwe work with\b[^.?!]{0,60}\bon the\b[^.?!]{0,30}\bside\b/i, "we work with … on the … side"],
-  [/\bor is that\b[^?]{0,40}\b(?:guesswork|guess|luck|a gap|missing|already|still)\b/i, "or is that"],
-];
-
-function tellsIn(text: string, lexicon: readonly string[]): string[] {
-  return [...lexicon.filter((phrase) => hasTell(text, phrase)), ...PATTERN_TELLS.filter(([pattern]) => pattern.test(text)).map(([, name]) => name)];
-}
-
-/**
- * The paragraphs finding, as an instruction the corrective call can follow to the letter (M2 fix 1): which
- * paragraph, and the sentence the new one starts at. "Break it up" left the redraft guessing, and in the
- * 23 Sep cohort a four-sentence Email 1 came back as one block anyway.
- */
-function splitParagraphText(paragraph: string): string {
-  const list = sentences(paragraph);
-  const at = list[Math.ceil(list.length / 2)] ?? "";
-  const opening = at.split(/\s+/).slice(0, 8).join(" ");
-  return `A paragraph runs to ${list.length} sentences; a phone screen wants three at most. Split this paragraph: start a new paragraph at "${opening}${opening === at ? "" : "…"}".`;
-}
-
-function shapeFindings(draft: MessageDraft, input: OutreachInput, lexicon: readonly string[]): Finding[] {
-  const found: Finding[] = [];
-  const body = draft.body;
-  const count = sentences(body).length;
-  if (count < 3 || count > 5) found.push({ rule: "sentences", text: `This is ${count} sentence${count === 1 ? "" : "s"}; a first email is 3 to 5.` });
-  const long = paragraphs(body).find((p) => sentences(p).length > 3);
-  if (long !== undefined) found.push({ rule: "paragraphs", text: splitParagraphText(long) });
-  if (/https?:\/\/|www\.[a-z]/i.test(body)) found.push({ rule: "link", text: "A first email carries no link." });
-  if (body.includes("!") || (draft.subject ?? "").includes("!")) found.push({ rule: "exclamation", text: "No exclamation marks." });
-  const askLike = `${draft.ask} ${body}`;
-  if (TIME_ASK.some((pattern) => pattern.test(askLike))) {
-    found.push({ rule: "time-ask", text: "It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead." });
-  }
-  if (ANTITHESIS.some((pattern) => pattern.test(body))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
-  found.push(...contrastFinding([draft.subject ?? "", body]));
-  const tells = tellsIn(`${draft.subject ?? ""} ${body}`, lexicon);
-  if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
-  found.push(...spellingFinding(`${draft.subject ?? ""} ${body}`));
-  // v2.1 §2: the greeting and the sign-off are Relay's envelope; the body is what sits between them.
-  const first = input.person.firstName.trim();
-  const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(body);
-  const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(body);
-  if (/^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(body) || opensWithName || signsOff) {
-    found.push({ rule: "envelope", text: "The greeting and the sign-off are added for you; the body starts with the first sentence and ends with the question." });
-  }
-  return found;
-}
-
-// ---------------------------------------------------------------------------
-// Tier A: provenance (v2.1 §6, as corrected)
-//
-// Every externally factual named entity and every number the model
-// introduces must resolve to the lookup, the pack or the live facts. The
-// structured values the input already carries are valid as they are. This is
-// deliberately not "every capitalised word is a proper noun": a single word
-// that only starts a sentence is a sentence, not a name.
-
-/** Capitalised words that are ordinary English whatever their position. */
-const ORDINARY = new Set(
-  "i i'm i've i'd i'll we we're we've our you you're your yours they their it it's its this that these those the a an and but or if when while what which who how why where there here is are was were be been has have had do does did can could would should will may might most many much more some any each every all no not one two three hi hello thanks thank best regards kind cheers mr mrs ms dr".split(
-    " ",
-  ),
-);
-
-/** Calendar words and the country Relay writes from: never a claim about anyone. */
-const CALENDAR = new Set(
-  "january february march april may june july august september october november december spring summer autumn winter uk british britain england scotland wales ireland london".split(" "),
-);
-
-/**
- * Where a touch is sent and how the rep and the prospect talk: never a claim about anyone (M2 fix 1). A call
- * script says "I sent a note on LinkedIn", and holding that as an unsourced name parked Emlyn's call in the
- * 23 Sep cohort. Multi-word names are read before single words, so "Microsoft Teams" goes whole.
- */
-export const CHANNEL_WORDS = ["microsoft teams", "microsoft outlook", "google meet", "linkedin", "inmail", "outlook", "teams", "zoom", "whatsapp", "slack", "gmail", "email", "e-mail"] as const;
-
-function withoutChannels(entity: string): string {
-  let out = entity.toLowerCase();
-  for (const channel of CHANNEL_WORDS) out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(channel)}($|[^a-z0-9])`, "g"), "$1 $2");
-  return out;
-}
-
-/** The names and values the input already carries, which a body may always use, as written. */
-function allowedValues(input: OutreachInput, context: GateContext): string[] {
-  return [
-    // The rep's own name and company: the call opener and the voicemail say who is ringing.
-    input.sender.firstName,
-    input.sender.company,
-    input.person.name,
-    input.person.firstName,
-    input.person.title,
-    input.person.company,
-    input.person.domain ?? "",
-    input.person.city ?? "",
-    input.account.company,
-    input.account.domain ?? "",
-    input.buyerRole?.title ?? "",
-    input.pack.archetype.name,
-    context.repName,
-    ...context.productNames,
-    input.facts.product,
-  ].filter((value) => value.trim() !== "");
-}
-
-/** The words the input already carries, which a body may always use. */
-function allowedWords(input: OutreachInput, context: GateContext): Set<string> {
-  return new Set(allowedValues(input, context).flatMap((value) => words(value)));
-}
-
-/** Everything the draft may cite: lookup items, the pack slice, the facts and the role's needs. */
-function evidenceText(input: OutreachInput): string {
-  return evidenceRaw(input).toLowerCase();
-}
-
-function evidenceRaw(input: OutreachInput): string {
-  const pack = input.pack;
-  return [
-    ...input.lookup.items.flatMap((item) => [item.text, item.quote ?? ""]),
-    pack.archetype.situation,
-    ...pack.archetype.pains.flatMap((pain) => [pain.text, pain.quote ?? ""]),
-    ...pack.archetype.language.map((phrase) => phrase.text),
-    pack.hook?.text ?? "",
-    pack.hook?.whyNow.text ?? "",
-    ...pack.angles.map((angle) => angle.text),
-    ...pack.doDont.flatMap((line) => [line.use, line.avoid]),
-    ...pack.verbatim.flatMap((item) => [item.text, item.quote ?? ""]),
-    // The approved quotes and who said them: "the FCA" is sourced when the evidence list names it.
-    ...pack.evidence.flatMap((item) => [item.quote, item.sourceName]),
-    ...pack.proof.map((proof) => proof.text),
-    ...input.facts.facts.map((fact) => fact.text),
-    input.buyerRole?.needs ?? "",
-    input.account.seedEvidence ?? "",
-  ].join("\n");
-}
-
-/** Runs of capitalised or numeric tokens that are not merely a sentence's first word. */
-export function namedEntities(body: string): string[] {
-  const found: string[] = [];
-  for (const sentence of sentences(body)) {
-    // Punctuation left over from the sentence before ("…be.' Want me to…") is not a word: the sentence starts after it.
-    const tokens = sentence
-      .split(/\s+/)
-      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
-      .filter((token) => token !== "");
-    let run: { text: string; index: number }[] = [];
-    const flush = () => {
-      // A question or an offer opens on an ordinary word (trial fix 2): "Shall I send…" is not the name "Shall I".
-      if (run.length > 1 && run[0]!.index === 0 && isOpener(run[0]!.text)) run = run.slice(1);
-      // A lone capitalised word at the start of a sentence is a sentence start, unless it is an acronym or carries a digit.
-      const onlyStart = run.length === 1 && run[0]!.index === 0 && !/^[A-Z0-9]{2,}$/.test(run[0]!.text) && !/\d/.test(run[0]!.text) && !/[a-z][A-Z]/.test(run[0]!.text);
-      if (run.length > 0 && !onlyStart) found.push(run.map((t) => t.text).join(" "));
-      run = [];
-    };
-    tokens.forEach((token, index) => {
-      if (/^[A-Z][\w&'’.-]*$/.test(token) || /^[A-Z]{2,}s?$/.test(token)) run.push({ text: token, index });
-      else flush();
-    });
-    flush();
-  }
-  return found;
-}
-
-/** Words that commonly open an English sentence. Never a name, whatever their case. */
-const STARTERS = new Set(
-  "shall want need fancy keen mind open so also just still yet even only then now instead otherwise however meanwhile again perhaps maybe happy glad worth given since because after before once until unless although though whether either neither both few several last next first second finally often usually sometimes typically currently recently today honestly curious fair sounds seems looks feel saw been thought mostly funny wondering reckon probably hopefully reading looking seeing having being going teams people firms handlers managers leaders directors most many some none nothing everything something anything".split(
-    " ",
-  ),
-);
-
-/** An ordinary word opening a sentence or a question: "Shall", "Want", "Worth", "Should". */
-function isOpener(token: string): boolean {
-  const word = token.toLowerCase().replace(/['’]s$/, "");
-  return ORDINARY.has(word) || STARTERS.has(word);
-}
-
-/**
- * A lone capitalised word that opens a sentence, when it is not ordinary
- * English. Ordinary means: a common opener, or a word the draft, the plan or
- * the facts also write in lower case. "Complaints rose" is a sentence; "Aviva
- * found" names a firm.
- */
-function sentenceStartNames(body: string, lowerCorpus: string): string[] {
-  const found: string[] = [];
-  for (const sentence of sentences(body)) {
-    const tokens = sentence
-      .split(/\s+/)
-      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
-      .filter((token) => token !== "");
-    const [first, second] = tokens;
-    if (first === undefined || !/^[A-Z][a-z][\w'’-]*$/.test(first)) continue;
-    // A run of capitals is `namedEntities`' business.
-    if (second !== undefined && /^[A-Z][\w&'’.-]*$/.test(second)) continue;
-    const word = first.toLowerCase().replace(/['’]s$/, "");
-    if (ORDINARY.has(word) || CALENDAR.has(word) || STARTERS.has(word)) continue;
-    if (new RegExp(`(^|[^a-z0-9])${escape(word)}($|[^a-z0-9])`).test(lowerCorpus)) continue;
-    found.push(first);
-  }
-  return found;
-}
-
-function provenanceFindings(body: string, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
-  const found: Finding[] = [];
-  const advice: Finding[] = [];
-  const allowed = allowedWords(input, context);
-  const evidence = evidenceText(input);
-  // Words written in lower case anywhere the draft could have learnt them: its own body and the evidence as written.
-  const lowerCorpus = [body, evidenceRaw(input)].join("\n").match(/\b[a-z][a-z0-9'’-]*\b/g)?.join(" ") ?? "";
-
-  const unsourced = (entity: string) => {
-    const tokens = words(withoutChannels(entity)).filter((token) => !ORDINARY.has(token) && !CALENDAR.has(token) && !allowed.has(token));
-    if (tokens.length === 0) return false;
-    // Resolved when the remaining words appear together in the evidence.
-    return !hasPhrase(evidence, tokens.join(" ")) && !tokens.every((token) => hasPhrase(evidence, token));
-  };
-  const unsourcedNames = namedEntities(body).filter(unsourced);
-  if (unsourcedNames.length > 0) {
-    found.push({ rule: "unsourced-name", text: `It names ${unsourcedNames.map((n) => `"${n}"`).join(", ")}, which is not in the lookup, the plan or the facts.` });
-  }
-  // A capitalised word that only opens a sentence is usually just a sentence ("Finding that pattern…"),
-  // so it is advice for the rep to check rather than a hold. A name inside a sentence still holds.
-  const startNames = sentenceStartNames(body, lowerCorpus).filter(unsourced);
-  if (startNames.length > 0) {
-    advice.push({ rule: "sentence-start-name", text: `A sentence opens with ${startNames.map((n) => `"${n}"`).join(", ")}; if that is a name, it is not in the lookup, the plan or the facts.` });
-  }
-
-  const allowedDigits = words([...allowed].join(" "));
-  const numbers = (body.match(/\d[\d,.]*%?/g) ?? []).map((n) => n.replace(/[.,]$/, ""));
-  const unsourcedNumbers = numbers.filter((n) => !evidence.includes(n.toLowerCase()) && !allowedDigits.includes(n.toLowerCase()));
-  if (unsourcedNumbers.length > 0) {
-    found.push({ rule: "unsourced-number", text: `The number ${unsourcedNumbers.join(", ")} traces to nothing in the lookup, the plan or the facts.` });
-  }
-  return { tierA: found, tierB: advice };
-}
-
-// ---------------------------------------------------------------------------
-// Tier A: cohort template repetition (v2.1 §6, as corrected)
-//
-// Hard failures are meaningful template repetition only: a repeated opening
-// frame, a reused ask, or a distinctive sentence that makes two emails read
-// as one. Generic word overlap is advice, so the writer is never pushed into
-// synonym-swapping to pass a gate.
-
-function normalised(text: string, input: OutreachInput): string {
-  let out = text.toLowerCase();
-  for (const value of [input.person.name, input.person.firstName, input.person.company, input.account.company]) {
-    if (value.trim() !== "") out = out.split(value.toLowerCase()).join(" ");
-  }
-  return words(out).join(" ");
-}
-
-function jaccard(a: string, b: string): number {
-  const left = new Set(a.split(" ").filter(Boolean));
-  const right = new Set(b.split(" ").filter(Boolean));
-  if (left.size === 0 || right.size === 0) return 0;
-  let shared = 0;
-  for (const word of left) if (right.has(word)) shared += 1;
-  return shared / (left.size + right.size - shared);
-}
-
-/** The first five words of the first sentence: the opening frame. */
-function frame(body: string, input: OutreachInput): string {
-  return normalised(sentences(body)[0] ?? "", input).split(" ").slice(0, 5).join(" ");
-}
-
-/** How many different people a set of drafts was written for (M2 fix 2): the cohort gates count people, not drafts. */
-export function peopleIn(drafts: readonly Pick<CohortDraft, "personId">[]): number {
-  return new Set(drafts.map((draft) => draft.personId)).size;
-}
-
-function cohortFindings(draft: MessageDraft, input: OutreachInput, cohort: readonly CohortDraft[]): { tierA: Finding[]; tierB: Finding[] } {
-  const tierA: Finding[] = [];
-  const tierB: Finding[] = [];
-  if (cohort.length === 0) return { tierA, tierB };
-
-  // Every rule reads "two or more people, or one colleague at the same account". A person is counted once
-  // however many of their touches match: in the 23 Sep cohort one colleague's Email 2 and LinkedIn message
-  // carrying the same quote counted as two, and that alone held another person's Email 1.
-
-  // Opening frame: near-identical to two or more people's, or to a colleague's.
-  const mine = frame(draft.body, input);
-  const firstSentence = normalised(sentences(draft.body)[0] ?? "", input);
-  const sameFrame = cohort.filter((other) => {
-    const theirs = frame(other.body, input);
-    return (mine !== "" && mine === theirs) || jaccard(firstSentence, normalised(sentences(other.body)[0] ?? "", input)) >= 0.7;
-  });
-  if (peopleIn(sameFrame) >= 2 || sameFrame.some((other) => other.sameAccount)) {
-    tierA.push({ rule: "cohort-opening", text: "It opens the same way as other emails in this campaign; open on this person's own reason." });
-  }
-
-  // The ask: identical after normalising to two or more people's, or to a colleague's.
-  const ask = normalised(draft.ask, input);
-  const sameAsk = cohort.filter((other) => normalised(other.ask, input) === ask);
-  if (peopleIn(sameAsk) >= 2 || sameAsk.some((other) => other.sameAccount)) {
-    tierA.push({ rule: "cohort-ask", text: "The question at the end is the same as in other emails in this campaign; ask it this person's way." });
-  }
-
-  // A distinctive sentence near-identical to two or more people's, or to a colleague's.
-  //
-  // A sentence carrying an approved quote is exempt across firms (M2 fix 2): the quote is the same because
-  // the source's words are the same, and readers at different firms never compare notes. Never at the same
-  // account: colleagues must not be sent the same quote, and the 23 Sep cohort's one real repeat (Nell's
-  // LinkedIn message, the FCA sentence her colleague Blair had in Email 1) is exactly that.
-  const runs = quoteRuns(input.pack.evidence);
-  const repeated = sentences(draft.body)
-    .filter((sentence) => normalised(sentence, input).split(" ").length >= 7)
-    .find((sentence) => {
-      const mineNormalised = normalised(sentence, input);
-      const quoted = quotesEvidence(sentence, runs);
-      const hits = cohort.filter((other) => (!quoted || other.sameAccount) && sentences(other.body).some((theirs) => jaccard(mineNormalised, normalised(theirs, input)) >= 0.8));
-      return peopleIn(hits) >= 2 || hits.some((other) => other.sameAccount);
-    });
-  if (repeated !== undefined) {
-    tierA.push({ rule: "cohort-sentence", text: "A sentence repeats one from other emails in this campaign almost word for word." });
-  }
-
-  // Generic overlap: advice only.
-  const grams = (text: string) => {
-    const list = normalised(text, input).split(" ");
-    return new Set(list.slice(0, Math.max(0, list.length - 3)).map((_, i) => list.slice(i, i + 4).join(" ")));
-  };
-  const own = grams(draft.body);
-  const heaviest = Math.max(0, ...cohort.map((other) => {
-    const theirs = grams(other.body);
-    let shared = 0;
-    for (const gram of own) if (theirs.has(gram)) shared += 1;
-    return own.size === 0 ? 0 : shared / own.size;
-  }));
-  if (heaviest > 0.25) tierB.push({ rule: "cohort-overlap", text: "Much of the wording is shared with another email in this campaign." });
-  return { tierA, tierB };
-}
-
-// ---------------------------------------------------------------------------
-// Tier A: evidence quoted word for word (M2, 23 Sep 2026)
-//
-// The 22 Sep re-review's headline: 7 of 14 attributed gives misstated their
-// source. Three said the FCA's tables show "the share upheld by the
-// ombudsman" (the column is upheld by the *firm*); three hardened "not as
-// effective as they might need to be" into "weren't working"; one invented
-// "almost always" and put it on the ombudsman's quarterly data. None of them
-// is a lie a prompt line can catch, because each is a plausible paraphrase of
-// something the drafter was actually given.
-//
-// So the rule is not "be accurate", it is "use the source's own words". A
-// sentence that attributes something to a regulator, an ombudsman or a
-// publication must carry a run of the evidence list's stored wording, or it
-// says nothing about them at all.
-
-/** A third party named outright: a regulator, an ombudsman, a watchdog. Always a source claim. */
-const SOURCE_NAMED_OUTRIGHT = /\b(?:fca|financial conduct authority|fos|ombudsman|regulator|regulators|regulatory body|consumer duty|which\?)\b/i;
-
-/**
- * The words that only sometimes mean a source: "publishes", "publication",
- * "figures show". They carry a source claim in "the FCA publishes each firm's
- * figures" and carry none at all in "your July complaints publication
- * mentioned delay", which is the reader's own firm and the lookup's business.
- */
-const PUBLISH = /\bpublish(?:es|ed|ing)?\b|\bpublication\b/i;
-const FIGURES_SHOW = /\bfigures show\b/i;
-
-/**
- * Something said to be published *about* someone, or to sit in a table: "published against Ardent's name",
- * "the public tables". Not "published on", which is as often a date or a place ("published on your site"). That is a claim about what a third party publishes,
- * whoever is named, and the 23 Sep cohort sent it five times with nothing behind it (M2 fix 2).
- */
-const PUBLISHED_ABOUT = /\bpublished (?:against|about)\b|\b(?:public|league|sortable) tables?\b/i;
-
-/**
- * A trend in something measured, stated as fact (trial fix 1): "more motor complaints are drifting past three
- * days", "the volume keeps rising". Somebody measured that or nobody did, so it is a source claim whoever it
- * is about, and it passes only when an approved quote in the sentence carries the trend itself. Only
- * measured things (complaints, volumes, numbers, rates): "your team is growing" is not a statistic.
- */
-// Never the team that handles them (fix round 2): "claims teams", "complaints handling" are everyday nouns here.
-const MEASURED =
-  "(?:complaints?|complaint (?:volumes?|numbers)|volumes?|numbers|cases|claims|disputes|uphold rates?|rates|figures)(?!\\s+(?:teams?|handlers?|handling|managers?|departments?|staff|leads?|functions?|processes))";
-const RISES = "(?:drifting|rising|growing|climbing|increasing|creeping|slipping|going up)";
-/**
- * The present tense, as a pattern is put (trial fix 2): "as complaint volumes climb", "volumes rise". Never an
- * escalation: "a complaint goes up to the ombudsman", "rises to a manager", "goes up the chain", "go up a level"
- * (fix round 2 of #54).
- */
-const ESCALATION = "(?!\\s+(?:to|through|the chain|the line|the ladder|a level|a tier|a grade)\\b)";
-const RISE_NOW = `(?:(?:climbs?|rises?|grows?|increases?|go(?:es)? up|creeps? up)${ESCALATION})`;
-/** The verb in the base form a plural subject takes ("complaints rise"), and the "-s" form a singular one does. */
-const RISE_BASE = `(?:(?:climb|rise|grow|increase|go up|creep up)${ESCALATION})`;
-const RISE_S = `(?:(?:climbs|rises|grows|increases|goes up|creeps up)${ESCALATION})`;
-/** Never a noun: "a price rise", "premium increases", "the rise". */
-const NOT_A_NOUN = "(?<!\\b(?:a|an|the|any|this|that|each|every|price|premium|premiums|rate|pay|fee|fees|tax|cost|costs|interest|renewal) )";
-/**
- * The words between a measured noun and its verb, never a preposition (fix round 2 of #54): in "complaints about
- * premium rises" and "claims about price increases", "rises" and "increases" are nouns, the object of "about".
- * "Across" and "in" stay: "complaint volumes across motor climb" is the trend.
- */
-const GAP = "(?:(?!(?:about|over|on|for|of|with|around|from|after|against|regarding|concerning|like|following)\\b)[\\w'’-]+ )";
-/**
- * Any words between a measured noun and a base-form verb: "claims for storm damage rise every autumn". Never a
- * determiner or a possessive (fix round 3 of #54): "complaints about the recent rise", "claims after last year's
- * increase" make the verb a noun.
- */
-const GAP_ANY = "(?:(?!(?:a|an|the|this|that|these|those|last|its|their|your|our|his|her|my|any|each|every)\\b)(?![\\w'’-]+['’]s )[\\w'’-]+ )";
-/** What a figure does over time. Never "drift" or "creep": "the conversation tends to drift toward price" is talk. */
-const MOVES = "(?:slip|grow|fall|rise|climb|drop|increase)";
-const TREND = new RegExp(
-  [
-    `\\bmore (?:and more )?(?:[\\w'’-]+ ){0,3}${MEASURED} (?:are|is|keep|keeps) (?:${RISES}|ending up|\\w+ing (?:up|in|to|at|past)\\b)`,
-    `\\bmore and more (?:[\\w'’-]+ ){0,2}${MEASURED}\\b`,
-    `\\b${MEASURED} (?:[\\w'’-]+ ){0,2}(?:keeps?|kept) ${RISES}`,
-    `\\b${MEASURED} (?:are|is|have been|has been) (?:${RISES}|on the rise|up)\\b`,
-    // Trial fix 2: "complaint volumes across motor have been climbing", "as complaint volumes climb".
-    `\\b${MEASURED} (?:[\\w'’-]+ ){1,3}(?:have|has) been (?:${RISES}|on the rise)\\b`,
-    // Fix round 2 of #54: a base-form verb after any words ("claims for storm damage rise"); an "-s" form only with
-    // no preposition between, since "complaints about premium rises" is a noun; never a noun after a determiner.
-    `\\b${MEASURED} ${GAP_ANY}{0,3}${NOT_A_NOUN}${RISE_BASE}\\b`,
-    `\\b${MEASURED} ${GAP}{0,2}${NOT_A_NOUN}${RISE_S}\\b`,
-    // A pattern put as a tendency, whatever it is about: "the share closed within three days tends to slip". Never
-    // who a job falls to (fix round 2 of #54): "tends to fall to one team leader", "tends to drop into price".
-    `\\btends? to ${MOVES}\\b(?!\\s+(?:to\\s+(?:one|a|an|the|whoever|someone|somebody|them|us|you)\\b(?!\\s+(?:peak|low|high|minimum|maximum|\\d))|between|into|on|under|through)\\b)`,
-    // "can slip as volumes rise": a fall tied to a rise. Never "a fix can slip through" on its own.
-    `\\b(?:can|may|might|could|will|often) ${MOVES}s?\\b[^.?!]{0,40}\\bas\\b[^.?!]{0,30}\\b(?:${RISE_NOW}|${RISES})\\b`,
-    `\\b${MEASURED} (?:have|has) (?:risen|grown|gone up|increased|climbed|doubled|trebled|tripled|spiked|jumped|soared)\\b`,
-    // The simple past (fix round 2): "complaints rose sharply", "uphold rates went up".
-    `\\b${MEASURED} (?:[\\w'’-]+ )?(?:rose|grew|climbed|increased|doubled|trebled|tripled|spiked|jumped|soared|surged|went up)\\b`,
-    `\\b(?:growing|rising) (?:number|share|volume) of (?:[\\w'’-]+ )?${MEASURED}\\b`,
-  ].join("|"),
-  "i",
-);
-
-/** A trend in a quote's own words: what lets a trend sentence carrying that quote through. */
-const QUOTE_TREND = /\b(?:rose|risen|rising|up from|up on|increased?|increasing|grew|grown|growing|fell|fallen|down from|down on)\b/i;
-
-/**
- * One figure set against another body's (trial fix 1): "a different number from what gets recorded once a
- * case is escalated", "the ombudsman publishes its own uphold figure separately". The M2 probe named the
- * ombudsman and was held; the trial's versions left it unnamed, or rode on a quote about something else.
- * No approved quote makes that comparison, so none clears it.
- */
-const COMPARED = /\bdifferent (?:number|figure|rate|measure)s? (?:from|to|than)\b|\bnot the same (?:number|figure|rate)\b|\bpublish(?:es|ed|ing)?\b[^.?!]{0,40}\b(?:figures?|numbers?|rates?|data)\b[^.?!]{0,30}\bseparately\b/i;
-
-/** A sentence written to the reader about themselves. */
-const SECOND_PERSON = /^\s*(?:you|your)\b/i;
-
-/**
- * A sentence reporting what someone found, said or measured.
- *
- * Verbs and attributions only. The nouns ("review", "research", "data",
- * "figures") were here first and cost the standard's own call exemplar a
- * hold: "a one-off £640 configuration review around month one" is a price,
- * not a finding, and `review` matched it. Where those nouns do carry a source
- * claim, the source itself is named and `SOURCE_NAMED_OUTRIGHT` has it already.
- */
-const REPORTED =
-  /\b(?:found|finds|show|shows|showed|shown|said|says|reported|reports|rose|risen|fell|fallen|up from|down from|according to|reviewed|surveyed)\b/i;
-
-const FIGURE = /\d[\d,.]*\s?%|\d[\d,]*/;
-
-/** A text with the given names taken out, so "Insights360" is a product and not the figure 360 (M2 fix 2). */
-function withoutNames(text: string, names: readonly string[]): string {
-  let out = text;
-  for (const name of [...names].sort((a, b) => b.length - a.length)) {
-    if (name.trim() === "") continue;
-    out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(name.trim())}(?=$|[^a-z0-9])`, "gi"), "$1 ");
-  }
-  return out;
-}
-
-/**
- * True when a sentence makes a claim about a source.
- *
- * A named regulator is always a source claim. "Publish" or "publication" is one only when it comes with a
- * figure or says something is published about someone or sits in a table (M2 fix 2): "after a complaints
- * publication" and "we already publish our figures" are the reader's own business, and holding them cost
- * four false holds in the 23 Sep cohort. A bare number is one only when the sentence also reports
- * something — otherwise the gate would hold the call script's complete price answer ("a one-off setup fee
- * of £1,280"). `names` are the words the input already carries (the product, the firm, the person): never
- * read as a figure, so "Insights360… so a theme can be shown" is not a report of the number 360.
- */
-export function attributesASource(sentence: string, names: readonly string[] = []): boolean {
-  if (SOURCE_NAMED_OUTRIGHT.test(sentence) || FIGURES_SHOW.test(sentence) || TREND.test(sentence) || COMPARED.test(sentence)) return true;
-  const figure = FIGURE.test(withoutNames(sentence, names));
-  if (PUBLISHED_ABOUT.test(sentence) || (PUBLISH.test(sentence) && figure)) return true;
-  return figure && REPORTED.test(sentence);
-}
+const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 
 /** The words of a text for quote matching: lower case, apostrophes folded, punctuation dropped. */
 function quoteWords(text: string): string[] {
@@ -694,8 +108,58 @@ function quoteWords(text: string): string[] {
     .filter((word) => word !== "");
 }
 
-/** How many consecutive words of a source's own wording a sentence must carry. */
+/**
+ * The words a rep reads on a touch, part by part: a message's subject and body, or a call script's lines.
+ * Kept apart so a subject without a full stop does not run into the body as one sentence.
+ */
+export function proseParts(draft: OutreachOutput): string[] {
+  if (draft.kind === "message") return [draft.subject ?? "", draft.body].filter((part) => part !== "");
+  const point = draft.talkingPoint;
+  return [...callLines(point), ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer]).filter((part) => part !== "")];
+}
+
+type TalkingPoint = Extract<OutreachOutput, { kind: "call" }>["talkingPoint"];
+
+/** A call script's own lines, without its objection pairs. */
+function callLines(point: TalkingPoint): string[] {
+  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? ""].filter((part) => part !== "");
+}
+
+/** The same, as one text. */
+export function proseText(draft: OutreachOutput): string {
+  return proseParts(draft).join("\n");
+}
+
+const allSentences = (parts: readonly string[]) => parts.flatMap((part) => sentences(part));
+
+// ---------------------------------------------------------------------------
+// 1. Price
+
+const CURRENCY = /[£$€]\s?\d|\b(?:gbp|usd|eur)\s?\d/i;
+/** A price or a contract term. "Month to month" alone is ordinary English ("volumes swing month to month"), so not here. */
+const PRICE = new RegExp(`${CURRENCY.source}|\\bper (?:seat|user|licence|license)\\b|\\bset-?up fee\\b|\\bseat minimum\\b|\\bno (?:annual )?(?:lock-in|contract)\\b`, "i");
+
+/** The facts that state a price: any fact whose text carries a currency amount. */
+function priceFactIds(input: OutreachInput): Set<string> {
+  return new Set(input.facts.facts.filter((fact) => CURRENCY.test(fact.text)).map((fact) => fact.id));
+}
+
+function priceFindings(draft: OutreachOutput, input: OutreachInput): Finding[] {
+  // A call's objection answers are the one place a price belongs: the complete answer to a price question.
+  const parts = draft.kind === "call" ? callLines(draft.talkingPoint) : proseParts(draft);
+  const prices = priceFactIds(input);
+  const citesPrice = draft.kind === "message" && draft.claims.some((claim) => prices.has(claim));
+  if (!citesPrice && !parts.some((part) => PRICE.test(part))) return [];
+  return [{ rule: "price-in-message", text: "This carries a price, a fee or a contract term. Price belongs only in the call script, as the answer to a price question." }];
+}
+
+// ---------------------------------------------------------------------------
+// 3. Evidence, word for word
+
+/** How many consecutive words of a source's own wording count as carrying it. */
 export const QUOTE_RUN_WORDS = 6;
+/** The shortest quoted fragment that is a quote: `firms "did not always measure the impact" of…`. */
+export const QUOTE_FRAGMENT_WORDS = 4;
 
 /** Every run of `QUOTE_RUN_WORDS` words in the evidence list, normalised. */
 export function quoteRuns(evidence: readonly EvidenceQuote[], run: number = QUOTE_RUN_WORDS): Set<string> {
@@ -707,21 +171,14 @@ export function quoteRuns(evidence: readonly EvidenceQuote[], run: number = QUOT
   return runs;
 }
 
-/** True when a sentence carries a run of the evidence list's own wording. */
-export function quotesEvidence(sentence: string, runs: ReadonlySet<string>, run: number = QUOTE_RUN_WORDS): boolean {
-  const list = quoteWords(sentence);
+/** True when a text carries a run of the evidence list's own wording. */
+export function quotesEvidence(text: string, runs: ReadonlySet<string>, run: number = QUOTE_RUN_WORDS): boolean {
+  const list = quoteWords(text);
   for (let i = 0; i + run <= list.length; i += 1) {
     if (runs.has(list.slice(i, i + run).join(" "))) return true;
   }
   return false;
 }
-
-/**
- * A short quoted fragment inside a plain sentence (voice round, D2, Benny-san 28 Sep 2026): `one of its points was
- * that firms "did not always measure the impact" of the changes they made`. The words inside the quote marks are
- * the source's own, exactly, and at least this many of them; the source is named in the same sentence.
- */
-export const QUOTE_FRAGMENT_WORDS = 4;
 
 /** Spans in quote marks: double quotes, curly quotes, or straight single quotes at a word's edge ("firms' calls" is not one). */
 const QUOTED = /(?:^|[\s(:,])(?:"([^"]+)"|“([^”]+)”|‘(.+?)’(?=$|[\s.,;:?!)])|'([^']+)'(?=$|[\s.,;:?!)]))/g;
@@ -746,196 +203,172 @@ function fragmentsFrom(text: string, quote: EvidenceQuote): string[] {
   return quotedSpans(text).filter((span) => quoteWords(span).length >= QUOTE_FRAGMENT_WORDS && isFragmentOf(span, quote));
 }
 
+/** Which evidence quotes a text carries, by id: what a colleague at the same firm has already used. */
+export function evidenceUsedIn(text: string, evidence: readonly EvidenceQuote[]): string[] {
+  return evidence.filter((quote) => quotesEvidence(text, quoteRuns([quote])) || fragmentsFrom(text, quote).length > 0).map((quote) => quote.id);
+}
+
+/** Host labels that say nothing about who a source is. */
+const HOST_NOISE = new Set("www com org net co uk gov ac io eu info biz ltd plc int".split(" "));
+/** Words in a source's name that say nothing about who it is. */
+const NAME_NOISE = new Set(
+  "the a an of and for to in on by at its it's their review reviews report reports figures data quarterly annual published publication research survey study site page website news".split(" "),
+);
+
 /**
- * A source's finding made harder than it was (M2's "weren't working" for "not as effective as they might need to
- * be"). Read only outside the quote's own words, so the quote's "were not as effective" is not the fault.
+ * The names a quote's source goes by: its host without the public suffix, whole ("fca" from fca.org.uk,
+ * "financial ombudsman" from financial-ombudsman.org.uk), and the proper nouns of a `sourceName` a person gave
+ * it ("FCA" in "the FCA's root cause review of 40 firms", never "firms"). A sentence naming any of them names
+ * the source. Whole, so a page at fca-insight-hub.com is named "fca insight hub" and never passes as the FCA
+ * (Sentinel CWE-345). Read from the evidence, never a list.
  */
-const HARDENED =
-  /\b(?:weren't|were not|wasn't|was not|aren't|are not|isn't|is not|didn't|did not|don't|do not|never|no longer)\s+(?:[\w']+\s+){0,2}?(?:work(?:ing|ed|s)?|effective|help(?:ing|ed|s)?)\b|\bfail(?:s|ed|ing|ure)?\b|\bineffective\b|\buseless\b|\bwast(?:e|ed|ing)\b/i;
-
-/** A sentence's words that no run of these quotes' words covers, as text. */
-function outsideQuotes(sentence: string, quotes: readonly EvidenceQuote[]): string {
-  const mine = quoteWords(sentence);
-  const grams = new Set<string>();
-  for (const quote of quotes) {
-    const theirs = quoteWords(quote.quote);
-    for (let i = 0; i + QUOTE_FRAGMENT_WORDS <= theirs.length; i += 1) grams.add(theirs.slice(i, i + QUOTE_FRAGMENT_WORDS).join(" "));
-  }
-  const covered = new Set<number>();
-  for (let i = 0; i + QUOTE_FRAGMENT_WORDS <= mine.length; i += 1) {
-    if (grams.has(mine.slice(i, i + QUOTE_FRAGMENT_WORDS).join(" "))) for (let j = i; j < i + QUOTE_FRAGMENT_WORDS; j += 1) covered.add(j);
-  }
-  return mine.filter((_, index) => !covered.has(index)).join(" ");
-}
-
-/** The bodies a sentence can credit by name, and the words that name each. */
-const SOURCE_FAMILIES: readonly (readonly [string, RegExp])[] = [
-  // "The regulator" and the Consumer Duty are the FCA's, for a UK insurer: the ombudsman's figures credited to
-  // "the regulator" are the same mix-up as crediting them to the FCA.
-  ["fca", /\b(?:fca|financial conduct authority|regulators?|regulatory body|consumer duty)\b/i],
-  ["ombudsman", /\b(?:ombudsman|fos)\b/i],
-];
-
-function familiesIn(text: string): Set<string> {
-  return new Set(SOURCE_FAMILIES.filter(([, pattern]) => pattern.test(text)).map(([family]) => family));
+function sourceWords(quote: EvidenceQuote): string[] {
+  const whole = hostOf(quote.url);
+  const labels = whole.split(".").filter((label) => !HOST_NOISE.has(label));
+  const label = labels.at(-1)?.replace(/-/g, " ");
+  const pinned = label === undefined ? undefined : BODY_HOSTS[label];
+  const host = label === undefined ? [] : pinned === undefined || whole === pinned || whole.endsWith(`.${pinned}`) ? [label] : [whole];
+  const name = (quote.sourceName.match(/\b[A-Z][A-Za-z0-9&]*/g) ?? []).map((word) => word.toLowerCase()).filter((word) => !NAME_NOISE.has(word) && !MONTHS.has(word));
+  return [...new Set([...host, ...name].filter((word) => word.length >= 2))];
 }
 
 /**
- * The body a quote is from, read off its `sourceName`, and only when that is a written name. The adapter
- * writes a name only for a host it knows (fca.org.uk is "the FCA") or a give a person approved; any other
- * source is named by its bare host, which is never read as a body, so "fca-news.example" is not the FCA.
+ * The bodies a bare host label could pass for, and the one host each is at. A same-label host anywhere else
+ * (fca.com, fca.co.uk, news.fca.net, ombudsman.co.uk) is named by its whole host, never as the body
+ * (Sentinel CWE-345; the base pinned these hosts too).
  */
-function familiesOfQuote(quote: EvidenceQuote): Set<string> {
-  return /\s/.test(quote.sourceName.trim()) ? familiesIn(quote.sourceName) : new Set();
+const BODY_HOSTS: Readonly<Record<string, string>> = {
+  fca: "fca.org.uk",
+  "financial conduct authority": "fca.org.uk",
+  ombudsman: "financial-ombudsman.org.uk",
+  "financial ombudsman": "financial-ombudsman.org.uk",
+  fos: "financial-ombudsman.org.uk",
+};
+
+const MONTHS = new Set("january february march april may june july august september october november december".split(" "));
+
+/** True when a sentence names this quote's source. `own` names the reader's firm, for a quote from its own site. */
+function namesSource(sentence: string, quote: EvidenceQuote, own: readonly string[]): boolean {
+  if (sourceWords(quote).some((word) => hasPhrase(sentence, word))) return true;
+  return own.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim()));
 }
 
 /**
- * Words that make a claim more general than a source said it (M2 fix 2): "mostly on valuation, cancellation
- * and delay". "Most recent" is a date, not a frequency.
+ * A sentence reporting what someone found. Active verbs only: "what was said on the call" and "the calls are
+ * found late" are not findings.
  */
-const FREQUENCY_WORDS: readonly (readonly [string, RegExp])[] = [
-  ["mostly", /\bmostly\b/i],
-  ["most", /\bmost\b(?!\s+recent)/i],
-  ["usually", /\busually\b/i],
-  ["always", /\balways\b/i],
-];
+const REPORTS =
+  /(?<!\b(?:is|are|was|were|be|been|being|get|gets|got|getting|often|usually|rarely|only)\s)\b(?:found|finds|find that|reported|reports that|according to|concluded|concludes|surveyed|showed|shows that|published|publishes|highlighted|noted that|one of (?:its|their) (?:points|findings))\b/i;
 
-/** Words for figure matching: as `quoteWords`, with a thousands comma kept inside its number ("4,100" is one word). */
-function figureWords(text: string): string[] {
-  return quoteWords(text.replace(/(\d),(?=\d{3}\b)/g, "$1"));
+const FIGURE = /\d[\d,.]*\s?%|\d[\d,]*/;
+
+/** A text with the given names taken out, so "Insights360" is a product and not the figure 360. */
+function withoutNames(text: string, names: readonly string[]): string {
+  let out = text;
+  for (const name of [...names].sort((a, b) => b.length - a.length)) {
+    if (name.trim() === "") continue;
+    out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(name.trim())}(?=$|[^a-z0-9])`, "gi"), "$1 ");
+  }
+  return out;
 }
 
-const IS_FIGURE = /^\d[\d.]*%?$/;
-
 /**
- * True when a sentence takes a quote's figures out of the quote's own words (trial fix 1). The trial wrote
- * "numbers up on the 4,000 from January to March 2026": every word of it is in the ombudsman's quote, and it
- * garbles the quote, because the 4,000 is only what the 4,100 is compared with. So:
- *
- * - a figure the quote carries sits inside a run of the quote's own words in the sentence, so its number and
- *   its period come with it ("rose to 2,800" is not the quote's 2,800);
- * - the figures used from a quote are its first ones, in order: a comparison never arrives without the
- *   figure it is compared with.
- *
- * A figure the quote's source name also carries (the period "April to June 2026") is the attribution's, not
- * the quote's. `names` are never figures (Insights360).
+ * True when a sentence makes a claim about a source: it reports a finding, a body "says" something, it names
+ * one of the evidence's sources together with a figure, or it writes a source's name as the one holding a view
+ * ("The FCA flagged…", "The FCA thinks…", "The FCA's view is…"), whatever the verb. A question asserts nothing,
+ * and offering the document ("happy to send the FCA's write-up") says nothing it found. `about` is the reader's
+ * firm: a quote from its own site is not a third party's view.
  */
-export function figuresMisquoted(sentence: string, quote: EvidenceQuote, names: readonly string[] = []): boolean {
-  const mine = figureWords(withoutNames(sentence, names));
-  const theirs = figureWords(quote.quote);
-  const runs = new Set<string>();
-  for (let i = 0; i + QUOTE_RUN_WORDS <= theirs.length; i += 1) runs.add(theirs.slice(i, i + QUOTE_RUN_WORDS).join(" "));
-  const covered = new Set<number>();
-  for (let i = 0; i + QUOTE_RUN_WORDS <= mine.length; i += 1) {
-    if (runs.has(mine.slice(i, i + QUOTE_RUN_WORDS).join(" "))) for (let j = i; j < i + QUOTE_RUN_WORDS; j += 1) covered.add(j);
-  }
-  const quoteFigures = theirs.filter((word) => IS_FIGURE.test(word));
-  const attribution = new Set(figureWords(quote.sourceName).filter((word) => IS_FIGURE.test(word)));
-  const used = new Set<string>();
-  for (const [index, word] of mine.entries()) {
-    if (!IS_FIGURE.test(word) || !quoteFigures.includes(word)) continue;
-    if (covered.has(index)) used.add(word);
-    else if (!attribution.has(word)) return true;
-  }
-  // The figures used are the quote's first ones: 4,100 alone, or 4,100, 2,800 and 2025, never 4,000 alone.
-  // A year is the figure's date, not a figure it is compared with: "4,100" may be quoted without "in 2025".
-  const year = (word: string) => /^(?:19|20)\d{2}$/.test(word);
-  return [...used].some((word) => quoteFigures.slice(0, quoteFigures.indexOf(word)).some((earlier) => !used.has(earlier) && !attribution.has(earlier) && !year(earlier)));
+export function attributesASource(sentence: string, names: readonly string[] = [], evidence: readonly EvidenceQuote[] = [], about: readonly string[] = []): boolean {
+  if (sentence.trim().endsWith("?")) return false;
+  const plain = withoutNames(sentence, names);
+  const namesEvidence = evidence.some((quote) => sourceWords(quote).some((word) => hasPhrase(sentence, word)));
+  if (reportsByThirdParty(sentence, REPORTS)) return true;
+  // "Says" only with an evidence source named: "the FCA says…" is a claim, "what was said on the call" is not.
+  if (namesEvidence && reportsByThirdParty(sentence, SAYS)) return true;
+  if (FIGURE.test(plain) && namesEvidence) return true;
+  const thirdParty = evidence.filter((quote) => ownSiteNames(quote, about).length === 0);
+  return writesSourceName(sentence, thirdParty) && !OFFERS_DOCUMENT.test(sentence);
 }
 
+/** Offering a source's document, not reporting it: "I can send over the FCA's write-up on root cause work". */
+const OFFERS_DOCUMENT =
+  /\b(?:send|sending|share|sharing|pass(?:ing)? on|forward|forwarding)\b.*\b(?:write-?up|review|report|paper|summary|guidance|piece|link)s?\b/i;
+
 /**
- * Every sentence that attributes something to a source without quoting that source (M2, as fix round 2
- * tightened it). A sentence passes only on its own words: it carries a run of a quote from the body it
- * names, and adds no frequency word that quote lacks.
+ * True when a sentence writes a quote's source as a name: capitalised ("the FCA", "Financial Ombudsman"), and
+ * not a capital that only starts the sentence unless it is an acronym. So a host label that is an ordinary word
+ * ("which", "complaints") is not a source named outright every time the word is used.
+ */
+function writesSourceName(sentence: string, evidence: readonly EvidenceQuote[]): boolean {
+  return evidence.some((quote) =>
+    sourceWords(quote).some((word) => {
+      const pattern = new RegExp(`(^|[^A-Za-z0-9])(${escape(word).replace(/\s+/g, "\\s+")})(?=$|[^A-Za-z0-9])`, "gi");
+      for (const match of sentence.matchAll(pattern)) {
+        const written = match[2]!.split(/\s+/);
+        const first = sentence.slice(0, match.index + match[1]!.length).trim() === "";
+        if (written.every((part) => /^[A-Z]/.test(part)) && (!first || /^[A-Z0-9&]{2,}$/.test(written[0]!))) return true;
+      }
+      return false;
+    }),
+  );
+}
+
+/** The rep, the reader or their team as the one reporting: "I found…", "your team reported…". Never a source. */
+const OWN_SUBJECT = /\b(?:i|we|you|your|our|my)\b(?:\s+[\w'’-]+){0,2}\s*$/i;
+
+/** True when a reporting verb in the sentence has someone other than the rep or the reader as its subject. */
+function reportsByThirdParty(sentence: string, verbs: RegExp): boolean {
+  const pattern = new RegExp(verbs.source, "gi");
+  for (const match of sentence.matchAll(pattern)) {
+    if (!OWN_SUBJECT.test(sentence.slice(0, match.index))) return true;
+  }
+  return false;
+}
+
+const SAYS = /\b(?:says|said|states|stated|warns|warned)\b/i;
+
+/**
+ * The sentences that quote or attribute without the campaign's evidence behind them. A sentence passes when:
  *
- * The finding names the sentence, because the rep reads this on the card and
- * "an unsupported source claim" tells them nothing about which one to look at.
+ *   * every span it puts in quote marks (four words or more) is a quote's own words, exactly, and names that
+ *     quote's source in the same sentence;
+ *   * and, when it reports a finding, it carries a quote (six words of its wording, or a quoted fragment)
+ *     from a source it names.
  *
- * `about` is the reader's firm and name, as whole phrases. `names` are the words the input carries, which
- * are never read as a figure.
+ * `about` is the reader's firm and name: a sentence about them, naming no source, is the lookup's business
+ * and checked as a firm fact. `names` are the input's own words, never read as a figure.
  */
 export function unsupportedSourceClaims(parts: readonly string[], evidence: readonly EvidenceQuote[], about: readonly string[] = [], names: readonly string[] = []): string[] {
-  const quotes = evidence.map((quote) => ({ quote, runs: quoteRuns([quote]), families: familiesOfQuote(quote) }));
   const held: string[] = [];
-  for (const part of parts) {
-    for (const sentence of sentences(part)) {
-      // D2: an approved quote's words in quote marks, with no source named in the sentence: whose words are they?
-      const fragmentQuotes = quotes.filter(({ quote }) => fragmentsFrom(sentence, quote).length > 0);
-      if (fragmentQuotes.length > 0 && familiesIn(sentence).size === 0 && fragmentQuotes.some(({ families }) => families.size > 0)) {
-        if (!held.includes(sentence)) held.push(sentence);
-        continue;
-      }
-      if (!attributesASource(sentence, names)) continue;
-      // A question asserts nothing. "Would it help if I sent over the FCA's
-      // write-up?" offers a document; it does not say what the FCA found.
-      if (sentence.trim().endsWith("?")) continue;
-      // A sentence about the reader's own firm, or to the reader, is personalisation, and the provenance gates
-      // hold it against the lookup. Never when a regulator is named or the sentence says something is published
-      // about someone: that is a third party's finding whoever it is about. The firm is matched as a whole
-      // phrase, never a word of it — "motor" or "insurance" from Ardent Motor Insurance, or a prospect called
-      // Will, let "The FCA will name firms…" through in fix round 1.
-      // A trend or a comparison is never personalisation: "Harbour Motor's complaints keep rising" is a claim
-      // somebody measured, whoever it is about (trial fix 1).
-      const thirdParty = SOURCE_NAMED_OUTRIGHT.test(sentence) || PUBLISHED_ABOUT.test(sentence) || TREND.test(sentence) || COMPARED.test(sentence);
-      if (!thirdParty && (about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || SECOND_PERSON.test(sentence))) continue;
-      // The quote must be in this sentence: a quote beside it clears nothing (fix round 1's neighbour window
-      // passed "Those figures get published against Ardent's name" after the ombudsman's sentence). And it must
-      // be from the body the sentence credits: six words of any quote is not the FCA's word.
-      const named = familiesIn(sentence);
-      // A quote counts when the sentence carries a run of its words, or a quoted fragment of them (D2).
-      const matched = quotes.filter(
-        ({ quote, runs, families }) => (quotesEvidence(sentence, runs) || fragmentsFrom(sentence, quote).length > 0) && (named.size === 0 || [...named].some((family) => families.has(family))),
-      );
-      // Words in quote marks that no approved quote carries, word for word: a made-up quotation.
-      const invented = quotedSpans(sentence).some((span) => quoteWords(span).length >= QUOTE_FRAGMENT_WORDS && !evidence.some((quote) => isFragmentOf(span, quote)));
-      const hardened = matched.length > 0 && HARDENED.test(outsideQuotes(sentence, matched.map(({ quote }) => quote)));
-      // Every body the sentence names needs a quote of its own (trial fix 1). An FCA-sourced quote let "and
-      // the ombudsman publishes its own uphold figure separately" through in the same sentence.
-      const uncovered = [...named].some((family) => !matched.some(({ families }) => families.has(family)));
-      const widened = FREQUENCY_WORDS.some(([, pattern]) => pattern.test(sentence) && !matched.some(({ quote }) => pattern.test(quote.quote)));
-      const trend = TREND.test(sentence) && !matched.some(({ quote }) => QUOTE_TREND.test(quote.quote));
-      const compared = COMPARED.test(sentence) && !matched.some(({ quote }) => COMPARED.test(quote.quote));
-      const misquoted = matched.some(({ quote }) => figuresMisquoted(sentence, quote, names));
-      if ((matched.length === 0 || uncovered || widened || trend || compared || misquoted || invented || hardened) && !held.includes(sentence)) held.push(sentence);
+  const hold = (sentence: string) => {
+    if (!held.includes(sentence)) held.push(sentence);
+  };
+  for (const sentence of allSentences(parts)) {
+    // What is in quote marks is somebody's words: whose?
+    const spans = quotedSpans(sentence).filter((span) => quoteWords(span).length >= QUOTE_FRAGMENT_WORDS);
+    const badSpan = spans.some((span) => {
+      const from = evidence.filter((quote) => isFragmentOf(span, quote));
+      return from.length === 0 || !from.some((quote) => namesSource(sentence, quote, ownSiteNames(quote, about)));
+    });
+    if (badSpan) {
+      hold(sentence);
+      continue;
     }
+    if (!attributesASource(sentence, names, evidence, about)) continue;
+    const named = evidence.filter((quote) => namesSource(sentence, quote, ownSiteNames(quote, about)));
+    const aboutReader = about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || /^\s*(?:you|your)\b/i.test(sentence);
+    if (named.length === 0 && aboutReader) continue;
+    const carried = named.some((quote) => quotesEvidence(sentence, quoteRuns([quote])) || fragmentsFrom(sentence, quote).length > 0);
+    if (!carried) hold(sentence);
   }
   return held;
 }
 
-/** Which evidence quotes a text actually carries, by id: what a colleague at the same firm has already used. */
-export function evidenceUsedIn(text: string, evidence: readonly EvidenceQuote[]): string[] {
-  return evidence.filter((quote) => presentRuns(text, quoteRuns([quote])).size > 0 || fragmentsFrom(text, quote).length > 0).map((quote) => quote.id);
-}
-
-/**
- * The evidence a draft uses, against what the campaign has already been sent (trial fix 1).
- *
- * Tier A, on every touch: a quote a colleague at the same account was already sent. The sentence check
- * missed it in the trial because the second draft joined the quote's two sentences into one, which moved
- * the wording under the 0.8 score; the item used is the same whatever the wording around it.
- *
- * Tier B, on Email 1: a quote more than half the campaign's first emails already carry, this one included.
- */
-function evidenceReuseFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
-  const tierA: Finding[] = [];
-  const tierB: Finding[] = [];
-  const used = input.pack.evidence.filter((quote) => evidenceUsedIn(proseText(draft), [quote]).length > 0);
-  if (used.length === 0) return { tierA, tierB };
-  const carries = (other: CohortDraft, quote: EvidenceQuote) => evidenceUsedIn(other.body, [quote]).length > 0;
-  const colleagues = context.cohort.filter((other) => other.sameAccount);
-  const shared = used.find((quote) => colleagues.some((other) => carries(other, quote)));
-  if (shared !== undefined) {
-    tierA.push({ rule: "colleague-evidence", text: `A colleague at this firm was already sent the quote from ${shared.sourceName}. Give a different one, or a plain point with no source.` });
-  }
-  if (input.touch.kind === "email1") {
-    const firsts = context.cohort.filter((other) => other.touch === "email1");
-    const total = peopleIn(firsts) + 1;
-    const common = used.find((quote) => (peopleIn(firsts.filter((other) => carries(other, quote))) + 1) * 2 > total);
-    if (common !== undefined && total >= 3) {
-      tierB.push({ rule: "cohort-give", text: `Most first emails in this campaign already quote ${common.sourceName}. A less used give would make this one stand apart.` });
-    }
-  }
-  return { tierA, tierB };
+/** A quote from the reader's own site is named by their firm's name. */
+function ownSiteNames(quote: EvidenceQuote, about: readonly string[]): readonly string[] {
+  const host = hostOf(quote.url);
+  return about.some((phrase) => phrase.trim() !== "" && host.includes(phrase.toLowerCase().replace(/[^a-z0-9]/g, ""))) ? about : [];
 }
 
 /** Words too common to say which quote a sentence was reaching for. */
@@ -943,84 +376,364 @@ const QUOTE_STOP = new Set(
   "the a an and or of to in on for by with at as is are was were be been it its it's this that these those their they them from not but have has had can could would should will may might more most some any each every all no firms firm".split(" "),
 );
 
-/**
- * The approved quote a held sentence was paraphrasing: the evidence item sharing the most distinctive words
- * with it, its source's name included, when it shares at least three. Null when nothing is close, and then the fix is to drop the source.
- */
+/** The evidence item a held sentence was paraphrasing: the one sharing the most distinctive words, at least three. */
 export function closestQuote(sentence: string, evidence: readonly EvidenceQuote[]): EvidenceQuote | null {
   const distinct = (text: string) => quoteWords(text).map((word) => word.replace(/'s$/, "")).filter((word) => !QUOTE_STOP.has(word));
   const mine = new Set(distinct(sentence));
   let best: { quote: EvidenceQuote; shared: number } | null = null;
   for (const quote of evidence) {
-    // Who said it counts as much as what was said: a paraphrase keeps the attribution ("the FCA's review of
-    // 40 firms") and loses the wording, which is the whole fault.
     const shared = new Set(distinct(`${quote.sourceName} ${quote.quote}`).filter((word) => mine.has(word))).size;
     if (shared >= 3 && (best === null || shared > best.shared)) best = { quote, shared };
   }
   return best?.quote ?? null;
 }
 
-const clip = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
-
-/**
- * One finding per held sentence, each saying exactly what to do (M2 fix 1): the approved quote to use word for
- * word, or remove the source reference. "Use an approved quote exactly, or leave the point out" left the
- * corrective call to guess which quote, and it guessed a paraphrase again.
- */
-function evidenceFindings(parts: readonly string[], input: OutreachInput, context: GateContext): Finding[] {
-  const held = unsupportedSourceClaims(parts, input.pack.evidence, [input.person.company, input.account.company, input.person.name], allowedValues(input, context));
-  return held.map((sentence) => ({ rule: "unsupported-source-claim", text: heldClaimText(sentence, input.pack.evidence, allowedValues(input, context)) }));
-}
-
-/** What to do about a held sentence, in the words that fit what it did (trial fix 1). */
-function heldClaimText(sentence: string, evidence: readonly EvidenceQuote[], names: readonly string[]): string {
-  const said = `"${clip(sentence, 90)}"`;
-  const carried = evidence.filter((quote) => quotesEvidence(sentence, quoteRuns([quote])));
-  if (TREND.test(sentence) && !carried.some((quote) => QUOTE_TREND.test(quote.quote))) return `${said} says something is rising or growing, and no approved quote in it says so. Say the point without the trend, or leave it out.`;
-  if (COMPARED.test(sentence)) return `${said} compares a figure with another body's, and no approved quote makes that comparison. Leave the comparison out.`;
-  const quote = closestQuote(sentence, evidence);
-  if (quote !== null && figuresMisquoted(sentence, quote, names)) {
-    return `${said} takes a figure out of its quote. Quote the figures in the quote's own words and order, first figure first, or leave them out.`;
-  }
-  return sourceClaimFix(sentence, quote);
-}
-
-/**
- * The longest a finding may be and still reach the corrective call whole: the redraft carries each at most
- * 500 characters, with the touch's name in front. A quote cut short is not a quote, so a long one is named by
- * its id in the evidence list instead of being clipped.
- */
+/** The longest a finding may be and still reach the corrective call whole (the redraft carries 500 characters). */
 export const SOURCE_FIX_MAX_CHARS = 470;
 
 export function sourceClaimFix(sentence: string, quote: EvidenceQuote | null): string {
-  const said = `"${clip(sentence, 90)}" puts a source's finding in its own words.`;
-  if (quote === null) return `${said} No approved quote says this: remove the source reference and make the point in plain words.`;
-  const whole = `${said} Use this approved quote exactly: "${quote.quote}" (${quote.sourceName}). Or remove the source reference.`;
-  return whole.length <= SOURCE_FIX_MAX_CHARS ? whole : `${said} Use approved quote ${quote.id} from the evidence list exactly, word for word. Or remove the source reference.`;
+  const said = `"${clip(sentence, 90)}" quotes or reports a source without its exact words and its name.`;
+  if (quote === null) return `${said} Nothing in the evidence says this: make the point in plain words with no source, or leave it out.`;
+  const whole = `${said} Use this quote exactly, naming ${quote.sourceName}: "${quote.quote}". Or leave the source out.`;
+  return whole.length <= SOURCE_FIX_MAX_CHARS ? whole : `${said} Use evidence item ${quote.id} exactly, word for word, and name its source. Or leave the source out.`;
 }
 
 // ---------------------------------------------------------------------------
-// Tier A: the standard's rules, as gates rather than counts (M2, item 2)
-//
-// M1 measured these and every one of them was clean at n = 6. They were clean
-// because the model complied, not because anything stopped it, and
-// `messageChecks.ts` said so in as many words. Six clean sequences are not
-// evidence about twenty, so the reliable ones are gates here. The measures
-// stay where they are: the report still counts, and now the gate holds.
+// 4. Invented experience, customers or results
 
-/** The touches a prospect reads cold: the price rule and the product rule are about these. */
-const COLD: readonly string[] = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2"];
+/**
+ * The one light line about the rep (Benny-san, 28 Sep 2026): "I've been helping a few <firms> get a proper
+ * look at calls like that." True, and allowed in any touch. It is the only claim about the rep's work a
+ * draft may make.
+ */
+const ASIDE = /\b(?:i|we)(?:['’]ve| have)?\s+(?:(?:been\s+)?help(?:ed|ing)|spent (?:a while|some time|a lot of time) helping)\b|^\s*been helping\b/i;
+/** A result claimed for anyone: what turns the aside, or any line, into an invented outcome. */
+const RESULT = /\b(?:reduc(?:e|ed|es|ing)|cut(?:s|ting)?\b(?!\s+(?:through|across|to the chase))|by (?:a )?(?:half|third|quarter)|sav(?:e|ed|es|ing) (?:them|their|hours|time|money)|halv(?:e|ed|es|ing)|doubl(?:e|ed|es|ing))\b|\d+\s*%|\b\d+x\b/i;
 
-/** A touch as `messageChecks` reads it. */
-function checkedOf(draft: OutreachOutput, kind: string): Parameters<typeof namesProduct>[0] {
-  const subject = draft.kind === "message" ? draft.subject : undefined;
-  return {
-    kind,
-    ...(subject === undefined ? {} : { subject }),
-    body: draft.kind === "message" ? draft.body : proseText(draft),
-    ask: draft.kind === "message" ? draft.ask : draft.talkingPoint.oneQuestion,
-    claims: [...draft.claims],
+/** A manufactured relationship or track record: people the rep "speaks to", "our clients", what "we tend to see". */
+const INVENTED: readonly RegExp[] = [
+  // Any kind of firm: "insurers we work with", "other lenders I speak to". Never "unless I talk to…".
+  /\b(?!(?:this|thus|does|was|has|yes|always|perhaps|sometimes|whereas|besides|towards|afterwards|its|his|hers|ours|yours|theirs)\b)[a-z]+s(?<!ss|us|is) (?:i|we)(?:['’]ve| have)? (?:speak|talk|work|spoke|talked|worked|chat)(?:ed|ing)? (?:to|with)\b/i,
+  /\b(?:i|we) (?:speak|talk|work) (?:to|with) (?:a lot of|lots of|many|most|plenty of|dozens of|hundreds of)\b/i,
+  /\bwhat (?:we|i) (?:tend to|usually|often|typically|keep|always) (?:see|hear|find)\b/i,
+  /\b(?:our|my) (?:clients|customers)\b/i,
+  /\b(?:a|one) (?:client|customer) of (?:ours|mine)\b/i,
+  /\b(?:that|it) stuck with me\b/i,
+];
+
+/** The kind of firm the light line names: "a few insurers", "some lenders like yours". */
+const ASIDE_KIND = /\bhelp(?:ed|ing)\s+(?:a few|a couple of|some|several|a handful of)\s+((?:[a-z-]+\s+)?[a-z-]+)/i;
+/** Words that follow the kind of firm rather than name it: "a few insurers get…", "a few firms keep…". */
+const AFTER_KIND = new Set("get gets cut cuts keep keeps make makes see sees look looks work works find finds sort deal handle stay with like to on in across who that for and".split(" "));
+/** Nouns that name no kind of firm, so they are true of any campaign. */
+const ANY_KIND = new Set("firms firm teams team companies company businesses business people organisations folks".split(" "));
+
+/**
+ * True when the light line names a kind of firm the campaign is not aimed at: "a few insurers" in a vets'
+ * campaign. The noun shares its stem with one of the campaign's industry words ("insurers", "insurance"), or it
+ * is a word true of any campaign ("firms"). With no industries known, nothing is read.
+ */
+function asideOffCampaign(sentence: string, input: OutreachInput): boolean {
+  const kind = (ASIDE_KIND.exec(sentence)?.[1]?.toLowerCase().split(/\s+/) ?? []).filter((word) => !AFTER_KIND.has(word)).at(-1);
+  const industries = [...(input.campaign?.industries ?? []), ...(input.campaign?.groups ?? []).flat()].flatMap(labelWords);
+  if (kind === undefined || industries.length === 0 || ANY_KIND.has(kind)) return false;
+  const stem = kind.slice(0, Math.max(3, Math.min(4, kind.length - 1)));
+  return !industries.some((word) => word.startsWith(stem));
+}
+
+function inventedFindings(parts: readonly string[], input: OutreachInput): Finding[] {
+  const list = allSentences(parts);
+  const invented = list.find(
+    (sentence) => INVENTED.some((pattern) => pattern.test(sentence)) || (ASIDE.test(sentence) && (RESULT.test(sentence) || asideOffCampaign(sentence, input))),
+  );
+  if (invented === undefined) return [];
+  return [
+    {
+      rule: "invented-experience",
+      text: `"${clip(invented, 90)}" claims experience, customers or results nothing in the data supports. The one line allowed is that you've been helping a few of the kind of firm this campaign is aimed at, with no result in it.`,
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// 5. Firms, people, numbers and lines of business that are in the data
+
+/** Capitalised words that are ordinary English whatever their position. */
+const ORDINARY = new Set(
+  "i i'm i've i'd i'll we we're we've our you you're your yours they their it it's its this that these those the a an and but or if when while what which who how why where there here is are was were be been has have had do does did can could would should will may might most many much more some any each every all no not one two three hi hello hey thanks thank best regards kind cheers mr mrs ms dr".split(
+    " ",
+  ),
+);
+
+/** Calendar words and the country Relay writes from: never a claim about anyone. */
+const CALENDAR = new Set(
+  "january february march april may june july august september october november december monday tuesday wednesday thursday friday saturday sunday spring summer autumn winter uk british britain england scotland wales ireland london".split(
+    " ",
+  ),
+);
+
+/** Where a touch is sent and how people talk: never a claim about anyone. Multi-word names first. */
+export const CHANNEL_WORDS = ["microsoft teams", "microsoft outlook", "google meet", "linkedin", "inmail", "outlook", "teams", "zoom", "whatsapp", "slack", "gmail", "email", "e-mail"] as const;
+
+function withoutChannels(entity: string): string {
+  let out = entity.toLowerCase();
+  for (const channel of CHANNEL_WORDS) out = out.replace(new RegExp(`(^|[^a-z0-9])${escape(channel)}($|[^a-z0-9])`, "g"), "$1 $2");
+  return out;
+}
+
+/** The names and values the input already carries, which a body may always use. */
+function allowedValues(input: OutreachInput, context: GateContext): string[] {
+  return [
+    input.sender.firstName,
+    input.sender.company,
+    input.person.name,
+    input.person.firstName,
+    input.person.title,
+    input.person.company,
+    input.person.domain ?? "",
+    input.person.city ?? "",
+    input.account.company,
+    input.account.domain ?? "",
+    input.buyerRole?.title ?? "",
+    input.pack.archetype.name,
+    context.repName,
+    ...context.productNames,
+    input.facts.product,
+  ].filter((value) => value.trim() !== "");
+}
+
+/** Everything a draft may cite: the lookup, the plan, the evidence, the facts, the role and the campaign. */
+function evidenceRaw(input: OutreachInput): string {
+  const pack = input.pack;
+  return [
+    ...input.lookup.items.flatMap((item) => [item.text, item.quote ?? ""]),
+    ...(input.lookup.lines ?? []),
+    pack.archetype.situation,
+    ...pack.archetype.pains.flatMap((pain) => [pain.text, pain.quote ?? ""]),
+    ...pack.archetype.language.map((phrase) => phrase.text),
+    pack.hook?.text ?? "",
+    pack.hook?.whyNow.text ?? "",
+    ...pack.angles.map((angle) => angle.text),
+    ...pack.doDont.flatMap((line) => [line.use, line.avoid]),
+    ...pack.verbatim.flatMap((item) => [item.text, item.quote ?? ""]),
+    ...pack.evidence.flatMap((item) => [item.quote, item.sourceName, hostOf(item.url)]),
+    ...pack.proof.map((proof) => proof.text),
+    ...input.facts.facts.map((fact) => fact.text),
+    input.buyerRole?.needs ?? "",
+    input.account.seedEvidence ?? "",
+    ...(input.campaign?.industries ?? []),
+    ...(input.campaign?.groups ?? []).flat(),
+  ].join("\n");
+}
+
+/** Words that commonly open an English sentence or an offer. Never a name, whatever their case. */
+const STARTERS = new Set(
+  "shall want need fancy keen mind open so also just still yet even only then now perhaps maybe happy glad worth given since because after before once until unless although though whether few several last next first second finally often usually sometimes currently recently today honestly curious fair sounds seems looks feel saw been thought mostly funny wondering reckon probably hopefully reading looking seeing having being going no worries".split(
+    " ",
+  ),
+);
+
+function isOpener(token: string): boolean {
+  const word = token.toLowerCase().replace(/['’]s$/, "");
+  return ORDINARY.has(word) || STARTERS.has(word);
+}
+
+/** Runs of capitalised or numeric tokens that are not merely a sentence's first word. */
+export function namedEntities(body: string): string[] {
+  const found: string[] = [];
+  for (const sentence of sentences(body)) {
+    const tokens = sentence
+      .split(/\s+/)
+      .map((token) => token.replace(/^[("'“‘]+|[)"'”’.,;:?!]+$/g, ""))
+      .filter((token) => token !== "");
+    let run: { text: string; index: number }[] = [];
+    const flush = () => {
+      if (run.length > 1 && run[0]!.index === 0 && isOpener(run[0]!.text)) run = run.slice(1);
+      // A lone capitalised word at the start of a sentence is a sentence start, unless it is an acronym or carries a digit.
+      const onlyStart = run.length === 1 && run[0]!.index === 0 && !/^[A-Z0-9]{2,}$/.test(run[0]!.text) && !/\d/.test(run[0]!.text) && !/[a-z][A-Z]/.test(run[0]!.text);
+      if (run.length > 0 && !onlyStart) found.push(run.map((t) => t.text).join(" "));
+      run = [];
+    };
+    tokens.forEach((token, index) => {
+      if (/^[A-Z][\w&'’.-]*$/.test(token) || /^[A-Z]{2,}s?$/.test(token)) run.push({ text: token, index });
+      else flush();
+    });
+    flush();
+  }
+  return found;
+}
+
+function provenanceFindings(part: string, input: OutreachInput, context: GateContext): Finding[] {
+  const found: Finding[] = [];
+  const allowed = new Set(allowedValues(input, context).flatMap((value) => words(value)));
+  const evidence = evidenceRaw(input).toLowerCase();
+  const unsourced = (entity: string) => {
+    const tokens = words(withoutChannels(entity)).filter((token) => !ORDINARY.has(token) && !CALENDAR.has(token) && !allowed.has(token));
+    if (tokens.length === 0) return false;
+    return !hasPhrase(evidence, tokens.join(" ")) && !tokens.every((token) => hasPhrase(evidence, token));
   };
+  const names = namedEntities(part).filter(unsourced);
+  if (names.length > 0) found.push({ rule: "unsourced-name", text: `It names ${names.map((n) => `"${n}"`).join(", ")}, which is not in the lookup, the plan or the facts.` });
+  const allowedDigits = words([...allowed].join(" "));
+  const numbers = (part.match(/\d[\d,.]*%?/g) ?? []).map((n) => n.replace(/[.,]$/, ""));
+  const missing = numbers.filter((n) => !evidence.includes(n.toLowerCase()) && !allowedDigits.includes(n.toLowerCase()));
+  if (missing.length > 0) found.push({ rule: "unsourced-number", text: `The number ${missing.join(", ")} traces to nothing in the lookup, the plan or the facts.` });
+  return found;
+}
+
+/** Plain English words that never say which line of business a firm is in, whatever the market. */
+const NOT_A_LINE = new Set(
+  "and the for with from other general specialist specialists commercial personal private independent leading large small direct national regional managing managed management services service providers provider agents agent companies company firms firm business businesses organisations non standard third party lines line outsourced delegated authority".split(" "),
+);
+
+const labelWords = (label: string) => label.toLowerCase().match(/[a-z]+/g) ?? [];
+
+/** The words of a list of industry labels. */
+export function lineWordsOf(labels: readonly string[]): string[] {
+  return [...new Set(labels.flatMap(labelWords).filter((word) => word.length >= 3 && !NOT_A_LINE.has(word)))];
+}
+
+/**
+ * A campaign's line-of-business vocabulary, from its own data (standard v3, truth check 5).
+ *
+ * The research's groups (m04) each carry industry labels. A word that recurs across groups is the sector
+ * ("insurance" in "Motor insurance" and "Travel insurance"); the word just before it in a label is a line
+ * ("motor", "travel"), and "Home and buildings insurance" gives both "home" and "buildings". `own` is every
+ * word of the confirmed group's labels (the group m04 holds them in), which is never a contradiction; `all` is
+ * every group's lines, and `phrases` each line as the labels say it ("motor insurance"), which is what the
+ * lookup counts on a page. With one group nothing recurs, so there are no lines and nothing to contradict.
+ * Nothing here knows any market.
+ */
+export function lineVocabularyOf(campaign: OutreachInput["campaign"]): { own: string[]; all: string[]; sector: string[]; phrases: Record<string, string[]> } {
+  const industries = campaign?.industries ?? [];
+  const groups = [...(campaign?.groups ?? [])];
+  const ownGroup = groups.find((group) => industries.every((label) => group.includes(label))) ?? industries;
+  if (!groups.includes(ownGroup)) groups.push(ownGroup);
+  const counts = new Map<string, number>();
+  for (const group of groups) for (const word of new Set(group.flatMap(labelWords))) counts.set(word, (counts.get(word) ?? 0) + 1);
+  const sector = new Set([...counts].filter(([word, count]) => count >= 2 && word.length >= 3 && !NOT_A_LINE.has(word)).map(([word]) => word));
+  const phrases: Record<string, Set<string>> = {};
+  const linesIn = (labels: readonly string[]) =>
+    labels.flatMap((label) => {
+      const list = labelWords(label);
+      const found: string[] = [];
+      const add = (term: string | undefined, at: string) => {
+        if (term === undefined || term.length < 3 || NOT_A_LINE.has(term) || sector.has(term)) return;
+        found.push(term);
+        (phrases[term] ??= new Set()).add(`${term} ${at}`);
+      };
+      list.forEach((word, index) => {
+        if (!sector.has(word) || index === 0) return;
+        add(list[index - 1], word);
+        // "Home and buildings insurance": the word before the "and" is a line too.
+        if (index >= 3 && (list[index - 2] === "and" || list[index - 2] === "or")) {
+          add(list[index - 3], word);
+          // A page says the label's own words ("home and buildings insurance"), which count for both lines.
+          for (const term of [list[index - 3]!, list[index - 1]!]) phrases[term]?.add(list.slice(index - 3, index + 1).join(" "));
+        }
+      });
+      return found;
+    });
+  const allLines = [...new Set(groups.flatMap((group) => linesIn(group)))];
+  const own = [...new Set(ownGroup.flatMap(labelWords))];
+  return { own, all: allLines, sector: [...sector], phrases: Object.fromEntries(Object.entries(phrases).map(([term, set]) => [term, [...set]])) };
+}
+
+/** The nouns that make a line of business a claim about a firm: "a travel firm", "at a motor insurer". */
+const FIRM_NOUN = "(?:insurers?|underwriters?|firms?|compan(?:y|ies)|brokers?|lenders?|banks?|retailers?|operators?|business(?:es)?|specialists?|providers?|side|complaints)";
+
+/**
+ * The lines of `vocabulary` a text uses as a firm's line, "<line> [sector word] <firm noun>": "Complaints at a
+ * motor insurer must be an odd job" uses "motor", and so do "a home and motor insurer" and "a motor insurance firm".
+ */
+export function lineClaimsIn(text: string, vocabulary: readonly string[], sector: readonly string[] = []): string[] {
+  const between = sector.length === 0 ? "" : `(?:(?:${sector.map(escape).join("|")})\\s+)?`;
+  return vocabulary.filter((word) => new RegExp(`\\b${escape(word)}\\s+(?:(?:and|&|or)\\s+[a-z-]+\\s+)?${between}${FIRM_NOUN}\\b`, "i").test(text));
+}
+
+/**
+ * Truth check 5's line of business: a draft that puts the reader's firm in a line the data does not give it.
+ * The firm's known lines are the lookup's `lines`, or with none the confirmed group's. A question asks rather
+ * than says, so it is not read. The light line about the rep names the firms the rep helps, which must be the
+ * campaign's own kind (check 4 reads its noun), so its lines are read against the campaign's, not the firm's.
+ */
+function firmLineFindings(parts: readonly string[], input: OutreachInput): Finding[] {
+  const { own, all, sector } = lineVocabularyOf(input.campaign);
+  const firm = (input.lookup.lines ?? []).map((line) => line.toLowerCase());
+  const named = new Set(words(`${input.person.company} ${input.account.company} ${input.person.domain ?? ""}`));
+  const known = new Set([...(firm.length > 0 ? firm : own), ...named]);
+  const vocabulary = [...new Set([...all, ...firm])];
+  if (vocabulary.length === 0) return [];
+  for (const sentence of allSentences(parts)) {
+    if (sentence.trim().endsWith("?")) continue;
+    const allowed = ASIDE.test(sentence) ? new Set([...own, ...named]) : known;
+    const wrong = lineClaimsIn(sentence, vocabulary.filter((word) => !allowed.has(word)), sector);
+    if (wrong.length > 0) {
+      const what = ASIDE.test(sentence) ? "the kind of firm this campaign is aimed at" : firm.length > 0 ? `what the lookup found about ${input.person.company}` : "the kind of firm this campaign is aimed at";
+      return [{ rule: "firm-line", text: `"${clip(sentence, 90)}" says the firm is in ${wrong.join(", ")}, which is not ${what}. Say only what the data says about the firm.` }];
+    }
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// 6. Colleagues
+
+function colleagueFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): Finding[] {
+  const used = input.pack.evidence.filter((quote) => evidenceUsedIn(proseText(draft), [quote]).length > 0);
+  const colleagues = context.cohort.filter((other) => other.sameAccount);
+  const shared = used.find((quote) => colleagues.some((other) => evidenceUsedIn(other.body, [quote]).length > 0));
+  return shared === undefined
+    ? []
+    : [{ rule: "colleague-evidence", text: `A colleague at this firm was already sent the quote from ${shared.sourceName}. Use a different one, or a plain point with no source.` }];
+}
+
+// ---------------------------------------------------------------------------
+// Tier B: style, on the card and never a hold
+
+/** A time or meeting ask, a meeting length or a calendar link. */
+const TIME_ASK = [
+  /\b\d+\s*(?:-|to)?\s*(?:\d+\s*)?(?:min|mins|minute|minutes)\b/i,
+  /\b(?:fifteen|twenty|thirty|ten|five)[- ]minutes?\b/i,
+  /\bhalf an hour\b/i,
+  /\b(?:next|this) week\b/i,
+  /\btomorrow\b/i,
+  /\bcalend(?:ar|ly)\b/i,
+  /\bin (?:your|the) diary\b/i,
+  /\bbook (?:a|some|in a) (?:call|meeting|time|slot|demo)\b/i,
+  /\b(?:grab|find) (?:a|some) time\b/i,
+];
+
+/** The contrast cadence: "isn't X, it's Y", "not X, but Y", "is a separate question", "says nothing about". */
+const CONTRAST: readonly RegExp[] = [
+  /\b(?:isn't|is not|aren't|are not|wasn't|was not|it's not|it is not)\b[^.?!]{0,80}[.;,]\s*(?:it's|it is|they're|they are|this is|that's|that is)\b/i,
+  /\bnot (?:just |only |simply )?[^.,?!]{1,50}, but\b/i,
+  /\b(?:is|are|'s|’s)\s+(?:a\s+)?(?:separate|different|whole other)\s+(?:question|job|matter|problem|story)\b/i,
+  /\bis one thing\b[^.?!]*\banother\b/i,
+  /\b(?:says?|tells?(?:\s+you)?|shows?(?:\s+you)?)\s+nothing (?:about|of)\b/i,
+];
+
+/** Non-British spellings, each with the British spelling to use. */
+const US_SPELLINGS: readonly (readonly [RegExp, string, string])[] = [
+  ...(
+    [
+      ["organize", "organise"], ["organized", "organised"], ["organization", "organisation"], ["prioritize", "prioritise"], ["analyze", "analyse"],
+      ["analyzed", "analysed"], ["optimize", "optimise"], ["realize", "realise"], ["recognize", "recognise"], ["specialize", "specialise"],
+      ["specialized", "specialised"], ["customize", "customise"], ["apologize", "apologise"], ["standardize", "standardise"], ["summarize", "summarise"],
+      ["utilize", "use"], ["maximize", "maximise"], ["minimize", "minimise"], ["emphasize", "emphasise"], ["color", "colour"], ["behavior", "behaviour"],
+      ["favor", "favour"], ["favorite", "favourite"], ["honor", "honour"], ["labor", "labour"], ["center", "centre"], ["centers", "centres"],
+      ["defense", "defence"], ["catalog", "catalogue"], ["modeling", "modelling"], ["traveling", "travelling"], ["canceled", "cancelled"],
+      ["fulfill", "fulfil"], ["enroll", "enrol"], ["toward", "towards"], ["practiced", "practised"],
+    ] as const
+  ).map(([us, uk]) => [new RegExp(`\\b${us}\\b`, "i"), us, uk] as const),
+  [/\bgray\b/, "gray", "grey"],
+  [/(?<!\bcomputer )\bprograms?\b/i, "program", "programme"],
+];
+
+/** An ask's shape: the first two words of the question itself, after any leading clause. */
+export function askShapeOf(ask: string): string {
+  const question = ask.includes(",") ? ask.slice(ask.lastIndexOf(",") + 1) : ask;
+  return quoteWords(question).slice(0, 2).join(" ");
 }
 
 /** The last sentence of an earlier touch: its ask, as the thread carries it. */
@@ -1028,274 +741,95 @@ export function askOfThreadEntry(entry: { body: string }): string {
   return sentences(entry.body).at(-1) ?? "";
 }
 
-/**
- * An ask's shape: the first two words of the question itself.
- *
- * Two words, not three. The fault the 22 Sep cohort showed is a slot
- * template — "Who owns…" ended all six Email 2s and "Would it help if I sent
- * over…" appeared for five of six people — and at three words "Who owns this"
- * and "Who owns the" read as different shapes when a reader would call them
- * the same question.
- *
- * A leading clause is dropped first. "When a delay complaint lands, how do
- * you find the calls behind it?" is a "how do you" question; taking its
- * literal first two words gives "when a", which is a subordinate clause and
- * says nothing about the shape of what is being asked.
- */
-export function askShapeOf(ask: string): string {
-  const question = ask.includes(",") ? ask.slice(ask.lastIndexOf(",") + 1) : ask;
-  return quoteWords(question).slice(0, 2).join(" ");
+/** How many different people a set of drafts was written for. */
+export function peopleIn(drafts: readonly Pick<CohortDraft, "personId">[]): number {
+  return new Set(drafts.map((draft) => draft.personId)).size;
 }
 
-const MONTH = "(?:january|february|march|april|may|june|july|august|september|october|november|december)";
-/** A day and a month, "22 October" or "October 22": never "may" or "march" alone, which are verbs as often. */
-const DAY_MONTH = `(?:\\d{1,2}(?:st|nd|rd|th)?\\s+${MONTH}|${MONTH}\\s+\\d{1,2}(?:st|nd|rd|th)?)\\b`;
-/**
- * "Return" the noun, never the verb ("when I return", "customers who return in March", "firms return their
- * data", "return to"), "return on investment" or a tax return. Fix round 2: "on" and "in" no longer rule a
- * return out on their own, since "the H1 return on 22 October" and "the return in October" are the fault.
- */
-const A_RETURN = `(?<!\\b(?:who|to|i|we|you|they|will|would|can|could|may|might|should|must|tax|vat)\\s)\\breturns?\\b(?!\\s+(?:to|of|the|a|an|your|my|our|their|his|her|it|them|this|that|with|from|on (?:investment|capital|equity|assets)|in(?!\\s+${MONTH}))\\b)`;
-
-/**
- * A return dated with a publication day (trial fix 1): "the October return", "the next return dated 22 October",
- * "the return is due on 22 October", "22 October, the numbers in this return". A month before "return" counts
- * only when it cannot be a verb ("I may return" is not a date).
- */
-const RETURN_DATE = new RegExp(
-  [
-    `\\b(?:january|february|april|june|july|august|september|october|november|december)(?:['’]s)?(?:\\s+[\\w'’-]+){0,2}\\s+${A_RETURN}`,
-    `${A_RETURN}[^.?!]{0,40}${DAY_MONTH}`,
-    // Fix round 2: "the return is due in October", "your half-year return in October".
-    `${A_RETURN}[^.?!]{0,40}\\b(?:in|by|for)\\s+${MONTH}\\b`,
-    `${DAY_MONTH}[^.?!]{0,60}${A_RETURN}`,
-  ].join("|"),
-  "i",
-);
-
-const COUNT = "(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a|a few|a couple of|several)";
-const SPAN = `${COUNT}\\s+(?:days?|weeks?|months?)`;
-
-/**
- * A count of time up to a date (trial fix 1): "six weeks out from 22 October", "which leaves six weeks", "for
- * the six weeks before that", "a month out". The trial said six weeks where it was 27 days, three times.
- * Relay does no date arithmetic in a message, so the count is banned outright rather than checked. "Before",
- * "until" and "ahead of" count only with a date or "that" after them: "two weeks before the team saw results"
- * is a story, and a rule's own period ("within eight weeks", "every 6 months") is not a count to a date.
- */
-const RELATIVE_DATE: readonly RegExp[] = [
-  new RegExp(`\\b${SPAN}\\s+(?:out|away|left|from now|remaining|to go\\b(?!\\s+(?:live|through|over)))`, "i"),
-  // Fix round 2: any short noun phrase with a publication or a date in it, "until the FCA publishes".
-  new RegExp(`\\b${SPAN}\\s+(?:before|until|till|ahead of)\\s+(?:that\\b|then\\b|it\\b|[^.?!]{0,30}?\\b(?:publish(?:es|ed|ing)?|publication|date|deadline|${DAY_MONTH}))`, "i"),
-  // "In 27 days the figures go public."
-  new RegExp(`^\\s*in\\s+${SPAN}\\b`, "i"),
-  new RegExp(`\\b(?:leaves?|leaving|left with)\\s+(?:just\\s+|only\\s+)?${SPAN}\\b`, "i"),
-  new RegExp(`\\bin\\s+${SPAN}(?:'s|’s)?\\s+time\\b`, "i"),
-];
-
-/**
- * The FCA's publication schedule told to a firm that reports to it (trial fix 2, Benny-san 28 Sep): "The FCA
- * publishes its complaints data every 6 months", "the H1 figures by firm land on 22 October". Every reader
- * here files that data, so it is never news. The give is gone, and this keeps it from coming back from
- * research text.
- */
-const SCHEDULE = /\bevery (?:6|six) months\b|\btwice a year\b|\bhalf[- ]year(?:ly)?\b|\b(?:around|in) april and october\b/i;
-const FCA_SCHEDULE = [
-  (sentence: string) => /\b(?:fca|financial conduct authority|regulators?)\b/i.test(sentence) && PUBLISH.test(sentence) && SCHEDULE.test(sentence),
-  (sentence: string) => /\bwe publish our complaints data\b/i.test(sentence),
-  (sentence: string) => new RegExp(`\\bh[12]\\b[^.?!]{0,40}\\b(?:figures|data|numbers|tables?)\\b[^.?!]{0,40}(?:${DAY_MONTH}|\\b(?:land|lands|landing|out|published|publishes)\\b)`, "i").test(sentence),
-];
-
-/**
- * One firm's main complaint cause said of every firm, or of the reader's (trial fix 2): "'other general admin'
- * is often the only category on offer", "your published category is just 'general admin'". Research has it
- * as one named firm's main cause only, so any sentence carrying it holds unless this person's own lookup says it
- * (fix round 2 of #54: keyed on the fact, not the sentence's shape, so a rewording does not get past it).
- */
-const ONE_FIRM_CAUSE = [/\bgeneral admin\b/i];
-
-/**
- * The one light line about the rep (voice round, D1, Benny-san 28 Sep 2026): "I've been helping a few insurers
- * get a proper look at calls like that." True, and allowed, Email 1 included. It is not the sequence's product
- * sentence: it names no product, describes nothing the product does and claims no result.
- */
-const ASIDE = /\b(?:i|we)(?:['’]ve| have)?\s+(?:been helping|spent (?:a while|some time|a lot of time) helping)\b|^\s*been helping\b/i;
-/** What turns the aside into a pitch: what the product does, or a result. */
-const ASIDE_DESCRIBES =
-  /\b(?:scor(?:e|es|ed|ing)|transcrib\w*|analys\w*|analyz\w*|ai|platform|software|tool|dashboards?|automat\w*|every (?:single )?call|all (?:of )?(?:the|their|your) calls|results?|reduc\w*|cut(?:ting)? (?:their|the)|sav(?:e|ed|ing)|faster|fewer|double[ds]?|halv\w*)\b|\d+\s*%|\b\d+x\b/i;
-
-/** The touches a close may end on a statement in, whatever else the sequence does. */
-const STATEMENT_CLOSE_FREE: readonly string[] = ["li_connect", "breakup", "call"];
-
-function standardFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): { tierA: Finding[]; tierB: Finding[] } {
-  const tierA: Finding[] = [];
-  const tierB: Finding[] = [];
-  const kind = input.touch.kind;
-  const checked = checkedOf(draft, kind);
-  const cold = COLD.includes(kind);
-
-  // No pitch in Email 1. The prompt has said so since M1; this is what makes it true. The one light line about the
-  // rep (D1) is allowed, and holds when it describes what the product does or claims a result.
-  const asides = proseParts(draft)
-    .flatMap((part) => sentences(part))
-    .filter((sentence) => ASIDE.test(sentence));
-  if (kind === "email1" && (namesProduct(checked, input.facts.product) || asides.some((sentence) => ASIDE_DESCRIBES.test(sentence)))) {
-    tierA.push({
-      rule: "product-in-email1",
-      text: "A first email says nothing about the product: no name, no description of what it does, and no cited fact. One light line about what you've been helping with is fine, with no feature or result in it.",
-    });
+function normalised(text: string, input: OutreachInput): string {
+  let out = text.toLowerCase();
+  for (const value of [input.person.name, input.person.firstName, input.person.company, input.account.company]) {
+    if (value.trim() !== "") out = out.split(value.toLowerCase()).join(" ");
   }
-  if (kind !== "call" && asides.length > 1) {
-    tierA.push({ rule: "aside", text: "The line about what you've been helping with appears more than once. Keep one light line, or none." });
-  }
-
-  // Voice round: a close need not be a question. The connection note, the last email and the call may close on a
-  // statement; of the rest, one touch in the sequence may.
-  const statement = (ask: string) => !ask.trim().endsWith("?");
-  if (draft.kind === "message" && !STATEMENT_CLOSE_FREE.includes(kind) && statement(draft.ask)) {
-    const earlier = input.thread.filter((entry) => !STATEMENT_CLOSE_FREE.includes(entry.kind) && statement(askOfThreadEntry(entry)));
-    if (earlier.length > 0) {
-      tierA.push({ rule: "statement-close", text: "An earlier touch already closes on a statement rather than a question. Close this one on a real question." });
-    }
-  }
-  // No price in anything the prospect reads cold. Price belongs in the call's answer to a price question.
-  if (cold && mentionsPrice(checked)) {
-    tierA.push({ rule: "price-in-message", text: "This carries a price, a fee or a contract term. Price belongs only in the call, as the answer to a price question." });
-  }
-  // No gender guesses, anywhere, including the call notes.
-  const pronouns = [...new Set(genderedPronouns({ ...checked, body: proseText(draft) }))];
-  if (pronouns.length > 0) {
-    tierA.push({ rule: "gendered-pronoun", text: `It says ${pronouns.map((word) => `"${word}"`).join(", ")} about the prospect. Use their name or "they".` });
-  }
-
-  // At most one "X, or Y?" question in the whole sequence: this one, against the touches already written.
-  if (isBinaryAsk(checked.ask) && input.thread.some((entry) => isBinaryAsk(askOfThreadEntry(entry)))) {
-    tierA.push({ rule: "binary-ask", text: 'An earlier touch already ends on an "X, or Y?" question; a sequence carries at most one. Ask this one openly.' });
-  }
-
-  // The ask changes shape across the sequence, rather than filling the same slot in every touch.
-  //
-  // The call is out of this. Its one question deliberately reprises the email
-  // the rep is ringing about — the standard's own call exemplar asks Email 1's
-  // question almost word for word, which is how a rep opens a call about an
-  // email, not a template.
-  const shape = kind === "call" ? "" : askShapeOf(checked.ask);
-  if (shape !== "" && input.thread.some((entry) => entry.kind !== "call" && askShapeOf(askOfThreadEntry(entry)) === shape)) {
-    tierA.push({ rule: "ask-shape", text: `An earlier touch already asks a "${shape}…" question. Ask this one a different way.` });
-  }
-  // The same shape across the campaign is a template a rep sees when they approve twenty in a row,
-  // but it is not this draft's fault and it must never push the writer into synonym-swapping: advice.
-  if (shape !== "" && peopleIn(context.cohort.filter((other) => askShapeOf(other.ask) === shape)) > 3) {
-    tierB.push({ rule: "cohort-ask-shape", text: `More than three people in this campaign are being asked a "${shape}…" question.` });
-  }
-
-  // Trial fix 1: a published date is not the firm's return, and no touch counts the time to a date.
-  const parts = proseParts(draft);
-  const returnSentence = parts.flatMap((part) => sentences(part)).find((sentence) => RETURN_DATE.test(sentence));
-  if (returnSentence !== undefined) {
-    tierA.push({
-      rule: "return-date",
-      text: `"${clip(returnSentence, 90)}" calls a dated publication the firm's return. A date in the plan is the day a regulator publishes, not the day the firm's return is due: leave the date out.`,
-    });
-  }
-  const schedule = parts.flatMap((part) => sentences(part)).find((sentence) => FCA_SCHEDULE.some((test) => test(sentence)));
-  if (schedule !== undefined) {
-    tierA.push({ rule: "fca-schedule", text: `"${clip(schedule, 90)}" tells the firm when the FCA publishes complaints data. Every firm here reports that data itself, so it is never news: leave it out.` });
-  }
-  const lookupSays = input.lookup.items.some((item) => /\bgeneral admin\b/i.test(`${item.text} ${item.quote ?? ""}`));
-  const oneFirm = lookupSays ? undefined : parts.flatMap((part) => sentences(part)).find((sentence) => ONE_FIRM_CAUSE.some((pattern) => pattern.test(sentence)));
-  if (oneFirm !== undefined) {
-    tierA.push({ rule: "one-firm-cause", text: `"${clip(oneFirm, 90)}" says one firm's complaint category is everyone's, or this firm's. Research has it for one firm only: leave it out.` });
-  }
-  // Trial fix 2: an offer of a source's write-up follows from the thread. "Want me to send over the ombudsman's
-  // write-up?" with no ombudsman anywhere before it reads as a non sequitur. Advice: the rep can see it.
-  const said = parts.flatMap((part) => sentences(part));
-  for (const offer of said.filter((sentence) => sentence.trim().endsWith("?"))) {
-    const earlier = [...input.thread.map((entry) => entry.body), ...said.filter((sentence) => sentence !== offer)].join("\n");
-    const missing = [...familiesIn(offer)].filter((family) => !familiesIn(earlier).has(family));
-    if (missing.length > 0 && /\b(?:fca|fos|ombudsman(?: service)?|regulator)['’]s\b/i.test(offer)) {
-      tierB.push({ rule: "ask-source", text: `"${clip(offer, 90)}" offers something from a source nothing earlier in this thread mentions. Offer something this thread has already raised.` });
-      break;
-    }
-  }
-  const counted = parts.flatMap((part) => sentences(part)).find((sentence) => RELATIVE_DATE.some((pattern) => pattern.test(sentence)));
-  if (counted !== undefined) {
-    tierA.push({ rule: "relative-date", text: `"${clip(counted, 90)}" counts the time to a date. Give the date itself, as the plan gives it, or nothing, and leave the count out.` });
-  }
-
-  // Trial fix 1: every last email in the trial asked the same right-person question. Advice, like the other
-  // campaign-wide shapes: more than half of the campaign's last emails, with this one, asking it one way.
-  if (kind === "breakup" && shape !== "") {
-    const breakups = context.cohort.filter((other) => other.touch === "breakup");
-    const same = peopleIn(breakups.filter((other) => askShapeOf(other.ask) === shape)) + 1;
-    const total = peopleIn(breakups) + 1;
-    if (same >= 3 && same * 2 > total) {
-      tierB.push({ rule: "cohort-breakup-shape", text: `Most last emails in this campaign end on a "${shape}…" question. Close this one another way.` });
-    }
-  }
-
-  // The facts file's never-say list. Research has been linted against it since brief E; outreach
-  // writes to the same prospects about the same product and was not, which is the gap M2 closes.
-  if (context.neverSay !== undefined) {
-    const issues = neverSayIssues(proseParts(draft).map((text, index) => ({ where: `part ${index + 1}`, text })), context.neverSay);
-    if (issues.length > 0) {
-      tierA.push({ rule: "never-say", text: `It says something the product's own facts forbid: ${issues.map((issue) => issue.replace(/^part \d+: /, "")).join("; ")}` });
-    }
-  }
-  return { tierA, tierB };
+  return words(out).join(" ");
 }
 
-// ---------------------------------------------------------------------------
-// Tier B: advice on the card
+function jaccard(a: string, b: string): number {
+  const left = new Set(a.split(" ").filter(Boolean));
+  const right = new Set(b.split(" ").filter(Boolean));
+  if (left.size === 0 || right.size === 0) return 0;
+  let shared = 0;
+  for (const word of left) if (right.has(word)) shared += 1;
+  return shared / (left.size + right.size - shared);
+}
 
-const HEDGES = /\b(?:perhaps|maybe|might|probably|i suspect|i imagine|i think|i guess|i wonder|possibly)\b/gi;
-
-function adviceFindings(draft: MessageDraft): Finding[] {
+/** A message that reads like another in the campaign: two or more people's, or a colleague's. */
+function cohortAdvice(draft: MessageDraft, input: OutreachInput, cohort: readonly CohortDraft[]): Finding[] {
+  if (cohort.length === 0) return [];
   const found: Finding[] = [];
-  const subject = draft.subject?.trim() ?? "";
-  const subjectWords = subject === "" ? 0 : subject.split(/\s+/).length;
-  if (subject === "") found.push({ rule: "subject", text: "There is no subject line." });
-  else if (subjectWords < 2 || subjectWords > 6 || subject.length > 45) found.push({ rule: "subject", text: "Subjects work best at 2 to 6 plain words." });
-  else if (/quick question/i.test(subject)) found.push({ rule: "subject", text: "\"Quick question\" reads as a template." });
+  const repeated = (hits: readonly CohortDraft[]) => peopleIn(hits) >= 2 || hits.some((other) => other.sameAccount);
+  const first = normalised(sentences(draft.body)[0] ?? "", input);
+  if (repeated(cohort.filter((other) => jaccard(first, normalised(sentences(other.body)[0] ?? "", input)) >= 0.7))) {
+    found.push({ rule: "cohort-opening", text: "It opens much like other messages in this campaign." });
+  }
+  const ask = normalised(draft.ask, input);
+  if (repeated(cohort.filter((other) => normalised(other.ask, input) === ask))) found.push({ rule: "cohort-ask", text: "The close is the same as in other messages in this campaign." });
+  const copied = sentences(draft.body)
+    .map((sentence) => normalised(sentence, input))
+    .filter((sentence) => sentence.split(" ").length >= 7)
+    .some((mine) => repeated(cohort.filter((other) => sentences(other.body).some((theirs) => jaccard(mine, normalised(theirs, input)) >= 0.8))));
+  if (copied) found.push({ rule: "cohort-sentence", text: "A sentence repeats one from another message in this campaign almost word for word." });
+  return found;
+}
 
-  const list = sentences(draft.body);
-  const average = list.length === 0 ? 0 : words(draft.body).length / list.length;
-  if (average > 22) found.push({ rule: "reading", text: "The sentences are long for a phone; shorter ones read faster." });
-  // Three short items in a row ("faster, cheaper and simpler"); a clause before ", and" is not a list.
-  if (/\b[\w'-]+(?: [\w'-]+){0,2}, [\w'-]+(?: [\w'-]+){0,2},? and [\w'-]+(?: [\w'-]+){0,2}[.?!,]/i.test(draft.body)) found.push({ rule: "three", text: "A list of three can read as a pattern; one or two is usually enough." });
-  if ((draft.body.match(HEDGES) ?? []).length > 2) found.push({ rule: "hedges", text: "Several hedges in a row soften the point too much." });
-  const lengths = list.map((s) => words(s).length);
-  if (lengths.length >= 4 && Math.max(...lengths) - Math.min(...lengths) <= 3) found.push({ rule: "rhythm", text: "Every sentence is about the same length; vary one." });
+function adviceFindings(draft: OutreachOutput, input: OutreachInput, context: GateContext): Finding[] {
+  const found: Finding[] = [];
+  const kind = input.touch.kind;
+  const parts = proseParts(draft);
+  const text = parts.join("\n");
+  // A call's objection answers are the rep's reply to a brush-off: deferring a topic is how a rep moves on.
+  const own = draft.kind === "call" ? callLines(draft.talkingPoint) : parts;
+  const contrast = allSentences(own).find((sentence) => CONTRAST.some((pattern) => pattern.test(sentence)));
+  if (contrast !== undefined) found.push({ rule: "contrast", text: `"${clip(contrast, 90)}" sets one thing against another for effect. Saying the one point plainly reads more like you.` });
+  const tells = input.standard.bannedLexicon.filter((phrase) => hasTell(text, phrase));
+  if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which can read as a template.` });
+  const spellings = US_SPELLINGS.filter(([pattern]) => pattern.test(text)).map(([, us, uk]) => `${us} (${uk})`);
+  if (spellings.length > 0) found.push({ rule: "spelling", text: `American spelling: ${spellings.join(", ")}.` });
+  if (text.includes("!")) found.push({ rule: "exclamation", text: "An exclamation mark rarely reads like you." });
+  if (draft.kind === "message") {
+    if (TIME_ASK.some((pattern) => pattern.test(`${draft.ask} ${draft.body}`))) {
+      found.push({ rule: "time-ask", text: "It asks for a time or a meeting; asking whether it is of interest tends to get more replies." });
+    }
+    const firstName = input.person.firstName.trim();
+    const greeted = /^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(draft.body) || (firstName !== "" && new RegExp(`^\\s*${escape(firstName)}\\s*[,!.]`, "i").test(draft.body));
+    const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(draft.body);
+    // A connection note is the one touch sent as written, so "Hi Avery," there is its own first words.
+    if ((greeted && kind !== "li_connect") || signsOff) found.push({ rule: "envelope", text: "The greeting and the sign-off are added for you, so the body may say them twice." });
+    if (kind === "email1") {
+      const subject = draft.subject?.trim() ?? "";
+      const count = subject === "" ? 0 : subject.split(/\s+/).length;
+      if (count < 2 || count > 4 || /quick question/i.test(subject)) found.push({ rule: "subject", text: "Subjects work best at 2 to 4 plain words." });
+      if (namesProduct({ kind, body: draft.body, ask: draft.ask, claims: [...draft.claims], ...(draft.subject === undefined ? {} : { subject: draft.subject }) }, input.facts.product)) {
+        found.push({ rule: "product-in-email1", text: "A first email usually lands better with no product in it, only the light line about what you've been helping with." });
+      }
+    }
+    const shape = askShapeOf(draft.ask);
+    if (shape !== "" && input.thread.some((entry) => entry.kind !== "call" && askShapeOf(askOfThreadEntry(entry)) === shape)) {
+      found.push({ rule: "ask-shape", text: `An earlier touch already closes on a "${shape}…" question.` });
+    }
+    const cohort = kind === "email1" ? context.cohort : context.cohort.filter((other) => other.sameAccount);
+    found.push(...cohortAdvice(draft, input, cohort));
+  }
+  if (allSentences(parts).filter((sentence) => ASIDE.test(sentence)).length > 1) found.push({ rule: "aside", text: "The line about what you've been helping with appears more than once." });
   return found;
 }
 
 // ---------------------------------------------------------------------------
 
-/** Every gate on a first email: v2's `checkTouchLimits` and v2.1's additions. */
-export function gateEmail1(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
-  if (draft.kind !== "message") return { tierA: [{ rule: "kind", text: "A first email is a message, not a call." }], tierB: [] };
-  const cohort = cohortFindings(draft, input, context.cohort);
-  const provenance = provenanceFindings(draft.body, input, context);
-  const standard = standardFindings(draft, input, context);
-  const reuse = evidenceReuseFindings(draft, input, context);
-  const tierA = [
-    ...checkTouchLimits(draft, input),
-    ...shapeFindings(draft, input, input.standard.bannedLexicon),
-    ...provenance.tierA,
-    ...evidenceFindings([draft.subject ?? "", draft.body], input, context),
-    ...standard.tierA,
-    ...cohort.tierA,
-    ...reuse.tierA,
-  ];
-  return { tierA, tierB: [...adviceFindings(draft), ...provenance.tierB, ...standard.tierB, ...cohort.tierB, ...reuse.tierB] };
-}
-
 /**
- * `claims` is for the product statements in the body. The model sometimes
- * lists its opener there too (the 15 Sep cohort: four of five holds), which is
- * a harmless label and not a claim. Before the gates, any id that is not a
- * product fact and is the opener's ref, a lookup item or a plan item is moved
- * out. An id that resolves to nothing stays, and `claim-id` still holds it.
+ * `claims` is for the product statements in the body. The model sometimes lists its opener there too, which
+ * is a label and not a claim: any id that is not a product fact and is the opener's ref, a lookup item or a
+ * plan item is moved out before the checks. An id that resolves to nothing stays, and `claim-id` holds it.
  */
 export function normaliseClaims<T extends OutreachOutput>(draft: T, input: OutreachInput): T {
   const facts = new Set(input.facts.facts.map((fact) => fact.id));
@@ -1314,109 +848,9 @@ export function normaliseClaims<T extends OutreachOutput>(draft: T, input: Outre
   return claims.length === draft.claims.length ? draft : { ...draft, claims };
 }
 
-// ---------------------------------------------------------------------------
-// The rest of the sequence (P2, 21 Sep 2026)
-
 /**
- * The words a rep reads on a touch, part by part: a message's subject and
- * body, or a call script's lines. Kept apart because a subject or a line
- * without a full stop would otherwise run into the next part as one sentence,
- * and a sentence's first word would read as a name in the middle of one.
- */
-export function proseParts(draft: OutreachOutput): string[] {
-  if (draft.kind === "message") return [draft.subject ?? "", draft.body].filter((part) => part !== "");
-  const point = draft.talkingPoint;
-  return [...callLines(point), ...(point.objections ?? []).flatMap((pair) => [pair.objection, pair.answer]).filter((part) => part !== "")];
-}
-
-type TalkingPoint = Extract<OutreachOutput, { kind: "call" }>["talkingPoint"];
-
-/** A call script's own lines, without its objection pairs. */
-function callLines(point: TalkingPoint): string[] {
-  return [point.openingLine, point.oneQuestion, point.openingLine2 ?? "", point.oneQuestion2 ?? "", point.listenFor, point.voicemail ?? ""].filter((part) => part !== "");
-}
-
-/** The same, as one text, for the checks that read words rather than sentences. */
-export function proseText(draft: OutreachOutput): string {
-  return proseParts(draft).join("\n");
-}
-
-/**
- * Every gate on a touch other than the first email: its own limits
- * (`checkTouchLimits`, which reads the touch's own row), the tell list, the
- * wording rules, and provenance. No cohort logic: a follow-up is read against
- * this person's own earlier touches, which the writer is given.
- */
-export function gateTouch(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
-  const kind = input.touch.kind;
-  if (kind === "email1") return gateEmail1(draft, input, context);
-  if ((draft.kind === "call") !== (kind === "call")) {
-    return { tierA: [{ rule: "kind", text: kind === "call" ? "A call script is a talking point, not a message." : "This touch is a message, not a call script." }], tierB: [] };
-  }
-  const text = proseText(draft);
-  const found: Finding[] = [...checkTouchLimits(draft, input)];
-  if (text.includes("!")) found.push({ rule: "exclamation", text: "No exclamation marks." });
-  if (draft.kind === "message") {
-    if ((kind === "email2" || kind === "breakup") && /https?:\/\/|www\.[a-z]/i.test(draft.body)) found.push({ rule: "link", text: "A follow-up email carries no link." });
-    if (TIME_ASK.some((pattern) => pattern.test(`${draft.ask} ${draft.body}`))) {
-      found.push({ rule: "time-ask", text: "It asks for a time, a meeting length or a calendar slot; ask whether it is relevant instead." });
-    }
-    const first = input.person.firstName.trim();
-    const opensWithName = first !== "" && new RegExp(`^\\s*${escape(first)}\\s*[,!.]`, "i").test(draft.body);
-    const signsOff = /\n\s*(?:best|thanks|many thanks|cheers|regards|kind regards|best wishes)[,.!]?\s*(?:\n.*)?$/i.test(draft.body);
-    // M2: a connection note is the one touch Relay puts no envelope around —
-    // LinkedIn sends it as written — so "Hi Avery," there is the note's own
-    // first words, not a greeting Relay would have added twice. The sign-off
-    // rule still holds: LinkedIn shows who is connecting.
-    const greeted = /^\s*(?:hi|hello|hey|dear|morning|good morning|afternoon)\b/i.test(draft.body) || opensWithName;
-    if ((greeted && kind !== "li_connect") || signsOff) {
-      found.push({ rule: "envelope", text: "The greeting and the sign-off are added for you; the message starts with the first sentence and ends with the question." });
-    }
-  } else {
-    if (draft.talkingPoint.voicemail === undefined) found.push({ rule: "voicemail", text: "The call script has no voicemail." });
-    // M2: the rep rings twice. One script read out twice is the same call twice.
-    if (draft.talkingPoint.openingLine2 === undefined || draft.talkingPoint.oneQuestion2 === undefined) {
-      found.push({ rule: "second-call", text: "The script has nothing for the second call: it needs its own opener and its own question." });
-    }
-  }
-  // Part by part (trial fix 1): joined, a call's objection ("This isn't something I own directly.") ran into
-  // its answer ("That's fine.") and read as "isn't X. That's Y", which held a clean call script in the trial.
-  if (ANTITHESIS.some((pattern) => proseParts(draft).some((part) => pattern.test(part)))) found.push({ rule: "antithesis", text: "It uses the \"it isn't X, it's Y\" turn; say the point plainly." });
-  // Fix round 3 of #54: an objection is the prospect's line ("Not interested."), never the rep's hand.
-  if (draft.kind === "call") found.push(...contrastFinding(callLines(draft.talkingPoint), (draft.talkingPoint.objections ?? []).map((pair) => pair.answer)));
-  else found.push(...contrastFinding(proseParts(draft)));
-  const tells = tellsIn(text, input.standard.bannedLexicon);
-  if (tells.length > 0) found.push({ rule: "tells", text: `It uses ${tells.map((t) => `"${t}"`).join(", ")}, which reads as a template.` });
-  found.push(...spellingFinding(text));
-  // Provenance part by part, one finding per rule and text.
-  const checked = proseParts(draft).map((part) => provenanceFindings(part, input, context));
-  const unique = (list: Finding[]) => list.filter((finding, index) => list.findIndex((other) => other.rule === finding.rule && other.text === finding.text) === index);
-  const provenance = { tierA: unique(checked.flatMap((result) => result.tierA)), tierB: unique(checked.flatMap((result) => result.tierB)) };
-  const advice = draft.kind === "message" ? adviceFindings(draft).filter((finding) => finding.rule !== "subject") : [];
-  const standard = standardFindings(draft, input, context);
-  // M2: colleagues at the same firm, on every touch rather than Email 1 alone.
-  //
-  // The 22 Sep cohort put the same product sentence in two colleagues' Email
-  // 2s at Ardent and the same FCA give and the same offer in their LinkedIn
-  // touches, because `cohortFindings` only ever ran on Email 1. It runs on
-  // every touch now, against the same account only: a later touch is read
-  // against this person's own thread, and repeating a stranger's Email 2 in a
-  // LinkedIn message is not the same fault as repeating a colleague's.
-  const sameAccount = context.cohort.filter((other) => other.sameAccount);
-  const cohort = draft.kind === "message" && sameAccount.length > 0 ? cohortFindings(draft, input, sameAccount) : { tierA: [], tierB: [] };
-  const reuse = evidenceReuseFindings(draft, input, context);
-  return {
-    tierA: [...found, ...provenance.tierA, ...evidenceFindings(proseParts(draft), input, context), ...standard.tierA, ...cohort.tierA, ...reuse.tierA],
-    tierB: [...advice, ...provenance.tierB, ...standard.tierB, ...cohort.tierB, ...reuse.tierB],
-  };
-}
-
-/**
- * A touch without a subject it will never be sent with (M2 fix 1). Only Email 1 opens a thread: the follow-up
- * and the last email are replies in it, and LinkedIn and a call have no subject line. A subject the model
- * wrote for one of those anyway is dropped here, before the gates, rather than holding the touch for words the
- * rep never sees; in the 23 Sep cohort that held Emlyn's last email, and a discarded LinkedIn subject was the
- * only sentence behind the hold on one of her LinkedIn messages.
+ * A touch without a subject it will never be sent with. Only Email 1 opens a thread: a subject the model
+ * wrote for any other touch is dropped before the checks rather than read.
  */
 export function withoutThreadSubject<T extends OutreachOutput>(draft: T, kind: string): T {
   if (kind === "email1" || draft.kind !== "message" || draft.subject === undefined) return draft;
@@ -1425,127 +859,49 @@ export function withoutThreadSubject<T extends OutreachOutput>(draft: T, kind: s
   return rest as T;
 }
 
-/** The gate for a touch, chosen by its kind: Email 1 keeps its own. */
+/** Every check on a touch: the eight truth checks (Tier A) and the style advice (Tier B). */
 export function gateFor(draft: OutreachOutput, input: OutreachInput, context: GateContext): GateResult {
-  return input.touch.kind === "email1" ? gateEmail1(draft, input, context) : gateTouch(draft, input, context);
-}
-
-/**
- * What a humanized touch lost, or null when it lost nothing (M2, item 3).
- *
- * The humanizer is subtractive by design, and `addedFacts` already refuses
- * anything it *added*. The 22 Sep cohort showed the other half of the risk:
- * it cut the give out of Marlo's Email 2 (45% of the words), leaving "a
- * pattern like that" pointing at nothing, and it reworded an attributed
- * sentence in Emlyn's ("kept some that weren't" became "kept ones that
- * weren't working"). Both passed every gate, because nothing checked that
- * the point survived.
- *
- * Three things must survive a pass: the question, the source's own wording,
- * and most of the words. A touch that loses any of them keeps its drafted
- * version — the drafted words are always a safe fallback, so rejecting is
- * cheap and keeping a broken rewrite is not.
- */
-export const HUMANIZER_MAX_WORD_LOSS = 0.4;
-
-export function humanizerLoss(
-  before: OutreachOutput,
-  after: OutreachOutput,
-  evidence: readonly EvidenceQuote[],
-  /**
-   * True when the shrinkage is a verified clean cut of the product sentence
-   * (`isCleanCut`). Messaging v2 lets the pass drop the pitch, and on a short
-   * touch that one sentence is easily half the words, so the word count is
-   * not evidence of anything there. The question and the quotes still have to
-   * survive.
-   */
-  cleanProductCut = false,
-): string | null {
-  const ask = after.kind === "message" ? after.ask : after.talkingPoint.oneQuestion;
-  if (ask.trim() === "") return "it left the touch with no question";
-
-  // Every run of a source's own wording the draft carried must still be there, word for word, unless the
-  // whole sentence carrying it was cut cleanly (M2 fix 2).
-  const runs = quoteRuns(evidence);
-  const had = presentRuns(proseText(before), runs);
-  const kept = presentRuns(proseText(after), runs);
-  const lost = [...had].filter((run) => !kept.has(run));
-  if (lost.length > 0 && !quoteSentencesCut(before, after, runs)) return `it reworded an approved quote ("${lost[0]!}")`;
-  // A quoted fragment (D2) is shorter than a run, so it is checked as itself: its words, in order, still there.
-  const afterWords = ` ${quoteWords(proseText(after)).join(" ")} `;
-  const fragment = evidence.flatMap((quote) => fragmentsFrom(proseText(before), quote)).find((span) => !afterWords.includes(` ${quoteWords(span).join(" ")} `));
-  if (fragment !== undefined) return `it reworded or cut a quoted fragment ("${fragment}")`;
-
-  if (cleanProductCut) return null;
-  // A clean quote cut still counts against the word loss: cutting the give and leaving "a pattern like that"
-  // pointing at nothing (Marlo's Email 2, 22 Sep) is still losing the point.
-  const wasWords = words(proseText(before)).length;
-  const nowWords = words(proseText(after)).length;
-  if (wasWords > 0 && nowWords < wasWords * (1 - HUMANIZER_MAX_WORD_LOSS)) {
-    return `it cut ${Math.round(((wasWords - nowWords) / wasWords) * 100)}% of the words, which loses the point rather than tightening it`;
+  const kind = input.touch.kind;
+  if ((draft.kind === "call") !== (kind === "call")) {
+    return { tierA: [{ rule: "kind", text: kind === "call" ? "A call script is a talking point, not a message." : "This touch is a message, not a call script." }], tierB: [] };
   }
-  return null;
-}
+  const parts = proseParts(draft);
+  const text = parts.join("\n");
+  const tierA: Finding[] = [];
 
-/**
- * True when every quote the pass lost went with its whole sentence, false when a quote was reworded instead.
- *
- * The humanizer may drop a whole attributed sentence, as it may drop the product sentence: in the 23 Sep
- * cohort it cut Marlo's Gormley line and Nell's "the FCA publishes" line, and the guard kept the worse
- * drafts because it read the cut as rewording. A cut is clean when (1) no run of the cut sentence's quote
- * survives anywhere, so it was not trimmed or had a word slipped in ("recorded", "regulated firms"), and
- * (2) no new sentence in the pass reads closest to the cut one, so it was not paraphrased in other words.
- */
-function quoteSentencesCut(before: OutreachOutput, after: OutreachOutput, runs: ReadonlySet<string>): boolean {
-  const kept = presentRuns(proseText(after), runs);
-  const drafted = proseParts(before).flatMap((part) => sentences(part));
-  const rewritten = proseParts(after).flatMap((part) => sentences(part));
-  const gone = drafted.filter((sentence) => {
-    const carried = presentRuns(sentence, runs);
-    return carried.size > 0 && [...carried].some((run) => !kept.has(run));
-  });
-  // Part of the sentence's quote is still there: trimmed or reworded, not cut.
-  if (gone.some((sentence) => [...presentRuns(sentence, runs)].some((run) => kept.has(run)))) return false;
-  const bag = (text: string) => words(text).join(" ");
-  const unchanged = new Set(drafted.map(bag));
-  for (const sentence of rewritten) {
-    const mine = bag(sentence);
-    if (unchanged.has(mine)) continue;
-    let closest: { sentence: string; score: number } | null = null;
-    for (const candidate of drafted) {
-      const score = jaccard(mine, bag(candidate));
-      if (closest === null || score > closest.score) closest = { sentence: candidate, score };
+  // 8: length, and a call script that is missing a part.
+  tierA.push(...checkTouchLimits(draft, input));
+  if (draft.kind === "call") {
+    if (draft.talkingPoint.voicemail === undefined) tierA.push({ rule: "voicemail", text: "The call script has no voicemail." });
+    if (draft.talkingPoint.openingLine2 === undefined || draft.talkingPoint.oneQuestion2 === undefined) {
+      tierA.push({ rule: "second-call", text: "The script has nothing for the second call: it needs its own opener and its own question." });
     }
-    if (closest !== null && closest.score >= 0.2 && gone.includes(closest.sentence)) return false;
   }
-  return true;
-}
-
-/** The evidence runs a text actually carries. */
-function presentRuns(text: string, runs: ReadonlySet<string>): Set<string> {
-  const list = quoteWords(text);
-  const found = new Set<string>();
-  for (let i = 0; i + QUOTE_RUN_WORDS <= list.length; i += 1) {
-    const run = list.slice(i, i + QUOTE_RUN_WORDS).join(" ");
-    if (runs.has(run)) found.add(run);
+  // 1: price.
+  tierA.push(...priceFindings(draft, input));
+  // 2: product claims beyond the facts file's own words (claim-id and claim-number are in `checkTouchLimits`).
+  if (context.neverSay !== undefined) {
+    const issues = neverSayIssues(parts.map((part, index) => ({ where: `part ${index + 1}`, text: part })), context.neverSay);
+    if (issues.length > 0) tierA.push({ rule: "never-say", text: `It says something the product's own facts forbid: ${issues.map((issue) => issue.replace(/^part \d+: /, "")).join("; ")}` });
   }
-  return found;
-}
+  // 3: evidence.
+  const about = [input.person.company, input.account.company, input.person.name];
+  const names = allowedValues(input, context);
+  for (const sentence of unsupportedSourceClaims(parts, input.pack.evidence, about, names)) {
+    tierA.push({ rule: "unsupported-source-claim", text: sourceClaimFix(sentence, closestQuote(sentence, input.pack.evidence)) });
+  }
+  // 4: invented experience.
+  tierA.push(...inventedFindings(parts, input));
+  // 5: names, numbers and the firm's line of business.
+  const provenance = parts.flatMap((part) => provenanceFindings(part, input, context));
+  tierA.push(...provenance.filter((finding, index) => provenance.findIndex((other) => other.rule === finding.rule && other.text === finding.text) === index));
+  tierA.push(...firmLineFindings(parts, input));
+  // 6: colleagues.
+  tierA.push(...colleagueFindings(draft, input, context));
+  // 7: links and gender guesses.
+  if (/https?:\/\/|www\.[a-z]/i.test(text)) tierA.push({ rule: "link", text: "It carries a link. Nothing Relay drafts carries one." });
+  const pronouns = [...new Set(genderedPronouns({ kind, body: text, ask: "", claims: [] }))];
+  if (pronouns.length > 0) tierA.push({ rule: "gendered-pronoun", text: `It says ${pronouns.map((word) => `"${word}"`).join(", ")} about the prospect. Use their name or "they".` });
 
-/**
- * What a rewrite added that the draft did not have: a number, or a name. The
- * humanizer is subtractive (facts locked, voice free), so anything here sends
- * the touch back to its drafted words. A name counts as added when one of its
- * words appears nowhere in the draft, in any case.
- */
-export function addedFacts(before: OutreachOutput, after: OutreachOutput): string[] {
-  const was = proseText(before);
-  const now = proseText(after);
-  const known = new Set(words(was));
-  // Whole numbers, not substrings: "15" becoming "5" is a changed figure.
-  const numbersOf = (text: string) => (text.match(/(?<![\d.,])\d[\d,.]*%?/g) ?? []).map((n) => n.replace(/[.,]$/, ""));
-  const earlier = new Set(numbersOf(was));
-  const numbers = numbersOf(now).filter((n) => !earlier.has(n));
-  const names = proseParts(after).flatMap((part) => namedEntities(part)).filter((entity) => words(entity).some((word) => !ORDINARY.has(word) && !CALENDAR.has(word) && !known.has(word)));
-  return [...new Set([...numbers, ...names])];
+  return { tierA, tierB: adviceFindings(draft, input, context) };
 }

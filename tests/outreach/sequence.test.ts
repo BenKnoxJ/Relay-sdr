@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { SEQUENCE, outreachInputSchema, type OutreachInput, type TouchKind } from "../../agents/outreach/input.schema";
 import { LIMITS, checkTouchLimits, outputSchemaFor, type OutreachOutput } from "../../agents/outreach/output.schema";
-import { sequenceOutputSchema, touchesOf, withProse } from "../../agents/outreach/sequence.schema";
+import { sequenceOutputSchema, touchesOf } from "../../agents/outreach/sequence.schema";
 import goodInput from "../../agents/outreach/fixtures/input.good.json";
-import { addedFacts, gateTouch, type GateContext } from "@/lib/outreach/gates";
+import { gateFor, type GateContext } from "@/lib/outreach/gates";
 import { loadStandard } from "@/lib/outreach/standard";
 
 /**
  * P2 (21 Sep 2026): the rest of the sequence. Every touch kind has its own
  * limits and reads only its own row; the call script carries a short voicemail
- * and at most three objections; one touch out of shape does not sink the
- * others; and the humanizer can only reword, never add.
+ * and at most three objections; and one touch out of shape does not sink the
+ * others. Standard v3 (28 Sep 2026) sets the limits.
  */
 
 function input(kind: TouchKind, thread: OutreachInput["thread"] = []): OutreachInput {
@@ -38,7 +38,7 @@ function chars(n: number): Message {
 const lengthRules = (draft: OutreachOutput, kind: TouchKind, thread?: OutreachInput["thread"]) =>
   checkTouchLimits(draft, input(kind, thread))
     .map((finding) => finding.rule)
-    .filter((rule) => rule === "length" || rule === "no-link" || rule === "shorter-than-the-last");
+    .filter((rule) => rule === "length");
 
 const call = (point: Record<string, unknown>) => ({
   kind: "call",
@@ -47,65 +47,32 @@ const call = (point: Record<string, unknown>) => ({
   claims: [],
 });
 
-describe("each touch kind's limits, at its boundary", () => {
-  it("email1: 60 to 120 words (voice round)", () => {
-    expect(LIMITS.email1).toEqual({ minWords: 60, maxWords: 120 });
-    expect(lengthRules(words(60), "email1")).toEqual([]);
-    expect(lengthRules(words(59), "email1")).toEqual(["length"]);
-    expect(lengthRules(words(120), "email1")).toEqual([]);
-    expect(lengthRules(words(121), "email1")).toEqual(["length"]);
+describe("each touch kind's limits, at its boundary (standard v3)", () => {
+  it("email1: 50 to 100 words", () => {
+    expect(LIMITS.email1).toEqual({ minWords: 50, maxWords: 100 });
+    expect(lengthRules(words(50), "email1")).toEqual([]);
+    expect(lengthRules(words(49), "email1")).toEqual(["length"]);
+    expect(lengthRules(words(100), "email1")).toEqual([]);
+    expect(lengthRules(words(101), "email1")).toEqual(["length"]);
   });
 
-  it("email2: at most 110 words (voice round)", () => {
-    expect(lengthRules(words(110), "email2")).toEqual([]);
-    expect(lengthRules(words(111), "email2")).toEqual(["length"]);
+  it("email2 at most 90, the breakup and the LinkedIn follow-up at most 50, the LinkedIn message 40 to 70", () => {
+    for (const [kind, max] of [["email2", 90], ["breakup", 50], ["li_dm2", 50], ["li_dm", 70]] as const) {
+      expect(lengthRules(words(max), kind), kind).toEqual([]);
+      expect(lengthRules(words(max + 1), kind), kind).toEqual(["length"]);
+    }
+    expect(lengthRules(words(40), "li_dm")).toEqual([]);
+    expect(lengthRules(words(39), "li_dm")).toEqual(["length"]);
   });
 
-  it("breakup: at most 70 words", () => {
-    expect(lengthRules(words(70), "breakup")).toEqual([]);
-    expect(lengthRules(words(71), "breakup")).toEqual(["length"]);
+  it("a follow-up need not be shorter than the email before it: the limits are the whole rule", () => {
+    const first = { kind: "email1" as const, ordinal: 1, body: words(60).body, fate: "drafted" as const };
+    expect(lengthRules(words(80), "email2", [first])).toEqual([]);
   });
 
-  it("li_connect: at most 200 characters, no link", () => {
+  it("li_connect: at most 200 characters", () => {
     expect(lengthRules(chars(200), "li_connect")).toEqual([]);
     expect(lengthRules(chars(201), "li_connect")).toEqual(["length"]);
-    expect(lengthRules({ ...chars(60), body: "See https://example.com first. Open to connecting?" }, "li_connect")).toEqual(["no-link"]);
-  });
-
-  it("li_dm: 50 to 80 words, no link", () => {
-    expect(lengthRules(words(50), "li_dm")).toEqual([]);
-    expect(lengthRules(words(49), "li_dm")).toEqual(["length"]);
-    expect(lengthRules(words(80), "li_dm")).toEqual([]);
-    expect(lengthRules(words(81), "li_dm")).toEqual(["length"]);
-  });
-
-  it("li_dm2: at most 60 words, no link", () => {
-    expect(lengthRules(words(60), "li_dm2")).toEqual([]);
-    expect(lengthRules(words(61), "li_dm2")).toEqual(["length"]);
-    const linked = words(20);
-    expect(lengthRules({ ...linked, body: `https://example.com ${linked.body}` }, "li_dm2")).toEqual(["no-link"]);
-  });
-
-  it("reads only its own row: 75 words passes where its kind allows it and fails where it does not", () => {
-    const draft = words(75);
-    expect(lengthRules(draft, "email2")).toEqual([]);
-    expect(lengthRules(draft, "li_dm")).toEqual([]);
-    expect(lengthRules(draft, "breakup")).toEqual(["length"]);
-    expect(lengthRules(draft, "li_dm2")).toEqual(["length"]);
-    expect(lengthRules(draft, "email1")).toEqual([]);
-  });
-
-  it("a follow-up email is shorter than the email before it, and a LinkedIn note in between does not count", () => {
-    const first = { kind: "email1" as const, ordinal: 1, body: words(60).body, fate: "drafted" as const };
-    expect(lengthRules(words(60), "email2", [first])).toEqual(["shorter-than-the-last"]);
-    expect(lengthRules(words(59), "email2", [first])).toEqual([]);
-    const second = { kind: "email2" as const, ordinal: 2, body: words(50).body, fate: "drafted" as const };
-    const note = { kind: "li_connect" as const, ordinal: 4, body: "Open to connecting?", fate: "drafted" as const };
-    // The break-up is measured against the follow-up email, not the connection note.
-    expect(lengthRules(words(40), "breakup", [first, second, note])).toEqual([]);
-    expect(lengthRules(words(50), "breakup", [first, second, note])).toEqual(["shorter-than-the-last"]);
-    // A LinkedIn message is not measured against the emails at all.
-    expect(lengthRules(words(70), "li_dm", [first, second])).toEqual([]);
   });
 });
 
@@ -126,10 +93,10 @@ describe("the call script", () => {
 
   it("still reads a talking point written before P2, and the gate holds one with no voicemail", () => {
     const older = outputSchemaFor("call").parse(call({}));
-    expect(gateTouch(older, input("call"), context).tierA.map((finding) => finding.rule)).toContain("voicemail");
+    expect(gateFor(older, input("call"), context).tierA.map((finding) => finding.rule)).toContain("voicemail");
     // M2: the script needs the second call's own words too, or the rep rings twice and says the same thing.
     const noSecond = outputSchemaFor("call").parse(call({ voicemail: "Calling about the calls behind complaints; I will send a note by email." }));
-    expect(gateTouch(noSecond, input("call"), context).tierA.map((finding) => finding.rule)).toContain("second-call");
+    expect(gateFor(noSecond, input("call"), context).tierA.map((finding) => finding.rule)).toContain("second-call");
     const current = outputSchemaFor("call").parse(
       call({
         voicemail: "Calling about the calls behind complaints; I will send a note by email.",
@@ -137,7 +104,7 @@ describe("the call script", () => {
         oneQuestion2: "Who decides which calls get listened to each week?",
       }),
     );
-    expect(gateTouch(current, input("call"), context).tierA).toEqual([]);
+    expect(gateFor(current, input("call"), context).tierA).toEqual([]);
   });
 
   it("is asked for with both in the sequence", () => {
@@ -178,39 +145,6 @@ describe("the sequence answer", () => {
   });
 });
 
-describe("the humanizer: facts locked, voice free", () => {
-  const drafted: OutreachOutput = {
-    kind: "message",
-    subject: "Calls behind complaints",
-    body: "Most complaints trace back to calls nobody heard. We read every recorded call. Is that a gap for you?",
-    ask: "Is that a gap for you?",
-    opener: { ref: "role-runs", kind: "role_pain" },
-    claims: ["i360.read-every-call"],
-  };
-
-  it("puts the words back on the drafted touch: the opener and the claims are the draft's", () => {
-    const next = withProse(drafted, { body: "Most complaints start on calls nobody heard. We read every recorded call. Is that a gap for you?", ask: "Is that a gap for you?" });
-    expect(next).toMatchObject({ opener: drafted.opener, claims: drafted.claims, subject: "Calls behind complaints" });
-    // No subject where the draft had none: the humanizer does not start a thread.
-    const plain = withProse({ ...drafted, subject: undefined } as OutreachOutput, { subject: "New subject", body: "Hi.", ask: "Hi." });
-    expect(plain && "subject" in plain ? plain.subject : undefined).toBeUndefined();
-    expect(withProse(drafted, undefined)).toBeNull();
-  });
-
-  it("finds what a rewrite added: a number, a name, never a reworded plain word", () => {
-    const reworded = { ...drafted, body: "Most complaints start on calls no one heard. We read every recorded call. Is that a gap for you?" } as OutreachOutput;
-    expect(addedFacts(drafted, reworded)).toEqual([]);
-    const numbered = { ...drafted, body: `${(drafted as { body: string }).body.replace("Most complaints", "Most complaints (72%)")}` } as OutreachOutput;
-    expect(addedFacts(drafted, numbered)).toEqual(["72%"]);
-    const named = { ...drafted, body: "Most complaints trace back to calls nobody heard, as Aviva found. We read every recorded call. Is that a gap for you?" } as OutreachOutput;
-    expect(addedFacts(drafted, named)).toEqual(["Aviva"]);
-    // A changed figure is an added one, even when its digits sit inside the old one.
-    const fifteen = { ...drafted, body: "About 15% of calls get heard. Is that a gap for you?" } as OutreachOutput;
-    expect(addedFacts(fifteen, { ...fifteen, body: "About 5% of calls get heard. Is that a gap for you?" } as OutreachOutput)).toEqual(["5%"]);
-    expect(addedFacts(fifteen, { ...fifteen, body: "Only 15% of calls get heard. Is that a gap for you?" } as OutreachOutput)).toEqual([]);
-  });
-});
-
 describe("the gates on the rest of the sequence", () => {
   const ask = "Is that something your team is looking at this year, or is it settled for now?";
   const dm: OutreachOutput = {
@@ -222,20 +156,25 @@ describe("the gates on the rest of the sequence", () => {
   };
 
   it("passes a clean LinkedIn message", () => {
-    expect(gateTouch(dm, input("li_dm"), context).tierA).toEqual([]);
+    expect(gateFor(dm, input("li_dm"), context).tierA).toEqual([]);
   });
 
-  it("holds the tell list, a time ask, a greeting and an unsourced name on any touch", () => {
-    const rules = (draft: OutreachOutput, kind: TouchKind) => gateTouch(draft, input(kind), context).tierA.map((finding) => finding.rule);
+  it("holds an unsourced name and a link on any touch, and gives advice for the tell list, a time ask and a greeting", () => {
+    const result = (draft: OutreachOutput, kind: TouchKind) => gateFor(draft, input(kind), context);
+    const rules = (draft: OutreachOutput, kind: TouchKind) => result(draft, kind).tierA.map((finding) => finding.rule);
+    const advice = (draft: OutreachOutput, kind: TouchKind) => result(draft, kind).tierB.map((finding) => finding.rule);
     const withBody = (body: string) => ({ ...dm, body: `${body} ${ask}` }) as OutreachOutput;
-    expect(rules(withBody("I wanted to reach out after reading about complaint handling in claims teams, since the calls behind a complaint are found late when only a small sample gets reviewed and the pattern hides."), "li_dm")).toContain("tells");
-    expect(rules({ ...dm, body: "Could we find twenty minutes next week?", ask: "Could we find twenty minutes next week?" } as OutreachOutput, "email2")).toContain("time-ask");
-    expect(rules({ ...dm, body: `Hi Helen, one more thought. ${ask}` } as OutreachOutput, "email2")).toContain("envelope");
+    const reach = withBody("I wanted to reach out after reading about complaint handling in claims teams, since the calls behind a complaint are found late.");
+    expect(advice(reach, "li_dm")).toContain("tells");
+    expect(rules(reach, "li_dm")).not.toContain("tells");
+    const time = { ...dm, body: "Could we find twenty minutes next week?", ask: "Could we find twenty minutes next week?" } as OutreachOutput;
+    expect(advice(time, "email2")).toContain("time-ask");
+    expect(advice({ ...dm, body: `Hi Helen, one more thought. ${ask}` } as OutreachOutput, "email2")).toContain("envelope");
     expect(rules({ ...dm, body: `A thought after talking to Zenith Claims about this. ${ask}` } as OutreachOutput, "li_dm2")).toContain("unsourced-name");
     expect(rules({ ...dm, body: `More at https://example.com on this. ${ask}` } as OutreachOutput, "breakup")).toContain("link");
   });
 
   it("refuses the wrong shape for the touch", () => {
-    expect(gateTouch(dm, input("call"), context).tierA.map((finding) => finding.rule)).toEqual(["kind"]);
+    expect(gateFor(dm, input("call"), context).tierA.map((finding) => finding.rule)).toEqual(["kind"]);
   });
 });

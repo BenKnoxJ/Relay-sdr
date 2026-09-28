@@ -164,6 +164,7 @@ describe("an earlier cohort report, read back", () => {
     expect(comparison).toContain("| Touches with a gendered pronoun | 1 | 0 |");
     const checks = renderChecks(now, "Insights360");
     expect(checks).toContain("| Product lines in Email 1 | 0 | 0 of 1 | yes |");
-    expect(checks).toContain("| Humanizer change, median | at least 10% | 12.0% over 1 touches | yes |");
+    // Standard v3 has no humanizer pass, so the report carries no humanizer bar.
+    expect(checks).not.toMatch(/Humanizer/);
   });
 });

@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import type { EvidenceQuote } from "../../agents/outreach/input.schema";
 import { renderM2Report, repeatedPhrases, sourceReferences } from "@/lib/outreach/cohortReport";
 import type { CheckedSequence } from "@/lib/outreach/messageChecks";
-import { loadStandard } from "@/lib/outreach/standard";
 
-/** M2 fix 1: the cohort report's M2 items, counted from stored drafts with no model. */
+/** M2 fix 1: the cohort report's items, counted from stored drafts with no model. */
 
-const gives: EvidenceQuote[] = loadStandard().gives;
-const fca = gives.find((give) => give.id === "give-fca-interventions-not-measured")!;
+const fca: EvidenceQuote = {
+  id: "fca-root-cause-not-measured",
+  quote: "Firms did not always measure the impact of interventions they had made to ensure these were the right changes to make.",
+  sourceName: "fca.org.uk",
+  url: "https://www.fca.org.uk/publications/good-and-poor-practice/complaints-and-root-cause-analysis",
+};
+const gives: EvidenceQuote[] = [fca];
 
 const touch = (kind: string, body: string) => ({ kind, body, ask: "", claims: [] });
 const sequences: CheckedSequence[] = [
@@ -37,16 +41,12 @@ describe("the cohort report's M2 items", () => {
     expect(sourceReferences(product, gives, ["Insights360"])).toEqual([]);
   });
 
-  it("renders gate hits, holds with reasons, humanizer completion and timeouts", () => {
+  it("renders gate hits, holds with reasons and timeouts", () => {
     const markdown = renderM2Report({
       touches: [
         { person: "Avery Dunmore", touch: "email1", state: "failed", findings: [{ rule: "timeout", text: "Writing this ran out of time." }] },
         { person: "Emlyn Lomax", touch: "email1", state: "needs_you", findings: [{ rule: "unsupported-source-claim", text: "Use this approved quote exactly." }] },
         { person: "Emlyn Lomax", touch: "email2", state: "to_review", findings: [] },
-      ],
-      humanizer: [
-        { person: "Avery Dunmore", ran: false, error: "skipped: nothing written", kept: 0, returned: 0, touches: 7 },
-        { person: "Emlyn Lomax", ran: true, kept: 5, returned: 7, touches: 7 },
       ],
       sequences,
       evidence: gives,
@@ -57,7 +57,7 @@ describe("the cohort report's M2 items", () => {
     expect(markdown).toContain("| timeout | 1 |");
     expect(markdown).toContain("### Held touches, with reasons (2 of 3)");
     expect(markdown).toContain("- **Emlyn Lomax, Email 1** (needs_you): `unsupported-source-claim` Use this approved quote exactly.");
-    expect(markdown).toContain("The pass ran for **1 of 2** people.");
+    expect(markdown).not.toMatch(/humaniz/i);
     expect(markdown).toContain("| Emlyn Lomax | Email 1 | The FCA says most complaints are upheld. | **none** | **held** |");
   });
 });

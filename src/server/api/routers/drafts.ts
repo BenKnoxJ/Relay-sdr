@@ -33,7 +33,7 @@ export const draftsRouter = createTRPCRouter({
   /** The rep's drafts waiting on them, needs-you first, as the Inbox draws them. */
   queue: repProcedure.query(async ({ ctx }) => {
     const name = await repName(ctx);
-    // The card shows the email as the rep will send it, signature and opt-out included (M2).
+    // The card shows the email as the rep will send it, signature included (M2).
     const look = await emailLookOf(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId });
     return { items: (await reviewQueue(ctx.prisma, { orgId: ctx.orgId, userId: ctx.userId })).map((draft) => draftItemOf(draft, name, look.signature)) };
   }),

@@ -84,10 +84,17 @@ describe("the signed definitions", () => {
     expect(leadgen).toContain("  - `in_other_campaign` (Amendment 2026-09-21).");
     expect(loadDefinition("orchestrator").definition).toMatch(/Amendment A3: choosing the play/);
     // Outreach v2.1 is carried after the v2 it amends, whole: a change to the signed text changes this on purpose.
+    // It runs to where v3 begins (the blank line between them belongs to neither).
     const outreach = loadDefinition("outreach").definition;
-    const v21 = outreach.slice(outreach.indexOf("# Relay agent definition — Outreach (v2.1, signed)"));
+    const v3At = outreach.indexOf("# Relay agent definition — Outreach (v3, signed)");
+    const v21 = outreach.slice(outreach.indexOf("# Relay agent definition — Outreach (v2.1, signed)"), v3At - 1);
     expect(v21).toMatch(/v2\.1 · SIGNED by the product owner 2026-09-15/);
     expect(createHash("sha256").update(v21).digest("hex")).toBe("1a98aae0646eeb4e5dc6265c2db4d2c2c50da468e0b2eb72180a6def8e584835");
+    // Outreach v3 (standard v3, Benny-san's sign-off 2026-09-28) is carried whole after v2.1, its changelog first.
+    const v3 = outreach.slice(v3At);
+    expect(v3).toMatch(/v3 · SIGNED by Benny-san 2026-09-28/);
+    expect(v3).toContain("- **2026-09-28, v3 signed by Benny-san.**");
+    expect(createHash("sha256").update(v3).digest("hex")).toBe("9cd55bc7eb2758400a28022c5a22e96227bccb2a4e9aae939d5e7618cda6c18e");
   });
 
   it("memoises, and re-reads after a reset", () => {
@@ -391,7 +398,7 @@ describe("outreach: the gates that need the touch", () => {
     expect(result.error.issues.some((issue) => /banned dash/.test(issue.message))).toBe(true);
   });
 
-  it("measures a follow-up against the person's own earlier message", () => {
+  it("reads a follow-up against its own limit only: standard v3 has no shrink rule", () => {
     const base = outreachInputSchema.parse(fixture("outreach", "input.good.json"));
     const draft = outreachOutputSchema.parse(fixture("outreach", "output.good.json"));
     const asFollowUp = {
@@ -401,11 +408,8 @@ describe("outreach: the gates that need the touch", () => {
         { kind: "email1" as const, ordinal: 1, body: "Short first note.", fate: "sent" as const },
       ],
     };
-    const findings = checkTouchLimits(draft, asFollowUp);
-    // The draft is inside email2's hundred-word limit but not shorter than the
-    // note before it, so the shrink rule is the only finding — which is the
-    // distinction rule 7 is about.
-    expect(findings.map((finding) => finding.rule)).toEqual(["shorter-than-the-last"]);
+    // Inside email2's 90-word limit, and longer than the note before it: nothing to hold.
+    expect(checkTouchLimits(draft, asFollowUp)).toEqual([]);
   });
 });
 

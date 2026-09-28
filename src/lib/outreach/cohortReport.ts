@@ -5,13 +5,12 @@ import type { CheckedSequence } from "./messageChecks";
 
 /**
  * The M2 items of the cohort report (M2 brief §6, as fix round 1 finished it): the gate hits, every held
- * touch with its reasons, the humanizer's completion, the phrases repeated across people, and every
+ * touch with its reasons, the phrases repeated across people, and every
  * regulator or publication reference with the approved quote it carries. Pure: the cohort script reads the
  * rows out of the database and this turns them into markdown, so the counting is tested without a model.
  */
 
 export type ReportTouch = { person: string; touch: string; state: string; findings: Finding[] };
-export type ReportHumanizer = { person: string; ran: boolean; error?: string; kept: number; returned: number; touches: number };
 
 const TOUCH_NAME: Record<string, string> = {
   email1: "Email 1",
@@ -73,7 +72,7 @@ export function sourceReferences(
     for (const touch of sequence.touches) {
       for (const part of [touch.subject ?? "", ...touch.body.split(/\n+/)]) {
         for (const sentence of sentences(part)) {
-          if (!attributesASource(sentence, [...names, ...about])) continue;
+          if (!attributesASource(sentence, [...names, ...about], evidence)) continue;
           const held = unsupportedSourceClaims([sentence], evidence, about, [...names, ...about]).length > 0;
           found.push({ person: sequence.name, touch: touch.kind, sentence, quotes: evidenceUsedIn(sentence, evidence), held });
         }
@@ -85,7 +84,6 @@ export function sourceReferences(
 
 export function renderM2Report(input: {
   touches: readonly ReportTouch[];
-  humanizer: readonly ReportHumanizer[];
   sequences: readonly CheckedSequence[];
   evidence: readonly EvidenceQuote[];
   timeouts: number;
@@ -97,14 +95,13 @@ export function renderM2Report(input: {
   const held = input.touches.filter((touch) => touch.state !== "to_review");
   const hits = new Map<string, number>();
   for (const touch of held) for (const rule of new Set(touch.findings.map((finding) => finding.rule))) hits.set(rule, (hits.get(rule) ?? 0) + 1);
-  const ran = input.humanizer.filter((person) => person.ran).length;
   const phrases = repeatedPhrases(input.sequences);
   const references = sourceReferences(input.sequences, input.evidence, input.names ?? [], input.companyOf);
   const byId = new Map(input.evidence.map((quote) => [quote.id, quote]));
   return [
     "## M2 report",
     "",
-    `Read from the stored drafts: the findings are the ones a rep sees on the card, after the corrective call and the humanizer. **Model runs that ran out of time:** ${input.timeouts} of ${input.modelRuns}.`,
+    `Read from the stored drafts: the findings are the ones a rep sees on the card, after the corrective call. **Model runs that ran out of time:** ${input.timeouts} of ${input.modelRuns}.`,
     "",
     "### Gate hits (Tier A, touches held or not written)",
     "",
@@ -117,21 +114,13 @@ export function renderM2Report(input: {
     "",
     ...(held.length === 0 ? ["None."] : held.map((touch) => `- **${touch.person}, ${name(touch.touch)}** (${touch.state}): ${touch.findings.map((finding) => `\`${finding.rule}\` ${cell(finding.text)}`).join("; ")}`)),
     "",
-    "### Humanizer completion",
-    "",
-    `The pass ran for **${ran} of ${input.humanizer.length}** people.`,
-    "",
-    "| Person | Ran | Touches it returned | Humanized version kept | Why not |",
-    "|---|---|---|---|---|",
-    ...input.humanizer.map((person) => `| ${person.person} | ${person.ran ? "yes" : "**no**"} | ${person.returned} of ${person.touches} | ${person.kept} of ${person.touches} | ${cell(person.error ?? "")} |`),
-    "",
     "### The 10 most repeated four-word phrases across people",
     "",
     "| Phrase | People | Uses |",
     "|---|---|---|",
     ...(phrases.length === 0 ? ["| none shared by two people | | |"] : phrases.map((row) => `| ${row.phrase} | ${row.people} | ${row.uses} |`)),
     "",
-    `### Every regulator or publication reference (${references.length})`,
+    `### Every source reference (${references.length})`,
     "",
     "The sentence alone, as the gate reads it now. \"Gate\" is whether `unsupported-source-claim` holds that sentence; a stored touch may since have been redrafted.",
     "",

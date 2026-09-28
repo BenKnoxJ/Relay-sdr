@@ -210,7 +210,7 @@ export type RecordDraftsInput = {
   attempt: number;
   lookup: LookupResult & { trail?: unknown };
   touches: TouchRecord[];
-  /** More for the Event: the cost split and what the humanizer changed. Never on the rep's card. */
+  /** More for the Event: what the job spent, and a failed redraft. Never on the rep's card. */
   record?: Record<string, unknown>;
 };
 

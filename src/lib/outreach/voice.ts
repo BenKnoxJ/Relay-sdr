@@ -12,7 +12,7 @@ import { agentsDir } from "@/lib/agents/definitions";
  * Vendored into `agents/outreach/voice/` because Relay deploys on its own and the repository is public: the
  * style profile (`style.md`, the rep's "how I write" default) and the approved messages as ask-and-wrote pairs
  * (`anchors.json`), every name and firm in them made up. The writer continues these rather than imitating a
- * rule list; the humanizer is given the same, so it keeps the hand instead of tidying it away.
+ * rule list.
  */
 
 const anchorsFileSchema = z.object({

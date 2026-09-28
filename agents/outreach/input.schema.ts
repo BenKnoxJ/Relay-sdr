@@ -17,10 +17,6 @@ import { callDraftSchema, messageDraftSchema } from "./output.schema";
  * person is Relay's revealed Person (v2.1 §2), not lead gen's preview shape.
  */
 
-/** The product lines a quote or a firm can be about (trial fix 1). */
-export const PRODUCT_LINES = ["motor", "home", "travel", "pet", "legal-expenses"] as const;
-export type ProductLine = (typeof PRODUCT_LINES)[number];
-
 export const TOUCH_KINDS = ["email1", "email2", "breakup", "li_connect", "li_dm", "li_dm2", "call"] as const;
 export type TouchKind = (typeof TOUCH_KINDS)[number];
 
@@ -120,7 +116,7 @@ export const evidenceQuoteSchema = z
     id: idSchema,
     /** The source's own sentence, character for character as the pack stored it. */
     quote: z.string().min(1).max(2000),
-    /** Who said it, in the plain words a message would use ("the FCA", "the ombudsman"). */
+    /** Who said it: the host of the page it is from, or a name a person gave it. A draft names the source in the same sentence. */
     sourceName: z.string().min(1).max(200),
     url: urlSchema,
     /** When the source said it, at whatever precision it gave. */
@@ -131,12 +127,6 @@ export const evidenceQuoteSchema = z
      * drafts widened the quotes in exactly those directions.
      */
     scope: z.string().min(1).max(1000).optional(),
-    /**
-     * The one product line the quote is about, when it is about one (trial fix 1): the ombudsman's car and
-     * motorcycle figure is `motor`, and it went to a travel insurer and a legal-expenses firm in the 24 Sep
-     * trial. Absent for a quote about complaints in general.
-     */
-    line: z.enum(PRODUCT_LINES).optional(),
     /**
      * How many other people in this campaign have already been sent this quote (trial fix 1). The drafter
      * prefers the least used: in the trial one quote was in six of seven first emails.
@@ -162,22 +152,8 @@ export const packSliceSchema = z
     /** m15 proof items marked `allowed`; nothing else may carry social proof. */
     proof: z.array(z.object({ factId: factIdSchema, text: z.string().min(1).max(2000), note: z.string().max(2000).optional() }).strict()).max(6),
     /**
-     * M2 (23 Sep 2026): the only wording a touch may attribute to a regulator,
-     * an ombudsman or a publication — the source's own sentence, as the pack
-     * stored it.
-     *
-     * The 22 Sep re-review found seven of fourteen attributed gives misstating
-     * their source, and the cause was structural: the drafter was given the
-     * pack's *paraphrases* (a pain's `text`, an angle, a proof line) and told
-     * to "quote its figures and wording exactly", which it cannot do from a
-     * paraphrase. This list carries `quote` only — the stored verbatim text —
-     * so there is something exact to quote from, and
-     * `unsupported-source-claim` holds any attributed sentence that does not.
-     *
-     * Defaults to empty, and empty fails *closed*: with no approved quote to
-     * draw on, every attributed sentence is held. A slice that forgot to
-     * carry its evidence writes nothing about a regulator rather than writing
-     * whatever it likes about one.
+     * The only wording a touch may quote or attribute to anyone: each source's own sentence, as the pack
+     * stored it (truth check 3). Empty fails closed: with nothing to quote, every attributed sentence holds.
      */
     evidence: z.array(evidenceQuoteSchema).max(12).default([]),
   })
@@ -218,38 +194,11 @@ export const exemplarSchema = z
 export const standardSchema = z
   .object({
     version: z.number().int().positive(),
-    /** Messaging v2: the eight rules of the writing standard. */
+    /** Standard v3: the rules of the writing standard, one short paragraph each. */
     rules: z.array(z.string().min(1).max(1000)).min(8).max(12),
     exemplars: z.array(exemplarSchema).max(20),
-    /** v2.1 §6: the short, high-precision tell list, injected as a list and gated in code. */
+    /** The tell list, injected as a list; a draft using one gets advice on the card, never a hold (standard v3). */
     bannedLexicon: z.array(z.string().min(1).max(80)).max(500),
-    /**
-     * M2: the approved source sentences a touch may attribute (the 22 Sep
-     * re-review's item 1).
-     *
-     * They live here rather than in the pack because the pack does not have
-     * them: of the twelve items behind the September cohort's slice, four
-     * carry a stored quote and none of those four is the FCA or the
-     * ombudsman. The drafter was given paraphrases of the regulator material
-     * and nothing else, which is why seven of fourteen attributed gives
-     * misstated their source. `scope` is what the quote does *not* say, and
-     * is read by a person reviewing this file, never by the model.
-     */
-    gives: z
-      .array(
-        evidenceQuoteSchema
-          .extend({
-            scope: z.string().min(1).max(1000),
-            /**
-             * The last day a give may reach the drafter, UTC (trial fix 1, round 2): a give that names a coming
-             * date goes stale the day after it. Read by `withApprovedGives`, never passed to the drafter.
-             */
-            validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-          })
-          .strict(),
-      )
-      .max(12)
-      .default([]),
   })
   .strict();
 
@@ -267,10 +216,22 @@ export const lookupResultSchema = z
     searches: z.number().int().nonnegative().max(2),
     fetches: z.number().int().nonnegative().max(2),
     /**
-     * The product lines the firm sells, when what the lookup read says so (trial fix 1): a figure about one
-     * line reaches a person only when their firm sells it. Absent when nothing said.
+     * The firm's lines of business, when what the lookup read says so, in the campaign's own words
+     * (`lineVocabularyOf`). Truth check 5 holds a draft that puts the firm in another line. Absent when
+     * nothing said.
      */
-    lines: z.array(z.enum(PRODUCT_LINES)).max(PRODUCT_LINES.length).optional(),
+    lines: z.array(z.string().min(1).max(60)).max(20).optional(),
+  })
+  .strict();
+
+/**
+ * The campaign the draft is for (standard v3): the confirmed group's industries, and every group's in the
+ * research (m04), which is where the lines of business truth check 5 reads come from.
+ */
+export const campaignSchema = z
+  .object({
+    industries: z.array(z.string().min(1).max(120)).max(30),
+    groups: z.array(z.array(z.string().min(1).max(120)).max(30)).max(12).optional(),
   })
   .strict();
 
@@ -307,6 +268,8 @@ export const outreachInputSchema = z
     /** Absent for a Related role. */
     buyerRole: buyerRoleSchema.optional(),
     account: accountSchema,
+    /** Absent on a draft written before standard v3. */
+    campaign: campaignSchema.optional(),
     touch: touchSchema,
     /**
      * Present when one answer writes the whole sequence (P2): the touches, in

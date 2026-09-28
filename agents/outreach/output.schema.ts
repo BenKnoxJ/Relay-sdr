@@ -326,7 +326,8 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       findings.push({ rule: "claim-id", text: `The claim ${claim} is not a fact this product has.` });
       continue;
     }
-    const numbers = fact.text.match(/\d[\d,.]*/g) ?? [];
+    // A figure, not a digit inside a name: "Insights360" carries no number a rep has to quote.
+    const numbers = fact.text.match(/(?<![A-Za-z])\d[\d,.]*/g) ?? [];
     const body =
       draft.kind === "message"
         ? draft.body

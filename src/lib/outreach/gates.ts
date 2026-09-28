@@ -1,4 +1,5 @@
 import type { EvidenceQuote, OutreachInput } from "../../../agents/outreach/input.schema";
+import { SENDER_ASIDE_KINDS } from "@/lib/outreach/asideKinds";
 import { hostOf } from "../../../agents/_shared/item.schema";
 import { checkTouchLimits, type MessageDraft, type OutreachOutput } from "../../../agents/outreach/output.schema";
 import type { NeverSayFile } from "@/lib/facts/neverSay";
@@ -429,22 +430,23 @@ const AFTER_KIND = new Set("get gets cut cuts keep keeps make makes see sees loo
 const ANY_KIND = new Set("firms firm teams team companies company businesses business people organisations folks".split(" "));
 
 /**
- * True when the light line names a kind of firm the campaign is not aimed at: "a few insurers" in a vets'
- * campaign. The noun shares its stem with one of the campaign's industry words ("insurers", "insurance"), or it
- * is a word true of any campaign ("firms"). With no industries known, nothing is read.
+ * The kinds of firm the rep truly helps, which the light line may name (Benny-san, 28 Sep: "insurers"; any
+ * word in `ANY_KIND`, such as "firms", is always true). Sender data, never derived from the recipient or the
+ * campaign: "a few care home groups" would be a claim about the rep's work nobody has confirmed.
  */
-function asideOffCampaign(sentence: string, input: OutreachInput): boolean {
+export { SENDER_ASIDE_KINDS };
+
+/** True when the light line names a kind of firm the rep has not said they help. */
+function asideOffCampaign(sentence: string): boolean {
   const kind = (ASIDE_KIND.exec(sentence)?.[1]?.toLowerCase().split(/\s+/) ?? []).filter((word) => !AFTER_KIND.has(word)).at(-1);
-  const industries = [...(input.campaign?.industries ?? []), ...(input.campaign?.groups ?? []).flat()].flatMap(labelWords);
-  if (kind === undefined || industries.length === 0 || ANY_KIND.has(kind)) return false;
-  const stem = kind.slice(0, Math.max(3, Math.min(4, kind.length - 1)));
-  return !industries.some((word) => word.startsWith(stem));
+  if (kind === undefined || ANY_KIND.has(kind)) return false;
+  return !SENDER_ASIDE_KINDS.some((allowed) => allowed === kind || allowed === `${kind}s`);
 }
 
-function inventedFindings(parts: readonly string[], input: OutreachInput): Finding[] {
+function inventedFindings(parts: readonly string[]): Finding[] {
   const list = allSentences(parts);
   const invented = list.find(
-    (sentence) => INVENTED.some((pattern) => pattern.test(sentence)) || (ASIDE.test(sentence) && (RESULT.test(sentence) || asideOffCampaign(sentence, input))),
+    (sentence) => INVENTED.some((pattern) => pattern.test(sentence)) || (ASIDE.test(sentence) && (RESULT.test(sentence) || asideOffCampaign(sentence))),
   );
   if (invented === undefined) return [];
   return [
@@ -659,17 +661,20 @@ export function lineClaimsIn(text: string, vocabulary: readonly string[], sector
  */
 function firmLineFindings(parts: readonly string[], input: OutreachInput): Finding[] {
   const { own, all, sector } = lineVocabularyOf(input.campaign);
-  const firm = (input.lookup.lines ?? []).map((line) => line.toLowerCase());
+  // The firm's lines are only what the trigger search found (28 Sep): never the campaign's, which is how a travel
+  // insurer was told "Complaints at a motor insurer must be an odd job". Unknown stays unknown, and the light line
+  // about the rep ("a few insurers") names no line the firm is not known to be in.
+  void own;
+  const firm = lineWordsOf(input.lookup.lines ?? []);
   const named = new Set(words(`${input.person.company} ${input.account.company} ${input.person.domain ?? ""}`));
-  const known = new Set([...(firm.length > 0 ? firm : own), ...named]);
+  const known = new Set([...firm, ...named]);
   const vocabulary = [...new Set([...all, ...firm])];
   if (vocabulary.length === 0) return [];
   for (const sentence of allSentences(parts)) {
     if (sentence.trim().endsWith("?")) continue;
-    const allowed = ASIDE.test(sentence) ? new Set([...own, ...named]) : known;
-    const wrong = lineClaimsIn(sentence, vocabulary.filter((word) => !allowed.has(word)), sector);
+    const wrong = lineClaimsIn(sentence, vocabulary.filter((word) => !known.has(word)), sector);
     if (wrong.length > 0) {
-      const what = ASIDE.test(sentence) ? "the kind of firm this campaign is aimed at" : firm.length > 0 ? `what the lookup found about ${input.person.company}` : "the kind of firm this campaign is aimed at";
+      const what = firm.length > 0 ? `what the search found about ${input.person.company}` : `known about ${input.person.company} (nothing is)`;
       return [{ rule: "firm-line", text: `"${clip(sentence, 90)}" says the firm is in ${wrong.join(", ")}, which is not ${what}. Say only what the data says about the firm.` }];
     }
   }
@@ -891,7 +896,7 @@ export function gateFor(draft: OutreachOutput, input: OutreachInput, context: Ga
     tierA.push({ rule: "unsupported-source-claim", text: sourceClaimFix(sentence, closestQuote(sentence, input.pack.evidence)) });
   }
   // 4: invented experience.
-  tierA.push(...inventedFindings(parts, input));
+  tierA.push(...inventedFindings(parts));
   // 5: names, numbers and the firm's line of business.
   const provenance = parts.flatMap((part) => provenanceFindings(part, input, context));
   tierA.push(...provenance.filter((finding, index) => provenance.findIndex((other) => other.rule === finding.rule && other.text === finding.text) === index));

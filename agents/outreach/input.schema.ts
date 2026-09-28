@@ -78,6 +78,8 @@ export const senderSchema = z
   .object({
     firstName: z.string().min(1).max(100),
     company: z.string().min(1).max(200),
+    /** The kinds of firm the rep has said they help, for the light line in Email 1 (28 Sep). */
+    asideKinds: z.array(z.string().min(1).max(60)).max(10).optional(),
   })
   .strict();
 

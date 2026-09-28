@@ -245,3 +245,46 @@ export function makeModel(
     "provider: no model credential configured — set CLAUDE_CODE_OAUTH_TOKEN (the subscription token, preferred) or ANTHROPIC_API_KEY",
   );
 }
+
+/**
+ * A model that may use the SDK's own web search, and nothing else (the outreach trigger search, 28 Sep).
+ *
+ * The one place a Relay run gets a built-in tool: `WebSearch` only, no file, shell or fetch tool, no MCP
+ * server, the same isolated config dir and single credential as every other run. The search runs on the
+ * subscription the rest of the drafting runs on, so it costs no Tavily or Firecrawl credit. Returns null when
+ * the credential is not the subscription token (the Messages API path has no search wired) or in a stub
+ * environment, and the caller falls back to the old lookup.
+ */
+export function makeWebSearchModel(
+  id: PricedModel,
+  onResult: (result: AgentSdkResult) => void,
+  source: ReturnType<typeof env> = env(),
+): LanguageModel | null {
+  if (!isPricedModel(id) || source.RELAY_AGENT_STUB_MODEL !== undefined) return null;
+  if (credentialKind(source) !== "subscription-token") return null;
+  const configDir = agentHome(source);
+  mkdirSync(configDir, { recursive: true });
+  const settings: ClaudeCodeSettings = {
+    env: subprocessEnv(configDir, source.CLAUDE_CODE_OAUTH_TOKEN as string),
+    settingSources: [],
+    tools: ["WebSearch"],
+    allowedTools: ["WebSearch"],
+    permissionMode: "bypassPermissions",
+    allowDangerouslySkipPermissions: true,
+    maxTurns: 8,
+    persistSession: false,
+    logger: false,
+    onSdkMessage: async (message) => {
+      if (message.type === "result") {
+        onResult({
+          subtype: message.subtype,
+          numTurns: message.num_turns,
+          totalCostUsd: message.total_cost_usd,
+          modelUsage: message.modelUsage,
+          ...(message.subtype === "success" ? {} : { errors: message.errors }),
+        });
+      }
+    },
+  };
+  return createClaudeCode({ defaultSettings: settings })(id);
+}

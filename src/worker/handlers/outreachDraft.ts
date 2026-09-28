@@ -11,7 +11,7 @@ import type { ProductFacts } from "../../../agents/research/input.schema";
 import { loadDefinition, type AgentDefinition } from "@/lib/agents/definitions";
 import type { RunModel } from "@/lib/agents/model";
 import type { PricedModel } from "@/lib/agents/pricing";
-import { makeModel } from "@/lib/agents/provider";
+import { makeModel, makeWebSearchModel } from "@/lib/agents/provider";
 import { AgentRunFailedError, rejectedAnswerText, runAgent, validationIssues } from "@/lib/agents/run";
 import { stubModel } from "@/lib/agents/stubModel";
 import { storedPack } from "@/lib/campaigns/derive";
@@ -23,6 +23,7 @@ import { loadNeverSay } from "@/lib/facts/neverSay";
 import { buildOutreachInput, buyerRoleOf, campaignOf, evidenceSliceOf, liveFacts, packSliceOf, previewFields, relevanceTerms, senderOf } from "@/lib/outreach/adapter";
 import { evidenceUsedIn, gateFor, lineVocabularyOf, normaliseClaims, proseText, withoutThreadSubject, type Finding, type GateContext } from "@/lib/outreach/gates";
 import { lookupEvidence, type LookupTrail } from "@/lib/outreach/lookup";
+import { lookupFromTriggers, webTriggerSearch, type TriggerSearch } from "@/lib/outreach/triggers";
 import { loadStandard } from "@/lib/outreach/standard";
 import { latestResearchJob } from "@/lib/repo/campaigns";
 import { findConfirmEvent, handoffOf } from "@/lib/repo/leadgen";
@@ -70,6 +71,8 @@ import type { Handler } from "@/worker/handlers/index";
 /** The facts file outreach claims from: the one research reads. */
 const FACTS_PRODUCT = "insights360";
 const FACTS_VERSION = 2;
+/** The trigger search model: cheap, and enough to search and report what it found (28 Sep). */
+const TRIGGER_MODEL = "claude-haiku-4-5" as const;
 /** At most two model generations per draft (v2.1 §6). */
 export const MAX_GENERATIONS = 2;
 
@@ -111,6 +114,8 @@ export type OutreachHandlerDeps = {
   makeModel: (id: PricedModel, input: OutreachInput, at: ModelCall) => RunModel | LanguageModel;
   search: SearchService;
   fetch: FetchService;
+  /** The trigger search (28 Sep): the SDK's own web search on the person and firm. Absent, the old lookup runs. */
+  triggers?: TriggerSearch;
   facts?: ProductFacts;
   now?: () => Date;
   /** Tests only: shorter wall clocks, so a run that never answers can be waited out in seconds. */
@@ -172,6 +177,9 @@ export function defaultOutreachDeps(): OutreachHandlerDeps {
     makeModel: e.RELAY_OUTREACH_FIXTURE_DRAFTS !== undefined ? fixtureWriter(e.RELAY_OUTREACH_FIXTURE_DRAFTS) : (id) => makeModel(id),
     search: createTavilyService(e, { mode, fixturesDir }),
     fetch: createFirecrawlService(e, { mode, fixturesDir }),
+    ...(mode === "mock" || e.RELAY_OUTREACH_FIXTURE_DRAFTS !== undefined
+      ? {}
+      : { triggers: webTriggerSearch((onCost) => makeWebSearchModel(TRIGGER_MODEL, (result) => onCost(result.totalCostUsd, result.numTurns))) }),
   };
 }
 
@@ -381,6 +389,22 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
 
     // The lookup, once per job (§4): a retried job reads the recorded result back.
     let lookup = await findLookup(db, { orgId: job.orgId, jobId: job.id });
+    let lookupCost = 0;
+    if (lookup === null && deps.triggers !== undefined) {
+      const subject = { personName: preview.name, title: preview.title, company: preview.company, ...(preview.domain === undefined ? {} : { domain: preview.domain }), country: handoff.targeting.countries[0] ?? "GB" };
+      let searched: Awaited<ReturnType<TriggerSearch>>;
+      try {
+        searched = await deps.triggers(subject);
+      } catch (error) {
+        if (!unexpected(error)) throw error;
+        // A search that fails is "nothing found": the sequence is written to the role and the plan.
+        searched = { answer: { lines: [], findings: [] }, costUsd: 0, searches: 0 };
+      }
+      lookupCost = searched.costUsd;
+      lookup = lookupFromTriggers(subject, searched, now);
+      const trail = [{ kind: "search", target: `web search: ${preview.name}, ${preview.company}`, outcome: `${searched.answer.findings.length} findings, ${lookup.items.length} kept` }];
+      await recordLookup(db, { orgId: job.orgId, campaignId: job.campaignId, jobId: job.id, lookup, trail });
+    }
     if (lookup === null) {
       let found: Awaited<ReturnType<typeof lookupEvidence>>;
       try {
@@ -470,7 +494,7 @@ export function outreachDraftHandler(deps: OutreachHandlerDeps = defaultOutreach
     if (modelId === null) throw new TerminalError("outreach: the definition names no model");
 
     // What this job has spent on its draft calls.
-    const spent = { draft: 0 };
+    const spent = { draft: lookupCost };
     const total = () => spent.draft;
     const capped = () => prior + total() >= PERSON_DRAFT_COST_CAP_USD;
 

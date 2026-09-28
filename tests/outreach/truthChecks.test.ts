@@ -273,14 +273,16 @@ describe("truth check 5: a firm, person, number or line of business that is not 
       expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["travel"] } }))).toContain("firm-line");
     });
 
-    it("reads the light line against the campaign, not the reader's own lines", () => {
+    it("reads the light line against the firm's own lines, never the campaign's (28 Sep)", () => {
       const aside = message(
         "Saw you look after complaints at Wayfarer Cover. Travel claims must be a strange mix, most of it paperwork and then every so often someone stuck abroad.\n\nI've been helping a few travel insurers get a proper look at calls like that. Curious how your team handles the stuck-abroad ones at the moment?",
         "Curious how your team handles the stuck-abroad ones at the moment?",
         "stuck abroad calls",
       );
-      // The lookup says nothing about home; the campaign is travel, which is what the light line is read against.
-      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["home"] } }))).toEqual([]);
+      // The search found the firm is a travel insurer: "travel insurers" is true of it.
+      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["travel insurance"] } }))).toEqual([]);
+      // The search found home only: "travel" is a line the firm is not known to be in, whatever the campaign says.
+      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["home"] } }))).toContain("firm-line");
     });
 
     it("takes its vocabulary from the data, not a list: a lending campaign's lines work the same way", () => {
@@ -336,7 +338,7 @@ describe("the review of this PR: false holds and false passes it found", () => {
     expect(holds(run(email2With("I'd guess volumes swing a lot month to month."), "email2"))).not.toContain("price-in-message");
   });
 
-  it("holds the light line naming a kind of firm the campaign is not aimed at", () => {
+  it("lets the light line name only a kind of firm the rep has said they help (28 Sep)", () => {
     const vets = { industries: ["Veterinary practices"], groups: [["Veterinary practices"], ["Veterinary hospitals and referral centres"]] };
     const who: Who = { first: "Morgan", company: "Kestrel Vets", domain: "kestrelvets.example", title: "Practice Manager" };
     const lookup = { items: [], usable: false, lines: [] };
@@ -346,9 +348,10 @@ describe("the review of this PR: false holds and false passes it found", () => {
         "Curious how the front desk keeps up at the moment?",
         "the morning phones",
       );
-    expect(holds(run(aside("insurers"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
-    expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
-    expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
+    // "vets" and "practices" would be a claim about the rep's work nobody has confirmed; "firms" is always true.
+    expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
+    expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
+    expect(holds(run(aside("firms"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
   });
 });
 

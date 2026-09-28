@@ -223,13 +223,27 @@ const NAME_NOISE = new Set(
  * (Sentinel CWE-345). Read from the evidence, never a list.
  */
 function sourceWords(quote: EvidenceQuote): string[] {
-  const labels = hostOf(quote.url)
-    .split(".")
-    .filter((label) => !HOST_NOISE.has(label));
-  const host = labels.length === 0 ? [] : [labels.at(-1)!.replace(/-/g, " ")];
+  const whole = hostOf(quote.url);
+  const labels = whole.split(".").filter((label) => !HOST_NOISE.has(label));
+  const label = labels.at(-1)?.replace(/-/g, " ");
+  const pinned = label === undefined ? undefined : BODY_HOSTS[label];
+  const host = label === undefined ? [] : pinned === undefined || whole === pinned || whole.endsWith(`.${pinned}`) ? [label] : [whole];
   const name = (quote.sourceName.match(/\b[A-Z][A-Za-z0-9&]*/g) ?? []).map((word) => word.toLowerCase()).filter((word) => !NAME_NOISE.has(word) && !MONTHS.has(word));
   return [...new Set([...host, ...name].filter((word) => word.length >= 2))];
 }
+
+/**
+ * The bodies a bare host label could pass for, and the one host each is at. A same-label host anywhere else
+ * (fca.com, fca.co.uk, news.fca.net, ombudsman.co.uk) is named by its whole host, never as the body
+ * (Sentinel CWE-345; the base pinned these hosts too).
+ */
+const BODY_HOSTS: Readonly<Record<string, string>> = {
+  fca: "fca.org.uk",
+  "financial conduct authority": "fca.org.uk",
+  ombudsman: "financial-ombudsman.org.uk",
+  "financial ombudsman": "financial-ombudsman.org.uk",
+  fos: "financial-ombudsman.org.uk",
+};
 
 const MONTHS = new Set("january february march april may june july august september october november december".split(" "));
 
@@ -259,17 +273,45 @@ function withoutNames(text: string, names: readonly string[]): string {
 }
 
 /**
- * True when a sentence makes a claim about a source: it reports a finding, a body "says" something, or it names
- * one of the evidence's sources together with a figure. A question asserts nothing.
+ * True when a sentence makes a claim about a source: it reports a finding, a body "says" something, it names
+ * one of the evidence's sources together with a figure, or it writes a source's name as the one holding a view
+ * ("The FCA flagged…", "The FCA thinks…", "The FCA's view is…"), whatever the verb. A question asserts nothing,
+ * and offering the document ("happy to send the FCA's write-up") says nothing it found. `about` is the reader's
+ * firm: a quote from its own site is not a third party's view.
  */
-export function attributesASource(sentence: string, names: readonly string[] = [], evidence: readonly EvidenceQuote[] = []): boolean {
+export function attributesASource(sentence: string, names: readonly string[] = [], evidence: readonly EvidenceQuote[] = [], about: readonly string[] = []): boolean {
   if (sentence.trim().endsWith("?")) return false;
   const plain = withoutNames(sentence, names);
   const namesEvidence = evidence.some((quote) => sourceWords(quote).some((word) => hasPhrase(sentence, word)));
   if (reportsByThirdParty(sentence, REPORTS)) return true;
   // "Says" only with an evidence source named: "the FCA says…" is a claim, "what was said on the call" is not.
   if (namesEvidence && reportsByThirdParty(sentence, SAYS)) return true;
-  return FIGURE.test(plain) && namesEvidence;
+  if (FIGURE.test(plain) && namesEvidence) return true;
+  const thirdParty = evidence.filter((quote) => ownSiteNames(quote, about).length === 0);
+  return writesSourceName(sentence, thirdParty) && !OFFERS_DOCUMENT.test(sentence);
+}
+
+/** Offering a source's document, not reporting it: "I can send over the FCA's write-up on root cause work". */
+const OFFERS_DOCUMENT =
+  /\b(?:send|sending|share|sharing|pass(?:ing)? on|forward|forwarding)\b.*\b(?:write-?up|review|report|paper|summary|guidance|piece|link)s?\b/i;
+
+/**
+ * True when a sentence writes a quote's source as a name: capitalised ("the FCA", "Financial Ombudsman"), and
+ * not a capital that only starts the sentence unless it is an acronym. So a host label that is an ordinary word
+ * ("which", "complaints") is not a source named outright every time the word is used.
+ */
+function writesSourceName(sentence: string, evidence: readonly EvidenceQuote[]): boolean {
+  return evidence.some((quote) =>
+    sourceWords(quote).some((word) => {
+      const pattern = new RegExp(`(^|[^A-Za-z0-9])(${escape(word).replace(/\s+/g, "\\s+")})(?=$|[^A-Za-z0-9])`, "gi");
+      for (const match of sentence.matchAll(pattern)) {
+        const written = match[2]!.split(/\s+/);
+        const first = sentence.slice(0, match.index + match[1]!.length).trim() === "";
+        if (written.every((part) => /^[A-Z]/.test(part)) && (!first || /^[A-Z0-9&]{2,}$/.test(written[0]!))) return true;
+      }
+      return false;
+    }),
+  );
 }
 
 /** The rep, the reader or their team as the one reporting: "I found…", "your team reported…". Never a source. */
@@ -313,7 +355,7 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
       hold(sentence);
       continue;
     }
-    if (!attributesASource(sentence, names, evidence)) continue;
+    if (!attributesASource(sentence, names, evidence, about)) continue;
     const named = evidence.filter((quote) => namesSource(sentence, quote, ownSiteNames(quote, about)));
     const aboutReader = about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || /^\s*(?:you|your)\b/i.test(sentence);
     if (named.length === 0 && aboutReader) continue;
@@ -364,13 +406,14 @@ export function sourceClaimFix(sentence: string, quote: EvidenceQuote | null): s
  * look at calls like that." True, and allowed in any touch. It is the only claim about the rep's work a
  * draft may make.
  */
-const ASIDE = /\b(?:i|we)(?:['’]ve| have)?\s+(?:been helping|spent (?:a while|some time|a lot of time) helping)\b|^\s*been helping\b/i;
+const ASIDE = /\b(?:i|we)(?:['’]ve| have)?\s+(?:(?:been\s+)?help(?:ed|ing)|spent (?:a while|some time|a lot of time) helping)\b|^\s*been helping\b/i;
 /** A result claimed for anyone: what turns the aside, or any line, into an invented outcome. */
-const RESULT = /\b(?:reduc(?:e|ed|es|ing)|cut(?:ting)? (?:their|the|its)|sav(?:e|ed|es|ing) (?:them|their|hours|time|money)|halv(?:e|ed|es|ing)|doubl(?:e|ed|es|ing))\b|\d+\s*%|\b\d+x\b/i;
+const RESULT = /\b(?:reduc(?:e|ed|es|ing)|cut(?:s|ting)?\b(?!\s+(?:through|across|to the chase))|by (?:a )?(?:half|third|quarter)|sav(?:e|ed|es|ing) (?:them|their|hours|time|money)|halv(?:e|ed|es|ing)|doubl(?:e|ed|es|ing))\b|\d+\s*%|\b\d+x\b/i;
 
 /** A manufactured relationship or track record: people the rep "speaks to", "our clients", what "we tend to see". */
 const INVENTED: readonly RegExp[] = [
-  /\b(?:teams|firms|clients|customers|people|companies|leaders|managers|heads) (?:i|we)(?:['’]ve| have)? (?:speak|talk|work|spoke|talked|worked|chat)(?:ed|ing)? (?:to|with)\b/i,
+  // Any kind of firm: "insurers we work with", "other lenders I speak to". Never "unless I talk to…".
+  /\b(?!(?:this|thus|does|was|has|yes|always|perhaps|sometimes|whereas|besides|towards|afterwards|its|his|hers|ours|yours|theirs)\b)[a-z]+s(?<!ss|us|is) (?:i|we)(?:['’]ve| have)? (?:speak|talk|work|spoke|talked|worked|chat)(?:ed|ing)? (?:to|with)\b/i,
   /\b(?:i|we) (?:speak|talk|work) (?:to|with) (?:a lot of|lots of|many|most|plenty of|dozens of|hundreds of)\b/i,
   /\bwhat (?:we|i) (?:tend to|usually|often|typically|keep|always) (?:see|hear|find)\b/i,
   /\b(?:our|my) (?:clients|customers)\b/i,
@@ -379,9 +422,9 @@ const INVENTED: readonly RegExp[] = [
 ];
 
 /** The kind of firm the light line names: "a few insurers", "some lenders like yours". */
-const ASIDE_KIND = /\bhelping\s+(?:a few|a couple of|some|several|a handful of)\s+((?:[a-z-]+\s+)?[a-z-]+)/i;
+const ASIDE_KIND = /\bhelp(?:ed|ing)\s+(?:a few|a couple of|some|several|a handful of)\s+((?:[a-z-]+\s+)?[a-z-]+)/i;
 /** Words that follow the kind of firm rather than name it: "a few insurers get…", "a few firms keep…". */
-const AFTER_KIND = new Set("get gets keep keeps make makes see sees look looks work works find finds sort deal handle stay with like to on in across who that for and".split(" "));
+const AFTER_KIND = new Set("get gets cut cuts keep keeps make makes see sees look looks work works find finds sort deal handle stay with like to on in across who that for and".split(" "));
 /** Nouns that name no kind of firm, so they are true of any campaign. */
 const ANY_KIND = new Set("firms firm teams team companies company businesses business people organisations folks".split(" "));
 
@@ -583,7 +626,11 @@ export function lineVocabularyOf(campaign: OutreachInput["campaign"]): { own: st
         if (!sector.has(word) || index === 0) return;
         add(list[index - 1], word);
         // "Home and buildings insurance": the word before the "and" is a line too.
-        if (index >= 3 && (list[index - 2] === "and" || list[index - 2] === "or")) add(list[index - 3], word);
+        if (index >= 3 && (list[index - 2] === "and" || list[index - 2] === "or")) {
+          add(list[index - 3], word);
+          // A page says the label's own words ("home and buildings insurance"), which count for both lines.
+          for (const term of [list[index - 3]!, list[index - 1]!]) phrases[term]?.add(list.slice(index - 3, index + 1).join(" "));
+        }
       });
       return found;
     });
@@ -593,7 +640,7 @@ export function lineVocabularyOf(campaign: OutreachInput["campaign"]): { own: st
 }
 
 /** The nouns that make a line of business a claim about a firm: "a travel firm", "at a motor insurer". */
-const FIRM_NOUN = "(?:insurers?|underwriters?|firms?|compan(?:y|ies)|brokers?|lenders?|banks?|retailers?|operators?)";
+const FIRM_NOUN = "(?:insurers?|underwriters?|firms?|compan(?:y|ies)|brokers?|lenders?|banks?|retailers?|operators?|business(?:es)?|specialists?|providers?|side|complaints)";
 
 /**
  * The lines of `vocabulary` a text uses as a firm's line, "<line> [sector word] <firm noun>": "Complaints at a

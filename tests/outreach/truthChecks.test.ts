@@ -12,6 +12,7 @@ import { loadNeverSay } from "@/lib/facts/neverSay";
 import { liveFacts } from "@/lib/outreach/adapter";
 import { TRUTH_CHECKS, gateFor, lineClaimsIn, lineVocabularyOf, lineWordsOf, type CohortDraft, type GateContext, type GateResult } from "@/lib/outreach/gates";
 import { loadStandard } from "@/lib/outreach/standard";
+import { hostOf } from "../../agents/_shared/item.schema";
 
 /**
  * Outreach standard v3 (28 Sep 2026): the eight truth checks hold a draft, and nothing else does.
@@ -348,6 +349,79 @@ describe("the review of this PR: false holds and false passes it found", () => {
     expect(holds(run(aside("insurers"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
     expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
     expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
+  });
+});
+
+describe("fix round 2: Critic's and Sentinel's probes", () => {
+  const source = "unsupported-source-claim";
+
+  it("holds a source named as holding a view, whatever the verb (check 3, back to main)", () => {
+    for (const sentence of [
+      "The FCA flagged that firms don't measure whether their fixes work.",
+      "The FCA pointed out that most firms never check whether a fix stuck.",
+      "The FCA thinks firms rarely measure the impact of what they change.",
+      "The FCA's view is that firms rarely check a fix worked.",
+      "The FCA found firms rarely measure the impact.",
+    ]) {
+      expect(holds(run(email2With(sentence), "email2")), sentence).toContain(source);
+    }
+  });
+
+  it("passes the source's exact fragment, the offer of its write-up, and a claim naming no source", () => {
+    for (const sentence of [
+      'The FCA\'s view is that firms "did not always measure the impact" of the changes they made.',
+      "I can send over the FCA's write-up on root cause work if it's useful.",
+      "Happy to share the FCA's review of root cause work.",
+      "Research suggests most complaints come back to one call.",
+    ]) {
+      expect(holds(run(email2With(sentence), "email2")), sentence).not.toContain(source);
+    }
+  });
+
+  it("never reads a quote from the reader's own site as a third party's view", () => {
+    const who: Who = { first: "Kit", company: "Kestrel", domain: "kestrel.example", title: "Head of Complaints" };
+    const own: EvidenceQuote = { id: "own", quote: "We aim to resolve every complaint within eight weeks.", sourceName: "kestrel.example", url: "https://kestrel.example/complaints" };
+    expect(holds(run(email2With("Kestrel handles its complaints in house."), "email2", { who, evidence: [FCA, own] }))).not.toContain(source);
+  });
+
+  it("never lets a same-label host on another TLD pass as the body (Sentinel, base behaviour)", () => {
+    const sentence = 'The FCA said "firms did not always measure the impact" of the changes they made.';
+    for (const url of ["https://fca.com/post", "https://fca.io/post", "https://fca.co.uk/post", "https://news.fca.net/post"]) {
+      const spoof: EvidenceQuote = { ...FCA, id: "spoof", sourceName: hostOf(url), url };
+      expect(holds(run(email2With(sentence), "email2", { evidence: [spoof] })), url).toContain(source);
+    }
+    const real: EvidenceQuote = { ...FCA, sourceName: "fca.org.uk" };
+    expect(holds(run(email2With(sentence), "email2", { evidence: [real] }))).not.toContain(source);
+    const ombudsman: EvidenceQuote = { ...FCA, id: "fos-spoof", sourceName: "ombudsman.co.uk", url: "https://ombudsman.co.uk/post" };
+    expect(holds(run(email2With(sentence.replace("The FCA", "The ombudsman")), "email2", { evidence: [ombudsman] }))).toContain(source);
+  });
+
+  it("holds invented results and customers for any kind of firm (check 4)", () => {
+    for (const sentence of [
+      "We've helped a few insurers halve their complaint backlog.",
+      "I've helped three insurers cut complaint handling time by a third.",
+      "Insurers we work with tell me the same thing.",
+      "Other insurers I speak to say the same.",
+      "Most of the insurers I talk to struggle with this.",
+      "Lenders we work with see the same pattern.",
+    ]) {
+      expect(holds(run(email2With(sentence), "email2")), sentence).toContain("invented-experience");
+    }
+  });
+
+  it("still passes the approved light line, and \"unless I talk to\" is not a customer", () => {
+    expect(holds(run(email1With("Most complaints come back to one call."), "email1"))).not.toContain("invented-experience");
+    expect(holds(run(email2With("Hard to say unless I talk to the team first."), "email2"))).not.toContain("invented-experience");
+    expect(holds(run(email2With("I've been helping a few insurers cut through calls like that."), "email2"))).not.toContain("invented-experience");
+  });
+
+  it("holds easy rewordings of a firm put in the wrong line (check 5)", () => {
+    const EMMA: Who = { first: "Emma", company: "Wayfarer Cover", domain: "wayfarercover.example", title: "Head of Complaints" };
+    const travel = { who: EMMA, campaign: campaignFor(TRAVEL_GROUP), lookup: { items: [], usable: false, lines: ["travel"] } };
+    for (const sentence of ["Motor complaints at Wayfarer Cover must keep your team busy.", "Complaints on the motor side must keep your team busy."]) {
+      expect(holds(run(email1With(sentence), "email1", travel)), sentence).toContain("firm-line");
+    }
+    expect(holds(run(email1With("Travel complaints at Wayfarer Cover must keep your team busy."), "email1", travel))).not.toContain("firm-line");
   });
 });
 

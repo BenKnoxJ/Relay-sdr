@@ -16,7 +16,17 @@ const LINE_PHRASES = lineVocabularyOf({
 
 describe("the firm's lines, from the campaign's own words", () => {
   it("reads each line as the labels say it", () => {
-    expect(LINE_PHRASES).toEqual({ motor: ["motor insurance"], travel: ["travel insurance"], buildings: ["buildings insurance"], home: ["home insurance"] });
+    expect(LINE_PHRASES).toEqual({
+      motor: ["motor insurance"],
+      travel: ["travel insurance"],
+      buildings: ["buildings insurance", "home and buildings insurance"],
+      home: ["home insurance", "home and buildings insurance"],
+    });
+  });
+
+  it("keeps both lines of an \"and\" label when a page uses the label's own words (fix round 2)", () => {
+    const page = "We offer home and buildings insurance and motor insurance. Our home and buildings insurance covers flats. Motor insurance for vans.";
+    expect(linesOf(page, "Hollin Cover", LINE_PHRASES).sort()).toEqual(["buildings", "home", "motor"]);
   });
 
   it("counts a line's phrase twice in what the lookup read, or once more in the firm's own name", () => {

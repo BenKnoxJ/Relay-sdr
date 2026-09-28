@@ -360,7 +360,9 @@ export function unsupportedSourceClaims(parts: readonly string[], evidence: read
     const named = evidence.filter((quote) => namesSource(sentence, quote, ownSiteNames(quote, about)));
     const aboutReader = about.some((phrase) => phrase.trim() !== "" && hasPhrase(sentence, phrase.trim())) || /^\s*(?:you|your)\b/i.test(sentence);
     if (named.length === 0 && aboutReader) continue;
-    const carried = named.some((quote) => quotesEvidence(sentence, quoteRuns([quote])) || fragmentsFrom(sentence, quote).length > 0);
+    // A source's words count only inside quote marks (or as a long verbatim run): four shared words without them
+    // is a paraphrase wearing the source's name ("the FCA's review … flagged that firms often can't show …", 28 Sep).
+    const carried = named.some((quote) => quotesEvidence(sentence, quoteRuns([quote])) || spans.some((span) => isFragmentOf(span, quote)));
     if (!carried) hold(sentence);
   }
   return held;

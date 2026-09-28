@@ -10,7 +10,7 @@ import { agentsDir } from "@/lib/agents/definitions";
 import { loadFacts } from "@/lib/facts/load";
 import { loadNeverSay } from "@/lib/facts/neverSay";
 import { liveFacts } from "@/lib/outreach/adapter";
-import { TRUTH_CHECKS, gateFor, lineClaimsIn, lineVocabularyOf, lineWordsOf, type CohortDraft, type GateContext, type GateResult } from "@/lib/outreach/gates";
+import { TRUTH_CHECKS, gateFor, lineClaimsIn, lineVocabularyOf, lineWordsOf, unsupportedSourceClaims, type CohortDraft, type GateContext, type GateResult } from "@/lib/outreach/gates";
 import { loadStandard } from "@/lib/outreach/standard";
 import { hostOf } from "../../agents/_shared/item.schema";
 
@@ -352,6 +352,16 @@ describe("the review of this PR: false holds and false passes it found", () => {
     expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
     expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
     expect(holds(run(aside("firms"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
+  });
+});
+
+describe("the 28 Sep trigger round: real drafts", () => {
+  it("holds a named source paraphrased with a few of its words but no quote marks", () => {
+    // Tracey's Email 2 in the 28 Sep trigger round, word for word.
+    const sentence = "One thing I keep turning over, the FCA's review of complaints handling flagged that firms often can't show whether a fix to a root cause actually worked, mostly because there's no proper record of what happened across the calls in the first place.";
+    expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    const quoted = 'When the FCA looked at root cause work across 40 firms, one of its points was that firms "did not always measure the impact" of the changes they made.';
+    expect(unsupportedSourceClaims([quoted], [FCA])).toEqual([]);
   });
 });
 

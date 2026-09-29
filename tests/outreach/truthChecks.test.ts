@@ -371,6 +371,8 @@ describe("the 28 Sep final trigger round: real drafts", () => {
       "The FCA's complaints handling review this year said firms often can't show a fix actually worked, only that they made one.",
       "The FCA's complaints handling review this year said root causes aren't always recorded properly.",
       "The regulator wants firms to show root causes and prove a fix actually worked.",
+      // Leon's Email 2 in the final round, word for word.
+      "The FCA's review of complaints handling this year flagged something familiar, firms often can't show root causes were recorded consistently, or that a fix actually worked once it was made.",
     ]) {
       expect(unsupportedSourceClaims([sentence], [])).toEqual([sentence]);
       expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);

@@ -347,7 +347,8 @@ const BODY_VERB = "(?:said|says|found|finds|flagged|flags|showed|shows|wants|exp
 export function namesABodySaying(sentence: string, evidence: readonly EvidenceQuote[] = []): boolean {
   const own = evidence.flatMap(sourceWords).map((word) => escape(word).replace(/\\s+/g, "\\s+"));
   const names = [BODIES, ...own].join("|");
-  return new RegExp(`\\b(?:the\\s+)?(?:${names})(?:['’]s)?\\b(?:\\s+[\\w'’-]+){0,5}?\\s+${BODY_VERB}\\b`, "i").test(sentence);
+  // Up to eight words between the body and its verb: "The FCA's review of complaints handling this year flagged…".
+  return new RegExp(`\\b(?:the\\s+)?(?:${names})(?:['’]s)?\\b(?:\\s+[\\w'’-]+){0,8}?\\s+${BODY_VERB}\\b`, "i").test(sentence);
 }
 
 /**

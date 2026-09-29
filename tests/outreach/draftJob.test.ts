@@ -366,7 +366,7 @@ describe("the draft job", () => {
     expect(model.inputs).toHaveLength(1);
     expect(model.inputs[0]!.sequence).toEqual([...SEQUENCE]);
     // P5c: the drafter is told who is writing: the rep's first name, and Conversant while the org is only its domain.
-    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
+    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant", asideKinds: ["insurers"] });
     // The job's cost sits on its first touch.
     const touch = (kind: string) => drafts.find((row) => row.touch === kind)!;
     expect(Number(touch("email2").costUsd)).toBe(0);
@@ -860,7 +860,7 @@ describe("the rep's review", () => {
     const { model } = await runDraft(job, ["good"]);
     // One draft call and no other pass (standard v3).
     expect(model.inputs).toHaveLength(1);
-    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant" });
+    expect(model.inputs[0]!.sender).toEqual({ firstName: "Sam", company: "Conversant", asideKinds: ["insurers"] });
     expect(await prisma.agentRun.count({ where: { jobId: job.id } })).toBe(1);
     const event = (await prisma.event.findMany({ where: { kind: "outreach.drafted", campaignId: campaign.id } })).find((candidate) => (candidate.after as { jobId?: string }).jobId === job.id)!;
     const after = event.after as { cost: { draftUsd: number } };

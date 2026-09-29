@@ -326,12 +326,15 @@ export function checkTouchLimits(draft: OutreachOutput, input: OutreachInput): F
       findings.push({ rule: "claim-id", text: `The claim ${claim} is not a fact this product has.` });
       continue;
     }
-    const numbers = fact.text.match(/\d[\d,.]*/g) ?? [];
+    // A figure, not a digit inside a name: "Insights360" carries no number a rep has to quote.
+    const numbers = fact.text.match(/(?<![A-Za-z])\d[\d,.]*/g) ?? [];
     const body =
       draft.kind === "message"
         ? draft.body
         : [draft.talkingPoint.openingLine, draft.talkingPoint.oneQuestion, draft.talkingPoint.voicemail ?? "", ...(draft.talkingPoint.objections ?? []).map((pair) => pair.answer)].join(" ");
-    if (numbers.length > 0 && !numbers.some((number) => body.includes(number))) {
+    // "50p" is how a rep says £0.50: the same figure.
+    const said = body.replace(/\b(\d{1,2})p\b/g, (_, pence: string) => `£0.${pence.padStart(2, "0")}`);
+    if (numbers.length > 0 && !numbers.some((number) => said.includes(number))) {
       findings.push({ rule: "claim-number", text: `The claim ${claim} carries a number that is not in the message.` });
     }
   }

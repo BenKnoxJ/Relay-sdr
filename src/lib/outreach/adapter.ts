@@ -9,6 +9,7 @@ import { isSeedFirm } from "@/lib/leadgen/rank";
 
 import type { MessageStandard } from "./standard";
 import { loadDefaultVoice, voiceInputOf, type DefaultVoice } from "./voice";
+import { SENDER_ASIDE_KINDS } from "./asideKinds";
 
 /**
  * The thin adapter at the campaign boundary (outreach v2.1 §2): Relay's
@@ -226,7 +227,7 @@ export function buildOutreachInput(input: AdapterFacts): OutreachInput {
       email: input.email,
       ...(preview.city === undefined ? {} : { city: preview.city }),
     },
-    sender: input.sender,
+    sender: { ...input.sender, asideKinds: [...SENDER_ASIDE_KINDS] },
     ...(buyerRole === undefined ? {} : { buyerRole }),
     account: {
       company: preview.company,

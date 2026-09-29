@@ -10,7 +10,7 @@ import { agentsDir } from "@/lib/agents/definitions";
 import { loadFacts } from "@/lib/facts/load";
 import { loadNeverSay } from "@/lib/facts/neverSay";
 import { liveFacts } from "@/lib/outreach/adapter";
-import { TRUTH_CHECKS, gateFor, lineClaimsIn, lineVocabularyOf, lineWordsOf, type CohortDraft, type GateContext, type GateResult } from "@/lib/outreach/gates";
+import { TRUTH_CHECKS, gateFor, lineClaimsIn, lineVocabularyOf, lineWordsOf, unsupportedSourceClaims, type CohortDraft, type GateContext, type GateResult } from "@/lib/outreach/gates";
 import { loadStandard } from "@/lib/outreach/standard";
 import { hostOf } from "../../agents/_shared/item.schema";
 
@@ -273,14 +273,16 @@ describe("truth check 5: a firm, person, number or line of business that is not 
       expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["travel"] } }))).toContain("firm-line");
     });
 
-    it("reads the light line against the campaign, not the reader's own lines", () => {
+    it("reads the light line against the firm's own lines, never the campaign's (28 Sep)", () => {
       const aside = message(
         "Saw you look after complaints at Wayfarer Cover. Travel claims must be a strange mix, most of it paperwork and then every so often someone stuck abroad.\n\nI've been helping a few travel insurers get a proper look at calls like that. Curious how your team handles the stuck-abroad ones at the moment?",
         "Curious how your team handles the stuck-abroad ones at the moment?",
         "stuck abroad calls",
       );
-      // The lookup says nothing about home; the campaign is travel, which is what the light line is read against.
-      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["home"] } }))).toEqual([]);
+      // The search found the firm is a travel insurer: "travel insurers" is true of it.
+      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["travel insurance"] } }))).toEqual([]);
+      // The search found home only: "travel" is a line the firm is not known to be in, whatever the campaign says.
+      expect(holds(run(aside, "email1", { ...travel, lookup: { items: [], usable: false, lines: ["home"] } }))).toContain("firm-line");
     });
 
     it("takes its vocabulary from the data, not a list: a lending campaign's lines work the same way", () => {
@@ -336,7 +338,7 @@ describe("the review of this PR: false holds and false passes it found", () => {
     expect(holds(run(email2With("I'd guess volumes swing a lot month to month."), "email2"))).not.toContain("price-in-message");
   });
 
-  it("holds the light line naming a kind of firm the campaign is not aimed at", () => {
+  it("lets the light line name only a kind of firm the rep has said they help (28 Sep)", () => {
     const vets = { industries: ["Veterinary practices"], groups: [["Veterinary practices"], ["Veterinary hospitals and referral centres"]] };
     const who: Who = { first: "Morgan", company: "Kestrel Vets", domain: "kestrelvets.example", title: "Practice Manager" };
     const lookup = { items: [], usable: false, lines: [] };
@@ -346,9 +348,95 @@ describe("the review of this PR: false holds and false passes it found", () => {
         "Curious how the front desk keeps up at the moment?",
         "the morning phones",
       );
-    expect(holds(run(aside("insurers"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
-    expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
-    expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
+    // "vets" and "practices" would be a claim about the rep's work nobody has confirmed; "firms" is always true.
+    expect(holds(run(aside("vets"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
+    expect(holds(run(aside("practices"), "email1", { who, campaign: vets, lookup }))).toContain("invented-experience");
+    expect(holds(run(aside("firms"), "email1", { who, campaign: vets, lookup }))).toEqual([]);
+  });
+});
+
+describe("the 28 Sep trigger round: real drafts", () => {
+  it("holds a named source paraphrased with a few of its words but no quote marks", () => {
+    // Tracey's Email 2 in the 28 Sep trigger round, word for word.
+    const sentence = "One thing I keep turning over, the FCA's review of complaints handling flagged that firms often can't show whether a fix to a root cause actually worked, mostly because there's no proper record of what happened across the calls in the first place.";
+    expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    const quoted = 'When the FCA looked at root cause work across 40 firms, one of its points was that firms "did not always measure the impact" of the changes they made.';
+    expect(unsupportedSourceClaims([quoted], [FCA])).toEqual([]);
+  });
+});
+
+describe("the 28 Sep final trigger round: real drafts", () => {
+  it("holds a named body's claim that is not in its exact words, with or without the campaign's evidence", () => {
+    for (const sentence of [
+      "The FCA's complaints handling review this year said firms often can't show a fix actually worked, only that they made one.",
+      "The FCA's complaints handling review this year said root causes aren't always recorded properly.",
+      "The regulator wants firms to show root causes and prove a fix actually worked.",
+      // Leon's Email 2 in the final round, word for word.
+      "The FCA's review of complaints handling this year flagged something familiar, firms often can't show root causes were recorded consistently, or that a fix actually worked once it was made.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [])).toEqual([sentence]);
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+  });
+
+  it("reads only real bodies as sources, never the rep's own shorthand (Critic and Sentinel, #56 r3)", () => {
+    for (const sentence of [
+      "An MGA I spoke to last week said the same thing.",
+      "NPS shows you the score, not the reason behind it.",
+      "Every FNOL team I've sat with said the same.",
+      "The CRM shows what was logged, not what was said.",
+      "The MD wants a straight answer on why complaints moved.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([]);
+    }
+  });
+
+  it("never reads the rep's or reader's verb as the named body's (Critic, #56 r6)", () => {
+    const sentence = "Ahead of the FCA's next complaints data return your team probably wants a clearer picture.";
+    expect(unsupportedSourceClaims([sentence], [])).toEqual([]);
+  });
+
+  it("exempts a document offer only from the offer on, never a claim made before it", () => {
+    for (const sentence of [
+      "The FCA says most firms can't show a fix worked, happy to send over the report.",
+      "The regulator wants firms to prove a fix worked, happy to share the guidance.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+  });
+
+  it("keeps an offer from carrying a claim, before or inside it (Critic, #56 r4)", () => {
+    for (const sentence of [
+      "Happy to share the FCA review that says most firms can't show a fix worked.",
+      "Per the FCA's root cause work most firms can't show a fix worked, happy to send the review.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+    expect(unsupportedSourceClaims(["Happy to send over the FCA's write-up on root cause work if it's useful."], [FCA])).toEqual([]);
+  });
+
+  it("reads a firm whose name is a web address as a name, not a link", () => {
+    const who: Who = { first: "Alex", company: "Confused.com", domain: "confused.com", title: "Head of Complaints" };
+    const ask = "How does your team get back to what was said on the call at the moment?";
+    const draft = message(`Saw you look after complaints at Confused.com. Comparison calls must be a strange mix, most of them quick and then the odd one that gets complicated.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`, ask, "the complicated calls");
+    expect(holds(run(draft, "email1", { who }))).not.toContain("link");
+    const linked = message(`Saw insurancetimes.co.uk had a piece on your team this year, and it made me curious about the calls behind it.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`, ask, "the piece");
+    expect(holds(run(linked, "email1", { who }))).toContain("link");
+    // Whatever follows the address, and whatever its case.
+    for (const where of ["on insurancetimes.co.uk.", "on insurancetimes.co.uk, and", "(insurancetimes.co.uk)", "at insurancetimes.co.uk/news/team", "in InsuranceTimes.co.uk", "in FT.com"]) {
+      const text = `Saw a piece ${where} about your team this year, and it made me curious about the calls behind it.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`;
+      expect(holds(run(message(text, ask, "the piece"), "email1", { who }))).toContain("link");
+    }
+  });
+
+  it("does not read the reader's own team or a document offer as a source", () => {
+    for (const sentence of [
+      "When QA found the same issue twice, who picked it up?",
+      "Happy to send over what the FCA said about root cause work in its review this year.",
+      "Saw you took over as COO at Policy Expert earlier this year.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([]);
+    }
   });
 });
 

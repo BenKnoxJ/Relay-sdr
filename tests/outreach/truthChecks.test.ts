@@ -391,6 +391,11 @@ describe("the 28 Sep final trigger round: real drafts", () => {
     }
   });
 
+  it("never reads the rep's or reader's verb as the named body's (Critic, #56 r6)", () => {
+    const sentence = "Ahead of the FCA's next complaints data return your team probably wants a clearer picture.";
+    expect(unsupportedSourceClaims([sentence], [])).toEqual([]);
+  });
+
   it("exempts a document offer only from the offer on, never a claim made before it", () => {
     for (const sentence of [
       "The FCA says most firms can't show a fix worked, happy to send over the report.",

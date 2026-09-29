@@ -377,6 +377,36 @@ describe("the 28 Sep final trigger round: real drafts", () => {
     }
   });
 
+  it("reads only real bodies as sources, never the rep's own shorthand (Critic and Sentinel, #56 r3)", () => {
+    for (const sentence of [
+      "An MGA I spoke to last week said the same thing.",
+      "NPS shows you the score, not the reason behind it.",
+      "Every FNOL team I've sat with said the same.",
+      "The CRM shows what was logged, not what was said.",
+      "The MD wants a straight answer on why complaints moved.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([]);
+    }
+  });
+
+  it("exempts a document offer only from the offer on, never a claim made before it", () => {
+    for (const sentence of [
+      "The FCA says most firms can't show a fix worked, happy to send over the report.",
+      "The regulator wants firms to prove a fix worked, happy to share the guidance.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+  });
+
+  it("reads a firm whose name is a web address as a name, not a link", () => {
+    const who: Who = { first: "Alex", company: "Confused.com", domain: "confused.com", title: "Head of Complaints" };
+    const ask = "How does your team get back to what was said on the call at the moment?";
+    const draft = message(`Saw you look after complaints at Confused.com. Comparison calls must be a strange mix, most of them quick and then the odd one that gets complicated.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`, ask, "the complicated calls");
+    expect(holds(run(draft, "email1", { who }))).not.toContain("link");
+    const linked = message(`Saw insurancetimes.co.uk had a piece on your team this year, and it made me curious about the calls behind it.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`, ask, "the piece");
+    expect(holds(run(linked, "email1", { who }))).toContain("link");
+  });
+
   it("does not read the reader's own team or a document offer as a source", () => {
     for (const sentence of [
       "When QA found the same issue twice, who picked it up?",

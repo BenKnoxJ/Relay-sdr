@@ -294,7 +294,7 @@ export function attributesASource(sentence: string, names: readonly string[] = [
   if (namesEvidence && reportsByThirdParty(claim, SAYS)) return true;
   if (FIGURE.test(plain) && namesEvidence) return true;
   const thirdParty = evidence.filter((quote) => ownSiteNames(quote, about).length === 0);
-  return writesSourceName(sentence, thirdParty) && !OFFERS_DOCUMENT.test(sentence);
+  return writesSourceName(claim, thirdParty);
 }
 
 /** Offering a source's document, not reporting it: "I can send over the FCA's write-up on root cause work". */
@@ -357,7 +357,11 @@ export function namesABodySaying(sentence: string, evidence: readonly EvidenceQu
 function beforeOffer(sentence: string): string {
   if (!OFFERS_DOCUMENT.test(sentence)) return sentence;
   const at = sentence.search(/\b(?:send|sending|share|sharing|pass(?:ing)? on|forward|forwarding)\b/i);
-  return at === -1 ? sentence : sentence.slice(0, at);
+  if (at === -1) return sentence;
+  // "Happy to share the FCA review that says most firms can't…" carries a claim inside the offer: not exempt.
+  const offer = sentence.slice(at);
+  if (new RegExp(`\\b(?:that|which|where|saying)\\b[^.?!]*\\b${BODY_VERB}\\b`, "i").test(offer) || REPORTS.test(offer)) return sentence;
+  return sentence.slice(0, at);
 }
 
 
@@ -939,9 +943,11 @@ export function gateFor(draft: OutreachOutput, input: OutreachInput, context: Ga
   tierA.push(...colleagueFindings(draft, input, context));
   // 7: links and gender guesses.
   // A bare web address is a link too ("insurancetimes.co.uk had it as…"): say what happened, not where it was read.
-  // A firm whose trading name is a web address ("Confused.com") is a name, not a link.
-  const unnamed = [input.person.company, input.account.company].filter((name) => name.trim() !== "").reduce((rest, name) => rest.split(name).join(" "), text);
-  if (/https?:\/\/|www\.[a-z]|\b[a-z0-9-]+\.(?:co\.uk|org\.uk|com|net|org|io)\b(?!\S)/.test(unnamed) || /https?:\/\/|www\.[a-z]/i.test(unnamed)) tierA.push({ rule: "link", text: "It carries a link or a web address. Nothing Relay drafts carries one." });
+  // A firm whose trading name is a web address ("Confused.com") is a name, not a link; any other address is one,
+  // whatever its case or what follows it ("insurancetimes.co.uk,", "FT.com", "…co.uk/news/…").
+  const firmNames = [input.person.company, input.account.company].filter((name) => name.trim() !== "");
+  const unnamed = firmNames.reduce((rest, name) => rest.replace(new RegExp(escape(name), "gi"), " "), text);
+  if (/https?:\/\/|www\.[a-z]|\b[A-Za-z0-9-]+\.(?:co\.uk|org\.uk|com|net|org|io)\b/.test(unnamed)) tierA.push({ rule: "link", text: "It carries a link or a web address. Nothing Relay drafts carries one." });
   const pronouns = [...new Set(genderedPronouns({ kind, body: text, ask: "", claims: [] }))];
   if (pronouns.length > 0) tierA.push({ rule: "gendered-pronoun", text: `It says ${pronouns.map((word) => `"${word}"`).join(", ")} about the prospect. Use their name or "they".` });
 

@@ -398,6 +398,16 @@ describe("the 28 Sep final trigger round: real drafts", () => {
     }
   });
 
+  it("keeps an offer from carrying a claim, before or inside it (Critic, #56 r4)", () => {
+    for (const sentence of [
+      "Happy to share the FCA review that says most firms can't show a fix worked.",
+      "Per the FCA's root cause work most firms can't show a fix worked, happy to send the review.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+    expect(unsupportedSourceClaims(["Happy to send over the FCA's write-up on root cause work if it's useful."], [FCA])).toEqual([]);
+  });
+
   it("reads a firm whose name is a web address as a name, not a link", () => {
     const who: Who = { first: "Alex", company: "Confused.com", domain: "confused.com", title: "Head of Complaints" };
     const ask = "How does your team get back to what was said on the call at the moment?";
@@ -405,6 +415,11 @@ describe("the 28 Sep final trigger round: real drafts", () => {
     expect(holds(run(draft, "email1", { who }))).not.toContain("link");
     const linked = message(`Saw insurancetimes.co.uk had a piece on your team this year, and it made me curious about the calls behind it.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`, ask, "the piece");
     expect(holds(run(linked, "email1", { who }))).toContain("link");
+    // Whatever follows the address, and whatever its case.
+    for (const where of ["on insurancetimes.co.uk.", "on insurancetimes.co.uk, and", "(insurancetimes.co.uk)", "at insurancetimes.co.uk/news/team", "in InsuranceTimes.co.uk", "in FT.com"]) {
+      const text = `Saw a piece ${where} about your team this year, and it made me curious about the calls behind it.\n\nI've been helping a few firms get a proper look at calls like that. ${ask}`;
+      expect(holds(run(message(text, ask, "the piece"), "email1", { who }))).toContain("link");
+    }
   });
 
   it("does not read the reader's own team or a document offer as a source", () => {

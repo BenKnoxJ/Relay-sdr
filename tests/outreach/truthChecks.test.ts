@@ -365,6 +365,29 @@ describe("the 28 Sep trigger round: real drafts", () => {
   });
 });
 
+describe("the 28 Sep final trigger round: real drafts", () => {
+  it("holds a named body's claim that is not in its exact words, with or without the campaign's evidence", () => {
+    for (const sentence of [
+      "The FCA's complaints handling review this year said firms often can't show a fix actually worked, only that they made one.",
+      "The FCA's complaints handling review this year said root causes aren't always recorded properly.",
+      "The regulator wants firms to show root causes and prove a fix actually worked.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [])).toEqual([sentence]);
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([sentence]);
+    }
+  });
+
+  it("does not read the reader's own team or a document offer as a source", () => {
+    for (const sentence of [
+      "When QA found the same issue twice, who picked it up?",
+      "Happy to send over what the FCA said about root cause work in its review this year.",
+      "Saw you took over as COO at Policy Expert earlier this year.",
+    ]) {
+      expect(unsupportedSourceClaims([sentence], [FCA])).toEqual([]);
+    }
+  });
+});
+
 describe("fix round 2: Critic's and Sentinel's probes", () => {
   const source = "unsupported-source-claim";
 

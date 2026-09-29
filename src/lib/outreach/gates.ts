@@ -285,8 +285,11 @@ export function attributesASource(sentence: string, names: readonly string[] = [
   const plain = withoutNames(sentence, names);
   const namesEvidence = evidence.some((quote) => sourceWords(quote).some((word) => hasPhrase(sentence, word)));
   if (reportsByThirdParty(sentence, REPORTS)) return true;
+  // A body named as saying or finding something, whether or not the campaign has its words: "The FCA's review
+  // said firms often can't show…", "the regulator wants…" (28 Sep trigger round). Its words must then be quoted.
+  if (namesABodySaying(sentence) && !OFFERS_DOCUMENT.test(sentence)) return true;
   // "Says" only with an evidence source named: "the FCA says…" is a claim, "what was said on the call" is not.
-  if (namesEvidence && reportsByThirdParty(sentence, SAYS)) return true;
+  if (namesEvidence && reportsByThirdParty(sentence, SAYS) && !OFFERS_DOCUMENT.test(sentence)) return true;
   if (FIGURE.test(plain) && namesEvidence) return true;
   const thirdParty = evidence.filter((quote) => ownSiteNames(quote, about).length === 0);
   return writesSourceName(sentence, thirdParty) && !OFFERS_DOCUMENT.test(sentence);
@@ -328,6 +331,16 @@ function reportsByThirdParty(sentence: string, verbs: RegExp): boolean {
 }
 
 const SAYS = /\b(?:says|said|states|stated|warns|warned)\b/i;
+
+/** Business acronyms that are not a source: "QA found…" is the reader's team. */
+const NOT_A_BODY = new Set("QA MI COO CEO CFO CTO CCO UK HR IT AI KPI SLA OK TV PR".split(" "));
+const BODY_VERB = "(?:said|says|found|finds|flagged|flags|showed|shows|wants|expects|requires|reported|highlighted|pointed out|noted|warned)";
+/** A named body (an acronym, "the regulator", "the ombudsman") as the subject of a reporting verb. */
+export function namesABodySaying(sentence: string): boolean {
+  const acronym = new RegExp(`\\b([A-Z]{2,6})(?:['’]s)?\\b(?:\\s+[\\w'’-]+){0,5}?\\s+${BODY_VERB}\\b`, "g");
+  for (const match of sentence.matchAll(acronym)) if (!NOT_A_BODY.has(match[1]!)) return true;
+  return new RegExp(`\\b(?:the\\s+)?(?:regulator|ombudsman)(?:['’]s)?\\b(?:\\s+[\\w'’-]+){0,5}?\\s+${BODY_VERB}\\b`, "i").test(sentence);
+}
 
 /**
  * The sentences that quote or attribute without the campaign's evidence behind them. A sentence passes when:
@@ -906,7 +919,8 @@ export function gateFor(draft: OutreachOutput, input: OutreachInput, context: Ga
   // 6: colleagues.
   tierA.push(...colleagueFindings(draft, input, context));
   // 7: links and gender guesses.
-  if (/https?:\/\/|www\.[a-z]/i.test(text)) tierA.push({ rule: "link", text: "It carries a link. Nothing Relay drafts carries one." });
+  // A bare web address is a link too ("insurancetimes.co.uk had it as…"): say what happened, not where it was read.
+  if (/https?:\/\/|www\.[a-z]|\b[a-z0-9-]+\.(?:co\.uk|org\.uk|com|net|org|io)\b/i.test(text)) tierA.push({ rule: "link", text: "It carries a link or a web address. Nothing Relay drafts carries one." });
   const pronouns = [...new Set(genderedPronouns({ kind, body: text, ask: "", claims: [] }))];
   if (pronouns.length > 0) tierA.push({ rule: "gendered-pronoun", text: `It says ${pronouns.map((word) => `"${word}"`).join(", ")} about the prospect. Use their name or "they".` });
 
